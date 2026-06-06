@@ -1403,10 +1403,14 @@ async function startV(store){
     try{vPhotos.nc=JSON.parse(e.fotos_nc||'[]');}catch(err){vPhotos.nc=[];}
     try{vRut=JSON.parse(e.rut_check||'{}');}catch(err){vRut={};}
   }else{['v-cs','v-cd','v-cr','v-nt'].forEach(i=>{const e=el(i);if(e)e.value='';});el('v-qe').value='';}
-  renderPhotos('cafe');renderPhotos('nc');await rVRut();
-  el('v-rep').style.display='none';switchVTab('audit');
-  const tp=await dbGet('cj_tarefas','loja=eq.'+store+'&estado=neq.concluida')||[];
-  const b=el('v-tbdg');if(b){b.style.display=tp.length>0?'inline-flex':'none';b.textContent=tp.length;}
+  try{ renderPhotos('cafe');renderPhotos('nc'); }catch(e){}
+  try{ await rVRut(); }catch(e){}
+  el('v-rep').style.display='none';
+  switchVTab('audit'); // Always show audit tab
+  try{
+    const tp=await dbGet('cj_tarefas','loja=eq.'+store+'&estado=neq.concluida')||[];
+    const b=el('v-tbdg');if(b){b.style.display=tp.length>0?'inline-flex':'none';b.textContent=tp.length;}
+  }catch(e){}
   const vc=el('v-tar-create');if(vc)vc.style.display=adm()?'block':'none';
 }
 function backV(){el('v-stores').style.display='block';el('v-form').style.display='none';vStore=null;}
