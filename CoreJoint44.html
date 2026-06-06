@@ -5,211 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>CoreJoint · Bagga</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#f0f2f5;--bg2:#e8ebef;--sf:#fff;--sf2:#f7f8fa;
-  --br:#dde1e8;--ac:#1a56db;--ac2:#1e429f;--acl:#ebf0ff;
-  --tx:#111928;--t2:#6b7280;--t3:#9ca3af;
-  --red:#e02424;--org:#d97706;--grn:#057a55;--blu:#1a56db;--yel:#92400e;
-  --pur:#6b21a8;--ra:10px;--rb:7px;
-}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:14px;overflow-x:hidden}
-::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--br);border-radius:3px}
-#app{display:flex;flex-direction:column;min-height:100vh}
-#loading{display:none;position:fixed;inset:0;background:rgba(255,255,255,.9);z-index:9000;align-items:center;justify-content:center;flex-direction:column;gap:12px}
-#loading.show{display:flex}
-.spin{width:36px;height:36px;border:3px solid var(--br);border-top-color:var(--ac);border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:99px;font-size:.84rem;font-weight:500;color:#fff;z-index:9999;display:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.2)}
-#err-bar{display:none;position:fixed;top:0;left:0;right:0;z-index:8888;background:var(--red);color:#fff;padding:10px 16px;font-size:.82rem;text-align:center}
-#err-bar button{background:rgba(255,255,255,.25);border:none;color:#fff;padding:3px 10px;border-radius:4px;cursor:pointer;margin-left:8px;font-family:inherit;font-size:.8rem}
-#RO{display:none;position:fixed;inset:0;background:var(--sf);z-index:7777;align-items:center;justify-content:center;padding:24px}
-#RO.show{display:flex}
-.rbox{text-align:center;max-width:300px}
-.rbox h2{font-family:'Syne',sans-serif;font-size:1.2rem;margin:12px 0 8px}
-.rbox p{font-size:.86rem;color:var(--t2);margin-bottom:24px;line-height:1.6}
-.rcn{width:100%;padding:12px;background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);font-size:.9rem;cursor:pointer;margin-bottom:8px;font-family:inherit;color:var(--tx)}
-.rok{width:100%;padding:12px;background:var(--red);border:none;border-radius:var(--rb);font-size:.9rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit}
-#RST{margin-top:10px;font-size:.84rem;min-height:18px}
-/* LOGIN */
-#LS{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(135deg,#f0f4ff,#e8f0fe)}
-.logo{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--ac);letter-spacing:-1.5px;margin-bottom:3px}
-.logo-s{font-size:.72rem;color:var(--t2);letter-spacing:3px;text-transform:uppercase;margin-bottom:28px}
-.lc{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:26px 22px;width:100%;max-width:360px;box-shadow:0 4px 20px rgba(26,86,219,.1)}
-.ptabs{display:flex;gap:5px;margin-bottom:18px}
-.ptab{flex:1;padding:9px 4px;border:1.5px solid var(--br);border-radius:var(--rb);background:var(--sf2);color:var(--t2);font-family:inherit;font-size:.77rem;cursor:pointer;transition:.2s;text-align:center}
-.ptab.on{background:var(--ac);border-color:var(--ac);color:#fff}
-.fg{margin-bottom:13px}
-.fg label{display:block;font-size:.69rem;color:var(--t2);margin-bottom:4px;letter-spacing:.5px;text-transform:uppercase;font-weight:600}
-.fc{width:100%;padding:9px 12px;background:var(--bg2);border:1.5px solid var(--br);border-radius:var(--rb);color:var(--tx);font-family:inherit;font-size:.9rem;outline:none;transition:.2s}
-.fc:focus{border-color:var(--ac);background:var(--sf)}
-select.fc option{background:#fff}
-textarea.fc{resize:vertical;min-height:72px;line-height:1.5}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:9px 16px;border-radius:var(--rb);border:none;cursor:pointer;font-family:inherit;font-size:.87rem;font-weight:500;transition:.2s;white-space:nowrap}
-.bp{background:var(--ac);color:#fff}.bp:hover{background:var(--ac2)}
-.bs{background:var(--sf2);color:var(--tx);border:1.5px solid var(--br)}.bs:hover{border-color:var(--ac);color:var(--ac)}
-.bd{background:var(--red);color:#fff}
-.bw{background:var(--org);color:#fff}
-.bg2{background:var(--grn);color:#fff}
-.bf{width:100%}.bsm{padding:5px 10px;font-size:.75rem}
-.lerr{color:var(--red);font-size:.78rem;margin-top:8px;text-align:center;display:none}
-.lrst{width:100%;padding:9px;background:none;border:1.5px dashed var(--br);border-radius:var(--rb);font-size:.74rem;color:var(--t3);cursor:pointer;margin-top:9px;font-family:inherit}
-.lrst:hover{border-color:var(--red);color:var(--red)}
-/* HEADER */
-#HD{display:none;align-items:center;padding:0 14px;height:50px;background:var(--sf);border-bottom:1px solid var(--br);position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.06)}
-.hlog{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:var(--ac)}
-.hrtag{font-size:.69rem;color:#fff;padding:2px 8px;border-radius:99px;margin-left:8px;font-weight:600}
-.hrtag.gop{background:var(--ac)}.hrtag.ops{background:var(--pur)}.hrtag.mgr{background:var(--grn)}
-.hbdg{background:var(--red);color:#fff;border-radius:50%;width:17px;height:17px;font-size:.58rem;display:flex;align-items:center;justify-content:center;font-weight:700;margin-left:auto}
-.hlg{background:var(--sf2);border:1.5px solid var(--br);color:var(--t2);cursor:pointer;font-size:.72rem;padding:4px 10px;border-radius:var(--rb);margin-left:10px;font-family:inherit}
-.hlg:hover{border-color:var(--red);color:var(--red)}
-/* NAV */
-#NV{display:none;background:var(--sf);border-bottom:1px solid var(--br);overflow-x:auto;white-space:nowrap;padding:0 10px}
-.ni{display:inline-flex;align-items:center;gap:4px;padding:10px 10px;color:var(--t2);font-size:.77rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:.2s}
-.ni:hover{color:var(--tx)}.ni.on{color:var(--ac);border-bottom-color:var(--ac);font-weight:600}
-.nbg{background:var(--red);color:#fff;border-radius:50%;min-width:15px;height:15px;font-size:.55rem;display:inline-flex;align-items:center;justify-content:center;font-weight:700;padding:0 2px}
-/* MAIN */
-#MN{flex:1;padding:14px;max-width:960px;margin:0 auto;width:100%}
-.sec{display:none}.sec.on{display:block}
-.pt{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:2px}
-.ps{font-size:.76rem;color:var(--t2);margin-bottom:14px}
-.dv{height:1px;background:var(--br);margin:12px 0}
-/* CARDS */
-.card{background:var(--sf);border:1px solid var(--br);border-radius:var(--ra);padding:15px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:7px}
-.ct{font-family:'Syne',sans-serif;font-size:.92rem;font-weight:700}
-.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-@media(max-width:640px){.g4{grid-template-columns:1fr 1fr}}
-@media(max-width:380px){.g4,.g2{grid-template-columns:1fr}}
-.sc{background:var(--sf);border:1px solid var(--br);border-radius:var(--ra);padding:13px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.slb{font-size:.67rem;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:2px}
-.svl{font-family:'Syne',sans-serif;font-size:1.45rem;font-weight:800}
-.cr{color:var(--red)}.cg{color:var(--grn)}.co{color:var(--org)}.cy{color:var(--yel)}.cb{color:var(--blu)}
-/* BADGES */
-.bk{display:inline-flex;align-items:center;padding:2px 7px;border-radius:99px;font-size:.66rem;font-weight:600;border:1px solid transparent}
-.bk-p{background:#fffbeb;color:var(--yel);border-color:#fcd34d}
-.bk-g{background:#f0fdf4;color:var(--grn);border-color:#86efac}
-.bk-d{background:#fff5f5;color:var(--red);border-color:#fca5a5}
-.bk-i{background:#eff6ff;color:var(--blu);border-color:#93c5fd}
-.bk-n{background:var(--sf2);color:var(--t2);border-color:var(--br)}
-.bk-o{background:#fffbeb;color:var(--org);border-color:#fcd34d}
-/* ALERTS */
-.al{padding:10px 13px;border-radius:var(--rb);margin-bottom:10px;font-size:.8rem;border-left:3px solid;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.al-w{background:#fffbeb;border-color:var(--org);color:#78350f}
-.al-d{background:#fff5f5;border-color:var(--red);color:var(--red)}
-.al-g{background:#f0fdf4;border-color:var(--grn);color:var(--grn)}
-.al-i{background:#eff6ff;border-color:var(--blu);color:var(--blu)}
-/* TABLE */
-.tw{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:.8rem}
-th{padding:7px 9px;text-align:left;color:var(--t2);font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--br);font-weight:600;background:var(--sf2)}
-td{padding:9px;border-bottom:1px solid var(--br);vertical-align:middle}
-tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
-/* FORM */
-.fr{display:flex;gap:9px;margin-bottom:11px;flex-wrap:wrap}
-.fr .fg{flex:1;min-width:120px;margin-bottom:0}
-/* JUSTIFICAÇÃO */
-.jb{background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);padding:11px;margin-top:9px}
-.jl{font-size:.68rem;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:5px;display:flex;align-items:center;gap:5px}
-.jreq{background:#fff5f5;color:var(--red);font-size:.59rem;padding:1px 6px;border-radius:99px;font-weight:700}
-.jopt{background:var(--bg2);color:var(--t3);font-size:.59rem;padding:1px 6px;border-radius:99px}
-.jta{width:100%;padding:9px 11px;background:var(--sf);border:1.5px solid var(--br);border-radius:var(--rb);color:var(--tx);font-family:inherit;font-size:.87rem;outline:none;resize:vertical;min-height:64px;line-height:1.5;transition:.2s}
-.jta:focus{border-color:var(--ac)}.jta.jerr{border-color:var(--red)!important}
-.jsv{font-size:.69rem;color:var(--grn);margin-top:3px}
-/* UPLOAD */
-.upz{border:2px dashed var(--br);border-radius:var(--rb);padding:18px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:9px;background:var(--bg2)}
-.upz:hover{border-color:var(--ac);background:var(--acl)}
-.upz input{display:none}
-/* PHOTOS */
-.ptb{display:flex;flex-wrap:wrap;gap:7px;margin-top:7px}
-.pth{width:66px;height:66px;object-fit:cover;border-radius:5px;border:1.5px solid var(--br);cursor:pointer}
-.pcb{width:66px;height:66px;border:2px dashed var(--br);border-radius:5px;background:var(--sf2);color:var(--t2);font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px}
-.pcb span{font-size:.58rem;color:var(--t3)}
-.pcb:hover{border-color:var(--ac);color:var(--ac)}
-.pfi{display:none}
-/* MODAL */
-.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;padding:14px}
-.mo.open{display:flex}
-.md{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:20px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.15)}
-.mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.mtt{font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem}
-.mx{background:none;border:none;color:var(--t2);font-size:1.2rem;cursor:pointer}
-.mf{display:flex;gap:7px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
-/* STORE GRID */
-.sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
-.sb{padding:12px 8px;background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);cursor:pointer;text-align:center;color:var(--tx);font-size:.8rem;font-family:inherit;transition:.2s}
-.sb:hover{border-color:var(--ac);background:var(--acl);color:var(--ac)}
-/* CHECKLIST */
-.cli{display:flex;align-items:center;gap:9px;padding:8px 11px;background:var(--sf2);border-radius:var(--rb);margin-bottom:5px;border:1px solid var(--br)}
-.ck{width:28px;height:28px;border-radius:50%;border:2px solid var(--br);background:none;cursor:pointer;font-size:.88rem;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0}
-.ck.ok{border-color:var(--grn);color:var(--grn);background:#f0fdf4}
-.ck.fail{border-color:var(--red);color:var(--red);background:#fff5f5}
-/* SLA */
-.sk{color:var(--grn);font-size:.72rem;font-weight:700}
-.sw{color:var(--org);font-size:.72rem;font-weight:700}
-.sc2{color:var(--red);font-size:.72rem;font-weight:700;animation:pu .8s infinite alternate}
-@keyframes pu{from{opacity:1}to{opacity:.4}}
-/* SUBTABS */
-.stabs{display:flex;margin-bottom:14px;border-bottom:1px solid var(--br);overflow-x:auto}
-.stab{padding:7px 13px;font-size:.77rem;color:var(--t2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:.2s}
-.stab.on{color:var(--ac);border-bottom-color:var(--ac);font-weight:600}
-/* TIMELINE */
-.tl{padding-left:13px;border-left:2px solid var(--br);margin-top:9px}
-.tli{position:relative;padding:0 0 10px 13px}
-.tli::before{content:'';position:absolute;left:-5px;top:4px;width:8px;height:8px;border-radius:50%;background:var(--ac)}
-.tlr::before{background:var(--red)}.tly::before{background:var(--org)}.tlg::before{background:var(--grn)}
-.tlm{font-size:.69rem;color:var(--t3);margin-top:1px}
-/* VROW */
-.vrow{display:flex;align-items:center;gap:8px;padding:9px 11px;background:var(--sf2);border-radius:var(--rb);margin-bottom:5px;flex-wrap:wrap;border:1px solid var(--br)}
-/* WFM */
-.wg{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:9px}
-@media(max-width:460px){.wg{grid-template-columns:1fr}}
-.wf{background:var(--bg2);border-radius:var(--rb);padding:9px 11px}
-.wf label{font-size:.67rem;color:var(--t2);text-transform:uppercase;letter-spacing:.3px;font-weight:600;display:block;margin-bottom:4px}
-/* ITEM CARD */
-.ic{background:var(--sf);border:1px solid var(--br);border-radius:var(--rb);padding:13px;margin-bottom:8px;border-left:4px solid var(--br)}
-.ic.pend{border-left-color:var(--org)}.ic.done{border-left-color:var(--grn)}
-.ic.crit{border-left-color:var(--red)}.ic.inf{border-left-color:var(--blu)}
-.ic-top{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px}
-.ic-info{flex:1;min-width:150px}
-.ic-store{font-size:.69rem;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
-.ic-title{font-size:.88rem;font-weight:700;margin-bottom:2px}
-.ic-sub{font-size:.76rem;color:var(--t2);line-height:1.4}
-.ic-acts{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
-.ic-btns{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
-.logtag{font-size:.65rem;color:var(--pur);background:#f5f3ff;border:1px solid #c4b5fd;padding:2px 7px;border-radius:99px;display:inline-flex;align-items:center}
-.del-btn{background:none;border:none;color:var(--t3);cursor:pointer;font-size:.9rem;padding:3px 5px;border-radius:4px}
-.del-btn:hover{color:var(--red);background:#fff5f5}
-/* RUTURAS */
-.rcat{font-size:.68rem;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid var(--br)}
-.rsec{margin-bottom:10px}
-/* REPORT */
-#rep-out{background:var(--bg2);border:1.5px solid var(--br);border-radius:var(--rb);padding:13px;font-size:.76rem;white-space:pre-wrap;color:var(--t2);max-height:260px;overflow-y:auto;margin-bottom:11px;font-family:monospace}
-/* CAMERA */
-.cam-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px dashed var(--ac);border-radius:var(--rb);background:var(--acl);color:var(--ac);cursor:pointer;font-size:.82rem;font-weight:500;font-family:inherit;transition:.2s}
-.cam-btn:hover{background:var(--ac);color:#fff}
-.photo-item{position:relative;display:inline-block}
-.photo-item img{width:80px;height:80px;object-fit:cover;border-radius:6px;border:1.5px solid var(--br);cursor:pointer;display:block}
-.photo-del{position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
-.photo-legend{width:80px;margin-top:3px;font-size:.65rem;padding:2px 4px;border:1px solid var(--br);border-radius:3px;background:var(--sf);color:var(--tx);font-family:inherit;outline:none}
-.photo-legend:focus{border-color:var(--ac)}
-/* TEST BAR */
-.test-bar{background:#fffbeb;border:1px solid #fcd34d;border-radius:var(--rb);padding:9px 13px;margin-bottom:13px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px;font-size:.79rem;color:#78350f}
-
-/* ── KEYPAD ── */
-.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;max-width:220px;margin-left:auto;margin-right:auto}
-.kbtn{padding:14px;font-size:1.2rem;font-weight:700;background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);cursor:pointer;font-family:inherit;color:var(--tx);transition:.15s;text-align:center}
-.kbtn:hover{background:var(--ac);color:#fff;border-color:var(--ac)}
-.kbtn:active{transform:scale(.95)}
-.kbtn.kdel{background:#fff5f5;border-color:#fca5a5;color:var(--red)}
-.kbtn.kdel:hover{background:var(--red);color:#fff}
-.kbtn.kclr{background:var(--sf2);color:var(--t2);font-size:.8rem}
-.pin-dots{display:flex;justify-content:center;gap:10px;margin:12px 0 4px}
-.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--br);background:var(--sf2);transition:.2s}
-.pin-dot.filled{background:var(--ac);border-color:var(--ac)}
-</style>
+<style>:root{--bg:#f0f2f5;--bg2:#e8ebef;--sf:#fff;--sf2:#f7f8fa;--br:#dde1e8;--ac:#1a56db;--ac2:#1e429f;--acl:#ebf0ff;--tx:#111928;--t2:#6b7280;--t3:#9ca3af;--red:#e02424;--org:#d97706;--grn:#057a55;--blu:#1a56db;--yel:#92400e;--pur:#6b21a8;--ra:10px;--rb:7px;}*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:14px;overflow-x:hidden}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--br);border-radius:3px}#app{display:flex;flex-direction:column;min-height:100vh}#loading{display:none;position:fixed;inset:0;background:rgba(255,255,255,.9);z-index:9000;align-items:center;justify-content:center;flex-direction:column;gap:12px}#loading.show{display:flex}.spin{width:36px;height:36px;border:3px solid var(--br);border-top-color:var(--ac);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:99px;font-size:.84rem;font-weight:500;color:#fff;z-index:9999;display:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.2)}#err-bar{display:none;position:fixed;top:0;left:0;right:0;z-index:8888;background:var(--red);color:#fff;padding:10px 16px;font-size:.82rem;text-align:center}#err-bar button{background:rgba(255,255,255,.25);border:none;color:#fff;padding:3px 10px;border-radius:4px;cursor:pointer;margin-left:8px;font-family:inherit;font-size:.8rem}#RO{display:none;position:fixed;inset:0;background:var(--sf);z-index:7777;align-items:center;justify-content:center;padding:24px}#RO.show{display:flex}.rbox{text-align:center;max-width:300px}.rbox h2{font-family:'Syne',sans-serif;font-size:1.2rem;margin:12px 0 8px}.rbox p{font-size:.86rem;color:var(--t2);margin-bottom:24px;line-height:1.6}.rcn{width:100%;padding:12px;background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);font-size:.9rem;cursor:pointer;margin-bottom:8px;font-family:inherit;color:var(--tx)}.rok{width:100%;padding:12px;background:var(--red);border:none;border-radius:var(--rb);font-size:.9rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit}#RST{margin-top:10px;font-size:.84rem;min-height:18px}#LS{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(135deg,#f0f4ff,#e8f0fe)}.logo{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--ac);letter-spacing:-1.5px;margin-bottom:3px}.logo-s{font-size:.72rem;color:var(--t2);letter-spacing:3px;text-transform:uppercase;margin-bottom:28px}.lc{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:26px 22px;width:100%;max-width:360px;box-shadow:0 4px 20px rgba(26,86,219,.1)}.ptabs{display:flex;gap:5px;margin-bottom:18px}.ptab{flex:1;padding:9px 4px;border:1.5px solid var(--br);border-radius:var(--rb);background:var(--sf2);color:var(--t2);font-family:inherit;font-size:.77rem;cursor:pointer;transition:.2s;text-align:center}.ptab.on{background:var(--ac);border-color:var(--ac);color:#fff}.fg{margin-bottom:13px}.fg label{display:block;font-size:.69rem;color:var(--t2);margin-bottom:4px;letter-spacing:.5px;text-transform:uppercase;font-weight:600}.fc{width:100%;padding:9px 12px;background:var(--bg2);border:1.5px solid var(--br);border-radius:var(--rb);color:var(--tx);font-family:inherit;font-size:.9rem;outline:none;transition:.2s}.fc:focus{border-color:var(--ac);background:var(--sf)}select.fc option{background:#fff}textarea.fc{resize:vertical;min-height:72px;line-height:1.5}.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:9px 16px;border-radius:var(--rb);border:none;cursor:pointer;font-family:inherit;font-size:.87rem;font-weight:500;transition:.2s;white-space:nowrap}.bp{background:var(--ac);color:#fff}.bp:hover{background:var(--ac2)}.bs{background:var(--sf2);color:var(--tx);border:1.5px solid var(--br)}.bs:hover{border-color:var(--ac);color:var(--ac)}.bd{background:var(--red);color:#fff}.bw{background:var(--org);color:#fff}.bg2{background:var(--grn);color:#fff}.bf{width:100%}.bsm{padding:5px 10px;font-size:.75rem}.lerr{color:var(--red);font-size:.78rem;margin-top:8px;text-align:center;display:none}.lrst{width:100%;padding:9px;background:none;border:1.5px dashed var(--br);border-radius:var(--rb);font-size:.74rem;color:var(--t3);cursor:pointer;margin-top:9px;font-family:inherit}.lrst:hover{border-color:var(--red);color:var(--red)}#HD{display:none;align-items:center;padding:0 14px;height:50px;background:var(--sf);border-bottom:1px solid var(--br);position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.06)}.hlog{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:var(--ac)}.hrtag{font-size:.69rem;color:#fff;padding:2px 8px;border-radius:99px;margin-left:8px;font-weight:600}.hrtag.gop{background:var(--ac)}.hrtag.ops{background:var(--pur)}.hrtag.mgr{background:var(--grn)}.hbdg{background:var(--red);color:#fff;border-radius:50%;width:17px;height:17px;font-size:.58rem;display:flex;align-items:center;justify-content:center;font-weight:700;margin-left:auto}.hlg{background:var(--sf2);border:1.5px solid var(--br);color:var(--t2);cursor:pointer;font-size:.72rem;padding:4px 10px;border-radius:var(--rb);margin-left:10px;font-family:inherit}.hlg:hover{border-color:var(--red);color:var(--red)}#NV{display:none;background:var(--sf);border-bottom:1px solid var(--br);overflow-x:auto;white-space:nowrap;padding:0 10px}.ni{display:inline-flex;align-items:center;gap:4px;padding:10px 10px;color:var(--t2);font-size:.77rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:.2s}.ni:hover{color:var(--tx)}.ni.on{color:var(--ac);border-bottom-color:var(--ac);font-weight:600}.nbg{background:var(--red);color:#fff;border-radius:50%;min-width:15px;height:15px;font-size:.55rem;display:inline-flex;align-items:center;justify-content:center;font-weight:700;padding:0 2px}#MN{flex:1;padding:14px;max-width:960px;margin:0 auto;width:100%}.sec{display:none}.sec.on{display:block}.pt{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:2px}.ps{font-size:.76rem;color:var(--t2);margin-bottom:14px}.dv{height:1px;background:var(--br);margin:12px 0}.card{background:var(--sf);border:1px solid var(--br);border-radius:var(--ra);padding:15px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}.ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:7px}.ct{font-family:'Syne',sans-serif;font-size:.92rem;font-weight:700}.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}@media(max-width:640px){.g4{grid-template-columns:1fr 1fr}}@media(max-width:380px){.g4,.g2{grid-template-columns:1fr}}.sc{background:var(--sf);border:1px solid var(--br);border-radius:var(--ra);padding:13px;box-shadow:0 1px 3px rgba(0,0,0,.06)}.slb{font-size:.67rem;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:2px}.svl{font-family:'Syne',sans-serif;font-size:1.45rem;font-weight:800}.cr{color:var(--red)}.cg{color:var(--grn)}.co{color:var(--org)}.cy{color:var(--yel)}.cb{color:var(--blu)}.bk{display:inline-flex;align-items:center;padding:2px 7px;border-radius:99px;font-size:.66rem;font-weight:600;border:1px solid transparent}.bk-p{background:#fffbeb;color:var(--yel);border-color:#fcd34d}.bk-g{background:#f0fdf4;color:var(--grn);border-color:#86efac}.bk-d{background:#fff5f5;color:var(--red);border-color:#fca5a5}.bk-i{background:#eff6ff;color:var(--blu);border-color:#93c5fd}.bk-n{background:var(--sf2);color:var(--t2);border-color:var(--br)}.bk-o{background:#fffbeb;color:var(--org);border-color:#fcd34d}.al{padding:10px 13px;border-radius:var(--rb);margin-bottom:10px;font-size:.8rem;border-left:3px solid;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.al-w{background:#fffbeb;border-color:var(--org);color:#78350f}.al-d{background:#fff5f5;border-color:var(--red);color:var(--red)}.al-g{background:#f0fdf4;border-color:var(--grn);color:var(--grn)}.al-i{background:#eff6ff;border-color:var(--blu);color:var(--blu)}.tw{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:.8rem}th{padding:7px 9px;text-align:left;color:var(--t2);font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--br);font-weight:600;background:var(--sf2)}td{padding:9px;border-bottom:1px solid var(--br);vertical-align:middle}tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}.fr{display:flex;gap:9px;margin-bottom:11px;flex-wrap:wrap}.fr .fg{flex:1;min-width:120px;margin-bottom:0}.jb{background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);padding:11px;margin-top:9px}.jl{font-size:.68rem;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:5px;display:flex;align-items:center;gap:5px}.jreq{background:#fff5f5;color:var(--red);font-size:.59rem;padding:1px 6px;border-radius:99px;font-weight:700}.jopt{background:var(--bg2);color:var(--t3);font-size:.59rem;padding:1px 6px;border-radius:99px}.jta{width:100%;padding:9px 11px;background:var(--sf);border:1.5px solid var(--br);border-radius:var(--rb);color:var(--tx);font-family:inherit;font-size:.87rem;outline:none;resize:vertical;min-height:64px;line-height:1.5;transition:.2s}.jta:focus{border-color:var(--ac)}.jta.jerr{border-color:var(--red)!important}.jsv{font-size:.69rem;color:var(--grn);margin-top:3px}.upz{border:2px dashed var(--br);border-radius:var(--rb);padding:18px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:9px;background:var(--bg2)}.upz:hover{border-color:var(--ac);background:var(--acl)}.upz input{display:none}.ptb{display:flex;flex-wrap:wrap;gap:7px;margin-top:7px}.pth{width:66px;height:66px;object-fit:cover;border-radius:5px;border:1.5px solid var(--br);cursor:pointer}.pcb{width:66px;height:66px;border:2px dashed var(--br);border-radius:5px;background:var(--sf2);color:var(--t2);font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px}.pcb span{font-size:.58rem;color:var(--t3)}.pcb:hover{border-color:var(--ac);color:var(--ac)}.pfi{display:none}.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;padding:14px}.mo.open{display:flex}.md{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:20px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.15)}.mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.mtt{font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem}.mx{background:none;border:none;color:var(--t2);font-size:1.2rem;cursor:pointer}.mf{display:flex;gap:7px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}.sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}.sb{padding:12px 8px;background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);cursor:pointer;text-align:center;color:var(--tx);font-size:.8rem;font-family:inherit;transition:.2s}.sb:hover{border-color:var(--ac);background:var(--acl);color:var(--ac)}.cli{display:flex;align-items:center;gap:9px;padding:8px 11px;background:var(--sf2);border-radius:var(--rb);margin-bottom:5px;border:1px solid var(--br)}.ck{width:28px;height:28px;border-radius:50%;border:2px solid var(--br);background:none;cursor:pointer;font-size:.88rem;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0}.ck.ok{border-color:var(--grn);color:var(--grn);background:#f0fdf4}.ck.fail{border-color:var(--red);color:var(--red);background:#fff5f5}.sk{color:var(--grn);font-size:.72rem;font-weight:700}.sw{color:var(--org);font-size:.72rem;font-weight:700}.sc2{color:var(--red);font-size:.72rem;font-weight:700;animation:pu .8s infinite alternate}@keyframes pu{from{opacity:1}to{opacity:.4}}.stabs{display:flex;margin-bottom:14px;border-bottom:1px solid var(--br);overflow-x:auto}.stab{padding:7px 13px;font-size:.77rem;color:var(--t2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:.2s}.stab.on{color:var(--ac);border-bottom-color:var(--ac);font-weight:600}.tl{padding-left:13px;border-left:2px solid var(--br);margin-top:9px}.tli{position:relative;padding:0 0 10px 13px}.tli::before{content:'';position:absolute;left:-5px;top:4px;width:8px;height:8px;border-radius:50%;background:var(--ac)}.tlr::before{background:var(--red)}.tly::before{background:var(--org)}.tlg::before{background:var(--grn)}.tlm{font-size:.69rem;color:var(--t3);margin-top:1px}.vrow{display:flex;align-items:center;gap:8px;padding:9px 11px;background:var(--sf2);border-radius:var(--rb);margin-bottom:5px;flex-wrap:wrap;border:1px solid var(--br)}.wg{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:9px}@media(max-width:460px){.wg{grid-template-columns:1fr}}.wf{background:var(--bg2);border-radius:var(--rb);padding:9px 11px}.wf label{font-size:.67rem;color:var(--t2);text-transform:uppercase;letter-spacing:.3px;font-weight:600;display:block;margin-bottom:4px}.ic{background:var(--sf);border:1px solid var(--br);border-radius:var(--rb);padding:13px;margin-bottom:8px;border-left:4px solid var(--br)}.ic.pend{border-left-color:var(--org)}.ic.done{border-left-color:var(--grn)}.ic.crit{border-left-color:var(--red)}.ic.inf{border-left-color:var(--blu)}.ic-top{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px}.ic-info{flex:1;min-width:150px}.ic-store{font-size:.69rem;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}.ic-title{font-size:.88rem;font-weight:700;margin-bottom:2px}.ic-sub{font-size:.76rem;color:var(--t2);line-height:1.4}.ic-acts{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}.ic-btns{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}.logtag{font-size:.65rem;color:var(--pur);background:#f5f3ff;border:1px solid #c4b5fd;padding:2px 7px;border-radius:99px;display:inline-flex;align-items:center}.del-btn{background:none;border:none;color:var(--t3);cursor:pointer;font-size:.9rem;padding:3px 5px;border-radius:4px}.del-btn:hover{color:var(--red);background:#fff5f5}.rcat{font-size:.68rem;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid var(--br)}.rsec{margin-bottom:10px}#rep-out{background:var(--bg2);border:1.5px solid var(--br);border-radius:var(--rb);padding:13px;font-size:.76rem;white-space:pre-wrap;color:var(--t2);max-height:260px;overflow-y:auto;margin-bottom:11px;font-family:monospace}.cam-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px dashed var(--ac);border-radius:var(--rb);background:var(--acl);color:var(--ac);cursor:pointer;font-size:.82rem;font-weight:500;font-family:inherit;transition:.2s}.cam-btn:hover{background:var(--ac);color:#fff}.photo-item{position:relative;display:inline-block}.photo-item img{width:80px;height:80px;object-fit:cover;border-radius:6px;border:1.5px solid var(--br);cursor:pointer;display:block}.photo-del{position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}.photo-legend{width:80px;margin-top:3px;font-size:.65rem;padding:2px 4px;border:1px solid var(--br);border-radius:3px;background:var(--sf);color:var(--tx);font-family:inherit;outline:none}.photo-legend:focus{border-color:var(--ac)}.test-bar{background:#fffbeb;border:1px solid #fcd34d;border-radius:var(--rb);padding:9px 13px;margin-bottom:13px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px;font-size:.79rem;color:#78350f}.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;max-width:220px;margin-left:auto;margin-right:auto}.kbtn{padding:14px;font-size:1.2rem;font-weight:700;background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);cursor:pointer;font-family:inherit;color:var(--tx);transition:.15s;text-align:center}.kbtn:hover{background:var(--ac);color:#fff;border-color:var(--ac)}.kbtn:active{transform:scale(.95)}.kbtn.kdel{background:#fff5f5;border-color:#fca5a5;color:var(--red)}.kbtn.kdel:hover{background:var(--red);color:#fff}.kbtn.kclr{background:var(--sf2);color:var(--t2);font-size:.8rem}.pin-dots{display:flex;justify-content:center;gap:10px;margin:12px 0 4px}.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--br);background:var(--sf2);transition:.2s}.pin-dot.filled{background:var(--ac);border-color:var(--ac)}</style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
@@ -220,7 +16,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
 <div id="err-bar"><span id="err-msg"></span><button onclick="location.reload()">Recarregar</button></div>
 <div id="RO"><div class="rbox"><div style="font-size:2.5rem">🗑️</div><h2>Limpar Todos os Dados</h2><p>Apaga todos os dados do Supabase e localStorage.<br><strong>Não pode ser desfeito.</strong></p><button class="rcn" onclick="hideReset()">Cancelar</button><button class="rok" onclick="doReset()">✅ Sim, apagar tudo</button><div id="RST"></div></div></div>
 
-<!-- LOGIN -->
 <div id="LS">
   <div class="logo">CoreJoint</div>
   <div class="logo-s">Gestão Operacional · Bagga</div>
@@ -271,7 +66,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
   </div>
 </div>
 
-<!-- HEADER -->
 <div id="HD">
   <div class="hlog">CoreJoint</div>
   <span class="hrtag" id="h-rtag"></span>
@@ -279,7 +73,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
   <button class="hlg" onclick="doLogout()">Sair</button>
 </div>
 
-<!-- NAV -->
 <div id="NV">
   <span class="ni" data-s="dash" onclick="go('dash')">📊 Dashboard</span>
   <span class="ni" data-s="quebras" onclick="go('quebras')">💰 Quebras <span class="nbg" id="nb-q" style="display:none">0</span></span>
@@ -295,10 +88,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
   <span class="ni" style="color:var(--red)" onclick="showReset()">🗑️</span>
 </div>
 
-<!-- MAIN -->
 <div id="MN">
 
-<!-- DASHBOARD -->
 <div class="sec" id="s-dash">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
     <div class="pt">Dashboard</div>
@@ -317,7 +108,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
   <div id="d-content"></div>
 </div>
 
-<!-- QUEBRAS -->
 <div class="sec" id="s-quebras">
   <div class="pt">Gestão de Quebras</div><div class="ps">Validação financeira</div>
   <div id="q-imp">
@@ -331,14 +121,13 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
     <div class="ch"><div class="ct">Registo</div>
       <div style="display:flex;gap:5px;flex-wrap:wrap">
         <select class="fc" id="qf-l" onchange="rQ()" style="width:auto;padding:5px 9px;font-size:.73rem"><option value="">Todas</option><option value="caldas">Caldas</option><option value="bombarral">Bombarral</option><option value="ponte_sor">Ponte de Sor</option><option value="peniche">Peniche</option><option value="almeirim">Almeirim</option><option value="torres_mh">Torres MH</option><option value="torres_novas">Torres Novas</option><option value="rio_maior">Rio Maior</option><option value="santarem">Santarém</option><option value="carregado">Carregado</option></select>
-        <select class="fc" id="qf-e" onchange="rQ()" style="width:auto;padding:5px 9px;font-size:.73rem"><option value="">Todos</option><option value="pendente">Pendente</option><option value="validada">Validada</option><option value="justificada">Justificada</option></select>
+        <select class="fc" id="qf-e" onchange="rQ()" style="width:auto;padding:5px 9px;font-size:.73rem"><option value="pendente">⏳ Pendentes</option><option value="">Todos</option><option value="validada">✅ Validadas</option><option value="justificada">💬 Justificadas</option></select>
       </div>
     </div>
     <div id="q-list"></div>
   </div>
 </div>
 
-<!-- TROCAS -->
 <div class="sec" id="s-trocas">
   <div class="pt">Trocas &amp; Formações</div><div class="ps">Importar → Gerente confirma</div>
   <div id="tf-imp"><div class="card"><div class="ch"><div class="ct">Importar / Adicionar</div></div>
@@ -352,7 +141,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
   <div id="tf-fa" style="display:none"><div class="card"><div class="ch"><div class="ct">Formações</div><select class="fc" id="tfl-f" onchange="rF()" style="width:auto;padding:5px 9px;font-size:.73rem"><option value="">Todas</option><option value="caldas">Caldas</option><option value="bombarral">Bombarral</option><option value="ponte_sor">Ponte de Sor</option><option value="peniche">Peniche</option><option value="almeirim">Almeirim</option><option value="torres_mh">Torres MH</option><option value="torres_novas">Torres Novas</option><option value="rio_maior">Rio Maior</option><option value="santarem">Santarém</option><option value="carregado">Carregado</option></select></div><div id="tf-fl"></div></div></div>
 </div>
 
-<!-- AVARIAS -->
 <div class="sec" id="s-avarias">
   <div class="pt">Avarias &amp; Equipamentos</div><div class="ps">Reporte → PC → Resolução → Confirmação</div>
   <div style="display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap">
@@ -363,7 +151,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
   <div id="av-sla"></div><div id="av-list"></div>
 </div>
 
-<!-- SRM -->
 <div class="sec" id="s-srm">
   <div class="pt">Pedidos SRM</div><div class="ps">Incidências em pedidos</div>
   <div style="display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap">
@@ -374,7 +161,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
   <div id="srm-list"></div>
 </div>
 
-<!-- WFM -->
 <div class="sec" id="s-wfm">
   <div class="pt">Gestão WFM</div><div class="ps">Colaboradores · Banco Horas · Suplementar</div>
   <div id="wfm-imp"><div class="card"><div class="ch"><div class="ct">Importar / Inserir</div></div>
@@ -386,7 +172,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
   <div id="wfm-list"></div>
 </div>
 
-<!-- VISITAS -->
 <div class="sec" id="s-visitas">
   <div class="pt">Visitas GOP</div><div class="ps">Auditoria de loja com câmara e tarefas</div>
   <div id="v-stores"><div class="card"><div class="ch"><div class="ct">Selecionar Loja</div></div>
@@ -403,9 +188,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
       <div class="ch"><div><div class="ct" id="v-name"></div><div style="font-size:.72rem;color:var(--t2)" id="v-dt"></div></div><button class="btn bsm bs" onclick="backV()">← Lojas</button></div>
       <div class="stabs"><div class="stab on" onclick="switchVTab('audit')">🔍 Auditoria</div><div class="stab" onclick="switchVTab('tasks')">📋 Tarefas <span class="nbg" id="v-tbdg" style="display:none">0</span></div></div>
 
-      <!-- AUDITORIA TAB -->
       <div id="v-audit">
-        <!-- HORA + FOTO CHEGADA -->
+        
         <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:var(--rb);padding:12px;margin-bottom:14px">
           <div style="font-size:.72rem;font-weight:700;color:var(--blu);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">🕐 Início da Visita</div>
           <div class="fr" style="margin-bottom:10px">
@@ -425,13 +209,35 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
           </div>
         </div>
 
-        <!-- CHECKLIST DE AUDITORIA -->
         <div style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">📋 Checklist de Auditoria</div>
         <div id="checklist-top">
-          <!-- Vitrine - gerado por JS -->
+          <div class="ic" id="chk-vitrine" style="margin-bottom:10px;border-left-color:var(--br)">
+      <div style="font-size:.88rem;font-weight:700;margin-bottom:4px">🏪 Vitrine</div>
+      <div style="font-size:.75rem;color:var(--t2);margin-bottom:8px">Apresentação, limpeza e organização da vitrine</div>
+      
+      <div style="display:flex;gap:8px;margin-bottom:9px;align-items:center">
+        <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
+        <button class="ck" onclick="setConf('vitrine',true)" id="ck-ok-vitrine">✓</button>
+        <button class="ck" onclick="setConf('vitrine',false)" id="ck-fail-vitrine">✗</button>
+      </div>
+      
+      <div id="chk-prazo-vitrine" style="display:none;margin-bottom:9px;padding:9px 11px;background:#fff5f5;border:1.5px solid #fca5a5;border-radius:var(--rb)">
+        <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para o Gerente resolver</div>
+        <input type="date" class="fc" id="chk-prazo-date-vitrine" onchange="saveChkPrazo('vitrine')" style="border-color:#fca5a5;background:#fff">
+      </div>
+
+      <div style="margin-bottom:8px">
+        <input type="file" accept="image/*" capture="environment" class="pfi" id="pf-chk-vitrine" onchange="handleChkPhoto('vitrine',this)">
+        <button class="cam-btn" onclick="document.getElementById('pf-chk-vitrine').click()">📷 <span>Tirar Foto</span></button>
+        <div id="chk-photo-prev-vitrine" style="margin-top:7px"></div>
+      </div>
+      
+      <div>
+        <textarea class="jta" id="chk-nota-vitrine" placeholder="Comentário / Observação…" style="min-height:55px" onblur="saveChkNota('vitrine')"></textarea>
+      </div>
+    </div>
         </div>
 
-        <!-- PERFORMANCE -->
         <div style="font-size:.72rem;font-weight:700;color:var(--t2);margin:14px 0 7px;text-transform:uppercase;letter-spacing:.5px">📈 Performance</div>
         <div class="fr">
           <div class="fg"><label>Crescimento (%)</label><input type="text" class="fc" id="v-cr" placeholder="+3.2%"></div>
@@ -444,19 +250,188 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
         </div>
         <div class="fg"><label>Notas de Auditoria</label><textarea class="fc" id="v-nt" placeholder="Observações gerais…"></textarea></div>
 
-        <!-- RESTO DO CHECKLIST -->
         <div id="checklist-rest">
-          <!-- Tabaco, Limpeza, Equipamentos, Procedimentos, RH - gerado por JS -->
+          <div class="ic" id="chk-tabaco" style="margin-bottom:10px;border-left-color:var(--br)">
+      <div style="font-size:.88rem;font-weight:700;margin-bottom:4px">🚬 Tabaco</div>
+      <div style="font-size:.75rem;color:var(--t2);margin-bottom:8px">Stock, organização e conformidade do expositor</div>
+      
+      <div style="display:flex;gap:8px;margin-bottom:9px;align-items:center">
+        <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
+        <button class="ck" onclick="setConf('tabaco',true)" id="ck-ok-tabaco">✓</button>
+        <button class="ck" onclick="setConf('tabaco',false)" id="ck-fail-tabaco">✗</button>
+      </div>
+      
+      <div id="chk-prazo-tabaco" style="display:none;margin-bottom:9px;padding:9px 11px;background:#fff5f5;border:1.5px solid #fca5a5;border-radius:var(--rb)">
+        <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para o Gerente resolver</div>
+        <input type="date" class="fc" id="chk-prazo-date-tabaco" onchange="saveChkPrazo('tabaco')" style="border-color:#fca5a5;background:#fff">
+      </div>
+
+      <div style="margin-bottom:8px">
+        <input type="file" accept="image/*" capture="environment" class="pfi" id="pf-chk-tabaco" onchange="handleChkPhoto('tabaco',this)">
+        <button class="cam-btn" onclick="document.getElementById('pf-chk-tabaco').click()">📷 <span>Tirar Foto</span></button>
+        <div id="chk-photo-prev-tabaco" style="margin-top:7px"></div>
+      </div>
+      
+      <div>
+        <textarea class="jta" id="chk-nota-tabaco" placeholder="Comentário / Observação…" style="min-height:55px" onblur="saveChkNota('tabaco')"></textarea>
+      </div>
+    </div><div class="ic" id="chk-limpeza" style="margin-bottom:10px;border-left-color:var(--br)">
+      <div style="font-size:.88rem;font-weight:700;margin-bottom:4px">🧹 Limpeza / HACCP</div>
+      <div style="font-size:.75rem;color:var(--t2);margin-bottom:8px">Higiene geral, HACCP e registos de limpeza</div>
+      
+      <div style="display:flex;gap:8px;margin-bottom:9px;align-items:center">
+        <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
+        <button class="ck" onclick="setConf('limpeza',true)" id="ck-ok-limpeza">✓</button>
+        <button class="ck" onclick="setConf('limpeza',false)" id="ck-fail-limpeza">✗</button>
+      </div>
+      
+      <div id="chk-prazo-limpeza" style="display:none;margin-bottom:9px;padding:9px 11px;background:#fff5f5;border:1.5px solid #fca5a5;border-radius:var(--rb)">
+        <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para o Gerente resolver</div>
+        <input type="date" class="fc" id="chk-prazo-date-limpeza" onchange="saveChkPrazo('limpeza')" style="border-color:#fca5a5;background:#fff">
+      </div>
+      <div style="margin-bottom:9px">
+          <div style="font-size:.71rem;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📋 Registos HACCP</div>
+          <div class="cli" style="padding:7px 10px;margin-bottom:4px">
+              <div style="flex:1;font-size:.82rem;font-weight:600">REG 3</div>
+              <button class="ck" onclick="setHaccp('reg_3',true)" id="hck-ok-reg_3">✓</button>
+              <button class="ck" onclick="setHaccp('reg_3',false)" id="hck-fail-reg_3">✗</button>
+            </div><div class="cli" style="padding:7px 10px;margin-bottom:4px">
+              <div style="flex:1;font-size:.82rem;font-weight:600">REG 4</div>
+              <button class="ck" onclick="setHaccp('reg_4',true)" id="hck-ok-reg_4">✓</button>
+              <button class="ck" onclick="setHaccp('reg_4',false)" id="hck-fail-reg_4">✗</button>
+            </div><div class="cli" style="padding:7px 10px;margin-bottom:4px">
+              <div style="flex:1;font-size:.82rem;font-weight:600">REG 8</div>
+              <button class="ck" onclick="setHaccp('reg_8',true)" id="hck-ok-reg_8">✓</button>
+              <button class="ck" onclick="setHaccp('reg_8',false)" id="hck-fail-reg_8">✗</button>
+            </div><div class="cli" style="padding:7px 10px;margin-bottom:4px">
+              <div style="flex:1;font-size:.82rem;font-weight:600">REG 9</div>
+              <button class="ck" onclick="setHaccp('reg_9',true)" id="hck-ok-reg_9">✓</button>
+              <button class="ck" onclick="setHaccp('reg_9',false)" id="hck-fail-reg_9">✗</button>
+            </div><div class="cli" style="padding:7px 10px;margin-bottom:4px">
+              <div style="flex:1;font-size:.82rem;font-weight:600">REG 10</div>
+              <button class="ck" onclick="setHaccp('reg_10',true)" id="hck-ok-reg_10">✓</button>
+              <button class="ck" onclick="setHaccp('reg_10',false)" id="hck-fail-reg_10">✗</button>
+            </div><div class="cli" style="padding:7px 10px;margin-bottom:4px">
+              <div style="flex:1;font-size:.82rem;font-weight:600">REG 14</div>
+              <button class="ck" onclick="setHaccp('reg_14',true)" id="hck-ok-reg_14">✓</button>
+              <button class="ck" onclick="setHaccp('reg_14',false)" id="hck-fail-reg_14">✗</button>
+            </div><div class="cli" style="padding:7px 10px;margin-bottom:4px">
+              <div style="flex:1;font-size:.82rem;font-weight:600">REG 21</div>
+              <button class="ck" onclick="setHaccp('reg_21',true)" id="hck-ok-reg_21">✓</button>
+              <button class="ck" onclick="setHaccp('reg_21',false)" id="hck-fail-reg_21">✗</button>
+            </div><div class="cli" style="padding:7px 10px;margin-bottom:4px">
+              <div style="flex:1;font-size:.82rem;font-weight:600">REG 141</div>
+              <button class="ck" onclick="setHaccp('reg_141',true)" id="hck-ok-reg_141">✓</button>
+              <button class="ck" onclick="setHaccp('reg_141',false)" id="hck-fail-reg_141">✗</button>
+            </div><div class="cli" style="padding:7px 10px;margin-bottom:4px">
+              <div style="flex:1;font-size:.82rem;font-weight:600">D.L.U.S</div>
+              <button class="ck" onclick="setHaccp('dlus',true)" id="hck-ok-dlus">✓</button>
+              <button class="ck" onclick="setHaccp('dlus',false)" id="hck-fail-dlus">✗</button>
+            </div><div class="cli" style="padding:7px 10px;margin-bottom:4px">
+              <div style="flex:1;font-size:.82rem;font-weight:600">Iogurte</div>
+              <button class="ck" onclick="setHaccp('iogurte',true)" id="hck-ok-iogurte">✓</button>
+              <button class="ck" onclick="setHaccp('iogurte',false)" id="hck-fail-iogurte">✗</button>
+            </div><div class="cli" style="padding:7px 10px;margin-bottom:4px">
+              <div style="flex:1;font-size:.82rem;font-weight:600">Laranjas</div>
+              <button class="ck" onclick="setHaccp('laranjas',true)" id="hck-ok-laranjas">✓</button>
+              <button class="ck" onclick="setHaccp('laranjas',false)" id="hck-fail-laranjas">✗</button>
+            </div><div class="cli" style="padding:7px 10px;margin-bottom:4px">
+              <div style="flex:1;font-size:.82rem;font-weight:600">Manteiga</div>
+              <button class="ck" onclick="setHaccp('manteiga',true)" id="hck-ok-manteiga">✓</button>
+              <button class="ck" onclick="setHaccp('manteiga',false)" id="hck-fail-manteiga">✗</button>
+            </div>
+        </div>
+      
+      <div style="margin-bottom:8px">
+        <input type="file" accept="image/*" capture="environment" class="pfi" id="pf-chk-limpeza" onchange="handleChkPhoto('limpeza',this)">
+        <button class="cam-btn" onclick="document.getElementById('pf-chk-limpeza').click()">📷 <span>Tirar Foto</span></button>
+        <div id="chk-photo-prev-limpeza" style="margin-top:7px"></div>
+      </div>
+      
+      <div>
+        <textarea class="jta" id="chk-nota-limpeza" placeholder="Comentário / Observação…" style="min-height:55px" onblur="saveChkNota('limpeza')"></textarea>
+      </div>
+    </div><div class="ic" id="chk-equipamentos" style="margin-bottom:10px;border-left-color:var(--br)">
+      <div style="font-size:.88rem;font-weight:700;margin-bottom:4px">⚙️ Equipamentos</div>
+      <div style="font-size:.75rem;color:var(--t2);margin-bottom:8px">Estado e funcionamento dos equipamentos</div>
+      
+      <div style="display:flex;gap:8px;margin-bottom:9px;align-items:center">
+        <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
+        <button class="ck" onclick="setConf('equipamentos',true)" id="ck-ok-equipamentos">✓</button>
+        <button class="ck" onclick="setConf('equipamentos',false)" id="ck-fail-equipamentos">✗</button>
+      </div>
+      
+      <div id="chk-prazo-equipamentos" style="display:none;margin-bottom:9px;padding:9px 11px;background:#fff5f5;border:1.5px solid #fca5a5;border-radius:var(--rb)">
+        <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para o Gerente resolver</div>
+        <input type="date" class="fc" id="chk-prazo-date-equipamentos" onchange="saveChkPrazo('equipamentos')" style="border-color:#fca5a5;background:#fff">
+      </div>
+
+      <div style="margin-bottom:8px">
+        <input type="file" accept="image/*" capture="environment" class="pfi" id="pf-chk-equipamentos" onchange="handleChkPhoto('equipamentos',this)">
+        <button class="cam-btn" onclick="document.getElementById('pf-chk-equipamentos').click()">📷 <span>Tirar Foto</span></button>
+        <div id="chk-photo-prev-equipamentos" style="margin-top:7px"></div>
+      </div>
+      
+      <div>
+        <textarea class="jta" id="chk-nota-equipamentos" placeholder="Comentário / Observação…" style="min-height:55px" onblur="saveChkNota('equipamentos')"></textarea>
+      </div>
+    </div><div class="ic" id="chk-procedimentos" style="margin-bottom:10px;border-left-color:var(--br)">
+      <div style="font-size:.88rem;font-weight:700;margin-bottom:4px">📋 Procedimentos</div>
+      <div style="font-size:.75rem;color:var(--t2);margin-bottom:8px">Cumprimento de procedimentos operacionais</div>
+      
+      <div style="display:flex;gap:8px;margin-bottom:9px;align-items:center">
+        <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
+        <button class="ck" onclick="setConf('procedimentos',true)" id="ck-ok-procedimentos">✓</button>
+        <button class="ck" onclick="setConf('procedimentos',false)" id="ck-fail-procedimentos">✗</button>
+      </div>
+      
+      <div id="chk-prazo-procedimentos" style="display:none;margin-bottom:9px;padding:9px 11px;background:#fff5f5;border:1.5px solid #fca5a5;border-radius:var(--rb)">
+        <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para o Gerente resolver</div>
+        <input type="date" class="fc" id="chk-prazo-date-procedimentos" onchange="saveChkPrazo('procedimentos')" style="border-color:#fca5a5;background:#fff">
+      </div>
+
+      <div style="margin-bottom:8px">
+        <input type="file" accept="image/*" capture="environment" class="pfi" id="pf-chk-procedimentos" onchange="handleChkPhoto('procedimentos',this)">
+        <button class="cam-btn" onclick="document.getElementById('pf-chk-procedimentos').click()">📷 <span>Tirar Foto</span></button>
+        <div id="chk-photo-prev-procedimentos" style="margin-top:7px"></div>
+      </div>
+      
+      <div>
+        <textarea class="jta" id="chk-nota-procedimentos" placeholder="Comentário / Observação…" style="min-height:55px" onblur="saveChkNota('procedimentos')"></textarea>
+      </div>
+    </div><div class="ic" id="chk-rh" style="margin-bottom:10px;border-left-color:var(--br)">
+      <div style="font-size:.88rem;font-weight:700;margin-bottom:4px">👥 Temas RH</div>
+      <div style="font-size:.75rem;color:var(--t2);margin-bottom:8px">Fardamento, pontualidade, comportamento</div>
+      
+      <div style="display:flex;gap:8px;margin-bottom:9px;align-items:center">
+        <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
+        <button class="ck" onclick="setConf('rh',true)" id="ck-ok-rh">✓</button>
+        <button class="ck" onclick="setConf('rh',false)" id="ck-fail-rh">✗</button>
+      </div>
+      
+      <div id="chk-prazo-rh" style="display:none;margin-bottom:9px;padding:9px 11px;background:#fff5f5;border:1.5px solid #fca5a5;border-radius:var(--rb)">
+        <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para o Gerente resolver</div>
+        <input type="date" class="fc" id="chk-prazo-date-rh" onchange="saveChkPrazo('rh')" style="border-color:#fca5a5;background:#fff">
+      </div>
+
+      <div style="margin-bottom:8px">
+        <input type="file" accept="image/*" capture="environment" class="pfi" id="pf-chk-rh" onchange="handleChkPhoto('rh',this)">
+        <button class="cam-btn" onclick="document.getElementById('pf-chk-rh').click()">📷 <span>Tirar Foto</span></button>
+        <div id="chk-photo-prev-rh" style="margin-top:7px"></div>
+      </div>
+      
+      <div>
+        <textarea class="jta" id="chk-nota-rh" placeholder="Comentário / Observação…" style="min-height:55px" onblur="saveChkNota('rh')"></textarea>
+      </div>
+    </div>
         </div>
 
-        <!-- PESAGEM DE CAFÉ -->
         <div style="font-size:.72rem;font-weight:700;color:var(--t2);margin:14px 0 7px;text-transform:uppercase;letter-spacing:.5px">☕ Pesagem de Café</div>
         <div class="fr">
           <div class="fg"><label>Dose Simples — Manipula 1 (g)</label><input type="number" class="fc" id="v-cs" step="0.1" placeholder="7.5"></div>
           <div class="fg"><label>Dose Dupla — Manipula 2 (g)</label><input type="number" class="fc" id="v-cd" step="0.1" placeholder="15.0"></div>
         </div>
 
-        <!-- FOTOS NC -->
         <div style="margin-bottom:11px">
           <div style="font-size:.71rem;color:var(--t2);margin-bottom:5px;font-weight:600">📷 Fotos de Não-Conformidades Gerais</div>
           <button class="cam-btn" onclick="openCam('nc')">📷 <span>Tirar Foto</span></button>
@@ -464,7 +439,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
           <div class="ptb" id="v-nc-photos" style="margin-top:8px"></div>
         </div>
 
-        <!-- RUTURAS -->
         <div style="font-size:.72rem;font-weight:700;color:var(--t2);margin:14px 0 7px;text-transform:uppercase;letter-spacing:.5px">📦 Ruturas de Rede</div>
         <div id="v-rut"></div>
         <div class="dv"></div>
@@ -474,7 +448,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
         </div>
       </div>
 
-      <!-- TASKS TAB -->
       <div id="v-tasks" style="display:none">
         <div id="v-tar-create" style="display:none">
           <div style="background:var(--sf2);border:1px solid var(--br);border-radius:var(--rb);padding:13px;margin-bottom:12px">
@@ -499,7 +472,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
   </div>
 </div>
 
-<!-- RUTURAS -->
 <div class="sec" id="s-ruturas">
   <div class="pt">Ruturas de Rede</div><div class="ps">Lista dinâmica editável pelo GOP/Ops Core</div>
   <div class="card">
@@ -510,8 +482,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
   </div>
 </div>
 
-
-<!-- OPERACIONAL -->
 <div class="sec" id="s-operacional">
   <div class="pt">Standard Operacional</div>
   <div class="ps">Checklists diárias, semanais e mensais por loja</div>
@@ -575,7 +545,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
   </div>
 </div>
 
-<!-- HISTÓRICO DE RELATÓRIOS -->
 <div class="sec" id="s-historico">
   <div class="pt">Relatórios Guardados</div>
   <div class="ps">Histórico de visitas auditadas</div>
@@ -587,7 +556,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
   </div>
 </div>
 
-<!-- FÉRIAS -->
 <div class="sec" id="s-ferias">
   <div class="pt">Gestão de Férias</div>
   <div class="ps">Gerentes e colaboradores — deteção automática de conflitos</div>
@@ -613,15 +581,14 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
         <button class="btn bs bf" onclick="clrF()">Limpar</button>
       </div>
     </div>
-    <!-- Conflitos entre gerentes -->
+    
     <div id="f-conflitos-gerentes" style="margin-bottom:10px"></div>
     <div id="f-list"></div>
   </div>
 </div>
 
-</div><!-- /MN -->
+</div>
 
-<!-- MODALS -->
 <div class="mo" id="m-email"><div class="md">
   <div class="mh"><div class="mtt" id="m-et">Enviar Notificação</div><button class="mx" onclick="closeM('m-email')">✕</button></div>
   <div class="fg"><label>Destinatários</label><input type="text" class="fc" id="m-eto" placeholder="email@bagga.com"></div>
@@ -722,9 +689,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#f8faff}
 </div></div>
 
 <script>
-// ═══════════════════════════════════════════════════
-// COREJOINT v8 — SUPABASE + CÂMARA DIRETA
-// ═══════════════════════════════════════════════════
 const SB='https://isdaegejkxgtzjcpzstr.supabase.co';
 const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k';
 const PINS={gop:'3028',ops:'2024',caldas:'1204',bombarral:'5836',ponte_sor:'7045',peniche:'9240',almeirim:'4928',torres_mh:'6419',torres_novas:'8352',rio_maior:'1763',santarem:'2074',carregado:'3617'};
@@ -733,7 +697,6 @@ const STORES=Object.keys(SN).filter(k=>k!=='rede');
 const CRIT={baixa:{l:'🟢 Baixa',c:'bk-g',w:7},media:{l:'🟡 Média',c:'bk-i',w:3},alta:{l:'🟠 Alta',c:'bk-o',w:2},critica:{l:'🔴 Crítica',c:'bk-d',w:1}};
 let CU=null,loginP='gop',avPhoto=null,vStore=null,vPhotos={cafe:[],nc:[]},vRut={},_eS='',_eB='';
 
-// ── SUPABASE ─────────────────────────────────────────
 async function sb(method,table,body,qs=''){
   try{
     const r=await fetch(SB+'/rest/v1/'+table+(qs?'?'+qs:''),{
@@ -750,7 +713,6 @@ const dbIns=(t,d)=>sb('POST',t,d);
 const dbUpd=(t,id,d)=>sb('PATCH',t,d,'id=eq.'+id);
 const dbDel=(t,id)=>sb('DELETE',t,null,'id=eq.'+id);
 
-// ── UTILS ─────────────────────────────────────────────
 function uid(){return Date.now()+'_'+Math.random().toString(36).slice(2,6);}
 function now(){return new Date().toLocaleDateString('pt-PT');}
 function iso(){return new Date().toISOString().slice(0,10);}
@@ -774,7 +736,6 @@ function eb(e){
 function adm(){return CU&&(CU.role==='gop'||CU.role==='ops');}
 function who(){if(!CU)return'Sistema';if(CU.role==='gop')return'GOP';if(CU.role==='ops')return'Ops Core';return'Gerente '+sn(CU.store);}
 
-// ── UI ────────────────────────────────────────────────
 function load(msg){const e=document.getElementById('loading');document.getElementById('load-msg').textContent=msg||'A carregar…';e.classList.add('show');}
 function uload(){document.getElementById('loading').classList.remove('show');}
 function toast(msg,t){const e=document.getElementById('toast');e.textContent=msg;e.style.background=t==='e'?'#e02424':t==='w'?'#d97706':'#057a55';e.style.display='block';setTimeout(()=>e.style.display='none',2800);}
@@ -785,7 +746,6 @@ function bigPhoto(src){document.getElementById('big-photo').src=src;openM('m-pho
 function el(id){return document.getElementById(id);}
 function val(id){const e=el(id);return e?(e.value||'').trim():'';}
 
-// ── RESET ─────────────────────────────────────────────
 function showReset(){el('RO').classList.add('show');}
 function hideReset(){el('RO').classList.remove('show');}
 async function doReset(){
@@ -799,16 +759,13 @@ async function doReset(){
   }catch(e){s.style.color='#e02424';s.textContent='Erro: '+e.message;}
 }
 
-// ── LOGIN ─────────────────────────────────────────────
 function setP(p){loginP=p;['gop','ops','mgr'].forEach(x=>el('tab-'+x).classList.toggle('on',x===p));el('sw-store').style.display=p==='mgr'?'block':'none';}
-// ── KEYPAD ─────────────────────────────────────────
 function kp(digit){
   const inp = document.getElementById('l-pin');
   if(!inp) return;
   if((inp.value||'').length >= 4) return;
   inp.value = (inp.value||'') + digit;
   updPinDots();
-  // Auto-login when 4 digits entered
   if(inp.value.length === 4) setTimeout(doLogin, 200);
 }
 function kpDel(){
@@ -845,12 +802,10 @@ async function doLogin(){
   el('btn-addf').style.display=adm()?'inline-flex':'none';
   el('test-btns').style.display=adm()?'flex':'none';
   await go('dash');
-  // Clear any leftover import status messages
   ['q-st','tf-st','wfm-st'].forEach(id=>{const e=el(id);if(e)e.textContent='';});
 }
 function doLogout(){CU=null;el('LS').style.display='flex';el('HD').style.display='none';el('NV').style.display='none';el('MN').style.display='none';el('l-pin').value='';}
 
-// ── NAV ───────────────────────────────────────────────
 async function go(s){
   document.querySelectorAll('.sec').forEach(x=>x.classList.remove('on'));
   document.querySelectorAll('.ni').forEach(x=>x.classList.remove('on'));
@@ -860,7 +815,6 @@ async function go(s){
   if(fn[s])await fn[s]();
 }
 
-// ── BADGES ────────────────────────────────────────────
 async function updB(){
   if(!CU)return;
   const lf=CU.role==='mgr'?'&loja=eq.'+CU.store:'';
@@ -871,7 +825,6 @@ async function updB(){
   const hb=el('h-badge');hb.style.display=tot>0?'flex':'none';hb.textContent=tot;
 }
 
-// ── DASHBOARD ─────────────────────────────────────────
 async function rDash(){
   if(!CU)return;load('A carregar…');
   try{
@@ -889,9 +842,7 @@ async function rDash(){
     const rutCount = ((await dbGet('cj_ruturas','estado=eq.validado'))||[]).length;
     el('d-stats').innerHTML=`<div class="sc"><div class="slb">Quebras Pend.</div><div class="svl ${qp>0?'cr':'cg'}">${qp}</div></div><div class="sc"><div class="slb">Trocas/Form.</div><div class="svl ${tp>0?'co':'cg'}">${tp}</div></div><div class="sc"><div class="slb">Avarias</div><div class="svl ${ao>0?'cr':'cg'}">${ao}</div></div><div class="sc"><div class="slb">SRM</div><div class="svl ${sp>0?'cy':'cg'}">${sp}</div></div><div class="sc"><div class="slb">Tarefas Pend.</div><div class="svl ${tarP>0?'co':'cg'}">${tarP}</div></div><div class="sc"><div class="slb">Banco Horas</div><div class="svl ${tBH>=20?'cr':tBH>=10?'co':'cg'}">${tBH>0?tBH.toFixed(1)+'h':'—'}</div></div><div class="sc"><div class="slb">Suplementar</div><div class="svl ${tTS>0?'cr':'cg'}">${tTS>0?tTS.toFixed(1)+'h ⚠':'✅'}</div></div><div class="sc"><div class="slb">Ruturas</div><div class="svl co">${rutCount}</div></div>`;
     let al='';
-    // Ruturas alerts for gerente
     if(CU.role==='mgr'){
-      // Ruturas alert
       const rutPend=await dbGet('cj_ruturas','estado=eq.pendente&loja=eq.'+CU.store)||[];
       const rutRede=await dbGet('cj_ruturas','estado=eq.pendente&loja=eq.rede')||[];
       const allRut=[...rutPend,...rutRede];
@@ -902,7 +853,6 @@ async function rDash(){
           <div style="font-size:.79rem">${nomes}</div>
         </div>`;
       }
-      // NC tasks alert
       const ncTasks=await dbGet('cj_tarefas','loja=eq.'+CU.store+'&estado=eq.pendente&criticidade=eq.critica')||[];
       if(ncTasks.length>0){
         al+=`<div class="al al-d" style="flex-direction:column;align-items:flex-start;gap:6px">
@@ -911,7 +861,6 @@ async function rDash(){
           <button class="btn bsm bd" style="margin-top:5px" onclick="go('visitas')">Ver →</button>
         </div>`;
       }
-      // QUEBRAS alert para gerente — valores por justificar
       const qPend=await dbGet('cj_quebras','loja=eq.'+CU.store+'&estado=eq.pendente')||[];
       const qAlta=qPend.filter(q=>parseFloat(q.valor||0)>20);
       const qMedia=qPend.filter(q=>parseFloat(q.valor||0)>=10&&parseFloat(q.valor||0)<=20);
@@ -934,7 +883,6 @@ async function rDash(){
     }
     tar.filter(x=>x.estado!=='concluida'&&x.prazo&&du(x.prazo)<0).forEach(t=>al+=`<div class="al al-d">⛔ Tarefa vencida: <strong>${sn(t.loja)}</strong> — ${t.codigo} <button class="btn bsm bd" style="margin-left:auto" onclick="go('visitas')">Ver →</button></div>`);
     tar.filter(x=>x.estado!=='concluida'&&x.prazo&&du(x.prazo)===0).forEach(t=>al+=`<div class="al al-w">🔴 Vence HOJE: <strong>${sn(t.loja)}</strong> — ${t.codigo}</div>`);
-    // Operacional alerts — checklists incompletas
     if(adm()){
       const opAlerts=await dbGet('cj_tarefas','codigo=eq.ALERTA-OP&estado=eq.pendente')||[];
       if(opAlerts.length>0){
@@ -973,7 +921,6 @@ async function rDash(){
         `<td style="font-size:.74rem;color:${justColor};font-weight:600">${v>10?just:'—'}</td></tr>`;
     }).join('')+'</tbody></table></div>';
 
-    // GOP summary by store
     let storeSummary='';
     if(adm()&&Q&&Q.length){
       const byStore={};
@@ -1000,7 +947,6 @@ async function rDash(){
   uload();
 }
 
-// ── IMPORT FILE (CSV + XLSX) ──────────────────────────
 async function importFile(input,type){
   const file=input.files[0];if(!file)return;
   const stEl=el({quebras:'q-st',trocas:'tf-st',wfm:'wfm-st'}[type]);
@@ -1021,14 +967,12 @@ async function importFile(input,type){
         rows.push(obj);
       }
     } else if(ext==='xlsx'||ext==='xls'){
-      // Use SheetJS to parse Excel
       if(typeof XLSX === 'undefined') throw new Error('Biblioteca Excel não carregada. Verifique a ligação à internet.');
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, {type:'array'});
       const ws = wb.Sheets[wb.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
       if(jsonData.length < 2) throw new Error('Ficheiro Excel vazio ou sem dados.');
-      // Convert to same format as CSV rows
       const hdr = jsonData[0].map(h=>String(h).trim().toLowerCase());
       for(let i=1;i<jsonData.length;i++){
         const rowArr = jsonData[i];
@@ -1039,7 +983,6 @@ async function importFile(input,type){
       }
     }
     if(!rows.length)throw new Error('Nenhum registo encontrado. Verifique o formato do ficheiro.');
-    // Map columns flexibly
     function gcol(obj,...keys){for(const k of keys){for(const ok of Object.keys(obj)){if(ok.includes(k))return obj[ok];}}return'';}
     const items=[];
     for(const r of rows){
@@ -1078,7 +1021,6 @@ function dlTemplate(type){
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(templates[type]);a.download=type+'_template.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 
-// ── QUEBRAS ───────────────────────────────────────────
 function qColor(valor){
   const v=parseFloat(valor)||0;
   if(v>20) return {border:'var(--red)',   bg:'#fff5f5', label:'🔴 Alta', cls:'crit'};
@@ -1091,9 +1033,18 @@ async function rQ(){
   try{
     let qs='select=*';if(CU.role==='mgr')qs+='&loja=eq.'+CU.store;
     const fl=val('qf-l'),fe=val('qf-e');if(fl)qs+='&loja=eq.'+fl;if(fe)qs+='&estado=eq.'+fe;
-    const d=await dbAll('cj_quebras',qs)||[];
-    if(!d.length){el('q-list').innerHTML='<div style="color:var(--t2);font-size:.8rem;padding:10px">Nenhuma quebra.</div>';uload();return;}
-    el('q-list').innerHTML=d.map(q=>{
+    if(!fe) qs+='&estado=eq.pendente'; // default: show pending only
+    const d=await dbAll('cj_quebras',qs+'&limit=200')||[];
+    const total=await dbGet('cj_quebras','select=id'+(CU.role==='mgr'?'&loja=eq.'+CU.store:''))||[];
+    const totalCount=total?total.length:0;
+    const summaryBar=`<div class="al al-i" style="margin-bottom:10px;font-size:.79rem">
+      📊 <strong>${d.length}</strong> quebras ${!val('qf-e')?'pendentes':'filtradas'} mostradas
+      ${totalCount>d.length?' (de '+totalCount+' total)':''}
+      &nbsp;·&nbsp; Use os filtros para ver por loja ou estado
+    </div>`;
+    if(!d.length){el('q-list').innerHTML=summaryBar+'<div style="color:var(--t2);font-size:.8rem;padding:10px">Nenhuma quebra pendente. Use o filtro "Todos" para ver o histórico.</div>';uload();return;}
+    el('q-list').innerHTML=summaryBar+d.map(q=>{
+    el('q-list').innerHTML=summaryBar+d.map(q=>{
       const v=parseFloat(q.valor||0);
       const col=qColor(v);
       const p=q.estado==='pendente';
@@ -1131,7 +1082,6 @@ async function rQ(){
         </div>
       </div>`;
     }).join('');updB();
-    // Auto-show justification for yellow/red
     d.forEach(q=>{
       const v=parseFloat(q.valor||0);
       if(v>10&&q.estado==='pendente'){
@@ -1142,14 +1092,12 @@ async function rQ(){
   }catch(e){showErr('Quebras: '+e.message);}uload();
 }
 async function valQ(id){
-  // Check if high value needs justification
   const d=await dbGet('cj_quebras','id=eq.'+id);
   if(d&&d[0]){
     const v=parseFloat(d[0].valor||0);
     const just=gtv('jta-q'+id);
     const reg=(el('reg-q'+id)||{value:d[0].num_registo||''}).value.trim();
     if(v>10&&(!just||!reg)){
-      // Show justification block
       const jb=el('jb-q-'+id);if(jb)jb.style.display='block';
       const ta=el('jta-q'+id);if(ta){ta.classList.add('jerr');ta.focus();ta.scrollIntoView({behavior:'smooth',block:'center'});}
       toast('Preencha o Nº de Registo e comentário antes de validar!','e');
@@ -1176,7 +1124,6 @@ async function svRegQ(id){
 async function asQ(id){const j=gtv('jta-q'+id);if(!j)return;await dbUpd('cj_quebras',id,{justificacao:j});}
 function gtv(id){const e=el(id);return e?(e.value||'').trim():'';}
 
-// ── TROCAS ────────────────────────────────────────────
 function switchTF(t){document.querySelectorAll('.stab').forEach((e,i)=>e.classList.toggle('on',(i===0&&t==='t')||(i===1&&t==='f')));el('tf-ta').style.display=t==='t'?'block':'none';el('tf-fa').style.display=t==='f'?'block':'none';}
 async function saveTF(){
   const tipo=el('tf-tipo').value,loja=el('tf-loja').value,desc=val('tf-desc'),data=val('tf-data');
@@ -1199,7 +1146,6 @@ async function cnfTF(id){const j=gtv('jta-t'+id);await dbUpd('cj_trocas',id,{est
 async function svT(id){await dbUpd('cj_trocas',id,{justificacao:gtv('jta-t'+id),log:'Nota: '+who()});toast('Guardado!');}
 async function asT(id){const j=gtv('jta-t'+id);if(!j)return;await dbUpd('cj_trocas',id,{justificacao:j});}
 
-// ── AVARIAS ───────────────────────────────────────────
 let avPh=null;
 function handleAvP(input){if(!input.files.length)return;const r=new FileReader();r.onload=e=>{avPh=e.target.result;el('av-photos').innerHTML=`<div class="photo-item"><img src="${avPh}" onclick="bigPhoto('${avPh}')"><button class="photo-del" onclick="avPh=null;el('av-photos').innerHTML=''">✕</button></div>`;};r.readAsDataURL(input.files[0]);input.value='';}
 async function saveAvaria(){
@@ -1232,7 +1178,6 @@ async function cnfA(id){const j=gtv('jta-a'+id);const d=await dbGet('cj_avarias'
 async function svA(id){await dbUpd('cj_avarias',id,{justificacao:gtv('jta-a'+id),notas_gerente:gtv('jta-a'+id)});toast('Guardado!');}
 async function asA(id){const j=gtv('jta-a'+id);if(!j)return;await dbUpd('cj_avarias',id,{justificacao:j,notas_gerente:j});}
 
-// ── SRM ───────────────────────────────────────────────
 async function saveSRM(){
   const loja=el('srm-loja').value,cat=el('srm-cat').value,desc=val('srm-desc'),just=val('srm-just');
   if(!desc){toast('Descreva o problema.','e');return;}
@@ -1256,7 +1201,6 @@ async function cnfS(id){const j=gtv('jta-s'+id);await dbUpd('cj_srm',id,{estado:
 async function svS(id){await dbUpd('cj_srm',id,{justificacao:gtv('jta-s'+id)});toast('Guardado!');}
 async function asS(id){const j=gtv('jta-s'+id);if(!j)return;await dbUpd('cj_srm',id,{justificacao:j});}
 
-// ── WFM ───────────────────────────────────────────────
 async function saveWFM(){
   const loja=el('wfm-loja').value,col=parseFloat(val('wfm-col'))||0,bh=parseFloat(val('wfm-bh'))||0,ts=parseFloat(val('wfm-ts'))||0,data=val('wfm-data'),just=val('wfm-just');
   await dbIns('cj_wfm',[{id:uid(),loja,colaboradores:col,banco_horas:bh,suplementar:ts,data:fd(data)||now(),data_iso:data||iso(),justificacao:just,log:'Por: '+who(),criado_por:who()}]);
@@ -1284,7 +1228,6 @@ function openWFME(st){el('wfm-loja').value=st;el('wfm-data').value=iso();['wfm-c
 async function delWFMStore(st){if(!confirm('Apagar todos os registos WFM de '+sn(st)+'?'))return;const d=await dbGet('cj_wfm','loja=eq.'+st);if(d)for(const w of d)await dbDel('cj_wfm',w.id);await rWFM();toast('Apagado!');}
 function emailWFM(st,val){buildEmail('🚨 Alerta WFM — '+sn(st),'Loja: '+sn(st)+'\nValor: '+parseFloat(val).toFixed(1)+'h\nData: '+now()+'\nPor: '+who(),'Alerta WFM');}
 
-// ── RUTURAS ───────────────────────────────────────────
 function defaultRuturas(){
   return [
     {id:"biscoito_almendrado_0",item:"Biscoito Almêndrado",cat:"Roturas Bagga",loja:"rede",obs:"",estado:"validado",log:"Lista oficial Bagga",atualizado_em:"",criado_por:"Sistema"},
@@ -1347,7 +1290,6 @@ async function rRut(){
   if(!CU)return;load('Ruturas…');
   try{
     let d=await dbAll('cj_ruturas','select=*')||[];
-    // Se não há ruturas no Supabase, inserir a lista padrão
     if(d.length===0){
       const defs=defaultRuturas();
       await dbIns('cj_ruturas',defs);
@@ -1389,7 +1331,6 @@ async function saveSugRut(){
 }
 async function delRut(id){if(!confirm('Remover?'))return;await dbDel('cj_ruturas',id);await rRut();}
 
-// ── VISITAS — CÂMARA ──────────────────────────────────
 function openCam(type){document.getElementById('pf-'+type).click();}
 function handleCamPhoto(type,input){
   if(!input.files.length)return;
@@ -1413,7 +1354,6 @@ function renderPhotos(type){
 }
 function delPhoto(type,idx){vPhotos[type].splice(idx,1);renderPhotos(type);}
 
-// ── VISITAS ───────────────────────────────────────────
 function switchVTab(t){
   document.querySelectorAll('#v-form .stab').forEach((e,i)=>e.classList.toggle('on',(i===0&&t==='audit')||(i===1&&t==='tasks')));
   el('v-audit').style.display=t==='audit'?'block':'none';
@@ -1425,13 +1365,33 @@ async function startV(store){
   const ex=await dbGet('cj_visitas','loja=eq.'+store+'&order=created_at.desc&limit=1');
   el('v-stores').style.display='none';el('v-form').style.display='block';
   el('v-name').textContent='📍 '+sn(store);el('v-dt').textContent='Data: '+now();
-  // Set hora inicio automatically on arrival
   setHoraAgora();
-  // Reset checklist
   vChecklist = {};
   vHaccp = {};
-  initChecklist();
-  // Reset chegada photo
+  // Reset UI state without re-rendering (items are static HTML)
+  ['vitrine','tabaco','limpeza','equipamentos','procedimentos','rh'].forEach(id=>{
+    const okBtn=document.getElementById('ck-ok-'+id);
+    const failBtn=document.getElementById('ck-fail-'+id);
+    if(okBtn){okBtn.classList.remove('ok','fail');}
+    if(failBtn){failBtn.classList.remove('ok','fail');}
+    const card=document.getElementById('chk-'+id);
+    if(card)card.style.borderLeftColor='var(--br)';
+    const prazo=document.getElementById('chk-prazo-'+id);
+    if(prazo)prazo.style.display='none';
+    const prev=document.getElementById('chk-photo-prev-'+id);
+    if(prev)prev.innerHTML='';
+    const nota=document.getElementById('chk-nota-'+id);
+    if(nota)nota.value='';
+    const prazoDate=document.getElementById('chk-prazo-date-'+id);
+    if(prazoDate)prazoDate.value='';
+  });
+  // Reset HACCP
+  ['reg_3','reg_4','reg_8','reg_9','reg_10','reg_14','reg_21','reg_141','dlus','iogurte','laranjas','manteiga'].forEach(id=>{
+    const ok=document.getElementById('hck-ok-'+id);
+    const fail=document.getElementById('hck-fail-'+id);
+    if(ok)ok.classList.remove('ok');
+    if(fail)fail.classList.remove('fail');
+  });
   vChegadaPhoto = null;
   const cp = document.getElementById('chegada-preview');
   if(cp) cp.style.display='none';
@@ -1452,14 +1412,12 @@ async function startV(store){
 function backV(){el('v-stores').style.display='block';el('v-form').style.display='none';vStore=null;}
 async function rVRut(){
   let d=await dbAll('cj_ruturas','select=*&estado=eq.validado')||[];
-  // Se Supabase retorna vazio, usar lista local padrão
   if(d.length===0){
     d=defaultRuturas();
   }
   const items=d.filter(r=>r.loja==='rede'||r.loja===vStore);
   const bycat={};items.forEach(r=>{if(!bycat[r.cat])bycat[r.cat]=[];bycat[r.cat].push(r);});
   const h=Object.entries(bycat).map(([cat,its])=>`<div class="rsec"><div class="rcat">${cat}</div>${its.map(r=>{const k=r.id,st=vRut[k]||'none';return`<div class="cli"><div style="flex:1;font-size:.81rem">${r.item}</div><button class="ck ${st==='ok'?'ok':''}" onclick="togR(this,'${k}','ok')">✓</button><button class="ck ${st==='fail'?'fail':''}" onclick="togR(this,'${k}','fail')">✗</button></div>`;}).join('')}</div>`).join('');
-  // Count current fails
   const failCount=Object.values(vRut).filter(v=>v==='fail').length;
   const okCount=Object.values(vRut).filter(v=>v==='ok').length;
   const total=items.length;
@@ -1491,7 +1449,6 @@ function togR(btn,k,t){
   btn.closest('.cli').querySelectorAll('.ck').forEach(b=>b.classList.remove('ok','fail'));
   if(vRut[k]===t) delete vRut[k];
   else{vRut[k]=t;btn.classList.add(t);}
-  // Update counter in real time
   updateRutCounter();}
 async function saveV(){
   if(!vStore)return;
@@ -1499,38 +1456,31 @@ async function saveV(){
   const ex=await dbGet('cj_visitas','loja=eq.'+vStore);
   if(ex&&ex[0])await dbUpd('cj_visitas',ex[0].id,entry);else await dbIns('cj_visitas',[{id:uid(),...entry}]);
   toast('Visita guardada!');
-  // Verificar ruturas marcadas como fail e enviar ao gerente
   await syncRuturasVisita();
 }
 
 async function syncRuturasVisita(){
   if(!vStore)return;
-  // Create tasks for checklist non-conformities
   await syncNCAlerts();
 }
 
 async function syncNCAlerts(){
   if(!vStore)return;
-  // Save checklist notes first
   CHECKLIST_ITEMS.forEach(item=>{
     const el2=document.getElementById('chk-nota-'+item.id);
     if(el2&&vChecklist[item.id]) vChecklist[item.id].nota=el2.value.trim();
   });
-  // Find non-conformities
-  // Save all prazos first
   CHECKLIST_ITEMS.forEach(item=>{
     const pe = document.getElementById('chk-prazo-date-'+item.id);
     if(pe && vChecklist[item.id]) vChecklist[item.id].prazo = pe.value;
   });
   const ncItems=CHECKLIST_ITEMS.filter(item=>vChecklist[item.id]&&vChecklist[item.id].conforme===false);
-  // Warn if NC without prazo
   const ncSemPrazo=ncItems.filter(item=>!(vChecklist[item.id]||{}).prazo);
   if(ncSemPrazo.length>0){
     toast('⚠ Defina o prazo para: '+ncSemPrazo.map(i=>i.label).join(', '),'w');
   }
   const haccpNC=HACCP_REGS.filter(r=>vHaccp[r.id]===false);
   if(!ncItems.length&&!haccpNC.length) return;
-  // Create one task per NC in cj_tarefas so gerente sees alert
   const tasks=[];
   ncItems.forEach(item=>{
     const nota=(vChecklist[item.id]||{}).nota||'';
@@ -1579,13 +1529,11 @@ async function syncNCAlerts(){
 
 async function _syncRuturasVisitaCore(){
   if(!vStore)return;
-  // Move rutura sync to core function
   const d=await dbAll('cj_ruturas','select=*')||[];
   const items=d.filter(r=>r.loja==='rede'||r.loja===vStore);
   const fails=items.filter(r=>vRut[r.id]==='fail');
   const oks=items.filter(r=>vRut[r.id]==='ok');
   if(!fails.length&&!oks.length)return;
-  // Atualizar estado das ruturas em falta para 'pendente' (visível ao gerente)
   for(const r of fails){
     await dbUpd('cj_ruturas',r.id,{
       estado:'pendente',
@@ -1594,7 +1542,6 @@ async function _syncRuturasVisitaCore(){
       atualizado_em:now()
     });
   }
-  // Atualizar as conformes para 'validado'
   for(const r of oks){
     await dbUpd('cj_ruturas',r.id,{
       estado:'validado',
@@ -1603,15 +1550,12 @@ async function _syncRuturasVisitaCore(){
       atualizado_em:now()
     });
   }
-  // Mostrar resumo e opção de email
   const nomes=fails.map(r=>r.item).join(', ');
   const subj='🚨 Ruturas em '+sn(vStore)+' — '+now();
   const body='Loja: '+sn(vStore)+'\nData da Visita: '+now()+'\nAuditado por: '+who()+'\n\nARTIGOS EM RUTURA:\n'+fails.map(r=>'  ✗ '+r.item).join('\n')+'\n\nPor favor tratar com urgência.';
-  // Show alert with email option
   showRutAlerta(fails.length, nomes, subj, body);
 }
 
-// Store rutura alert data globally for email/copy
 let _rutAlertSubj='', _rutAlertBody='';
 
 function showRutAlerta(count, nomes, subj, body){
@@ -1688,7 +1632,6 @@ function handleChegadaPhoto(input){
 async function genRel(){
   const hinicio = (document.getElementById('v-hinicio')||{value:''}).value;
   if(!hinicio){ toast('Registe a hora de início da visita!','e'); return; }
-  // Save checklist notes
   CHECKLIST_ITEMS.forEach(item => {
     const el2 = document.getElementById('chk-nota-'+item.id);
     if(el2 && vChecklist[item.id]) vChecklist[item.id].nota = el2.value.trim();
@@ -1698,12 +1641,10 @@ async function genRel(){
   const items = d.filter(r=>r.loja==='rede'||r.loja===vStore);
   const fail = items.filter(r=>vRut[r.id]==='fail').map(r=>r.item);
   const ok   = items.filter(r=>vRut[r.id]==='ok').map(r=>r.item);
-  // Non-conformities from checklist
   const ncItems = CHECKLIST_ITEMS.filter(item => vChecklist[item.id]&&vChecklist[item.id].conforme===false);
   const okItems = CHECKLIST_ITEMS.filter(item => vChecklist[item.id]&&vChecklist[item.id].conforme===true);
   const pendItems = CHECKLIST_ITEMS.filter(item => !vChecklist[item.id]||vChecklist[item.id].conforme===null);
 
-  // Build checklist HTML for report
   const chkHtml = CHECKLIST_ITEMS.map(item => {
     const st = vChecklist[item.id]||{};
     const confLabel = st.conforme===true ? '<span style="color:#057a55;font-weight:700">✅ Conforme</span>' : st.conforme===false ? '<span style="color:#e02424;font-weight:700">❌ Não Conforme</span>' : '<span style="color:#d97706;font-weight:700">⏳ Por verificar</span>';
@@ -1739,8 +1680,7 @@ async function genRel(){
   const resumo = `${ncItems.length} NC · ${okItems.length} OK · ${fail.length} ruturas`;
 
   const reportHtml = `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>Relatório Visita — ${sn(vStore)}</title>
-  <style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#111}
-  @media print{body{margin:0;padding:15px}.no-print{display:none!important}}</style></head><body>
+  <style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#111}@media print{body{margin:0;padding:15px}.no-print{display:none!important}}</style></head><body>
   <div id="pdf-report">
   <div style="border-bottom:3px solid #1a56db;padding-bottom:12px;margin-bottom:20px">
     <div style="font-size:22px;font-weight:800;color:#1a56db">CoreJoint · Bagga</div>
@@ -1790,11 +1730,9 @@ async function genRel(){
   </div>
   </body></html>`;
 
-  // Save to history automatically
   saveToHistory({loja:vStore, data:now(), hora:hinicio, resumo, html:reportHtml});
   toast('📁 Relatório de visita guardado no histórico!');
 
-  // Show in page
   const repCard = el('v-rep');
   repCard.style.display='block';
   repCard.innerHTML =
@@ -1807,13 +1745,11 @@ async function genRel(){
     '<iframe id="rep-iframe" style="width:100%;height:380px;border:none"></iframe>'+
     '</div>'+
     '<div class="fg"><label>Enviar para</label><input type="text" class="fc" id="v-emails" placeholder="email@bagga.com"></div>';
-  // Load into iframe
   const iframe = document.getElementById('rep-iframe');
   if(iframe){
     iframe.srcdoc = reportHtml;
   }
   repCard.scrollIntoView({behavior:'smooth'});
-  // Store for PDF
   window._lastReportHtml = reportHtml;
 }
 
@@ -1840,7 +1776,6 @@ function gerarPDF(){
   html2pdf().set(opt).from(el2).save().then(()=>toast('PDF guardado!'));
 }
 
-
 function sendRel(){
   const e=val('v-emails');
   const body='Relatório de Visita\nLoja: '+sn(vStore)+'\nData: '+now()+'\nAuditado por: '+who();
@@ -1850,7 +1785,6 @@ function sendRel(){
 }
 function copyRel(){const t=el('rep-out').textContent;navigator.clipboard.writeText(t).then(()=>toast('Copiado!')).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');document.body.removeChild(a);toast('Copiado!');});}
 
-// ── TAREFAS NAS VISITAS ───────────────────────────────
 async function rVTasks(){
   if(!vStore)return;
   const d=await dbAll('cj_tarefas','loja=eq.'+vStore)||[];
@@ -1885,7 +1819,7 @@ async function rVTasks(){
       <div class="jb">
         <div class="jl">Justificação / Comentário ${t.estado!=='concluida'&&CU.role==='mgr'?'<span class="jreq">Obrigatório ao concluir</span>':'<span class="jopt">Opcional</span>'}</div>
         <textarea class="jta" id="jta-vt${t.id}" placeholder="O que foi feito, observações…">${t.justificacao||''}</textarea>
-        <!-- FOTO DA TAREFA -->
+        
         <div style="margin-top:9px">
           <div style="font-size:.7rem;color:var(--t2);margin-bottom:5px;font-weight:600">📷 Foto da tarefa</div>
           <input type="file" accept="image/*" capture="environment" class="pfi" id="pf-vt-${t.id}" onchange="handleVTPhoto('${t.id}',this)">
@@ -1913,7 +1847,6 @@ async function cnfVT(id){
   toast('Tarefa concluída!');await rVTasks();updB();
 }
 async function frcVT(id){const j=gtv('jta-vt'+id)||'Forçado por '+who();await dbUpd('cj_tarefas',id,{estado:'concluida',justificacao:j,concluido_por:who(),concluido_em:now(),log:'Forçado: '+who()});toast('Concluída!');await rVTasks();updB();}
-// Store task photos in memory
 const vtPhotos = {};
 
 function handleVTPhoto(id, input){
@@ -1946,9 +1879,7 @@ async function saveVTar(){
   await rVTasks();updB();toast('Tarefa criada!');
 }
 
-// ── FÉRIAS ────────────────────────────────────────────
 function toggleFerTipo(){
-  // nothing needed for now
 }
 
 function datesOverlap(ini1,fim1,ini2,fim2){
@@ -1967,11 +1898,9 @@ async function rFer(){
   const today=new Date();
   const todayISO2=iso();
 
-  // ── DETECT CONFLICTS ──────────────────────────────
   const allD=await dbAll('cj_ferias','select=*')||[];
   let conflitos=[];
 
-  // 1. Gerentes — conflitos entre gerentes da mesma loja ou rede
   const gerentes=allD.filter(f=>f.tipo==='gerente'||!f.tipo);
   for(let i=0;i<gerentes.length;i++){
     for(let j=i+1;j<gerentes.length;j++){
@@ -1979,7 +1908,6 @@ async function rFer(){
       if(a.nome===b.nome) continue; // mesma pessoa, lojas diferentes — ok
       if(datesOverlap(a.inicio,a.fim,b.inicio,b.fim)){
         const sameLoja=a.loja===b.loja;
-        // Gerente de uma loja pode ter outra loja — check coverage
         const aLojas=(a.lojas_todas||a.loja||'').split(',');
         const bLojas=(b.lojas_todas||b.loja||'').split(',');
         const lojasSemCobertura=aLojas.filter(l=>bLojas.includes(l));
@@ -1990,7 +1918,6 @@ async function rFer(){
     }
   }
 
-  // 2. Gerentes de lojas diferentes em simultâneo (alerta GOP)
   if(adm()){
     for(let i=0;i<gerentes.length;i++){
       for(let j=i+1;j<gerentes.length;j++){
@@ -2002,7 +1929,6 @@ async function rFer(){
     }
   }
 
-  // 3. Colaboradores — mesma loja sem gerente
   const colab=allD.filter(f=>f.tipo==='colaborador');
   colab.forEach(col=>{
     const lojaGer=gerentes.filter(g=>g.loja===col.loja);
@@ -2012,7 +1938,6 @@ async function rFer(){
     }
   });
 
-  // Show conflicts
   const cEl=document.getElementById('f-conflitos-gerentes');
   if(cEl){
     if(conflitos.length>0){
@@ -2024,7 +1949,6 @@ async function rFer(){
 
   if(!d.length){el('f-list').innerHTML='<div style="color:var(--t2);font-size:.8rem;padding:10px">Sem registos.</div>';return;}
 
-  // Group by tipo
   const gers=d.filter(f=>f.tipo==='gerente'||!f.tipo);
   const cols=d.filter(f=>f.tipo==='colaborador');
 
@@ -2064,26 +1988,21 @@ async function rFer(){
 async function saveFerias(){
   const nome=val('fer-nome'),ini=val('fer-ini'),fim=val('fer-fim');
   const tipo=el('fer-tipo')?el('fer-tipo').value:'gerente';
-  // Get selected lojas
   const checks=document.querySelectorAll('#fer-lojas-check input:checked');
   const lojas=[...checks].map(cb=>cb.value);
   if(!nome||!ini||!fim){toast('Preencha todos os campos.','e');return;}
   if(!lojas.length){toast('Selecione pelo menos uma loja.','e');return;}
-  // Create one entry per loja
   const entries=lojas.map(loja=>({id:uid(),nome,loja,tipo,lojas_todas:lojas.join(','),inicio:ini,fim,criado_por:who()}));
   await dbIns('cj_ferias',entries);
-  // Reset checkboxes
   document.querySelectorAll('#fer-lojas-check input').forEach(cb=>cb.checked=false);
   closeM('m-ferias');await rFer();toast('Férias adicionadas para '+lojas.length+' loja(s)!');
 }
 function clrF(){el('f-from').value='';el('f-to').value='';rFer();}
 
-// ── EMAIL ─────────────────────────────────────────────
 function buildEmail(subj,body,title){_eS=subj;_eB=body;el('m-et').textContent=title||'Enviar';el('m-esub').value=subj;el('m-ebody').textContent=body;el('m-eto').value='';openM('m-email');}
 function sendEmail(){const to=val('m-eto'),s=el('m-esub').value||_eS,b=el('m-ebody').textContent||_eB;const a=document.createElement('a');a.href='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(s)+'&body='+encodeURIComponent(b);a.target='_blank';document.body.appendChild(a);a.click();document.body.removeChild(a);closeM('m-email');}
 function copyEmail(){const t='Assunto: '+el('m-esub').value+'\n\n'+el('m-ebody').textContent;navigator.clipboard.writeText(t).then(()=>toast('Copiado!')).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');document.body.removeChild(a);toast('Copiado!');});}
 
-// ── DELETE ────────────────────────────────────────────
 async function delI(table,id,elId){
   if(!confirm('Apagar este registo?'))return;
   await dbDel(table,id);
@@ -2091,7 +2010,6 @@ async function delI(table,id,elId){
   updB();toast('Apagado!');
 }
 
-// ── TEST DATA ─────────────────────────────────────────
 async function loadTestData(){
   if(!confirm('Carregar dados de teste?'))return;
   localStorage.setItem('cj_test','1');load('A carregar teste…');
@@ -2106,8 +2024,6 @@ async function loadTestData(){
   }catch(e){showErr('Teste: '+e.message);}uload();
 }
 
-
-// ── CHECKLIST DE VISITA ───────────────────────────────
 const CHECKLIST_ITEMS = [
   {id:'vitrine',    label:'🏪 Vitrine',         desc:'Apresentação, limpeza e organização da vitrine'},
   {id:'tabaco',     label:'🚬 Tabaco',           desc:'Stock, organização e conformidade do expositor'},
@@ -2139,14 +2055,11 @@ let vChecklist = {}; // {id: {foto: base64, nota: str, conforme: bool|null}}
 function initChecklist(){
   const container = document.getElementById('checklist-items');
   if(!container) return;
-  // Init state
   CHECKLIST_ITEMS.forEach(item => {
     if(!vChecklist[item.id]) vChecklist[item.id] = {foto:null, nota:'', conforme:null};
   });
-  // Vitrine only in top container
   const containerTop = document.getElementById('checklist-top');
   const containerRest = document.getElementById('checklist-rest');
-  // fallback to single container
   const useTop = containerTop && containerRest;
 
   const renderItem = (item) => {
@@ -2188,19 +2101,19 @@ function initChecklist(){
     return `<div class="ic" id="chk-${item.id}" style="margin-bottom:10px;border-left-color:${st.conforme===false?'var(--red)':st.conforme===true?'var(--grn)':'var(--br)'}">
       <div style="font-size:.88rem;font-weight:700;margin-bottom:4px">${item.label}</div>
       <div style="font-size:.75rem;color:var(--t2);margin-bottom:8px">${item.desc}</div>
-      <!-- Conformidade -->
+      
       <div style="display:flex;gap:8px;margin-bottom:9px;align-items:center">
         <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
         <button class="ck ${st.conforme===true?'ok':''}" onclick="setConf('${item.id}',true)" id="ck-ok-${item.id}">✓</button>
         <button class="ck ${st.conforme===false?'fail':''}" onclick="setConf('${item.id}',false)" id="ck-fail-${item.id}">✗</button>
       </div>
-      <!-- Foto -->
+      
       <div style="margin-bottom:8px">
         <input type="file" accept="image/*" capture="environment" class="pfi" id="pf-chk-${item.id}" onchange="handleChkPhoto('${item.id}',this)">
         <button class="cam-btn" onclick="document.getElementById('pf-chk-${item.id}').click()">📷 <span>Tirar Foto</span></button>
         ${st.foto ? `<div style="margin-top:7px"><img src="${st.foto}" style="width:100px;height:75px;object-fit:cover;border-radius:5px;border:1.5px solid var(--br);cursor:pointer" onclick="bigPhoto('${st.foto}')"></div>` : `<div id="chk-photo-prev-${item.id}" style="margin-top:7px"></div>`}
       </div>
-      <!-- Nota -->
+      
       <div>
         <textarea class="jta" id="chk-nota-${item.id}" placeholder="Comentário / Observação…" style="min-height:55px" onblur="saveChkNota('${item.id}')">${st.nota||''}</textarea>
       </div>
@@ -2227,7 +2140,6 @@ function setConf(id, val){
   if(failBtn){ failBtn.classList.toggle('fail',val===false); failBtn.classList.remove('ok'); }
   const card = document.getElementById('chk-'+id);
   if(card) card.style.borderLeftColor = val===false?'var(--red)':val===true?'var(--grn)':'var(--br)';
-  // Show/hide prazo field
   const prazoDiv = document.getElementById('chk-prazo-'+id);
   if(prazoDiv) prazoDiv.style.display = val===false ? 'block' : 'none';
   if(val===false) toast('⚠ Defina o prazo para resolução!','w');
@@ -2261,7 +2173,6 @@ function saveChkPrazo(id){
   vChecklist[id].prazo = el2.value;
 }
 
-// ── HISTÓRICO ─────────────────────────────────────────
 function saveToHistory(reportData){
   try{
     const hist = JSON.parse(localStorage.getItem('cj_historico')||'[]');
@@ -2273,7 +2184,6 @@ function saveToHistory(reportData){
       resumo: reportData.resumo,
       html: reportData.html
     });
-    // Keep last 20
     if(hist.length > 20) hist.pop();
     localStorage.setItem('cj_historico', JSON.stringify(hist));
     toast('Relatório arquivado!');
@@ -2308,7 +2218,6 @@ function reabrirRelatorio(id){
   const hist = JSON.parse(localStorage.getItem('cj_historico')||'[]');
   const r = hist.find(x=>x.id===id);
   if(!r||!r.html){ toast('Relatório não encontrado.','e'); return; }
-  // Open in new tab
   const w = window.open('','_blank');
   w.document.write(r.html);
   w.document.close();
@@ -2329,11 +2238,7 @@ function limparHistorico(){
   toast('Histórico limpo!');
 }
 
-
-// ── STANDARD OPERACIONAL ─────────────────────────────
-
 const OP_DIARIA = [
-  // ABERTURA
   {id:'d1', grupo:'🌅 Abertura e Frente de Loja', hora:'07:30-08:00', desc:'Fardamento e SST: Uniforme oficial completo, crachá visível e calçado com biqueira de aço.'},
   {id:'d2', grupo:'🌅 Abertura e Frente de Loja', hora:'07:30-08:00', desc:'Ativação de Equipamentos: Ligação de fornos, estufas de salgados, vitrines e placards de menus.'},
   {id:'d3', grupo:'🌅 Abertura e Frente de Loja', hora:'07:30-08:00', desc:'Registo HACCP Inicial: Leitura e registo de temperaturas de abertura das arcas e vitrines.'},
@@ -2342,14 +2247,12 @@ const OP_DIARIA = [
   {id:'d6', grupo:'🌅 Abertura e Frente de Loja', hora:'08:00-08:30', desc:'Exposição FIFO: Abastecimento de vitrines aplicando rotação rígida de validades.'},
   {id:'d7', grupo:'🌅 Abertura e Frente de Loja', hora:'08:00-08:30', desc:'Frente de Caixa: Reposição de sacos, rolos térmicos, guardanapos, palhas e colheres.'},
   {id:'d8', grupo:'🌅 Abertura e Frente de Loja', hora:'08:00-08:30', desc:'Limpeza Matinal: Higienização de mesas, esplanada, balcões e pinças antes da abertura.'},
-  // OPERAÇÃO
   {id:'d9',  grupo:'⚙️ Operação e Atendimento', hora:'Contínuo', desc:'Receção de Mercadoria: Conferência de volumes/guias e arrumação de Frios/Congelados em < 20 min.'},
   {id:'d10', grupo:'⚙️ Operação e Atendimento', hora:'Imediato',  desc:'Tratamento de Danos / HD NET: Abertura de incidentes para artigos danificados ou falhas de rota.'},
   {id:'d11', grupo:'⚙️ Operação e Atendimento', hora:'Até 16:00', desc:'Sistemas informáticos / ATs: Registo de transferências e consumos internos (Procedimento MC65).'},
   {id:'d12', grupo:'⚙️ Operação e Atendimento', hora:'Contínuo', desc:'Guião de Atendimento: Aplicação do guião proativo, cross-selling e pergunta do Cartão Continente.'},
   {id:'d13', grupo:'⚙️ Operação e Atendimento', hora:'Contínuo', desc:'Facing e Linear: Artigos puxados à frente, validação de etiquetas eletrónicas e PVPs.'},
   {id:'d14', grupo:'⚙️ Operação e Atendimento', hora:'Contínuo', desc:'Sistemas Ativos: Monitorização e resposta a alertas de Delivery (Uber Eats, Glovo).'},
-  // FECHO
   {id:'d15', grupo:'🌙 Fecho e Auditoria', seq:'Passo 1', desc:'Sangrias e Boca do Lobo: Contagem de dinheiro de cada operador e depósito final.'},
   {id:'d16', grupo:'🌙 Fecho e Auditoria', seq:'Passo 2', desc:'Quebras no POS: Triagem do desperdício, pesagem/contagem e registo informático no POS.'},
   {id:'d17', grupo:'🌙 Fecho e Auditoria', seq:'Passo 3', desc:'Documentação de Caixa: Recolha de talões de anulações, devoluções e faturas simplificadas.'},
@@ -2366,7 +2269,6 @@ const OP_DIARIA = [
 const OP_SEMANAL = [
   {id:'s1', grupo:'🔍 Auditoria APS',     desc:'Auditoria de Produto e Stock: verificação de validades e conformidade de gama.'},
   {id:'s2', grupo:'🔍 Auditoria APS',     desc:'Contagem e registo de inventário de produto acabado e matéria-prima.'},
-  // Inventários por dia
   {id:'s_seg', grupo:'📦 Inventários Semanais', dia:'2ª feira', desc:'🎰 Segunda — Inventário Raspadinha', hasDesvio:true},
   {id:'s_ter', grupo:'📦 Inventários Semanais', dia:'3ª feira', desc:'☕ Terça — Inventário Café', hasDesvio:true},
   {id:'s_qua', grupo:'📦 Inventários Semanais', dia:'4ª feira', desc:'🍊 Quarta — Inventário Laranjas e Bebidas', hasDesvio:true},
@@ -2407,7 +2309,6 @@ function switchOpTab(tab){
   if(tab==='diaria')    rOpList('diaria',OP_DIARIA);
   if(tab==='semanal'){
     rOpList('semanal',OP_SEMANAL);
-    // Add weekly note
     const listEl=document.getElementById('op-semanal-list');
     if(listEl){
       const today2=new Date();
@@ -2430,7 +2331,6 @@ function rOpList(tipo, items){
   if(!CU)return;
   if(!opState[tipo]) opState[tipo]={};
   const loja = CU.role==='mgr' ? CU.store : null;
-  // Group by grupo
   const grupos={};
   items.forEach(item=>{
     if(!grupos[item.grupo]) grupos[item.grupo]=[];
@@ -2446,7 +2346,6 @@ function rOpList(tipo, items){
     its.forEach(item=>{
       const checked=!!opState[tipo][item.id];
       const ref=item.hora||item.seq||item.dia||'';
-      // Check if this is global week (3rd week of month)
       const today2=new Date();
       const dayOfMonth=today2.getDate();
       const isGlobalWeek=(dayOfMonth>=15&&dayOfMonth<=21);
@@ -2462,18 +2361,7 @@ function rOpList(tipo, items){
           ${globalNote}
           <button class="ck ${checked?'ok':''}" onclick="toggleOp('${tipo}','${item.id}')" id="ck-op-${tipo}-${item.id}" style="flex-shrink:0">${checked?'✓':''}</button>
         </div>
-        ${item.hasDesvio?`<div style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap">
-          <div style="flex:1;min-width:100px">
-            <label style="font-size:.67rem;color:var(--t2);font-weight:600;display:block;margin-bottom:3px">Desvio (€)</label>
-            <input type="number" step="0.01" class="fc" id="op-desvio-${tipo}-${item.id}" placeholder="0.00" value="${desvioData.valor||''}"
-              style="padding:5px 8px;font-size:.83rem" onblur="saveOpDesvio('${tipo}','${item.id}')">
-          </div>
-          <div style="flex:2;min-width:160px">
-            <label style="font-size:.67rem;color:var(--t2);font-weight:600;display:block;margin-bottom:3px">Notas / Observações</label>
-            <input type="text" class="fc" id="op-notas-${tipo}-${item.id}" placeholder="Ex: diferença em tabaco virgínia, stock errado…" value="${desvioData.notas||''}"
-              style="padding:5px 8px;font-size:.83rem" onblur="saveOpDesvio('${tipo}','${item.id}')">
-          </div>
-        </div>`:''}
+        '+(item.hasDesvio?'<div style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap"><div style="flex:1;min-width:100px"><label style="font-size:.67rem;color:var(--t2);font-weight:600;display:block;margin-bottom:3px">Desvio (€)</label><input type="number" step="0.01" class="fc" id="op-desvio-'+tipo+'-'+item.id+'" placeholder="0.00" value="'+(desvioData.valor||'')+'" style="padding:5px 8px;font-size:.83rem" onblur="saveOpDesvio(''+tipo+'',''+item.id+'')"></div><div style="flex:2;min-width:160px"><label style="font-size:.67rem;color:var(--t2);font-weight:600;display:block;margin-bottom:3px">Notas / Observações</label><input type="text" class="fc" id="op-notas-'+tipo+'-'+item.id+'" placeholder="Ex: diferença em tabaco…" value="'+(desvioData.notas||'')+'" style="padding:5px 8px;font-size:.83rem" onblur="saveOpDesvio(''+tipo+'',''+item.id+'')"></div></div>':'')+'
       </div>`;
     });
     html+='</div>';
@@ -2495,13 +2383,11 @@ function toggleOp(tipo, id){
   if(!opState[tipo]) opState[tipo]={};
   opState[tipo][id] = !opState[tipo][id];
   const items={diaria:OP_DIARIA,semanal:OP_SEMANAL,mensal:OP_MENSAL}[tipo];
-  // Update UI
   const itemDiv=document.getElementById('op-item-'+tipo+'-'+id);
   const ckBtn=document.getElementById('ck-op-'+tipo+'-'+id);
   const checked=opState[tipo][id];
   if(itemDiv){itemDiv.style.background=checked?'#f0fdf4':'var(--sf2)';itemDiv.style.borderColor=checked?'#86efac':'var(--br)';}
   if(ckBtn){ckBtn.classList.toggle('ok',checked);ckBtn.textContent=checked?'✓':'';}
-  // Update progress
   if(items){
     const done=items.filter(i=>opState[tipo][i.id]).length;
     const pEl=document.getElementById('op-'+tipo+'-progress');
@@ -2517,13 +2403,10 @@ async function submitOp(tipo){
   if(done.length===0){toast('Nenhum item marcado!','e');return;}
   const pct=Math.round(done.length/items.length*100);
 
-  // Build HTML report for this checklist
   const reportHtml = buildOpReport(tipo, items, done, missing, pct);
 
-  // Save report to localStorage history
   saveOpReportToHistory(tipo, pct, reportHtml);
 
-  // Save to Supabase
   const record={
     id:'op_'+tipo+'_'+CU.store+'_'+Date.now(),
     loja:CU.store,
@@ -2540,7 +2423,6 @@ async function submitOp(tipo){
   };
   await dbIns('cj_tarefas',[record]);
 
-  // Alert GOP if incomplete
   if(pct<100&&missing.length>0){
     await dbIns('cj_tarefas',[{
       id:'op_alert_'+tipo+'_'+CU.store+'_'+Date.now(),
@@ -2555,10 +2437,8 @@ async function submitOp(tipo){
     }]);
   }
 
-  // Reset state for new day
   opState[tipo]={};
   if(opDesvio[tipo]) opDesvio[tipo]={};
-  // Store last submit date to auto-reset next day
   localStorage.setItem('cj_op_last_'+tipo+'_'+CU.store, iso());
 
   toast(pct===100?'✅ Relatório diário guardado!':'⚠ Submetida com '+missing.length+' item(s) em falta — alerta ao GOP!','w');
@@ -2585,9 +2465,7 @@ function buildOpReport(tipo, items, done, missing, pct){
 
   return `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8">
   <title>Relatório ${tipoLabel} — ${sn(CU.store)} — ${now()}</title>
-  <style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#111}
-  table{width:100%;border-collapse:collapse}td{border-bottom:1px solid #eee}
-  @media print{.no-print{display:none}}</style></head><body>
+  <style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#111}table{width:100%;border-collapse:collapse}td{border-bottom:1px solid #eee}@media print{.no-print{display:none}}</style></head><body>
   <div style="border-bottom:3px solid #1a56db;padding-bottom:10px;margin-bottom:16px">
     <div style="font-size:20px;font-weight:800;color:#1a56db">CoreJoint · Bagga</div>
     <div style="font-size:15px;font-weight:700">Relatório Operacional ${tipoLabel}</div>
@@ -2636,11 +2514,9 @@ async function rOpHistorico(){
   const container=document.getElementById('op-hist-list');
   if(!container)return;
 
-  // Load from localStorage (detailed reports)
   const key='cj_op_reports_'+(CU?CU.store:'');
   const localReports=JSON.parse(localStorage.getItem(key)||'[]');
 
-  // Load from Supabase (summary)
   let qs='codigo=like.OP-*&select=*';
   if(CU&&CU.role==='mgr') qs+='&loja=eq.'+CU.store;
   const d=await dbAll('cj_tarefas',qs)||[];
@@ -2653,7 +2529,6 @@ async function rOpHistorico(){
 
   let html='';
 
-  // Local reports with PDF button
   if(localReports.length){
     html+='<div style="font-size:.78rem;font-weight:700;color:var(--ac);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">📄 Relatórios Detalhados</div>';
     html+=localReports.map(r=>{
@@ -2675,7 +2550,6 @@ async function rOpHistorico(){
     }).join('');
   }
 
-  // Supabase summary
   if(sbReports.length){
     html+='<div style="font-size:.78rem;font-weight:700;color:var(--t2);margin:12px 0 8px;text-transform:uppercase;letter-spacing:.5px">☁️ Registo Cloud</div>';
     html+=sbReports.map(r=>{
@@ -2710,11 +2584,9 @@ function delOpReport(id, key){
 }
 
 function rOperacional(){
-  // Auto-reset if new day
   if(CU&&CU.role==='mgr'){
     const lastDiaria=localStorage.getItem('cj_op_last_diaria_'+CU.store)||'';
     if(lastDiaria&&lastDiaria!==iso()){
-      // New day — reset diaria state
       if(opState['diaria']&&Object.keys(opState['diaria']).length>0){
         toast('Novo dia — checklist diária reiniciada!');
       }
@@ -2724,7 +2596,6 @@ function rOperacional(){
   switchOpTab('diaria');
 }
 
-// ── INIT ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.mo').forEach(e=>e.addEventListener('click',function(ev){if(ev.target===this)this.classList.remove('open');}));
 });
