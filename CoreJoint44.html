@@ -800,7 +800,7 @@ async function doReset(){
 }
 
 // ── LOGIN ─────────────────────────────────────────────
-function setP(p){loginP=p;['dop','ops','mgr'].forEach(x=>el('tab-'+x).classList.toggle('on',x===p));el('sw-store').style.display=p==='mgr'?'block':'none';}
+function setP(p){loginP=p;['gop','ops','mgr'].forEach(x=>el('tab-'+x).classList.toggle('on',x===p));el('sw-store').style.display=p==='mgr'?'block':'none';}
 // ── KEYPAD ─────────────────────────────────────────
 function kp(digit){
   const inp = document.getElementById('l-pin');
