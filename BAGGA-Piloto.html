@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BAGGA — Loja Piloto</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: #2e2e2e;
+    --text: #f0f0f0;
+    --text-muted: #888;
+    --text-dim: #555;
+    --accent: #e8c840;
+    --accent-dim: rgba(232,200,64,0.12);
+    --accent-glow: rgba(232,200,64,0.25);
+    --red: #e85c40;
+    --red-dim: rgba(232,92,64,0.12);
+    --green: #40c87a;
+    --green-dim: rgba(64,200,122,0.12);
+    --blue: #4090e8;
+    --blue-dim: rgba(64,144,232,0.12);
+    --orange: #e88c40;
+    --orange-dim: rgba(232,140,64,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── LOGIN ── */
+  #loginScreen {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: radial-gradient(ellipse at 50% 0%, rgba(232,200,64,0.08) 0%, transparent 60%);
+  }
+
+  .login-logo {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .login-sub {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 40px;
+    letter-spacing: 0.5px;
+  }
+
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 360px;
+  }
+
+  .login-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .collab-select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    padding: 12px 14px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    appearance: none;
+    margin-bottom: 16px;
+    cursor: pointer;
+  }
+
+  .collab-select:focus { outline: none; border-color: var(--accent); }
+
+  .pin-display {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    text-align: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 28px;
+    letter-spacing: 12px;
+    color: var(--accent);
+    margin-bottom: 16px;
+    min-height: 58px;
+  }
+
+  .pin-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .pin-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 600;
+    font-family: 'Space Grotesk', sans-serif;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .pin-btn:active { background: var(--accent-dim); border-color: var(--accent); transform: scale(0.96); }
+  .pin-btn.del { font-size: 14px; color: var(--text-muted); }
+
+  .btn-primary {
+    width: 100%;
+    background: var(--accent);
+    color: #0f0f0f;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-primary:active { opacity: 0.85; transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .login-error {
+    color: var(--red);
+    font-size: 12px;
+    text-align: center;
+    margin-top: 10px;
+    min-height: 18px;
+  }
+
+  /* ── MAIN APP ── */
+  #app { display: none; flex-direction: column; min-height: 100vh; }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .topbar-logo {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .topbar-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .user-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--accent);
+    cursor: pointer;
+  }
+
+  .content { flex: 1; padding: 16px; padding-bottom: 80px; }
+
+  /* ── HOME ── */
+  .home-greeting {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .home-date {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+
+  .module-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .module-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .module-card:active { transform: scale(0.97); }
+  .module-card.accent { border-color: var(--accent); background: var(--accent-dim); }
+  .module-card.red { border-color: var(--red); background: var(--red-dim); }
+  .module-card.green { border-color: var(--green); background: var(--green-dim); }
+  .module-card.blue { border-color: var(--blue); background: var(--blue-dim); }
+  .module-card.orange { border-color: var(--orange); background: var(--orange-dim); }
+
+  .module-icon { font-size: 24px; }
+  .module-name { font-weight: 600; font-size: 13px; font-family: 'Space Grotesk', sans-serif; }
+  .module-desc { font-size: 11px; color: var(--text-muted); }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--red);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    padding: 0 4px;
+  }
+
+  /* ── BOTTOM NAV ── */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 100;
+  }
+
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 4px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    gap: 3px;
+  }
+
+  .nav-icon { font-size: 20px; }
+  .nav-label { font-size: 10px; color: var(--text-muted); }
+  .nav-item.active .nav-label { color: var(--accent); }
+  .nav-item.active .nav-icon { filter: drop-shadow(0 0 4px var(--accent-glow)); }
+
+  /* ── SECTIONS ── */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  .section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 10px;
+  }
+
+  .card-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .card-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* ── FORMS ── */
+  .form-group { margin-bottom: 14px; }
+  .form-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; display: block; }
+
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    padding: 12px 14px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    transition: border-color 0.15s;
+  }
+
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .form-select { appearance: none; cursor: pointer; }
+  .form-textarea { resize: vertical; min-height: 80px; }
+
+  .btn-secondary {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    padding: 12px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .btn-secondary:active { border-color: var(--accent); }
+
+  .btn-danger {
+    background: var(--red-dim);
+    border: 1px solid var(--red);
+    border-radius: var(--radius-sm);
+    color: var(--red);
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 8px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.15s;
+  }
+
+  .tab.active {
+    background: var(--accent);
+    color: #0f0f0f;
+  }
+
+  /* ── STATUS PILLS ── */
+  .pill {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .pill-green { background: var(--green-dim); color: var(--green); }
+  .pill-red { background: var(--red-dim); color: var(--red); }
+  .pill-yellow { background: var(--accent-dim); color: var(--accent); }
+  .pill-blue { background: var(--blue-dim); color: var(--blue); }
+  .pill-orange { background: var(--orange-dim); color: var(--orange); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 200;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 24px 20px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+
+  .modal-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-close {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  /* ── PHOTO ── */
+  .photo-area {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: border-color 0.15s;
+  }
+
+  .photo-area:hover { border-color: var(--accent); }
+  .photo-area img { max-width: 100%; border-radius: var(--radius-sm); }
+  .photo-preview { display: none; }
+  .photo-placeholder { color: var(--text-muted); }
+  .photo-placeholder .photo-icon { font-size: 32px; margin-bottom: 8px; }
+  .photo-placeholder p { font-size: 13px; }
+
+  /* ── SEARCH ── */
+  .search-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    padding: 12px 14px 12px 38px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    margin-bottom: 14px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 12px center;
+  }
+
+  .search-input:focus { outline: none; border-color: var(--accent); }
+
+  /* ── DIVIDER ── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 16px 0;
+  }
+
+  /* ── DLU ALERT ── */
+  .dlu-card {
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .dlu-card.expired { background: var(--red-dim); border: 1px solid var(--red); }
+  .dlu-card.today { background: var(--orange-dim); border: 1px solid var(--orange); }
+  .dlu-card.soon { background: var(--accent-dim); border: 1px solid var(--accent); }
+  .dlu-card.ok { background: var(--surface); border: 1px solid var(--border); }
+
+  /* ── TAREFA ── */
+  .tarefa-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .tarefa-item.done { opacity: 0.5; }
+  .tarefa-item:active { border-color: var(--accent); }
+
+  .tarefa-check {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 12px;
+  }
+
+  .tarefa-check.done { background: var(--green); border-color: var(--green); }
+
+  /* ── INGREDIENT EXTRACTION ── */
+  .extraction-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+    margin-top: 10px;
+    min-height: 80px;
+    white-space: pre-wrap;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 12px 0;
+  }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 300;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+
+  #toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+  }
+
+  .empty-state .empty-icon { font-size: 36px; margin-bottom: 10px; }
+  .empty-state p { font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-logo">BAGGA</div>
+  <div class="login-sub">Loja Piloto · Gestão Operacional</div>
+  <div class="login-card">
+    <div class="login-label">Quem és?</div>
+    <select id="collabSelect" class="collab-select">
+      <option value="">Seleciona o teu nome...</option>
+    </select>
+    <div class="login-label">PIN</div>
+    <div class="pin-display" id="pinDisplay">·  ·  ·</div>
+    <div class="pin-grid" id="pinGrid"></div>
+    <button class="btn-primary" id="loginBtn" disabled onclick="doLogin()">Entrar</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">BAGGA</div>
+    <div class="topbar-user">
+      <div style="font-size:12px;color:var(--text-muted)" id="topbarName"></div>
+      <div class="user-avatar" id="topbarAvatar" onclick="logout()"></div>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- HOME -->
+    <div id="secHome" class="section active">
+      <div class="home-greeting" id="homeGreeting">Bom dia!</div>
+      <div class="home-date" id="homeDate"></div>
+      <div class="module-grid">
+        <div class="module-card accent" onclick="goTo('rastreabilidade')">
+          <div class="module-icon">📋</div>
+          <div class="module-name">Rastreabilidade</div>
+          <div class="module-desc">Registar abertura de produto</div>
+        </div>
+        <div class="module-card red" onclick="goTo('dlu')">
+          <div class="module-icon">⏰</div>
+          <div class="module-name">DLUs</div>
+          <div class="module-desc">Controlo de validades</div>
+        </div>
+        <div class="module-card green" onclick="goTo('tarefas')">
+          <div class="module-icon">✅</div>
+          <div class="module-name">Tarefas</div>
+          <div class="module-desc">Diárias, semanais, mensais</div>
+        </div>
+        <div class="module-card blue" onclick="goTo('ingredientes')">
+          <div class="module-icon">🧪</div>
+          <div class="module-name">Ingredientes</div>
+          <div class="module-desc">Foto + extração IA</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RASTREABILIDADE -->
+    <div id="secRastreabilidade" class="section">
+      <div class="section-title">📋 Rastreabilidade</div>
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('rast','novo',this)">Novo Registo</div>
+        <div class="tab" onclick="switchTab('rast','historico',this)">Histórico</div>
+      </div>
+      <div id="rastNovo">
+        <div class="form-group">
+          <label class="form-label">Produto</label>
+          <select class="form-select" id="rastProduto" onchange="autoFillRast()">
+            <option value="">Seleciona o produto...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lote</label>
+          <input type="text" class="form-input" id="rastLote" placeholder="Nº de lote">
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label class="form-label">Val. Fornecedor</label>
+            <input type="date" class="form-input" id="rastValFornecedor">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Data Elaboração/Abertura</label>
+            <input type="datetime-local" class="form-input" id="rastDataAbertura">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label class="form-label">DLU</label>
+            <input type="datetime-local" class="form-input" id="rastDlu">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Condições de Conservação</label>
+            <input type="text" class="form-input" id="rastCondicoes" placeholder="Auto-preenchido">
+          </div>
+        </div>
+        <div id="rastInfoBox" style="display:none" class="card" style="margin-bottom:14px">
+          <div class="card-title" style="color:var(--accent);margin-bottom:8px">📌 Regras do Produto</div>
+          <div id="rastInfoContent" style="font-size:13px;color:var(--text-muted);line-height:1.6"></div>
+        </div>
+        <button class="btn-primary" onclick="saveRastreabilidade()">Guardar Registo</button>
+      </div>
+      <div id="rastHistorico" style="display:none">
+        <div id="rastHistoricoList"><div class="loading-row"><div class="spinner"></div> A carregar...</div></div>
+      </div>
+    </div>
+
+    <!-- DLU -->
+    <div id="secDlu" class="section">
+      <div class="section-title">⏰ Controlo de DLUs</div>
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('dlu','alertas',this)">Alertas</div>
+        <div class="tab" onclick="switchTab('dlu','todos',this)">Todos</div>
+        <div class="tab" onclick="switchTab('dlu','novo',this)">+ Novo</div>
+      </div>
+      <div id="dluAlertas">
+        <div id="dluAlertasList"><div class="loading-row"><div class="spinner"></div> A carregar...</div></div>
+      </div>
+      <div id="dluTodos" style="display:none">
+        <div id="dluTodosList"><div class="loading-row"><div class="spinner"></div> A carregar...</div></div>
+      </div>
+      <div id="dluNovo" style="display:none">
+        <div class="form-group">
+          <label class="form-label">Produto</label>
+          <select class="form-select" id="dluProduto">
+            <option value="">Seleciona o produto...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lote</label>
+          <input type="text" class="form-input" id="dluLote" placeholder="Nº de lote (opcional)">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data Limite de Utilização</label>
+          <input type="datetime-local" class="form-input" id="dluData">
+        </div>
+        <button class="btn-primary" onclick="saveDlu()">Registar DLU</button>
+      </div>
+    </div>
+
+    <!-- TAREFAS -->
+    <div id="secTarefas" class="section">
+      <div class="section-title">✅ Tarefas</div>
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('tar','diarias',this)">Diárias</div>
+        <div class="tab" onclick="switchTab('tar','semanais',this)">Semanais</div>
+        <div class="tab" onclick="switchTab('tar','mensais',this)">Mensais</div>
+      </div>
+      <div id="tarDiarias"><div class="loading-row"><div class="spinner"></div> A carregar...</div></div>
+      <div id="tarSemanais" style="display:none"><div class="loading-row"><div class="spinner"></div> A carregar...</div></div>
+      <div id="tarMensais" style="display:none"><div class="loading-row"><div class="spinner"></div> A carregar...</div></div>
+    </div>
+
+    <!-- INGREDIENTES -->
+    <div id="secIngredientes" class="section">
+      <div class="section-title">🧪 Ingredientes</div>
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('ing','novo',this)">Nova Foto</div>
+        <div class="tab" onclick="switchTab('ing','consultar',this)">Consultar</div>
+      </div>
+      <div id="ingNovo">
+        <div class="form-group">
+          <label class="form-label">Produto</label>
+          <select class="form-select" id="ingProduto">
+            <option value="">Seleciona o produto...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Foto da Embalagem</label>
+          <div class="photo-area" onclick="document.getElementById('ingPhotoInput').click()">
+            <div class="photo-placeholder" id="ingPhotoPlaceholder">
+              <div class="photo-icon">📷</div>
+              <p>Toca para tirar foto ou escolher da galeria</p>
+            </div>
+            <img id="ingPhotoPreview" class="photo-preview">
+          </div>
+          <input type="file" id="ingPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="handleIngPhoto(this)">
+        </div>
+        <div id="ingExtractionArea" style="display:none">
+          <div class="form-label" style="margin-bottom:6px">Ingredientes extraídos pela IA</div>
+          <div class="extraction-box" id="ingExtractionBox"></div>
+          <div style="margin-top:10px">
+            <label class="form-label">Editar / Corrigir</label>
+            <textarea class="form-textarea" id="ingTextoFinal" rows="5"></textarea>
+          </div>
+        </div>
+        <button class="btn-primary" id="ingSaveBtn" style="margin-top:8px" onclick="saveIngrediente()">Guardar</button>
+      </div>
+      <div id="ingConsultar" style="display:none">
+        <input type="text" class="search-input" placeholder="Pesquisar produto..." oninput="filterIngredientes(this.value)">
+        <div id="ingList"><div class="loading-row"><div class="spinner"></div> A carregar...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="nav-item active" id="navHome" onclick="goTo('home')">
+      <div class="nav-icon">🏠</div>
+      <div class="nav-label">Início</div>
+    </div>
+    <div class="nav-item" id="navRast" onclick="goTo('rastreabilidade')">
+      <div class="nav-icon">📋</div>
+      <div class="nav-label">Rastreab.</div>
+    </div>
+    <div class="nav-item" id="navDlu" onclick="goTo('dlu')">
+      <div class="nav-icon">⏰</div>
+      <div class="nav-label">DLUs</div>
+    </div>
+    <div class="nav-item" id="navTar" onclick="goTo('tarefas')">
+      <div class="nav-icon">✅</div>
+      <div class="nav-label">Tarefas</div>
+    </div>
+    <div class="nav-item" id="navIng" onclick="goTo('ingredientes')">
+      <div class="nav-icon">🧪</div>
+      <div class="nav-label">Ingred.</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DLU DETAIL -->
+<div class="modal-overlay" id="dluModal">
+  <div class="modal">
+    <div class="modal-title">
+      <span>Detalhes DLU</span>
+      <div class="modal-close" onclick="closeModal('dluModal')">✕</div>
+    </div>
+    <div id="dluModalContent"></div>
+    <hr class="divider">
+    <div class="row">
+      <button class="btn-danger" onclick="markDluConsumed()">Consumido</button>
+      <button class="btn-danger" onclick="markDluDescartado()">Descartado</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INGREDIENTE DETAIL -->
+<div class="modal-overlay" id="ingModal">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="ingModalTitle"></span>
+      <div class="modal-close" onclick="closeModal('ingModal')">✕</div>
+    </div>
+    <div id="ingModalContent"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+const SB_URL = 'https://cnsvpiavkwajpfhuzvcw.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNuc3ZwaWF2a3dhanBmaHV6dmN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NjI2NzQsImV4cCI6MjA5NzEzODY3NH0.owHPWymQSeK1WC9BDUgrkNGORxAf-rblS8qvQ9m6SSM';
+const ANTH_URL = 'https://api.anthropic.com/v1/messages';
+
+let currentUser = null;
+let allProdutos = [];
+let allIngredientes = [];
+let allDlus = [];
+let selectedDluId = null;
+let ingPhotoBase64 = null;
+let tarefasRegistos = {};
+
+async function sbFetch(path, opts = {}) {
+  const r = await fetch(SB_URL + '/rest/v1/' + path, {
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': 'Bearer ' + SB_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': opts.prefer || 'return=representation',
+      ...opts.headers
+    },
+    ...opts
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json().catch(() => []);
+}
+
+// ── PIN ──
+const pinKeys = [1,2,3,4,5,6,7,8,9,'',0,'⌫'];
+let pinValue = '';
+const pinGrid = document.getElementById('pinGrid');
+pinKeys.forEach(k => {
+  const btn = document.createElement('button');
+  btn.className = 'pin-btn' + (k === '⌫' ? ' del' : '');
+  btn.textContent = k === '' ? '' : k;
+  if (k === '') { btn.disabled = true; btn.style.opacity = '0'; }
+  else btn.onclick = () => handlePin(k);
+  pinGrid.appendChild(btn);
+});
+
+function handlePin(k) {
+  if (k === '⌫') { pinValue = pinValue.slice(0,-1); }
+  else if (pinValue.length < 6) { pinValue += k; }
+  const dots = '●'.repeat(pinValue.length) + ' · '.repeat(Math.max(0, 3 - pinValue.length)).trim();
+  document.getElementById('pinDisplay').textContent = pinValue.length ? '●'.repeat(pinValue.length) : '·  ·  ·';
+  document.getElementById('loginBtn').disabled = pinValue.length < 1 || !document.getElementById('collabSelect').value;
+}
+
+// ── LOAD COLABORADORES ──
+async function loadColabs() {
+  try {
+    const colabs = await sbFetch('colaboradores?select=*&ativo=eq.true&order=nome');
+    const sel = document.getElementById('collabSelect');
+    colabs.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id;
+      o.dataset.nome = c.nome;
+      o.dataset.pin = c.pin;
+      o.textContent = c.nome;
+      sel.appendChild(o);
+    });
+  } catch(e) { console.error(e); }
+}
+
+document.getElementById('collabSelect').addEventListener('change', () => {
+  pinValue = '';
+  document.getElementById('pinDisplay').textContent = '·  ·  ·';
+  document.getElementById('loginBtn').disabled = true;
+  document.getElementById('loginError').textContent = '';
+});
+
+function doLogin() {
+  const sel = document.getElementById('collabSelect');
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt.value) return;
+  if (pinValue !== opt.dataset.pin) {
+    document.getElementById('loginError').textContent = 'PIN incorreto. Tenta novamente.';
+    pinValue = '';
+    document.getElementById('pinDisplay').textContent = '·  ·  ·';
+    return;
+  }
+  currentUser = { id: opt.value, nome: opt.dataset.nome };
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  initApp();
+}
+
+function logout() {
+  if (!confirm('Terminar sessão?')) return;
+  currentUser = null;
+  pinValue = '';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('collabSelect').value = '';
+  document.getElementById('pinDisplay').textContent = '·  ·  ·';
+  document.getElementById('loginError').textContent = '';
+}
+
+// ── INIT ──
+async function initApp() {
+  const name = currentUser.nome.split(' ')[0];
+  const h = new Date().getHours();
+  const greet = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+  document.getElementById('homeGreeting').textContent = greet + ', ' + name + '!';
+  document.getElementById('homeDate').textContent = new Date().toLocaleDateString('pt-PT', {weekday:'long', day:'numeric', month:'long'});
+  document.getElementById('topbarName').textContent = name;
+  document.getElementById('topbarAvatar').textContent = name[0].toUpperCase();
+
+  allProdutos = await sbFetch('produtos?select=*&ativo=eq.true&order=nome');
+  populateProdutoSelects();
+  loadTarefas();
+  loadDlus();
+  loadIngredientes();
+}
+
+function populateProdutoSelects() {
+  ['rastProduto','dluProduto','ingProduto'].forEach(id => {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    while (sel.options.length > 1) sel.remove(1);
+    allProdutos.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id;
+      o.dataset.info = JSON.stringify(p);
+      o.textContent = p.nome;
+      sel.appendChild(o);
+    });
+    if (cur) sel.value = cur;
+  });
+}
+
+// ── NAVIGATION ──
+const sections = { home: 'secHome', rastreabilidade: 'secRastreabilidade', dlu: 'secDlu', tarefas: 'secTarefas', ingredientes: 'secIngredientes' };
+const navMap = { home: 'navHome', rastreabilidade: 'navRast', dlu: 'navDlu', tarefas: 'navTar', ingredientes: 'navIng' };
+
+function goTo(name) {
+  Object.values(sections).forEach(s => document.getElementById(s).classList.remove('active'));
+  Object.values(navMap).forEach(n => document.getElementById(n).classList.remove('active'));
+  document.getElementById(sections[name]).classList.add('active');
+  document.getElementById(navMap[name]).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function switchTab(prefix, tab, el) {
+  const tabs = el.parentElement.querySelectorAll('.tab');
+  tabs.forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+
+  const map = {
+    'rast': { novo: 'rastNovo', historico: 'rastHistorico' },
+    'dlu': { alertas: 'dluAlertas', todos: 'dluTodos', novo: 'dluNovo' },
+    'tar': { diarias: 'tarDiarias', semanais: 'tarSemanais', mensais: 'tarMensais' },
+    'ing': { novo: 'ingNovo', consultar: 'ingConsultar' }
+  };
+
+  Object.values(map[prefix]).forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById(map[prefix][tab]).style.display = 'block';
+
+  if (prefix === 'rast' && tab === 'historico') loadRastHistorico();
+  if (prefix === 'dlu' && tab === 'todos') loadDluTodos();
+  if (prefix === 'ing' && tab === 'consultar') renderIngredientes('');
+}
+
+// ── RASTREABILIDADE ──
+function autoFillRast() {
+  const sel = document.getElementById('rastProduto');
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt.dataset.info) return;
+  const p = JSON.parse(opt.dataset.info);
+
+  document.getElementById('rastCondicoes').value = p.temp_conservacao_exposicao || '';
+  const now = new Date();
+  document.getElementById('rastDataAbertura').value = toLocalISO(now);
+
+  // Auto-calc DLU
+  if (p.dlu_apos_abertura) {
+    const dlu = calcDlu(now, p.dlu_apos_abertura);
+    if (dlu) document.getElementById('rastDlu').value = toLocalISO(dlu);
+  }
+
+  // Show info box
+  let info = '';
+  if (p.temp_armazenamento) info += '🌡 Armazenamento: ' + p.temp_armazenamento + '\n';
+  if (p.dlu_apos_abertura) info += '⏱ DLU após abertura: ' + p.dlu_apos_abertura + '\n';
+  if (p.tempo_descongelacao) info += '❄️ Descongelação: ' + p.tempo_descongelacao + '\n';
+  if (p.tempo_exposicao_equipamento) info += '🏪 Exposição: ' + p.tempo_exposicao_equipamento;
+
+  if (info) {
+    document.getElementById('rastInfoContent').textContent = info;
+    document.getElementById('rastInfoBox').style.display = 'block';
+  }
+}
+
+function calcDlu(from, rule) {
+  if (!rule) return null;
+  const r = rule.toLowerCase();
+  const d = new Date(from);
+  if (r.includes('produto do dia')) { d.setHours(23,59,0,0); return d; }
+  if (r.includes('validade do fornecedor')) return null;
+  const hMatch = r.match(/(\d+)\s*hora/);
+  if (hMatch) { d.setHours(d.getHours() + parseInt(hMatch[1])); return d; }
+  const dMatch = r.match(/(\d+)\s*dia/);
+  if (dMatch) { d.setDate(d.getDate() + parseInt(dMatch[1])); return d; }
+  return null;
+}
+
+function toLocalISO(d) {
+  const pad = n => String(n).padStart(2,'0');
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+async function saveRastreabilidade() {
+  const prod = document.getElementById('rastProduto');
+  if (!prod.value) { showToast('Seleciona um produto'); return; }
+  const opt = prod.options[prod.selectedIndex];
+  const body = {
+    produto_id: prod.value,
+    produto_nome: opt.textContent,
+    lote: document.getElementById('rastLote').value || null,
+    val_fornecedor: document.getElementById('rastValFornecedor').value || null,
+    data_elaboracao_abertura: document.getElementById('rastDataAbertura').value || null,
+    dlu: document.getElementById('rastDlu').value || null,
+    condicoes_conservacao: document.getElementById('rastCondicoes').value || null,
+    colaborador_id: currentUser.id,
+    colaborador_nome: currentUser.nome
+  };
+  try {
+    await sbFetch('rastreabilidade', { method: 'POST', body: JSON.stringify(body) });
+    showToast('✅ Rastreabilidade guardada!');
+    document.getElementById('rastProduto').value = '';
+    document.getElementById('rastLote').value = '';
+    document.getElementById('rastValFornecedor').value = '';
+    document.getElementById('rastDataAbertura').value = '';
+    document.getElementById('rastDlu').value = '';
+    document.getElementById('rastCondicoes').value = '';
+    document.getElementById('rastInfoBox').style.display = 'none';
+  } catch(e) { showToast('Erro ao guardar'); console.error(e); }
+}
+
+async function loadRastHistorico() {
+  const el = document.getElementById('rastHistoricoList');
+  el.innerHTML = '<div class="loading-row"><div class="spinner"></div> A carregar...</div>';
+  try {
+    const data = await sbFetch('rastreabilidade?select=*&order=criado_em.desc&limit=50');
+    if (!data.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>Ainda sem registos</p></div>'; return; }
+    el.innerHTML = data.map(r => {
+      const dlu = r.dlu ? new Date(r.dlu) : null;
+      const expired = dlu && dlu < new Date();
+      return '<div class="card">' +
+        '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">' +
+        '<div class="card-title">' + r.produto_nome + '</div>' +
+        (expired ? '<span class="pill pill-red">Expirado</span>' : '<span class="pill pill-green">OK</span>') +
+        '</div>' +
+        '<div class="card-meta">Lote: ' + (r.lote || '—') + ' · Abertura: ' + (r.data_elaboracao_abertura ? new Date(r.data_elaboracao_abertura).toLocaleString('pt-PT') : '—') + '</div>' +
+        '<div class="card-meta">DLU: ' + (dlu ? dlu.toLocaleString('pt-PT') : '—') + '</div>' +
+        '<div class="card-meta" style="margin-top:4px">👤 ' + r.colaborador_nome + ' · ' + new Date(r.criado_em).toLocaleString('pt-PT') + '</div>' +
+        '</div>';
+    }).join('');
+  } catch(e) { el.innerHTML = '<div class="empty-state"><p>Erro ao carregar</p></div>'; }
+}
+
+// ── DLU ──
+async function loadDlus() {
+  try {
+    allDlus = await sbFetch('dlu_controlo?select=*&estado=eq.ativo&order=dlu.asc');
+    renderDluAlertas();
+  } catch(e) { console.error(e); }
+}
+
+function renderDluAlertas() {
+  const el = document.getElementById('dluAlertasList');
+  const now = new Date();
+  const alerts = allDlus.filter(d => {
+    const dlu = new Date(d.dlu);
+    const diff = (dlu - now) / 3600000;
+    return diff < 24;
+  });
+  if (!alerts.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><p>Sem alertas de DLU nas próximas 24h</p></div>';
+    return;
+  }
+  el.innerHTML = alerts.map(d => dluCard(d, now)).join('');
+}
+
+async function loadDluTodos() {
+  const el = document.getElementById('dluTodosList');
+  el.innerHTML = '<div class="loading-row"><div class="spinner"></div> A carregar...</div>';
+  try {
+    const data = await sbFetch('dlu_controlo?select=*&order=dlu.asc&limit=100');
+    if (!data.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">⏰</div><p>Ainda sem DLUs registadas</p></div>'; return; }
+    const now = new Date();
+    el.innerHTML = data.map(d => dluCard(d, now)).join('');
+  } catch(e) { el.innerHTML = '<div class="empty-state"><p>Erro ao carregar</p></div>'; }
+}
+
+function dluCard(d, now) {
+  const dlu = new Date(d.dlu);
+  const diffH = (dlu - now) / 3600000;
+  let cls = 'ok', label = 'OK';
+  if (diffH < 0) { cls = 'expired'; label = 'Expirado'; }
+  else if (diffH < 2) { cls = 'today'; label = 'Urgente'; }
+  else if (diffH < 24) { cls = 'soon'; label = 'Hoje'; }
+  const estado = d.estado !== 'ativo' ? (' · <span class="pill pill-blue">' + d.estado + '</span>') : '';
+  return '<div class="dlu-card ' + cls + '" onclick="openDluModal(\'' + d.id + '\')">' +
+    '<div>' +
+    '<div style="font-weight:600;font-size:14px">' + d.produto_nome + '</div>' +
+    '<div style="font-size:12px;color:var(--text-muted);margin-top:2px">' + dlu.toLocaleString('pt-PT') + (d.lote ? ' · Lote: ' + d.lote : '') + estado + '</div>' +
+    '</div>' +
+    '<span class="pill ' + (cls==='expired'?'pill-red':cls==='today'?'pill-orange':cls==='soon'?'pill-yellow':'pill-green') + '">' + label + '</span>' +
+    '</div>';
+}
+
+function openDluModal(id) {
+  selectedDluId = id;
+  const d = allDlus.find(x => x.id === id) || {};
+  const dlu = d.dlu ? new Date(d.dlu) : null;
+  document.getElementById('dluModalContent').innerHTML =
+    '<div class="card-title" style="margin-bottom:12px">' + (d.produto_nome || '') + '</div>' +
+    '<div class="card-meta">DLU: <strong>' + (dlu ? dlu.toLocaleString('pt-PT') : '—') + '</strong></div>' +
+    '<div class="card-meta">Lote: ' + (d.lote || '—') + '</div>' +
+    '<div class="card-meta">Registado por: ' + (d.colaborador_nome || '—') + '</div>' +
+    '<div class="card-meta">Estado: ' + (d.estado || '—') + '</div>';
+  document.getElementById('dluModal').classList.add('open');
+}
+
+async function markDluConsumed() { await updateDluEstado('consumido'); }
+async function markDluDescartado() { await updateDluEstado('descartado'); }
+
+async function updateDluEstado(estado) {
+  if (!selectedDluId) return;
+  try {
+    await sbFetch('dlu_controlo?id=eq.' + selectedDluId, { method: 'PATCH', body: JSON.stringify({ estado }) });
+    showToast('✅ Atualizado: ' + estado);
+    closeModal('dluModal');
+    loadDlus();
+  } catch(e) { showToast('Erro'); }
+}
+
+async function saveDlu() {
+  const prod = document.getElementById('dluProduto');
+  if (!prod.value) { showToast('Seleciona um produto'); return; }
+  const opt = prod.options[prod.selectedIndex];
+  const body = {
+    produto_id: prod.value,
+    produto_nome: opt.textContent,
+    dlu: document.getElementById('dluData').value || null,
+    lote: document.getElementById('dluLote').value || null,
+    colaborador_id: currentUser.id,
+    colaborador_nome: currentUser.nome
+  };
+  if (!body.dlu) { showToast('Indica a data limite'); return; }
+  try {
+    await sbFetch('dlu_controlo', { method: 'POST', body: JSON.stringify(body) });
+    showToast('✅ DLU registada!');
+    prod.value = '';
+    document.getElementById('dluLote').value = '';
+    document.getElementById('dluData').value = '';
+    loadDlus();
+  } catch(e) { showToast('Erro ao guardar'); }
+}
+
+// ── TAREFAS ──
+async function loadTarefas() {
+  try {
+    const [templates, registos] = await Promise.all([
+      sbFetch('tarefas_template?select=*&ativo=eq.true&order=titulo'),
+      sbFetch('tarefas_registo?select=*&order=criado_em.desc&limit=200')
+    ]);
+    const today = new Date().toDateString();
+    registos.forEach(r => {
+      const d = new Date(r.criado_em).toDateString();
+      if (d === today) tarefasRegistos[r.tarefa_id] = r;
+    });
+    ['diaria','semanal','mensal'].forEach(freq => {
+      const id = freq === 'diaria' ? 'tarDiarias' : freq === 'semanal' ? 'tarSemanais' : 'tarMensais';
+      const items = templates.filter(t => t.frequencia === freq);
+      renderTarefas(id, items);
+    });
+  } catch(e) { console.error(e); }
+}
+
+function renderTarefas(containerId, items) {
+  const el = document.getElementById(containerId);
+  if (!items.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><p>Sem tarefas</p></div>'; return; }
+  const done = items.filter(t => tarefasRegistos[t.id]).length;
+  el.innerHTML = '<div style="margin-bottom:12px">' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:6px">' +
+    '<span>' + done + ' / ' + items.length + ' concluídas</span>' +
+    '</div>' +
+    '<div style="background:var(--surface);border-radius:4px;height:4px;overflow:hidden">' +
+    '<div style="background:var(--green);width:' + Math.round(done/items.length*100) + '%;height:100%;border-radius:4px;transition:width 0.3s"></div>' +
+    '</div>' +
+    '</div>' +
+    items.map(t => {
+      const isDone = !!tarefasRegistos[t.id];
+      const reg = tarefasRegistos[t.id];
+      return '<div class="tarefa-item ' + (isDone ? 'done' : '') + '" onclick="toggleTarefa(\'' + t.id + '\',\'' + t.titulo.replace(/'/g,"\\'") + '\')">' +
+        '<div class="tarefa-check ' + (isDone ? 'done' : '') + '">' + (isDone ? '✓' : '') + '</div>' +
+        '<div style="flex:1">' +
+        '<div style="font-weight:500;font-size:14px">' + t.titulo + '</div>' +
+        (isDone && reg ? '<div style="font-size:11px;color:var(--text-muted);margin-top:2px">✓ ' + reg.colaborador_nome + ' · ' + new Date(reg.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) + '</div>' : '') +
+        (t.descricao ? '<div style="font-size:12px;color:var(--text-dim);margin-top:2px">' + t.descricao + '</div>' : '') +
+        '</div>' +
+        '</div>';
+    }).join('');
+}
+
+async function toggleTarefa(id, titulo) {
+  if (tarefasRegistos[id]) return; // já feita
+  try {
+    const reg = await sbFetch('tarefas_registo', {
+      method: 'POST',
+      body: JSON.stringify({ tarefa_id: id, tarefa_titulo: titulo, colaborador_id: currentUser.id, colaborador_nome: currentUser.nome })
+    });
+    if (reg && reg[0]) tarefasRegistos[id] = reg[0];
+    showToast('✅ Tarefa concluída!');
+    loadTarefas();
+  } catch(e) { showToast('Erro'); }
+}
+
+// ── INGREDIENTES ──
+function handleIngPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const dataUrl = e.target.result;
+    ingPhotoBase64 = dataUrl.split(',')[1];
+    document.getElementById('ingPhotoPreview').src = dataUrl;
+    document.getElementById('ingPhotoPreview').style.display = 'block';
+    document.getElementById('ingPhotoPlaceholder').style.display = 'none';
+    await extractIngredientes();
+  };
+  reader.readAsDataURL(file);
+}
+
+async function extractIngredientes() {
+  const box = document.getElementById('ingExtractionBox');
+  document.getElementById('ingExtractionArea').style.display = 'block';
+  box.innerHTML = '<div class="loading-row"><div class="spinner"></div> A extrair ingredientes com IA...</div>';
+  document.getElementById('ingTextoFinal').value = '';
+  try {
+    const r = await fetch(ANTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: ingPhotoBase64 } },
+            { type: 'text', text: 'Esta é uma foto de uma embalagem de produto alimentar. Extrai APENAS a lista de ingredientes que conseguires ler. Devolve só os ingredientes, sem mais texto, sem explicações. Se houver alergénios destacados, mantém-nos em maiúsculas.' }
+          ]
+        }]
+      })
+    });
+    const data = await r.json();
+    const text = data.content && data.content[0] ? data.content[0].text : 'Não foi possível extrair os ingredientes.';
+    box.textContent = text;
+    document.getElementById('ingTextoFinal').value = text;
+  } catch(e) {
+    box.textContent = 'Erro na extração. Podes escrever manualmente abaixo.';
+  }
+}
+
+async function saveIngrediente() {
+  const prod = document.getElementById('ingProduto');
+  if (!prod.value) { showToast('Seleciona um produto'); return; }
+  const texto = document.getElementById('ingTextoFinal').value;
+  if (!ingPhotoBase64) { showToast('Tira uma foto primeiro'); return; }
+  const opt = prod.options[prod.selectedIndex];
+
+  // Upload photo to Supabase Storage (simplified: store as base64 text in DB for now)
+  const body = {
+    produto_id: prod.value,
+    produto_nome: opt.textContent,
+    texto_extraido: texto,
+    colaborador_id: currentUser.id,
+    colaborador_nome: currentUser.nome
+  };
+  try {
+    await sbFetch('ingredientes', { method: 'POST', body: JSON.stringify(body) });
+    showToast('✅ Ingredientes guardados!');
+    prod.value = '';
+    ingPhotoBase64 = null;
+    document.getElementById('ingPhotoPreview').style.display = 'none';
+    document.getElementById('ingPhotoPlaceholder').style.display = 'block';
+    document.getElementById('ingExtractionArea').style.display = 'none';
+    document.getElementById('ingTextoFinal').value = '';
+    loadIngredientes();
+  } catch(e) { showToast('Erro ao guardar'); }
+}
+
+async function loadIngredientes() {
+  try {
+    allIngredientes = await sbFetch('ingredientes?select=*&order=criado_em.desc&limit=200');
+    renderIngredientes('');
+  } catch(e) { console.error(e); }
+}
+
+function filterIngredientes(q) { renderIngredientes(q); }
+
+function renderIngredientes(q) {
+  const el = document.getElementById('ingList');
+  if (!el) return;
+  const filtered = q ? allIngredientes.filter(i => i.produto_nome.toLowerCase().includes(q.toLowerCase())) : allIngredientes;
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🧪</div><p>' + (q ? 'Sem resultados' : 'Ainda sem ingredientes registados') + '</p></div>';
+    return;
+  }
+  // group by produto
+  const groups = {};
+  filtered.forEach(i => {
+    if (!groups[i.produto_nome]) groups[i.produto_nome] = [];
+    groups[i.produto_nome].push(i);
+  });
+  el.innerHTML = Object.entries(groups).map(([nome, items]) => {
+    const last = items[0];
+    return '<div class="card" onclick="openIngModal(\'' + last.id + '\')">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+      '<div class="card-title">' + nome + '</div>' +
+      '<span class="pill pill-blue">' + items.length + ' foto' + (items.length>1?'s':'') + '</span>' +
+      '</div>' +
+      '<div class="card-meta" style="margin-top:4px">' + (last.texto_extraido ? last.texto_extraido.substring(0,80) + '...' : 'Sem texto') + '</div>' +
+      '<div class="card-meta" style="margin-top:4px">👤 ' + last.colaborador_nome + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function openIngModal(id) {
+  const item = allIngredientes.find(i => i.id === id);
+  if (!item) return;
+  document.getElementById('ingModalTitle').textContent = item.produto_nome;
+  document.getElementById('ingModalContent').innerHTML =
+    '<div style="font-size:13px;line-height:1.7;white-space:pre-wrap;color:var(--text)">' + (item.texto_extraido || 'Sem texto extraído') + '</div>' +
+    '<hr class="divider">' +
+    '<div class="card-meta">👤 ' + item.colaborador_nome + '</div>' +
+    '<div class="card-meta">' + new Date(item.criado_em).toLocaleString('pt-PT') + '</div>';
+  document.getElementById('ingModal').classList.add('open');
+}
+
+// ── UTILS ──
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── INIT ──
+loadColabs();
+</script>
+</body>
+</html>
