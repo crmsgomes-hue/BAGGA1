@@ -1055,7 +1055,16 @@ function autoFillRast() {
 
   document.getElementById('rastCondicoes').value = p.temp_conservacao_exposicao || '';
   const now = new Date();
-  document.getElementById('rastDataAbertura').value = toLocalISO(now);
+  const rule = (p.dlu_apos_abertura || '').toLowerCase();
+  const isHourBased = /\d+\s*hora/.test(rule);
+  const pad = n => String(n).padStart(2,'0');
+  if (isHourBased) {
+    document.getElementById('rastDataAbertura').value = toLocalISO(now);
+    document.getElementById('rastDataAbertura').type = 'datetime-local';
+  } else {
+    document.getElementById('rastDataAbertura').value = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
+    document.getElementById('rastDataAbertura').type = 'date';
+  }
 
   // Auto-calc DLU
   const dluField = document.getElementById('rastDlu');
@@ -1172,7 +1181,11 @@ async function loadRastHistorico() {
         '<div class="card-title">' + r.produto_nome + '</div>' +
         (expired ? '<span class="pill pill-red">Expirado</span>' : '<span class="pill pill-green">OK</span>') +
         '</div>' +
-        '<div class="card-meta">Lote: ' + (r.lote || '—') + ' · Abertura: ' + (r.data_elaboracao_abertura ? new Date(r.data_elaboracao_abertura).toLocaleString('pt-PT') : '—') + '</div>' +
+        (function(){
+        const ab = r.data_elaboracao_abertura ? new Date(r.data_elaboracao_abertura) : null;
+        const abStr = ab ? (ab.getHours()===0&&ab.getMinutes()===0 ? ab.toLocaleDateString('pt-PT') : ab.toLocaleString('pt-PT')) : '—';
+        return '<div class="card-meta">Lote: ' + (r.lote || '—') + ' · Abertura: ' + abStr + '</div>';
+      })() +
         '<div class="card-meta">DLU: ' + dluStr + '</div>' +
         '<div class="card-meta" style="margin-top:4px">👤 ' + r.colaborador_nome + ' · ' + new Date(r.criado_em).toLocaleString('pt-PT') + '</div>' +
         '</div>';
