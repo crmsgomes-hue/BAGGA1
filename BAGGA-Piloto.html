@@ -1135,7 +1135,7 @@ async function saveRastreabilidade() {
     lote: document.getElementById('rastLote').value || null,
     val_fornecedor: document.getElementById('rastValFornecedor').value || null,
     data_elaboracao_abertura: document.getElementById('rastDataAbertura').value || null,
-    dlu: document.getElementById('rastDluDate').value ? document.getElementById('rastDluDate').value + 'T00:00:00' : (document.getElementById('rastDlu').value || null),
+    dlu: document.getElementById('rastDluDate').value ? document.getElementById('rastDluDate').value : (document.getElementById('rastDlu').value || null),
     condicoes_conservacao: document.getElementById('rastCondicoes').value || null,
     colaborador_id: currentUser.id,
     colaborador_nome: currentUser.nome
@@ -1162,10 +1162,10 @@ async function loadRastHistorico() {
     el.innerHTML = data.map(r => {
       const dlu = r.dlu ? new Date(r.dlu) : null;
       const expired = dlu && dlu < new Date();
+      // Show date only if stored as date (T00:00:00) or near midnight
+      const dluIsDateOnly = dlu && dlu.getHours() === 0 && dlu.getMinutes() === 0;
       const dluStr = dlu ? (
-        dlu.getHours() === 0 && dlu.getMinutes() === 0
-          ? dlu.toLocaleDateString('pt-PT')
-          : dlu.toLocaleString('pt-PT')
+        dluIsDateOnly ? dlu.toLocaleDateString('pt-PT') : dlu.toLocaleString('pt-PT')
       ) : '—';
       return '<div class="card">' +
         '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">' +
