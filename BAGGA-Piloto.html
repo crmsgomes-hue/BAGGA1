@@ -709,6 +709,7 @@
           <div class="form-group">
             <label class="form-label">DLU</label>
             <input type="datetime-local" class="form-input" id="rastDlu">
+            <div id="rastDluHint" style="display:none;font-size:12px;color:var(--orange);margin-top:4px"></div>
           </div>
           <div class="form-group">
             <label class="form-label">Condições de Conservação</label>
@@ -1045,9 +1046,24 @@ function autoFillRast() {
   document.getElementById('rastDataAbertura').value = toLocalISO(now);
 
   // Auto-calc DLU
+  const dluField = document.getElementById('rastDlu');
+  const dluHint = document.getElementById('rastDluHint');
+  dluField.value = '';
+  if (dluHint) dluHint.style.display = 'none';
+
   if (p.dlu_apos_abertura) {
-    const dlu = calcDlu(now, p.dlu_apos_abertura);
-    if (dlu) document.getElementById('rastDlu').value = toLocalISO(dlu);
+    const rule = p.dlu_apos_abertura.toLowerCase();
+    if (rule.includes('validade do fornecedor')) {
+      // Must copy from package - show hint and pre-fill val fornecedor if available
+      const valForn = document.getElementById('rastValFornecedor').value;
+      if (valForn) {
+        dluField.value = valForn + 'T23:59';
+      }
+      if (dluHint) { dluHint.textContent = '⚠️ Preenche com a validade da embalagem'; dluHint.style.display = 'block'; }
+    } else {
+      const dlu = calcDlu(now, p.dlu_apos_abertura);
+      if (dlu) dluField.value = toLocalISO(dlu);
+    }
   }
 
   // Show info box
@@ -1072,7 +1088,7 @@ function calcDlu(from, rule) {
   const hMatch = r.match(/(\d+)\s*hora/);
   if (hMatch) { d.setHours(d.getHours() + parseInt(hMatch[1])); return d; }
   const dMatch = r.match(/(\d+)\s*dia/);
-  if (dMatch) { d.setDate(d.getDate() + parseInt(dMatch[1])); return d; }
+  if (dMatch) { d.setDate(d.getDate() + parseInt(dMatch[1])); d.setHours(23,59,0,0); return d; }
   return null;
 }
 
