@@ -687,7 +687,8 @@
       <div id="rastNovo">
         <div class="form-group">
           <label class="form-label">Produto</label>
-          <select class="form-select" id="rastProduto" onchange="autoFillRast()">
+          <input type="text" class="search-input" id="rastSearch" placeholder="🔍 Pesquisar produto..." oninput="filterRastProdutos(this.value)" style="margin-bottom:6px">
+          <select class="form-select" id="rastProduto" onchange="autoFillRast()" size="5" style="height:auto;padding:4px">
             <option value="">Seleciona o produto...</option>
           </select>
         </div>
@@ -924,6 +925,7 @@ function handlePin(k) {
 async function loadColabs() {
   try {
     const colabs = await sbFetch('colaboradores?select=*&ativo=eq.true&order=nome');
+    colabs.sort((a, b) => a.nome === 'Cristina Gomes' ? -1 : b.nome === 'Cristina Gomes' ? 1 : 0);
     const sel = document.getElementById('collabSelect');
     colabs.forEach(c => {
       const o = document.createElement('option');
@@ -980,11 +982,20 @@ async function initApp() {
   document.getElementById('topbarName').textContent = name;
   document.getElementById('topbarAvatar').textContent = name[0].toUpperCase();
 
-  allProdutos = await sbFetch('produtos?select=*&ativo=eq.true&order=nome');
+  allProdutos = await sbFetch('produtos?select=*&ativo=eq.true&order=ordem.asc,nome.asc');
   populateProdutoSelects();
   loadTarefas();
   loadDlus();
   loadIngredientes();
+}
+
+function filterRastProdutos(q) {
+  const sel = document.getElementById('rastProduto');
+  const lower = q.toLowerCase();
+  Array.from(sel.options).forEach(o => {
+    if (!o.value) return;
+    o.style.display = o.textContent.toLowerCase().includes(lower) ? '' : 'none';
+  });
 }
 
 function populateProdutoSelects() {
