@@ -1063,14 +1063,20 @@ function autoFillRast() {
       const valForn = document.getElementById('rastValFornecedor').value;
       if (valForn) dluField.value = valForn + 'T23:59';
       if (dluHint) { dluHint.textContent = '⚠️ Preenche com a validade da embalagem'; dluHint.style.display = 'block'; }
-    } else if (rule.includes('produto do dia')) {
-      dluDateField.style.display = 'block';
-      const pad = n => String(n).padStart(2,'0');
-      dluDateField.value = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
     } else {
-      dluField.style.display = 'block';
       const dlu = calcDlu(now, p.dlu_apos_abertura);
-      if (dlu) dluField.value = toLocalISO(dlu);
+      if (dlu) {
+        if (dlu.type === 'date') {
+          dluDateField.style.display = 'block';
+          const pad = n => String(n).padStart(2,'0');
+          dluDateField.value = dlu.d.getFullYear() + '-' + pad(dlu.d.getMonth()+1) + '-' + pad(dlu.d.getDate());
+        } else {
+          dluField.style.display = 'block';
+          dluField.value = toLocalISO(dlu.d);
+        }
+      } else {
+        dluField.style.display = 'block';
+      }
     }
   } else {
     dluField.style.display = 'block';
@@ -1093,12 +1099,13 @@ function calcDlu(from, rule) {
   if (!rule) return null;
   const r = rule.toLowerCase();
   const d = new Date(from);
-  if (r.includes('produto do dia')) { d.setHours(23,59,0,0); return d; } // date only shown in UI
+  if (r.includes('produto do dia')) return { type: 'date', d };
   if (r.includes('validade do fornecedor')) return null;
+  if (r.includes('consumo imediato')) return null;
   const hMatch = r.match(/(\d+)\s*hora/);
-  if (hMatch) { d.setHours(d.getHours() + parseInt(hMatch[1])); return d; }
+  if (hMatch) { d.setHours(d.getHours() + parseInt(hMatch[1])); return { type: 'datetime', d }; }
   const dMatch = r.match(/(\d+)\s*dia/);
-  if (dMatch) { d.setDate(d.getDate() + parseInt(dMatch[1])); d.setHours(23,59,0,0); return d; }
+  if (dMatch) { d.setDate(d.getDate() + parseInt(dMatch[1])); return { type: 'date', d }; }
   return null;
 }
 
