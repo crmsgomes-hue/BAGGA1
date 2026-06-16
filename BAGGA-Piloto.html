@@ -687,10 +687,13 @@
       <div id="rastNovo">
         <div class="form-group">
           <label class="form-label">Produto</label>
-          <input type="text" class="search-input" id="rastSearch" placeholder="🔍 Pesquisar produto..." oninput="filterRastProdutos(this.value)" style="margin-bottom:6px">
-          <select class="form-select" id="rastProduto" onchange="autoFillRast()" size="5" style="height:auto;padding:4px">
-            <option value="">Seleciona o produto...</option>
-          </select>
+          <input type="text" class="search-input" id="rastSearch" placeholder="🔍 Pesquisar produto..." oninput="filterRastProdutos(this.value)" autocomplete="off">
+          <div id="rastProdutoSelecionado" style="display:none;background:var(--accent-dim);border:1px solid var(--accent);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+            <span id="rastProdutoNome" style="font-weight:600;font-size:14px"></span>
+            <span onclick="clearRastProduto()" style="color:var(--text-muted);cursor:pointer;font-size:18px">✕</span>
+          </div>
+          <div id="rastProdutoList" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:220px;overflow-y:auto;display:none"></div>
+          <input type="hidden" id="rastProduto">
         </div>
         <div class="form-group">
           <label class="form-label">Lote</label>
@@ -990,12 +993,42 @@ async function initApp() {
 }
 
 function filterRastProdutos(q) {
-  const sel = document.getElementById('rastProduto');
-  const lower = q.toLowerCase();
-  Array.from(sel.options).forEach(o => {
-    if (!o.value) return;
-    o.style.display = o.textContent.toLowerCase().includes(lower) ? '' : 'none';
-  });
+  const list = document.getElementById('rastProdutoList');
+  const sel = document.getElementById('rastProdutoSelecionado');
+  if (sel.style.display !== 'none' && sel.style.display !== '') return;
+  const lower = q.toLowerCase().trim();
+  if (!lower) { list.style.display = 'none'; return; }
+  const filtered = allProdutos.filter(p => p.nome.toLowerCase().includes(lower));
+  if (!filtered.length) { list.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:13px">Sem resultados</div>'; list.style.display = 'block'; return; }
+  list.innerHTML = filtered.map(p =>
+    '<div onclick="selectRastProduto(' + "'" + p.id + "','" + p.nome.replace(/'/g,"\'") + "'" + ',this)" style="padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;font-size:14px" onmousedown="event.preventDefault()">' + p.nome + '</div>'
+  ).join('');
+  list.style.display = 'block';
+}
+
+function selectRastProduto(id, nome, el) {
+  document.getElementById('rastProduto').value = id;
+  document.getElementById('rastProdutoNome').textContent = nome;
+  document.getElementById('rastProdutoSelecionado').style.display = 'flex';
+  document.getElementById('rastProdutoList').style.display = 'none';
+  document.getElementById('rastSearch').value = '';
+  // Find product and autofill
+  const p = allProdutos.find(x => x.id === id);
+  if (p) {
+    const fakeOpt = { dataset: { info: JSON.stringify(p) } };
+    autoFillRastWithProduct(p);
+  }
+}
+
+function clearRastProduto() {
+  document.getElementById('rastProduto').value = '';
+  document.getElementById('rastProdutoSelecionado').style.display = 'none';
+  document.getElementById('rastSearch').value = '';
+  document.getElementById('rastSearch').focus();
+  document.getElementById('rastInfoBox').style.display = 'none';
+  document.getElementById('rastDlu').value = '';
+  document.getElementById('rastDluDate').value = '';
+  document.getElementById('rastCondicoes').value = '';
 }
 
 function populateProdutoSelects() {
@@ -1048,10 +1081,13 @@ function switchTab(prefix, tab, el) {
 
 // ── RASTREABILIDADE ──
 function autoFillRast() {
-  const sel = document.getElementById('rastProduto');
-  const opt = sel.options[sel.selectedIndex];
-  if (!opt.dataset.info) return;
-  const p = JSON.parse(opt.dataset.info);
+  const id = document.getElementById('rastProduto').value;
+  const p = allProdutos.find(x => x.id === id);
+  if (!p) return;
+  autoFillRastWithProduct(p);
+}
+
+function autoFillRastWithProduct(p) {
 
   document.getElementById('rastCondicoes').value = p.temp_conservacao_exposicao || '';
   const now = new Date();
@@ -1137,10 +1173,10 @@ function toLocalISO(d) {
 async function saveRastreabilidade() {
   const prod = document.getElementById('rastProduto');
   if (!prod.value) { showToast('Seleciona um produto'); return; }
-  const opt = prod.options[prod.selectedIndex];
+  const prodNome = document.getElementById('rastProdutoNome').textContent;
   const body = {
     produto_id: prod.value,
-    produto_nome: opt.textContent,
+    produto_nome: prodNome,
     lote: document.getElementById('rastLote').value || null,
     val_fornecedor: document.getElementById('rastValFornecedor').value || null,
     data_elaboracao_abertura: document.getElementById('rastDataAbertura').value || null,
@@ -1273,10 +1309,10 @@ async function updateDluEstado(estado) {
 async function saveDlu() {
   const prod = document.getElementById('dluProduto');
   if (!prod.value) { showToast('Seleciona um produto'); return; }
-  const opt = prod.options[prod.selectedIndex];
+  const prodNome = document.getElementById('rastProdutoNome').textContent;
   const body = {
     produto_id: prod.value,
-    produto_nome: opt.textContent,
+    produto_nome: prodNome,
     dlu: document.getElementById('dluData').value || null,
     lote: document.getElementById('dluLote').value || null,
     colaborador_id: currentUser.id,
@@ -1483,6 +1519,14 @@ function showToast(msg) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
 }
+
+document.addEventListener('click', function(e) {
+  const list = document.getElementById('rastProdutoList');
+  const search = document.getElementById('rastSearch');
+  if (list && search && !list.contains(e.target) && e.target !== search) {
+    list.style.display = 'none';
+  }
+});
 
 // ── INIT ──
 loadColabs();
