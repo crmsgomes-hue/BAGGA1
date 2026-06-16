@@ -1124,7 +1124,7 @@ async function saveRastreabilidade() {
     lote: document.getElementById('rastLote').value || null,
     val_fornecedor: document.getElementById('rastValFornecedor').value || null,
     data_elaboracao_abertura: document.getElementById('rastDataAbertura').value || null,
-    dlu: document.getElementById('rastDluDate').value || document.getElementById('rastDlu').value || null,
+    dlu: document.getElementById('rastDluDate').value ? document.getElementById('rastDluDate').value + 'T00:00:00' : (document.getElementById('rastDlu').value || null),
     condicoes_conservacao: document.getElementById('rastCondicoes').value || null,
     colaborador_id: currentUser.id,
     colaborador_nome: currentUser.nome
@@ -1151,13 +1151,18 @@ async function loadRastHistorico() {
     el.innerHTML = data.map(r => {
       const dlu = r.dlu ? new Date(r.dlu) : null;
       const expired = dlu && dlu < new Date();
+      const dluStr = dlu ? (
+        dlu.getHours() === 0 && dlu.getMinutes() === 0
+          ? dlu.toLocaleDateString('pt-PT')
+          : dlu.toLocaleString('pt-PT')
+      ) : '—';
       return '<div class="card">' +
         '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">' +
         '<div class="card-title">' + r.produto_nome + '</div>' +
         (expired ? '<span class="pill pill-red">Expirado</span>' : '<span class="pill pill-green">OK</span>') +
         '</div>' +
         '<div class="card-meta">Lote: ' + (r.lote || '—') + ' · Abertura: ' + (r.data_elaboracao_abertura ? new Date(r.data_elaboracao_abertura).toLocaleString('pt-PT') : '—') + '</div>' +
-        '<div class="card-meta">DLU: ' + (dlu ? dlu.toLocaleString('pt-PT') : '—') + '</div>' +
+        '<div class="card-meta">DLU: ' + dluStr + '</div>' +
         '<div class="card-meta" style="margin-top:4px">👤 ' + r.colaborador_nome + ' · ' + new Date(r.criado_em).toLocaleString('pt-PT') + '</div>' +
         '</div>';
     }).join('');
