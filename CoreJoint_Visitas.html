@@ -1033,7 +1033,14 @@ function load(msg){const e=document.getElementById('loading');document.getElemen
 function uload(){document.getElementById('loading').classList.remove('show');}
 function toast(msg,t){const e=document.getElementById('toast');e.textContent=msg;e.style.background=t==='e'?'#e02424':t==='w'?'#d97706':'#057a55';e.style.display='block';setTimeout(()=>e.style.display='none',2800);}
 function showErr(msg){const b=document.getElementById('err-bar');document.getElementById('err-msg').textContent='⚠ '+msg;b.style.display='block';setTimeout(()=>b.style.display='none',5000);}
-function openM(id){document.getElementById(id).classList.add('open');if(id==='m-proc-config')renderProcConfig();}
+function openM(id){
+  const el2=document.getElementById(id);
+  if(!el2){console.error('Modal not found:',id);return;}
+  el2.classList.add('open');
+  if(id==='m-proc-config'){
+    try{renderProcConfig();}catch(e){console.error('renderProcConfig error:',e);}
+  }
+}
 function closeM(id){document.getElementById(id).classList.remove('open');}
 function bigPhoto(src){document.getElementById('big-photo').src=src;openM('m-photo');}
 function el(id){return document.getElementById(id);}
@@ -1778,10 +1785,10 @@ async function startV(store, skipReset=false){
   if(!skipReset) vHaccp = {};
   rhColabs = [];
   renderColabs();
-  procAnswers = {};
+  if(!skipReset) procAnswers = {};
   renderProcVisita();
   // Reset UI state without re-rendering (items are static HTML)
-  ['vitrine','tabaco','limpeza','equipamentos','procedimentos','rh'].forEach(id=>{
+  if(!skipReset) ['vitrine','tabaco','limpeza','equipamentos','procedimentos','rh'].forEach(id=>{
     const okBtn=document.getElementById('ck-ok-'+id);
     const failBtn=document.getElementById('ck-fail-'+id);
     if(okBtn){okBtn.classList.remove('ok','fail');}
@@ -1798,15 +1805,16 @@ async function startV(store, skipReset=false){
     if(prazoDate)prazoDate.value='';
   });
   // Reset HACCP
-  ['reg_3','reg_4','reg_8','reg_9','reg_10','reg_14','reg_21','reg_141','dlus','iogurte','laranjas','manteiga'].forEach(id=>{
+  if(!skipReset) ['reg_3','reg_4','reg_8','reg_9','reg_10','reg_14','reg_21','reg_141','dlus','iogurte','laranjas','manteiga'].forEach(id=>{
     const ok=document.getElementById('hck-ok-'+id);
     const fail=document.getElementById('hck-fail-'+id);
     if(ok)ok.classList.remove('ok');
     if(fail)fail.classList.remove('fail');
   });
-  vChegadaPhoto = null;
+  if(!skipReset){ vChegadaPhoto = null;
   const cp = document.getElementById('chegada-preview');
   if(cp) cp.style.display='none';
+  }
   if(ex&&ex[0]&&!skipReset){
     const e=ex[0];
     el('v-cs').value=e.cafe_simples||'';el('v-cd').value=e.cafe_duplo||'';
