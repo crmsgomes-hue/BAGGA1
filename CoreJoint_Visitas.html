@@ -3282,6 +3282,9 @@ async function continuarRascunho(id, store){
       });
     }catch(e){}
 
+    // Iniciar visita com skipReset=true para não apagar o que carregámos
+    await startV(d.loja, true);
+
     // Restore text fields
     if(el('v-hinicio')) el('v-hinicio').value = d.hora_inicio||'';
     if(el('v-cs')) el('v-cs').value = d.cafe_simples||'';
