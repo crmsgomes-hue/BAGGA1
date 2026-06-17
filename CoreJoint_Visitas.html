@@ -1792,18 +1792,43 @@ function switchVTab(t){
 }
 async function startV(store, skipReset=false){
   vStore=store;
-  if(!skipReset){vPhotos={cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],rh_horarios:[],rh_ferias:[],raid:[]};vRut={};vRutNotas={};vRutObs={};vChecklist={};}
+  if(!skipReset){
+    // ── LIMPAR TUDO — nova visita numa loja ──
+    vPhotos={cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],rh_horarios:[],rh_ferias:[],raid:[]};
+    vRut={};vRutNotas={};vRutObs={};
+    vChecklist={};
+    vHaccp={};
+    procAnswers={};
+    vChegadaPhoto=null;
+    // Limpar UI — chegada
+    const cp=document.getElementById('chegada-preview');
+    if(cp) cp.style.display='none';
+    // Limpar UI — checklist buttons
+    document.querySelectorAll('.ck').forEach(b=>b.classList.remove('ok','fail','ck-on','ck-fail','ck-na'));
+    document.querySelectorAll('[id^="chk-"]').forEach(c=>{
+      if(c.style) c.style.borderLeftColor='var(--br)';
+    });
+    document.querySelectorAll('[id^="chk-prazo-"]').forEach(p=>{
+      if(p.style && !p.id.includes('date')) p.style.display='none';
+    });
+    document.querySelectorAll('[id^="chk-nota-"]').forEach(n=>{ if(n.value!==undefined) n.value=''; });
+    document.querySelectorAll('[id^="chk-photo-prev-"]').forEach(p=>{ p.innerHTML=''; });
+    document.querySelectorAll('[id^="chk-count-"]').forEach(c=>{ c.textContent=''; });
+    // Limpar UI — HACCP
+    document.querySelectorAll('[id^="hck-"]').forEach(b=>b.classList.remove('ok','fail'));
+    // Limpar UI — ruturas
+    document.querySelectorAll('.cli .ck').forEach(b=>b.classList.remove('ok','fail'));
+  }
   const ex=await dbGet('cj_visitas','loja=eq.'+store+'&order=created_at.desc&limit=1');
   el('v-stores').style.display='none';el('v-form').style.display='block';
   el('v-name').textContent='📍 '+sn(store);el('v-dt').textContent='Data: '+now();
   setHoraAgora();
-  if(!skipReset) vChecklist = {};
-  if(!skipReset) vHaccp = {};
+  // (resets already handled at top of startV)
   rhColabs = [];
   renderColabs();
   if(!skipReset) procAnswers = {};
   renderProcVisita();
-  // Reset UI state without re-rendering (items are static HTML)
+  // Reset UI state (items are static HTML)
   if(!skipReset) ['vitrine','tabaco','limpeza','equipamentos','procedimentos','rh'].forEach(id=>{
     const okBtn=document.getElementById('ck-ok-'+id);
     const failBtn=document.getElementById('ck-fail-'+id);
@@ -1820,17 +1845,8 @@ async function startV(store, skipReset=false){
     const prazoDate=document.getElementById('chk-prazo-date-'+id);
     if(prazoDate)prazoDate.value='';
   });
-  // Reset HACCP
-  if(!skipReset) ['reg_3','reg_4','reg_8','reg_9','reg_10','reg_14','reg_21','reg_141','dlus','iogurte','laranjas','manteiga'].forEach(id=>{
-    const ok=document.getElementById('hck-ok-'+id);
-    const fail=document.getElementById('hck-fail-'+id);
-    if(ok)ok.classList.remove('ok');
-    if(fail)fail.classList.remove('fail');
-  });
-  if(!skipReset){ vChegadaPhoto = null;
-  const cp = document.getElementById('chegada-preview');
-  if(cp) cp.style.display='none';
-  }
+  // (HACCP reset already handled at top of startV)
+  // (chegada reset already handled at top of startV)
   if(ex&&ex[0]&&!skipReset){
     const e=ex[0];
     el('v-cs').value=e.cafe_simples||'';el('v-cd').value=e.cafe_duplo||'';
