@@ -3256,21 +3256,27 @@ async function continuarRascunho(id, store){
     }
     if(!d){ uload(); toast('Rascunho não encontrado.','e'); return; }
 
-    // Pre-load vChecklist, vHaccp and vRut BEFORE startV so they survive the reset
-    if(d.checklist) try{ Object.assign(vChecklist, JSON.parse(d.checklist)); }catch(e){}
-    if(d.rut_check) try{ Object.assign(vRut, JSON.parse(d.rut_check)); }catch(e){}
-    if(d.haccp) try{ Object.assign(vHaccp, JSON.parse(d.haccp)); }catch(e){}
-    if(d.proc_answers) try{ Object.assign(procAnswers, JSON.parse(d.proc_answers||'{}')); }catch(e){}
 
-    // Start visit with skipReset=true to preserve vChecklist/vRut
-    await startV(d.loja, true);
+    // ── LIMPAR TUDO antes de carregar (evitar conflitos entre lojas) ──
+    vChecklist = {};
+    vHaccp = {};
+    vRut = {};
+    vRutNotas = {};
+    vRutObs = {};
+    procAnswers = {};
+    vChegadaPhoto = null;
+    vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],rh_horarios:[],rh_ferias:[],raid:[]};
 
-    // Restore photos AFTER startV (DOM must exist first)
+    // Carregar dados do rascunho
+    if(d.checklist) try{ vChecklist = JSON.parse(d.checklist); }catch(e){}
+    if(d.rut_check) try{ vRut = JSON.parse(d.rut_check); }catch(e){}
+    if(d.haccp) try{ vHaccp = JSON.parse(d.haccp); }catch(e){}
+    if(d.proc_answers) try{ procAnswers = JSON.parse(d.proc_answers||"{}"); }catch(e){}
     if(d.fotos_chegada) vChegadaPhoto = d.fotos_chegada;
     if(d.fotos_checklist) try{
       const fc = JSON.parse(d.fotos_checklist);
       Object.keys(fc).forEach(k=>{
-        if(!vChecklist[k]) vChecklist[k]={fotos:[],nota:'',conforme:null};
+        if(!vChecklist[k]) vChecklist[k]={fotos:[],nota:"",conforme:null};
         vChecklist[k].fotos = fc[k]||[];
         if(fc[k]&&fc[k].length) vChecklist[k].foto = fc[k][fc[k].length-1];
       });
