@@ -1993,6 +1993,10 @@ async function saveProcDossiers(){
 function renderProcConfig(){
   const el = document.getElementById('proc-config-list');
   if(!el) return;
+  if(!procDossiers.length){
+    el.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:10px;text-align:center">Sem dossiers criados.<br>Clica em "+ Novo Dossier" para começar.</div>';
+    return;
+  }
   el.innerHTML = procDossiers.map((d,di)=>{
     const sepsHtml = d.seps.map((s,si)=>
       '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">' +
