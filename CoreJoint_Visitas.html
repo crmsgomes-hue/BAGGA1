@@ -172,7 +172,7 @@
           <div class="fg" style="margin-bottom:10px">
             <label>Hora de Chegada</label>
             <input type="text" class="fc" id="v-hinicio" readonly placeholder="Regista automaticamente…">
-            <div id="draft-indicator" style="font-size:.7rem;color:var(--grn);margin-top:4px;height:16px"></div>
+            
           </div>
           <input type="file" id="pf-chegada" accept="image/*" capture="environment" class="pfi" onchange="handleChegadaPhoto(this)"><input type="file" id="pf-chegada-gal" accept="image/*" class="pfi" onchange="handleChegadaPhoto(this)">
           <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="cam-btn" onclick="document.getElementById('pf-chegada').click()">📷 <span>Câmara</span></button><button class="cam-btn" onclick="document.getElementById('pf-chegada-gal').click()" style="background:var(--sf2);border-color:var(--br);color:var(--t2)">📁 <span>Galeria</span></button></div>
@@ -189,15 +189,15 @@
         <div style="background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);padding:14px;margin-bottom:14px">
           <div style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">📈 ② Performance</div>
           <div class="fr">
-            <div class="fg"><label>Crescimento (%)</label><input type="text" class="fc" id="v-cr" placeholder="+3.2%" oninput="scheduleAutoSave()"></div>
+            <div class="fg"><label>Crescimento (%)</label><input type="text" class="fc" id="v-cr" placeholder="+3.2%"></div>
             <div class="fg"><label>Estado das Quebras</label><select class="fc" id="v-qe"><option value="">—</option><option value="ok">✅ No target</option><option value="at">⚠️ Atenção</option><option value="cr">🔴 Crítico</option></select></div>
           </div>
           <div class="fr">
-            <div class="fg"><label>EBITA</label><input type="text" class="fc" id="v-ebita" placeholder="Ex: 12.5%" oninput="scheduleAutoSave()"></div>
-            <div class="fg"><label>Staffcos</label><input type="text" class="fc" id="v-staffcos" placeholder="Ex: 8.2%" oninput="scheduleAutoSave()"></div>
-            <div class="fg"><label>Margem</label><input type="text" class="fc" id="v-margem" placeholder="Ex: 35.0%" oninput="scheduleAutoSave()"></div>
+            <div class="fg"><label>EBITA</label><input type="text" class="fc" id="v-ebita" placeholder="Ex: 12.5%"></div>
+            <div class="fg"><label>Staffcos</label><input type="text" class="fc" id="v-staffcos" placeholder="Ex: 8.2%"></div>
+            <div class="fg"><label>Margem</label><input type="text" class="fc" id="v-margem" placeholder="Ex: 35.0%"></div>
           </div>
-          <div class="fg"><label>Notas</label><textarea class="fc" id="v-nt" placeholder="Observações gerais…" style="min-height:55px" oninput="scheduleAutoSave()"></textarea></div>
+          <div class="fg"><label>Notas</label><textarea class="fc" id="v-nt" placeholder="Observações gerais…" style="min-height:55px"></textarea></div>
         </div>
 
         <!-- ③ VITRINE -->
@@ -251,8 +251,8 @@
         <div style="background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);padding:14px;margin-bottom:14px">
           <div style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">☕ ⑤ Pesagem de Café</div>
           <div class="fr">
-            <div class="fg"><label>Dose Simples — Manipula 1 (g)</label><input type="number" class="fc" id="v-cs" step="0.1" placeholder="7.5" oninput="scheduleAutoSave()"></div>
-            <div class="fg"><label>Dose Dupla — Manipula 2 (g)</label><input type="number" class="fc" id="v-cd" step="0.1" placeholder="15.0" oninput="scheduleAutoSave()"></div>
+            <div class="fg"><label>Dose Simples — Manipula 1 (g)</label><input type="number" class="fc" id="v-cs" step="0.1" placeholder="7.5"></div>
+            <div class="fg"><label>Dose Dupla — Manipula 2 (g)</label><input type="number" class="fc" id="v-cd" step="0.1" placeholder="15.0"></div>
           </div>
           <div style="margin-top:8px">
             <input type="file" accept="image/*" capture="environment" class="pfi" id="pf-cafe" onchange="handleCamPhoto('cafe',this)">
@@ -3028,7 +3028,7 @@ function setHaccp(id, val){
   if(failBtn){ failBtn.classList.toggle('fail',vHaccp[id]===false); failBtn.classList.remove('ok'); }
 }
 
-function setConf(id, val){ scheduleAutoSave();
+function setConf(id, val){
   if(!vChecklist[id]) vChecklist[id]={foto:null,nota:'',conforme:null,prazo:''};
   vChecklist[id].conforme = val;
   const okBtn  = document.getElementById('ck-ok-'+id);
@@ -3472,69 +3472,7 @@ async function rMkt(){
 }
 
 // ── AUTO-SAVE VISITA ──────────────────────────────────
-let _autoSaveTimer = null;
-function scheduleAutoSave(){
-  if(_autoSaveTimer) clearTimeout(_autoSaveTimer);
-  _autoSaveTimer = setTimeout(autoSaveVisitaDraft, 15000); // 15 segundos
-}
-async function autoSaveVisitaDraft(){
-  if(!vStore) return;
-  try{
-    const draft = {
-      loja: vStore,
-      data: now(),
-      cafe_simples: val('v-cs'),
-      cafe_duplo: val('v-cd'),
-      crescimento: val('v-cr'),
-      estado_quebras: (el('v-qe')||{value:''}).value,
-      ebita: val('v-ebita'),
-      staffcos: val('v-staffcos'),
-      margem: val('v-margem'),
-      notas: val('v-nt'),
-      rut_check: JSON.stringify(vRut),
-      vChecklist: JSON.stringify(vChecklist),
-      saved_by: who()
-    };
-    // Guardar em Supabase (persiste entre dispositivos e sessões)
-    const ex = await dbGet('cj_visitas_draft','loja=eq.'+vStore);
-    if(ex&&ex[0]){
-      await dbUpd('cj_visitas_draft',ex[0].id,{draft_data:draft,saved_by:who(),updated_at:iso()});
-    } else {
-      await dbIns('cj_visitas_draft',[{id:uid(),loja:vStore,draft_data:draft,saved_by:who(),updated_at:iso()}]);
-    }
-    // Guardar também em localStorage como backup offline
-    localStorage.setItem('cj_draft_'+vStore, JSON.stringify(draft));
-    const indicator = document.getElementById('draft-indicator');
-    if(indicator){ indicator.textContent='💾 Rascunho guardado'; setTimeout(()=>{ if(indicator) indicator.textContent=''; },2000); }
-  }catch(e){ console.error('AutoSave error:',e); }
-}
 
-async function loadDraft(){
-  if(!vStore) return;
-  try{
-    // Tentar carregar do Supabase primeiro
-    let d = null;
-    const rows = await dbGet('cj_visitas_draft','loja=eq.'+vStore);
-    if(rows&&rows[0]&&rows[0].draft_data){
-      d = rows[0].draft_data;
-    } else {
-      // Fallback para localStorage
-      d = JSON.parse(localStorage.getItem('cj_draft_'+vStore)||'null');
-    }
-    if(!d) return;
-    if(el('v-cs')) el('v-cs').value=d.cafe_simples||'';
-    if(el('v-cd')) el('v-cd').value=d.cafe_duplo||'';
-    if(el('v-cr')) el('v-cr').value=d.crescimento||'';
-    if(el('v-qe')) el('v-qe').value=d.estado_quebras||'';
-    if(el('v-ebita')) el('v-ebita').value=d.ebita||'';
-    if(el('v-staffcos')) el('v-staffcos').value=d.staffcos||'';
-    if(el('v-margem')) el('v-margem').value=d.margem||'';
-    if(el('v-nt')) el('v-nt').value=d.notas||'';
-    if(d.rut_check) try{Object.assign(vRut,JSON.parse(d.rut_check||'{}'));}catch(e){}
-    if(d.vChecklist) try{Object.assign(vChecklist,JSON.parse(d.vChecklist||'{}'));}catch(e){}
-    toast('📋 Rascunho carregado!');
-  }catch(e){ console.error('LoadDraft error:',e); }
-}
 
 async function clearDraft(){
   if(!vStore) return;
