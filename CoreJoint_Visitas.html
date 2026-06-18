@@ -2546,52 +2546,54 @@ async function genRel(){
   const loicaData=[];
   const loicaReportSection='';
 
+  const S = (label, content) =>
+    `<div style="margin-bottom:20px;break-inside:avoid">
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;color:#1a56db;border-bottom:2px solid #1a56db;padding-bottom:5px;margin-bottom:10px">${label}</div>
+      ${content}
+    </div>`;
+
+  const perfHtml = S('📈 Performance',
+    `<table style="width:100%;font-size:12px;border-collapse:collapse">
+      <tr><td style="padding:4px 8px;color:#555;width:25%">Crescimento</td><td style="padding:4px 8px;font-weight:600">${val('v-cr')||'—'}</td><td style="padding:4px 8px;color:#555;width:25%">Quebras</td><td style="padding:4px 8px;font-weight:600">${(el('v-qe')||{value:'—'}).value||'—'}</td></tr>
+      <tr style="background:#f8f8f8"><td style="padding:4px 8px;color:#555">EBITA</td><td style="padding:4px 8px;font-weight:600">${val('v-ebita')||'—'}</td><td style="padding:4px 8px;color:#555">Staffcos</td><td style="padding:4px 8px;font-weight:600">${val('v-staffcos')||'—'}</td></tr>
+      <tr><td style="padding:4px 8px;color:#555">Margem</td><td style="padding:4px 8px;font-weight:600">${val('v-margem')||'—'}</td><td style="padding:4px 8px;color:#555">Notas</td><td style="padding:4px 8px">${val('v-nt')||'—'}</td></tr>
+    </table>`
+  );
+
+  const cafeHtml = S('☕ Pesagem de Café',
+    `<table style="width:100%;font-size:12px;border-collapse:collapse">
+      <tr><td style="padding:4px 8px;color:#555">Dose Simples</td><td style="padding:4px 8px;font-weight:600">${val('v-cs')||'—'}g</td>
+      <td style="padding:4px 8px;color:#555">Dose Dupla</td><td style="padding:4px 8px;font-weight:600">${val('v-cd')||'—'}g</td></tr>
+    </table>${cafePhotosHtml ? '<div style="margin-top:8px">'+cafePhotosHtml+'</div>' : ''}`
+  );
+
+  const rutHtml = fail.length>0
+    ? S('⚠ Ruturas de Rede',
+        `<ul style="font-size:12px;padding-left:18px;margin:0;columns:2">${fail.map(f=>'<li style="color:#e02424;margin-bottom:3px">'+f+'</li>').join('')}</ul>`)
+    : S('✅ Ruturas de Rede','<div style="font-size:12px;color:#057a55">Sem ruturas registadas.</div>');
+
   const reportHtml = `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>Relatório Visita — ${sn(vStore)}</title>
   <style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#111}@media print{body{margin:0;padding:15px}.no-print{display:none!important}}</style></head><body>
   <div id="pdf-report">
   <div style="border-bottom:3px solid #1a56db;padding-bottom:12px;margin-bottom:20px">
     <div style="font-size:22px;font-weight:800;color:#1a56db">CoreJoint · Bagga</div>
-    <div style="font-size:16px;font-weight:700;margin-top:4px">Relatório de Visita — Auditoria</div>
+    <div style="font-size:16px;font-weight:700;margin-top:4px">Relatório de Visita GOP</div>
     <table style="margin-top:8px;font-size:12px;color:#555;border-collapse:collapse"><tr>
       <td style="padding-right:20px;padding-top:4px"><strong>Loja:</strong> ${sn(vStore)}</td>
       <td style="padding-right:20px;padding-top:4px"><strong>Data:</strong> ${now()}</td>
-      <td style="padding-right:20px;padding-top:4px"><strong>Início:</strong> ${hinicio}</td>
+      <td style="padding-right:20px;padding-top:4px"><strong>Hora chegada:</strong> ${hinicio}</td>
       <td style="padding-top:4px"><strong>Por:</strong> ${who()}</td>
     </tr></table>
     <div style="margin-top:8px;font-size:12px;padding:6px 10px;background:#f0f4ff;border-radius:5px;display:inline-block">
-      📊 Resumo: <strong>${ncItems.length} não conformidades</strong> · <strong>${okItems.length} conforme</strong> · <strong>${pendItems.length} por verificar</strong> · <strong>${fail.length} ruturas</strong>
+      📊 Resumo: <strong>${ncItems.length} não conformidades</strong> · <strong>${okItems.length} conforme</strong> · <strong>${fail.length} ruturas</strong>
     </div>
   </div>
-  ${chegadaHtml}${loicaReportSection}${fteReportSection}
-  <div style="margin-bottom:20px">
-    <div style="font-size:13px;font-weight:700;text-transform:uppercase;color:#555;border-bottom:1px solid #eee;padding-bottom:6px;margin-bottom:12px">📋 Checklist de Auditoria</div>
-    ${chkHtml}
-  </div>
-  <div style="margin-bottom:20px">
-    <div style="font-size:13px;font-weight:700;text-transform:uppercase;color:#555;border-bottom:1px solid #eee;padding-bottom:6px;margin-bottom:10px">☕ Pesagem de Café</div>
-    <table style="width:100%;font-size:12px;border-collapse:collapse">
-      <tr><td style="padding:4px 8px;color:#555">Dose Simples</td><td style="padding:4px 8px;font-weight:600">${val('v-cs')||'—'}g</td>
-      <td style="padding:4px 8px;color:#555">Dose Dupla</td><td style="padding:4px 8px;font-weight:600">${val('v-cd')||'—'}g</td></tr>
-    </table>
-    ${cafePhotosHtml ? '<div style="margin-top:8px">'+cafePhotosHtml+'</div>' : ''}
-  </div>
-  <div style="margin-bottom:20px">
-    <div style="font-size:13px;font-weight:700;text-transform:uppercase;color:#555;border-bottom:1px solid #eee;padding-bottom:6px;margin-bottom:10px">📈 Performance</div>
-    <table style="width:100%;font-size:12px;border-collapse:collapse">
-      <tr><td style="padding:4px 8px;color:#555;width:25%">Crescimento</td><td style="padding:4px 8px;font-weight:600">${val('v-cr')||'—'}</td><td style="padding:4px 8px;color:#555;width:25%">Quebras</td><td style="padding:4px 8px;font-weight:600">${el('v-qe').value||'—'}</td></tr>
-      <tr style="background:#f8f8f8"><td style="padding:4px 8px;color:#555">EBITA</td><td style="padding:4px 8px;font-weight:600">${val('v-ebita')||'—'}</td><td style="padding:4px 8px;color:#555">Staffcos</td><td style="padding:4px 8px;font-weight:600">${val('v-staffcos')||'—'}</td></tr>
-      <tr><td style="padding:4px 8px;color:#555">Margem</td><td style="padding:4px 8px;font-weight:600">${val('v-margem')||'—'}</td><td style="padding:4px 8px;color:#555">Notas</td><td style="padding:4px 8px">${val('v-nt')||'—'}</td></tr>
-    </table>
-  </div>
-  ${sectionPhotosHtml ? `<div style="margin-bottom:20px;break-inside:avoid">
-    <div style="font-size:13px;font-weight:700;text-transform:uppercase;color:#555;border-bottom:1px solid #eee;padding-bottom:6px;margin-bottom:12px">📷 Fotos da Visita</div>
-    ${sectionPhotosHtml}
-  </div>` : ''}
-  ${fail.length>0 ? `<div style="margin-bottom:20px">
-    <div style="font-size:13px;font-weight:700;text-transform:uppercase;color:#e02424;border-bottom:2px solid #e02424;padding-bottom:6px;margin-bottom:10px">⚠ Ruturas (${fail.length})</div>
-    <ul style="font-size:12px;padding-left:18px;margin:0;columns:2">${fail.map(f=>'<li style="color:#e02424;margin-bottom:3px">'+f+'</li>').join('')}</ul>
-    ${ncPhotosHtml ? '<div style="margin-top:10px">'+ncPhotosHtml+'</div>' : ''}
-  </div>` : '<div style="margin-bottom:16px;padding:8px;background:#f0fdf4;border-radius:5px;font-size:12px;color:#057a55">✅ Sem ruturas registadas</div>'}
+  ${chegadaHtml}
+  ${perfHtml}
+  ${chkHtml}
+  ${cafeHtml}
+  ${fteReportSection}
+  ${rutHtml}
   <div style="margin-top:40px;border-top:1px solid #eee;padding-top:14px;display:flex;justify-content:space-between;font-size:11px;color:#aaa">
     <div>CoreJoint · Bagga · ${now()}</div><div>${who()}</div>
   </div>
