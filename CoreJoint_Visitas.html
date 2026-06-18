@@ -3914,12 +3914,30 @@ function pickStore(store){
 // ── FINALIZAR VISITA ────────────────────────────────
 async function finalizarVisita(){
   if(!vStore){ toast('Sem loja selecionada.','e'); return; }
-  // Gerar relatório
+  // Gerar relatório/PDF
   await genRel();
   // Limpar auto-save desta loja
-  clearAutoSave(vStore);
+  const finishedStore = vStore;
+  clearAutoSave(finishedStore);
+  // Limpar todo o estado global
+  vStore = null;
+  vChecklist = {};
+  vHaccp = {};
+  vRut = {};
+  vRutNotas = {};
+  vRutObs = {};
+  procAnswers = {};
+  vChegadaPhoto = null;
+  rhColabs = [];
+  vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],
+             rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],
+             rh_horarios:[],rh_ferias:[],raid:[]};
+  // Voltar ao ecrã das lojas
+  el('v-form').style.display = 'none';
+  el('v-stores').style.display = 'block';
   const ind = document.getElementById('autosave-indicator');
   if(ind) ind.textContent = '';
+  toast('✅ Visita finalizada!');
 }
 
 
