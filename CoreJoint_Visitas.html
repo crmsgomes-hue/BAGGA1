@@ -632,17 +632,9 @@
         <div id="v-nc-photos" style="display:none"></div>
 
         <div class="dv"></div>
-        <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:var(--rb);padding:12px;margin-bottom:12px">
-          <div style="font-size:.72rem;font-weight:700;color:var(--blu);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">📧 Envio Automático CROP</div>
-          <div class="fg" style="margin-bottom:0">
-            <label>Email CROP</label>
-            <input type="email" class="fc" id="v-crop-email" placeholder="crop@bagga.com" value="INES.ISABEL.SANTOS@mc.pt">
-          </div>
-          <div style="font-size:.69rem;color:var(--t2);margin-top:5px">O relatório será enviado automaticamente para este email ao gerar.</div>
-        </div>
         <div style="display:flex;gap:7px;flex-wrap:wrap">
           <button class="btn bp" onclick="finalizarVisita()">✅ Finalizar & PDF</button>
-          <button class="btn bs" onclick="genRel()">📄 Relatório</button>
+          <button class="btn bs" onclick="gravarManual()">💾 Gravar</button>
         </div>
         <div id="autosave-indicator" style="font-size:.7rem;color:var(--t2);margin-top:6px;min-height:16px"></div>
         <div id="v-rep" style="display:none;margin-top:12px"></div>
@@ -900,6 +892,19 @@
 </div>
 
 <!-- MODAL: Nova ou Continuar Visita -->
+<!-- MODAL: PDF Preview + Enviar CROP -->
+<div class="mo" id="m-pdf-preview"><div class="md" style="max-height:92vh;overflow-y:auto;max-width:96vw">
+  <div class="mh">
+    <div class="mtt">📄 Relatório da Visita</div>
+    <button class="mx" onclick="closeM('m-pdf-preview')">✕</button>
+  </div>
+  <div id="pdf-preview-content" style="font-size:.82rem"></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:12px;border-top:1px solid var(--br)">
+    <button class="btn bp" style="flex:1" onclick="enviarParaCROP()">📧 Enviar para CROP</button>
+    <button class="btn bg2" style="flex:1" onclick="confirmarFinalizar()">✅ Confirmar & Fechar</button>
+  </div>
+</div></div>
+
 <div class="mo" id="m-pick-store"><div class="md" style="max-height:85vh;overflow-y:auto">
   <div class="mh"><div class="mtt" id="m-pick-title">📍 Loja</div><button class="mx" onclick="closeM('m-pick-store')">✕</button></div>
   <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
@@ -3912,14 +3917,73 @@ function pickStore(store){
 }
 
 // ── FINALIZAR VISITA ────────────────────────────────
+let _reportHtmlFinal = null; // guarda o HTML do relatório para enviar
+
+async function gravarManual(){
+  if(!vStore){ toast('Sem loja selecionada.','e'); return; }
+  await doAutoSave();
+  toast('💾 Guardado!');
+}
+
 async function finalizarVisita(){
   if(!vStore){ toast('Sem loja selecionada.','e'); return; }
-  // Gerar relatório/PDF
-  await genRel();
-  // Limpar auto-save desta loja
+  load('A gerar relatório…');
+  try{
+    // Gerar HTML do relatório
+    const html = await buildReportHtml();
+    _reportHtmlFinal = html;
+    window._lastReportHtml = html;
+    // Mostrar no modal
+    const preview = document.getElementById('pdf-preview-content');
+    if(preview){
+      // Criar iframe para mostrar o relatório
+      preview.innerHTML = '<iframe id="report-iframe" srcdoc="" style="width:100%;height:70vh;border:none;border-radius:6px"></iframe>';
+      const iframe = document.getElementById('report-iframe');
+      if(iframe){
+        iframe.srcdoc = html;
+      }
+    }
+    uload();
+    openM('m-pdf-preview');
+  }catch(e){
+    uload();
+    showErr('Erro ao gerar: '+e.message);
+  }
+}
+
+function enviarParaCROP(){
+  if(!_reportHtmlFinal){ toast('Sem relatório gerado.','e'); return; }
+  const store = vStore || '—';
+  const data = now();
+  const subject = encodeURIComponent('Visita GOP — ' + sn(store) + ' — ' + data);
+  const body = encodeURIComponent('Relatório de visita GOP à loja ' + sn(store) + ' em ' + data + '.\n\nRelatório em anexo.');
+  const mailto = 'mailto:INES.ISABEL.SANTOS@mc.pt?subject=' + subject + '&body=' + body;
+  const a = document.createElement('a');
+  a.href = mailto;
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  toast('📧 A abrir email…');
+}
+
+async function confirmarFinalizar(){
+  closeM('m-pdf-preview');
+  // Guardar no histórico
+  if(_reportHtmlFinal){
+    try{
+      await saveToHistory({
+        loja: vStore,
+        data: now(),
+        hora: (el('v-hinicio')||{value:''}).value,
+        resumo: sn(vStore) + ' — ' + now(),
+        html: _reportHtmlFinal
+      });
+    }catch(e){}
+  }
+  // Limpar tudo
   const finishedStore = vStore;
   clearAutoSave(finishedStore);
-  // Limpar todo o estado global
   vStore = null;
   vChecklist = {};
   vHaccp = {};
@@ -3929,15 +3993,21 @@ async function finalizarVisita(){
   procAnswers = {};
   vChegadaPhoto = null;
   rhColabs = [];
+  _reportHtmlFinal = null;
   vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],
              rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],
              rh_horarios:[],rh_ferias:[],raid:[]};
-  // Voltar ao ecrã das lojas
   el('v-form').style.display = 'none';
   el('v-stores').style.display = 'block';
   const ind = document.getElementById('autosave-indicator');
   if(ind) ind.textContent = '';
   toast('✅ Visita finalizada!');
+}
+
+async function buildReportHtml(){
+  // Delegar ao genRel existente que já gera o HTML completo
+  await genRel();
+  return window._lastReportHtml || '';
 }
 
 
