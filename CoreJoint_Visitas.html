@@ -1821,7 +1821,7 @@ async function startV(store, skipReset=false){
   const ex=await dbGet('cj_visitas','loja=eq.'+store+'&order=created_at.desc&limit=1');
   el('v-stores').style.display='none';el('v-form').style.display='block';
   el('v-name').textContent='📍 '+sn(store);el('v-dt').textContent='Data: '+now();
-  setHoraAgora();
+  if(!skipReset) setHoraAgora(); // só fixa hora em visita nova
   // (resets already handled at top of startV)
   rhColabs = [];
   renderColabs();
