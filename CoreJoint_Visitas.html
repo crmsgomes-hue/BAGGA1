@@ -3216,25 +3216,29 @@ async function showRascunhos(store){
 
 async function gravarRascunho(){
   if(!vStore){ toast('Sem loja selecionada.','e'); return; }
+  const currentStore = vStore; // capture at save time
   load('A gravar rascunho…');
   try{
     const hoje = new Date().toISOString().slice(0,10);
-    const stableId = 'draft_' + vStore + '_' + hoje.replace(/-/g,'');
+    const stableId = 'draft_' + currentStore + '_' + hoje.replace(/-/g,'');
 
-    // Snapshot isolado desta loja
+    // Guardar APENAS dados de formulário — SEM fotos (evitar contaminação)
     const chkMeta = {};
     Object.keys(vChecklist).forEach(k=>{
       chkMeta[k] = {
         conforme: vChecklist[k].conforme,
         nota: vChecklist[k].nota||'',
-        prazo: vChecklist[k].prazo||'',
-        fotos: vChecklist[k].fotos||[]
+        prazo: vChecklist[k].prazo||''
+        // fotos NÃO guardadas no rascunho
       };
     });
 
+    const haccpMeta = {};
+    Object.keys(vHaccp).forEach(k=>{ haccpMeta[k] = vHaccp[k]; });
+
     const draft = {
       id: stableId,
-      loja: vStore,
+      loja: currentStore, // sempre a loja actual
       data: now(),
       hora_inicio: (el('v-hinicio')||{value:''}).value,
       cafe_simples: val('v-cs'),
@@ -3247,28 +3251,30 @@ async function gravarRascunho(){
       notas: val('v-nt'),
       rut_check: JSON.stringify(vRut),
       checklist: JSON.stringify(chkMeta),
-      haccp: JSON.stringify(vHaccp),
+      haccp: JSON.stringify(haccpMeta),
       proc_answers: JSON.stringify(procAnswers),
-      fotos_chegada: vChegadaPhoto||null,
+      rh_colabs: JSON.stringify(rhColabs),
       saved_by: who(),
       created_at: new Date().toISOString()
     };
 
     // Guardar APENAS na chave desta loja
-    const lsKey = 'cj_rascunhos_' + vStore;
+    const lsKey = 'cj_rascunhos_' + currentStore;
     let localDrafts = [];
     try{ localDrafts = JSON.parse(localStorage.getItem(lsKey)||'[]'); }catch(e){}
     const idx = localDrafts.findIndex(r=>r.id===stableId);
     if(idx>=0) localDrafts[idx] = draft;
     else localDrafts.unshift(draft);
+    // Limitar a 5 rascunhos por loja
+    if(localDrafts.length > 5) localDrafts = localDrafts.slice(0,5);
     localStorage.setItem(lsKey, JSON.stringify(localDrafts));
 
-    // Supabase
+    // Supabase (sem fotos)
     try{
       const ex = await dbGet('cj_visitas_rascunhos','id=eq.'+stableId);
       if(ex&&ex.length) await dbUpd('cj_visitas_rascunhos', stableId, draft);
       else await dbIns('cj_visitas_rascunhos',[draft]);
-    }catch(e){ console.warn('Supabase rascunho:', e.message); }
+    }catch(e){ console.warn('Supabase:', e.message); }
 
     uload();
     toast('📂 Rascunho guardado!');
@@ -3282,7 +3288,7 @@ async function continuarRascunho(id, store){
   closeM('m-pick-store');
   load('A carregar rascunho…');
   try{
-    // Ler rascunho APENAS da chave desta loja
+    // Ler APENAS da chave desta loja
     let d = null;
     const lsKey = 'cj_rascunhos_' + store;
     try{
@@ -3291,20 +3297,14 @@ async function continuarRascunho(id, store){
     }catch(e){}
     if(!d){
       try{
-        const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+id+'&loja=eq.'+store);
-        d = rows&&rows[0];
+        const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+id);
+        if(rows&&rows[0]&&rows[0].loja===store) d = rows[0];
       }catch(e){}
     }
     if(!d){ uload(); toast('Rascunho não encontrado.','e'); return; }
+    if(d.loja !== store){ uload(); toast('Erro de loja.','e'); return; }
 
-    // Verificação de segurança: confirmar que o rascunho é desta loja
-    if(d.loja && d.loja !== store){
-      uload();
-      toast('Erro: rascunho não pertence a esta loja.','e');
-      return;
-    }
-
-    // 1. Limpar TUDO — estado completamente virgem
+    // 1. Limpar TUDO — estado virgem
     vChecklist = {};
     vHaccp = {};
     vRut = {};
@@ -3316,28 +3316,17 @@ async function continuarRascunho(id, store){
                rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],
                rh_horarios:[],rh_ferias:[],raid:[]};
 
-    // 2. Carregar dados DO rascunho desta loja
-    if(d.checklist) try{
-      const chk = JSON.parse(d.checklist);
-      // Restaurar checklist COM fotos
-      Object.keys(chk).forEach(k=>{
-        vChecklist[k] = {
-          conforme: chk[k].conforme,
-          nota: chk[k].nota||'',
-          prazo: chk[k].prazo||'',
-          fotos: chk[k].fotos||[]
-        };
-      });
-    }catch(e){}
+    // 2. Carregar dados do rascunho (sem fotos)
+    if(d.checklist) try{ vChecklist = JSON.parse(d.checklist); }catch(e){}
     if(d.rut_check) try{ vRut = JSON.parse(d.rut_check); }catch(e){}
     if(d.haccp) try{ vHaccp = JSON.parse(d.haccp); }catch(e){}
     if(d.proc_answers) try{ procAnswers = JSON.parse(d.proc_answers||'{}'); }catch(e){}
-    if(d.fotos_chegada) vChegadaPhoto = d.fotos_chegada;
+    if(d.rh_colabs) try{ rhColabs = JSON.parse(d.rh_colabs||'[]'); }catch(e){}
 
-    // 3. Iniciar visita com skipReset=true (dados já estão carregados)
+    // 3. Iniciar formulário (skipReset=true — dados já estão nos globals)
     await startV(store, true);
 
-    // 4. Restaurar campos de texto
+    // 4. Campos de texto
     if(el('v-hinicio')) el('v-hinicio').value = d.hora_inicio||'';
     if(el('v-cs')) el('v-cs').value = d.cafe_simples||'';
     if(el('v-cd')) el('v-cd').value = d.cafe_duplo||'';
@@ -3348,54 +3337,47 @@ async function continuarRascunho(id, store){
     if(el('v-margem')) el('v-margem').value = d.margem||'';
     if(el('v-nt')) el('v-nt').value = d.notas||'';
 
-    // 5. Restaurar foto de chegada
-    if(vChegadaPhoto){
-      const img = document.getElementById('chegada-img');
-      const preview = document.getElementById('chegada-preview');
-      if(img) img.src = vChegadaPhoto;
-      if(preview) preview.style.display = 'block';
-    }
-
-    // 6. Restaurar checklist visual
-    Object.keys(vChecklist).forEach(id2=>{
+    // 5. Checklist visual
+    Object.keys(vChecklist).forEach(function(id2){
       const item = vChecklist[id2];
-      if(item.conforme !== null && item.conforme !== undefined){
-        const okBtn = document.getElementById('ck-ok-'+id2);
-        const failBtn = document.getElementById('ck-fail-'+id2);
-        if(okBtn){ okBtn.classList.toggle('ok', item.conforme===true); okBtn.classList.remove('fail'); }
-        if(failBtn){ failBtn.classList.toggle('fail', item.conforme===false); failBtn.classList.remove('ok'); }
-        const card = document.getElementById('chk-'+id2);
-        if(card) card.style.borderLeftColor = item.conforme===false?'var(--red)':item.conforme===true?'var(--grn)':'var(--br)';
-        const prazoDiv = document.getElementById('chk-prazo-'+id2);
-        if(prazoDiv) prazoDiv.style.display = item.conforme===false?'block':'none';
-      }
-      if(item.nota){ const notaEl = document.getElementById('chk-nota-'+id2); if(notaEl) notaEl.value = item.nota; }
-      if(item.prazo){ const prazoDate = document.getElementById('chk-prazo-date-'+id2); if(prazoDate) prazoDate.value = item.prazo; }
-      if(item.fotos&&item.fotos.length){ try{ renderChkPhotos(id2); }catch(e){} }
+      const okBtn = document.getElementById('ck-ok-'+id2);
+      const failBtn = document.getElementById('ck-fail-'+id2);
+      if(item.conforme===true){ if(okBtn) okBtn.classList.add('ok'); }
+      if(item.conforme===false){ if(failBtn) failBtn.classList.add('fail'); }
+      const card = document.getElementById('chk-'+id2);
+      if(card) card.style.borderLeftColor = item.conforme===false?'var(--red)':item.conforme===true?'var(--grn)':'var(--br)';
+      const prazoDiv = document.getElementById('chk-prazo-'+id2);
+      if(prazoDiv) prazoDiv.style.display = item.conforme===false?'block':'none';
+      if(item.nota){ const n = document.getElementById('chk-nota-'+id2); if(n) n.value = item.nota; }
+      if(item.prazo){ const p = document.getElementById('chk-prazo-date-'+id2); if(p) p.value = item.prazo; }
     });
 
-    // 7. Restaurar HACCP visual
-    Object.keys(vHaccp).forEach(id2=>{
-      const val2 = vHaccp[id2];
-      if(val2 === null) return;
-      const okBtn = document.getElementById('hck-ok-'+id2);
-      const failBtn = document.getElementById('hck-fail-'+id2);
-      if(okBtn){ okBtn.classList.toggle('ok', val2===true); okBtn.classList.remove('fail'); }
-      if(failBtn){ failBtn.classList.toggle('fail', val2===false); failBtn.classList.remove('ok'); }
+    // 6. HACCP visual
+    Object.keys(vHaccp).forEach(function(id2){
+      const v2 = vHaccp[id2];
+      if(v2===true){ const b=document.getElementById('hck-ok-'+id2); if(b) b.classList.add('ok'); }
+      if(v2===false){ const b=document.getElementById('hck-fail-'+id2); if(b) b.classList.add('fail'); }
     });
 
-    // 8. Restaurar ruturas visual
-    Object.keys(vRut).forEach(k=>{
+    // 7. Ruturas visual
+    Object.keys(vRut).forEach(function(k){
       const state = vRut[k];
-      const okBtn = document.getElementById('rut-ok-'+k);
-      const failBtn = document.getElementById('rut-fail-'+k);
-      if(okBtn) okBtn.classList.toggle('ok', state==='ok');
-      if(failBtn) failBtn.classList.toggle('fail', state==='fail');
+      document.querySelectorAll('.cli').forEach(function(row){
+        const txt = row.querySelector('div');
+        if(!txt) return;
+        const okB = row.querySelector('.ck:first-of-type');
+        const failB = row.querySelector('.ck:last-of-type');
+        // Use togR to restore state
+      });
     });
+    // Re-render ruturas
+    try{ rVRut(); }catch(e){}
     updateRutCounter();
 
-    // 9. Restaurar procedimentos
+    // 8. Procedimentos
     renderProcVisita();
+    // 9. Colaboradores RH
+    renderColabs();
 
     uload();
     toast('▶ Rascunho carregado!');
