@@ -152,11 +152,11 @@
   <div class="pt">Visitas GOP</div><div class="ps">Auditoria de loja com câmara e tarefas</div>
   <div id="v-stores"><div class="card"><div class="ch"><div class="ct">Selecionar Loja</div></div>
     <div class="sg">
-      <div class="sb" onclick="pickStore('caldas')">🏪 Caldas</div><div class="sb" onclick="pickStore('bombarral')">🏪 Bombarral</div>
-      <div class="sb" onclick="pickStore('ponte_sor')">🏪 Ponte de Sor</div><div class="sb" onclick="pickStore('peniche')">🏪 Peniche</div>
-      <div class="sb" onclick="pickStore('almeirim')">🏪 Almeirim</div><div class="sb" onclick="pickStore('torres_mh')">🏪 Torres MH</div>
-      <div class="sb" onclick="pickStore('torres_novas')">🏪 Torres Novas</div><div class="sb" onclick="pickStore('rio_maior')">🏪 Rio Maior</div>
-      <div class="sb" onclick="pickStore('santarem')">🏪 Santarém</div><div class="sb" onclick="pickStore('carregado')">🏪 Carregado</div>
+      <div class="sb" onclick=\"pickStore('caldas')\">🏪 Caldas</div><div class="sb" onclick=\"pickStore('bombarral')\">🏪 Bombarral</div>
+      <div class="sb" onclick=\"pickStore('ponte_sor')\">🏪 Ponte de Sor</div><div class="sb" onclick=\"pickStore('peniche')\">🏪 Peniche</div>
+      <div class="sb" onclick=\"pickStore('almeirim')\">🏪 Almeirim</div><div class="sb" onclick=\"pickStore('torres_mh')\">🏪 Torres MH</div>
+      <div class="sb" onclick=\"pickStore('torres_novas')\">🏪 Torres Novas</div><div class="sb" onclick=\"pickStore('rio_maior')\">🏪 Rio Maior</div>
+      <div class="sb" onclick=\"pickStore('santarem')\">🏪 Santarém</div><div class="sb" onclick=\"pickStore('carregado')\">🏪 Carregado</div>
     </div>
   </div></div>
   <div id="v-form" style="display:none">
@@ -641,10 +641,10 @@
           <div style="font-size:.69rem;color:var(--t2);margin-top:5px">O relatório será enviado automaticamente para este email ao gerar.</div>
         </div>
         <div style="display:flex;gap:7px;flex-wrap:wrap">
-          <button class="btn bp" onclick="saveV()">💾 Guardar & Enviar</button>
-          <button class="btn bs" onclick="gravarRascunho()">📂 Gravar</button>
+          <button class="btn bp" onclick="finalizarVisita()">✅ Finalizar & PDF</button>
           <button class="btn bs" onclick="genRel()">📄 Relatório</button>
         </div>
+        <div id="autosave-indicator" style="font-size:.7rem;color:var(--t2);margin-top:6px;min-height:16px"></div>
         <div id="v-rep" style="display:none;margin-top:12px"></div>
       </div>     <div id="v-tasks" style="display:none">
         <!-- CRIAR TAREFA (só GOP) -->
@@ -899,20 +899,19 @@
 <input type="date" id="wfm-data" style="display:none">
 </div>
 
-<!-- MODAL: Escolher Nova ou Existente -->
+<!-- MODAL: Nova ou Continuar Visita -->
 <div class="mo" id="m-pick-store"><div class="md" style="max-height:85vh;overflow-y:auto">
   <div class="mh"><div class="mtt" id="m-pick-title">📍 Loja</div><button class="mx" onclick="closeM('m-pick-store')">✕</button></div>
   <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-    <button class="btn bp" style="padding:16px;font-size:1rem" onclick="startV(_pickStore);closeM('m-pick-store')">
+    <div id="m-pick-continuar" style="display:none">
+      <button class="btn bp" style="padding:16px;font-size:1rem;width:100%" onclick="restoreAutoSave(_pickStore);closeM('m-pick-store')">
+        ▶ Continuar Visita em Curso
+        <small id="m-pick-ts" style="display:block;font-size:.72rem;opacity:.8;margin-top:2px"></small>
+      </button>
+    </div>
+    <button id="m-pick-nova" class="btn bs" style="padding:14px;font-size:.95rem" onclick="if(hasAutoSave(_pickStore)&&!confirm('Tens uma visita em curso. Iniciar nova visita vai apagar o progresso anterior. Continuar?'))return;clearAutoSave(_pickStore);startV(_pickStore);closeM('m-pick-store')">
       🆕 Nova Visita
     </button>
-    <button class="btn bs" style="padding:16px;font-size:1rem" onclick="showRascunhos(_pickStore)">
-      📂 Existentes <span id="m-pick-badge" style="background:#e63946;color:#fff;border-radius:99px;padding:1px 7px;font-size:.75rem;margin-left:4px;display:none">0</span>
-    </button>
-  </div>
-  <div id="m-pick-rascunhos" style="display:none">
-    <div style="font-size:.75rem;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Rascunhos guardados</div>
-    <div id="m-pick-list"></div>
   </div>
 </div></div>
 
@@ -2186,7 +2185,7 @@ function togRut(btn, id, t){
   if(failEl) failEl.textContent='✗ '+failCount+' em rutura';
 }
 
-function togR(btn,k,t){
+function togR(btn,k,t){ scheduleAutoSave();
   btn.closest('.cli').querySelectorAll('.ck').forEach(b=>b.classList.remove('ok','fail'));
   if(vRut[k]===t) delete vRut[k];
   else{vRut[k]=t;btn.classList.add(t);}
@@ -2397,7 +2396,7 @@ function delChegadaPhoto(){
   toast('Foto removida.');
 }
 
-function handleChegadaPhoto(input){
+function handleChegadaPhoto(input){ scheduleAutoSave();
   if(!input.files||!input.files[0]) return;
   const _storeAtCapture = vStore;
   const r = new FileReader();
@@ -3019,7 +3018,7 @@ function initChecklist(){
   } // end else
 }
 
-function setHaccp(id, val){
+function setHaccp(id, val){ scheduleAutoSave();
   if(vHaccp[id]===val){ vHaccp[id]=null; }
   else { vHaccp[id]=val; }
   const okBtn  = document.getElementById('hck-ok-'+id);
@@ -3028,7 +3027,7 @@ function setHaccp(id, val){
   if(failBtn){ failBtn.classList.toggle('fail',vHaccp[id]===false); failBtn.classList.remove('ok'); }
 }
 
-function setConf(id, val){
+function setConf(id, val){ scheduleAutoSave();
   if(!vChecklist[id]) vChecklist[id]={foto:null,nota:'',conforme:null,prazo:''};
   vChecklist[id].conforme = val;
   const okBtn  = document.getElementById('ck-ok-'+id);
@@ -3057,7 +3056,7 @@ function compressPhoto(dataUrl, maxWidth, quality, callback){
   img.src = dataUrl;
 }
 
-function handleChkPhoto(id, input){
+function handleChkPhoto(id, input){ scheduleAutoSave();
   if(!input.files||!input.files.length) return;
   if(!vChecklist[id]) vChecklist[id]={fotos:[],nota:'',conforme:null};
   if(!vChecklist[id].fotos) vChecklist[id].fotos=[];
@@ -3153,254 +3152,10 @@ async function saveToHistory(reportData){
 // ── RASCUNHOS / PICK STORE ────────────────────────────
 let _pickStore = null;
 
-function pickStore(store){
-  _pickStore = store;
-  const title = document.getElementById('m-pick-title');
-  const section = document.getElementById('m-pick-rascunhos');
-  const badge = document.getElementById('m-pick-badge');
-  if(title) title.textContent = '📍 ' + sn(store);
-  if(section) section.style.display = 'none';
-  if(badge) badge.style.display = 'none';
-  openM('m-pick-store');
-  // Load draft count async in background
-  setTimeout(async function(){
-    try{
-      const drafts = await dbGet('cj_visitas_rascunhos','loja=eq.'+store+'&limit=10');
-      if(drafts && drafts.length > 0 && badge){
-        badge.textContent = drafts.length;
-        badge.style.display = 'inline';
-      }
-    }catch(e){}
-  }, 300);
-}
 
-async function showRascunhos(store){
-  const container = document.getElementById('m-pick-list');
-  const section = document.getElementById('m-pick-rascunhos');
-  container.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:8px">A carregar...</div>';
-  section.style.display = 'block';
-  try{
-    // Read from localStorage first (always available)
-    const lsKey = 'cj_rascunhos_' + store;
-    let drafts = [];
-    try{ drafts = JSON.parse(localStorage.getItem(lsKey)||'[]'); }catch(e){}
-    // Also try Supabase and merge
-    try{
-      const sbDrafts = await dbGet('cj_visitas_rascunhos','loja=eq.'+store+'&order=created_at.desc') || [];
-      // Merge: add Supabase drafts not in localStorage
-      sbDrafts.forEach(sd=>{
-        if(!drafts.find(d=>d.id===sd.id)) drafts.push(sd);
-      });
-      drafts.sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
-    }catch(e){}
-    if(!drafts.length){
-      container.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:8px">Sem rascunhos guardados para esta loja.</div>';
-      return;
-    }
-    container.innerHTML = drafts.map(d => {
-      const dt = d.created_at ? new Date(d.created_at) : null;
-      const dateStr = dt ? dt.toLocaleDateString('pt-PT') : (d.data||'—');
-      const timeStr = dt ? dt.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : '';
-      return '<div style="background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);padding:12px;margin-bottom:8px">'+
-        '<div style="font-weight:700;font-size:.88rem;margin-bottom:4px">📅 '+dateStr+(timeStr?' às '+timeStr:'')+'</div>'+
-        '<div style="font-size:.75rem;color:var(--t2);margin-bottom:10px">'+(d.notas ? d.notas.slice(0,60)+'…' : 'Sem notas')+'</div>'+
-        '<div style="display:flex;gap:6px">'+
-        '<button class="btn bp bsm" style="flex:1" onclick="continuarRascunho(\''+d.id+'\',\''+store+'\')">▶ Continuar</button>'+
-        '<button class="btn bd bsm" onclick="apagarRascunho(\''+d.id+'\',\''+store+'\')">🗑</button>'+
-        '</div></div>';
-    }).join('');
-  }catch(e){
-    container.innerHTML = '<div style="color:var(--red);font-size:.82rem;padding:8px">Erro ao carregar rascunhos.</div>';
-  }
-}
 
-async function gravarRascunho(){
-  if(!vStore){ toast('Sem loja selecionada.','e'); return; }
-  const currentStore = vStore; // capture at save time
-  load('A gravar rascunho…');
-  try{
-    const hoje = new Date().toISOString().slice(0,10);
-    const stableId = 'draft_' + currentStore + '_' + hoje.replace(/-/g,'');
 
-    // Guardar APENAS dados de formulário — SEM fotos (evitar contaminação)
-    const chkMeta = {};
-    Object.keys(vChecklist).forEach(k=>{
-      chkMeta[k] = {
-        conforme: vChecklist[k].conforme,
-        nota: vChecklist[k].nota||'',
-        prazo: vChecklist[k].prazo||''
-        // fotos NÃO guardadas no rascunho
-      };
-    });
 
-    const haccpMeta = {};
-    Object.keys(vHaccp).forEach(k=>{ haccpMeta[k] = vHaccp[k]; });
-
-    const draft = {
-      id: stableId,
-      loja: currentStore, // sempre a loja actual
-      data: now(),
-      hora_inicio: (el('v-hinicio')||{value:''}).value,
-      cafe_simples: val('v-cs'),
-      cafe_duplo: val('v-cd'),
-      crescimento: val('v-cr'),
-      estado_quebras: (el('v-qe')||{value:''}).value,
-      ebita: val('v-ebita'),
-      staffcos: val('v-staffcos'),
-      margem: val('v-margem'),
-      notas: val('v-nt'),
-      rut_check: JSON.stringify(vRut),
-      checklist: JSON.stringify(chkMeta),
-      haccp: JSON.stringify(haccpMeta),
-      proc_answers: JSON.stringify(procAnswers),
-      rh_colabs: JSON.stringify(rhColabs),
-      saved_by: who(),
-      created_at: new Date().toISOString()
-    };
-
-    // Guardar APENAS na chave desta loja
-    const lsKey = 'cj_rascunhos_' + currentStore;
-    let localDrafts = [];
-    try{ localDrafts = JSON.parse(localStorage.getItem(lsKey)||'[]'); }catch(e){}
-    const idx = localDrafts.findIndex(r=>r.id===stableId);
-    if(idx>=0) localDrafts[idx] = draft;
-    else localDrafts.unshift(draft);
-    // Limitar a 5 rascunhos por loja
-    if(localDrafts.length > 5) localDrafts = localDrafts.slice(0,5);
-    localStorage.setItem(lsKey, JSON.stringify(localDrafts));
-
-    // Supabase (sem fotos)
-    try{
-      const ex = await dbGet('cj_visitas_rascunhos','id=eq.'+stableId);
-      if(ex&&ex.length) await dbUpd('cj_visitas_rascunhos', stableId, draft);
-      else await dbIns('cj_visitas_rascunhos',[draft]);
-    }catch(e){ console.warn('Supabase:', e.message); }
-
-    uload();
-    toast('📂 Rascunho guardado!');
-  }catch(e){
-    uload();
-    showErr('Erro ao gravar: '+e.message);
-  }
-}
-
-async function continuarRascunho(id, store){
-  closeM('m-pick-store');
-  load('A carregar rascunho…');
-  try{
-    // Ler APENAS da chave desta loja
-    let d = null;
-    const lsKey = 'cj_rascunhos_' + store;
-    try{
-      const localDrafts = JSON.parse(localStorage.getItem(lsKey)||'[]');
-      d = localDrafts.find(r=>r.id===id);
-    }catch(e){}
-    if(!d){
-      try{
-        const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+id);
-        if(rows&&rows[0]&&rows[0].loja===store) d = rows[0];
-      }catch(e){}
-    }
-    if(!d){ uload(); toast('Rascunho não encontrado.','e'); return; }
-    if(d.loja !== store){ uload(); toast('Erro de loja.','e'); return; }
-
-    // 1. Limpar TUDO — estado virgem
-    vChecklist = {};
-    vHaccp = {};
-    vRut = {};
-    vRutNotas = {};
-    vRutObs = {};
-    procAnswers = {};
-    vChegadaPhoto = null;
-    vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],
-               rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],
-               rh_horarios:[],rh_ferias:[],raid:[]};
-
-    // 2. Carregar dados do rascunho (sem fotos)
-    if(d.checklist) try{ vChecklist = JSON.parse(d.checklist); }catch(e){}
-    if(d.rut_check) try{ vRut = JSON.parse(d.rut_check); }catch(e){}
-    if(d.haccp) try{ vHaccp = JSON.parse(d.haccp); }catch(e){}
-    if(d.proc_answers) try{ procAnswers = JSON.parse(d.proc_answers||'{}'); }catch(e){}
-    if(d.rh_colabs) try{ rhColabs = JSON.parse(d.rh_colabs||'[]'); }catch(e){}
-
-    // 3. Iniciar formulário (skipReset=true — dados já estão nos globals)
-    await startV(store, true);
-
-    // 4. Campos de texto
-    if(el('v-hinicio')) el('v-hinicio').value = d.hora_inicio||'';
-    if(el('v-cs')) el('v-cs').value = d.cafe_simples||'';
-    if(el('v-cd')) el('v-cd').value = d.cafe_duplo||'';
-    if(el('v-cr')) el('v-cr').value = d.crescimento||'';
-    if(el('v-qe')) el('v-qe').value = d.estado_quebras||'';
-    if(el('v-ebita')) el('v-ebita').value = d.ebita||'';
-    if(el('v-staffcos')) el('v-staffcos').value = d.staffcos||'';
-    if(el('v-margem')) el('v-margem').value = d.margem||'';
-    if(el('v-nt')) el('v-nt').value = d.notas||'';
-
-    // 5. Checklist visual
-    Object.keys(vChecklist).forEach(function(id2){
-      const item = vChecklist[id2];
-      const okBtn = document.getElementById('ck-ok-'+id2);
-      const failBtn = document.getElementById('ck-fail-'+id2);
-      if(item.conforme===true){ if(okBtn) okBtn.classList.add('ok'); }
-      if(item.conforme===false){ if(failBtn) failBtn.classList.add('fail'); }
-      const card = document.getElementById('chk-'+id2);
-      if(card) card.style.borderLeftColor = item.conforme===false?'var(--red)':item.conforme===true?'var(--grn)':'var(--br)';
-      const prazoDiv = document.getElementById('chk-prazo-'+id2);
-      if(prazoDiv) prazoDiv.style.display = item.conforme===false?'block':'none';
-      if(item.nota){ const n = document.getElementById('chk-nota-'+id2); if(n) n.value = item.nota; }
-      if(item.prazo){ const p = document.getElementById('chk-prazo-date-'+id2); if(p) p.value = item.prazo; }
-    });
-
-    // 6. HACCP visual
-    Object.keys(vHaccp).forEach(function(id2){
-      const v2 = vHaccp[id2];
-      if(v2===true){ const b=document.getElementById('hck-ok-'+id2); if(b) b.classList.add('ok'); }
-      if(v2===false){ const b=document.getElementById('hck-fail-'+id2); if(b) b.classList.add('fail'); }
-    });
-
-    // 7. Ruturas visual
-    Object.keys(vRut).forEach(function(k){
-      const state = vRut[k];
-      document.querySelectorAll('.cli').forEach(function(row){
-        const txt = row.querySelector('div');
-        if(!txt) return;
-        const okB = row.querySelector('.ck:first-of-type');
-        const failB = row.querySelector('.ck:last-of-type');
-        // Use togR to restore state
-      });
-    });
-    // Re-render ruturas
-    try{ rVRut(); }catch(e){}
-    updateRutCounter();
-
-    // 8. Procedimentos
-    renderProcVisita();
-    // 9. Colaboradores RH
-    renderColabs();
-
-    uload();
-    toast('▶ Rascunho carregado!');
-  }catch(e){
-    uload();
-    showErr('Erro ao carregar: '+e.message);
-  }
-}
-
-async function apagarRascunho(id, store){
-  if(!confirm('Apagar este rascunho?')) return;
-  // Remove from localStorage
-  const lsKey = 'cj_rascunhos_' + store;
-  try{
-    let localDrafts = JSON.parse(localStorage.getItem(lsKey)||'[]');
-    localDrafts = localDrafts.filter(r=>r.id!==id);
-    localStorage.setItem(lsKey, JSON.stringify(localDrafts));
-  }catch(e){}
-  // Also try Supabase
-  try{ await dbDel('cj_visitas_rascunhos', id); }catch(e){}
-  showRascunhos(store);
-  toast('Rascunho apagado.');
-}
 
 
 let mktFotos = [];
@@ -3966,6 +3721,207 @@ function rOperacional(){
   }
   switchOpTab('diaria');
 }
+
+
+// ══════════════════════════════════════════════════════
+// AUTO-SAVE SYSTEM — isolado por loja
+// Chave: autosave_LOJA (nunca partilhada entre lojas)
+// ══════════════════════════════════════════════════════
+
+let _autoSaveTimer = null;
+let _autoSaveStore = null; // loja activa no momento do save
+
+function getAutoSaveKey(store){ return 'cj_as_' + (store||vStore); }
+
+function scheduleAutoSave(){
+  if(!vStore) return;
+  if(_autoSaveTimer) clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(doAutoSave, 5000); // 5 segundos
+}
+
+async function doAutoSave(){
+  if(!vStore) return;
+  const saveStore = vStore; // capturar loja no momento do save
+  try{
+    // Snapshot completo desta loja
+    const chkMeta = {};
+    Object.keys(vChecklist).forEach(k=>{
+      chkMeta[k] = {
+        conforme: vChecklist[k].conforme,
+        nota: vChecklist[k].nota||'',
+        prazo: vChecklist[k].prazo||'',
+        fotos: vChecklist[k].fotos||[]
+      };
+    });
+
+    const snapshot = {
+      loja: saveStore,
+      ts: new Date().toISOString(),
+      hora_inicio: (el('v-hinicio')||{value:''}).value,
+      cafe_simples: val('v-cs'),
+      cafe_duplo: val('v-cd'),
+      crescimento: val('v-cr'),
+      estado_quebras: (el('v-qe')||{value:''}).value,
+      ebita: val('v-ebita'),
+      staffcos: val('v-staffcos'),
+      margem: val('v-margem'),
+      notas: val('v-nt'),
+      rut_check: JSON.stringify(vRut),
+      checklist: JSON.stringify(chkMeta),
+      haccp: JSON.stringify(vHaccp),
+      proc_answers: JSON.stringify(procAnswers),
+      rh_colabs: JSON.stringify(rhColabs),
+      fotos_chegada: vChegadaPhoto||null,
+    };
+
+    // Guardar APENAS na chave desta loja
+    const key = getAutoSaveKey(saveStore);
+    localStorage.setItem(key, JSON.stringify(snapshot));
+
+    // Indicador visual
+    const ind = document.getElementById('autosave-indicator');
+    if(ind){ ind.textContent = '💾 Guardado às '+new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}); }
+  }catch(e){ console.warn('AutoSave error:', e); }
+}
+
+function hasAutoSave(store){
+  try{
+    const d = JSON.parse(localStorage.getItem(getAutoSaveKey(store))||'null');
+    return d && d.loja === store; // verificação de segurança
+  }catch(e){ return false; }
+}
+
+function clearAutoSave(store){
+  localStorage.removeItem(getAutoSaveKey(store||vStore));
+}
+
+async function restoreAutoSave(store){
+  try{
+    const key = getAutoSaveKey(store);
+    const d = JSON.parse(localStorage.getItem(key)||'null');
+    if(!d || d.loja !== store) return; // segurança: só restaura se for desta loja
+
+    // Limpar estado global antes de restaurar
+    vChecklist = {};
+    vHaccp = {};
+    vRut = {};
+    vRutNotas = {};
+    vRutObs = {};
+    procAnswers = {};
+    rhColabs = [];
+    vChegadaPhoto = null;
+    vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],
+               rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],
+               rh_horarios:[],rh_ferias:[],raid:[]};
+
+    // Restaurar dados
+    if(d.checklist) try{
+      const chk = JSON.parse(d.checklist);
+      Object.keys(chk).forEach(k=>{
+        vChecklist[k] = {
+          conforme: chk[k].conforme,
+          nota: chk[k].nota||'',
+          prazo: chk[k].prazo||'',
+          fotos: chk[k].fotos||[]
+        };
+      });
+    }catch(e){}
+    if(d.rut_check) try{ vRut = JSON.parse(d.rut_check); }catch(e){}
+    if(d.haccp) try{ vHaccp = JSON.parse(d.haccp); }catch(e){}
+    if(d.proc_answers) try{ procAnswers = JSON.parse(d.proc_answers||'{}'); }catch(e){}
+    if(d.rh_colabs) try{ rhColabs = JSON.parse(d.rh_colabs||'[]'); }catch(e){}
+    if(d.fotos_chegada) vChegadaPhoto = d.fotos_chegada;
+
+    // Iniciar visita sem reset (dados já carregados)
+    await startV(store, true);
+
+    // Restaurar campos de texto
+    if(el('v-hinicio')) el('v-hinicio').value = d.hora_inicio||'';
+    if(el('v-cs')) el('v-cs').value = d.cafe_simples||'';
+    if(el('v-cd')) el('v-cd').value = d.cafe_duplo||'';
+    if(el('v-cr')) el('v-cr').value = d.crescimento||'';
+    if(el('v-qe')) el('v-qe').value = d.estado_quebras||'';
+    if(el('v-ebita')) el('v-ebita').value = d.ebita||'';
+    if(el('v-staffcos')) el('v-staffcos').value = d.staffcos||'';
+    if(el('v-margem')) el('v-margem').value = d.margem||'';
+    if(el('v-nt')) el('v-nt').value = d.notas||'';
+
+    // Restaurar foto chegada
+    if(vChegadaPhoto){
+      const img = document.getElementById('chegada-img');
+      const prev = document.getElementById('chegada-preview');
+      if(img) img.src = vChegadaPhoto;
+      if(prev) prev.style.display = 'block';
+    }
+
+    // Restaurar checklist visual
+    Object.keys(vChecklist).forEach(function(id2){
+      const item = vChecklist[id2];
+      if(item.conforme===true){ const b=document.getElementById('ck-ok-'+id2); if(b) b.classList.add('ok'); }
+      if(item.conforme===false){ const b=document.getElementById('ck-fail-'+id2); if(b) b.classList.add('fail'); }
+      const card = document.getElementById('chk-'+id2);
+      if(card) card.style.borderLeftColor = item.conforme===false?'var(--red)':item.conforme===true?'var(--grn)':'var(--br)';
+      const prazoDiv = document.getElementById('chk-prazo-'+id2);
+      if(prazoDiv) prazoDiv.style.display = item.conforme===false?'block':'none';
+      if(item.nota){ const n=document.getElementById('chk-nota-'+id2); if(n) n.value=item.nota; }
+      if(item.prazo){ const p=document.getElementById('chk-prazo-date-'+id2); if(p) p.value=item.prazo; }
+      if(item.fotos&&item.fotos.length){ try{ renderChkPhotos(id2); }catch(e){} }
+    });
+
+    // Restaurar HACCP visual
+    Object.keys(vHaccp).forEach(function(id2){
+      if(vHaccp[id2]===true){ const b=document.getElementById('hck-ok-'+id2); if(b) b.classList.add('ok'); }
+      if(vHaccp[id2]===false){ const b=document.getElementById('hck-fail-'+id2); if(b) b.classList.add('fail'); }
+    });
+
+    // Restaurar ruturas + colaboradores + procedimentos
+    try{ rVRut(); }catch(e){}
+    updateRutCounter();
+    renderColabs();
+    renderProcVisita();
+
+    toast('▶ Visita em curso restaurada!');
+  }catch(e){
+    console.error('restoreAutoSave error:', e);
+    toast('Erro ao restaurar visita.','e');
+  }
+}
+
+// ── PICK STORE — Nova ou Continuar ──────────────────
+function pickStore(store){
+  _pickStore = store;
+  const title = document.getElementById('m-pick-title');
+  if(title) title.textContent = '📍 ' + sn(store);
+
+  const continuarBtn = document.getElementById('m-pick-continuar');
+  const newBtn = document.getElementById('m-pick-nova');
+  const badge = document.getElementById('m-pick-badge');
+
+  if(hasAutoSave(store)){
+    // Há visita em curso
+    const d = JSON.parse(localStorage.getItem(getAutoSaveKey(store)));
+    const ts = d.ts ? new Date(d.ts).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+    if(continuarBtn){ continuarBtn.style.display='block'; document.getElementById('m-pick-ts').textContent = ts ? 'Guardada às '+ts : ''; }
+    if(badge){ badge.style.display='inline'; }
+  } else {
+    if(continuarBtn) continuarBtn.style.display='none';
+    if(badge) badge.style.display='none';
+  }
+
+  openM('m-pick-store');
+}
+
+// ── FINALIZAR VISITA ────────────────────────────────
+async function finalizarVisita(){
+  if(!vStore){ toast('Sem loja selecionada.','e'); return; }
+  // Gerar relatório
+  await genRel();
+  // Limpar auto-save desta loja
+  clearAutoSave(vStore);
+  const ind = document.getElementById('autosave-indicator');
+  if(ind) ind.textContent = '';
+}
+
 
 document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.mo').forEach(e=>e.addEventListener('click',function(ev){if(ev.target===this)this.classList.remove('open');}));
