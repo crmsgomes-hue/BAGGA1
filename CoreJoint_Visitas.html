@@ -3218,29 +3218,25 @@ async function gravarRascunho(){
   if(!vStore){ toast('Sem loja selecionada.','e'); return; }
   load('A gravar rascunho…');
   try{
-    const hora_i = (el('v-hinicio')||{value:''}).value;
-    // Save checklist WITHOUT fotos (too large for localStorage)
+    const hoje = new Date().toISOString().slice(0,10);
+    const stableId = 'draft_' + vStore + '_' + hoje.replace(/-/g,'');
+
+    // Snapshot isolado desta loja
     const chkMeta = {};
     Object.keys(vChecklist).forEach(k=>{
       chkMeta[k] = {
         conforme: vChecklist[k].conforme,
         nota: vChecklist[k].nota||'',
-        prazo: vChecklist[k].prazo||''
+        prazo: vChecklist[k].prazo||'',
+        fotos: vChecklist[k].fotos||[]
       };
     });
-    // Save ruturas state
-    const rutState = {};
-    Object.keys(vRut).forEach(k=>{ rutState[k] = vRut[k]; });
-
-    const today = new Date().toISOString().slice(0,10);
-    // Use stable ID = loja + date so same draft is updated
-    const stableId = 'draft_' + vStore + '_' + today.replace(/-/g,'');
 
     const draft = {
       id: stableId,
       loja: vStore,
       data: now(),
-      hora_inicio: hora_i,
+      hora_inicio: (el('v-hinicio')||{value:''}).value,
       cafe_simples: val('v-cs'),
       cafe_duplo: val('v-cd'),
       crescimento: val('v-cr'),
@@ -3249,17 +3245,16 @@ async function gravarRascunho(){
       staffcos: val('v-staffcos'),
       margem: val('v-margem'),
       notas: val('v-nt'),
-      rut_check: JSON.stringify(rutState),
+      rut_check: JSON.stringify(vRut),
       checklist: JSON.stringify(chkMeta),
-      proc_answers: JSON.stringify(procAnswers),
       haccp: JSON.stringify(vHaccp),
+      proc_answers: JSON.stringify(procAnswers),
       fotos_chegada: vChegadaPhoto||null,
-      fotos_checklist: JSON.stringify(Object.fromEntries(Object.keys(vChecklist).map(k=>[k,(vChecklist[k].fotos||[])]))),
       saved_by: who(),
       created_at: new Date().toISOString()
     };
 
-    // Save to localStorage
+    // Guardar APENAS na chave desta loja
     const lsKey = 'cj_rascunhos_' + vStore;
     let localDrafts = [];
     try{ localDrafts = JSON.parse(localStorage.getItem(lsKey)||'[]'); }catch(e){}
@@ -3268,12 +3263,12 @@ async function gravarRascunho(){
     else localDrafts.unshift(draft);
     localStorage.setItem(lsKey, JSON.stringify(localDrafts));
 
-    // Also try Supabase
+    // Supabase
     try{
-      const existing = await dbGet('cj_visitas_rascunhos','id=eq.'+stableId);
-      if(existing && existing.length) await dbUpd('cj_visitas_rascunhos', stableId, draft);
-      else await dbIns('cj_visitas_rascunhos', [draft]);
-    }catch(e){ console.warn('Supabase rascunho failed:', e.message); }
+      const ex = await dbGet('cj_visitas_rascunhos','id=eq.'+stableId);
+      if(ex&&ex.length) await dbUpd('cj_visitas_rascunhos', stableId, draft);
+      else await dbIns('cj_visitas_rascunhos',[draft]);
+    }catch(e){ console.warn('Supabase rascunho:', e.message); }
 
     uload();
     toast('📂 Rascunho guardado!');
@@ -3287,21 +3282,29 @@ async function continuarRascunho(id, store){
   closeM('m-pick-store');
   load('A carregar rascunho…');
   try{
-    // Get draft from localStorage first
+    // Ler rascunho APENAS da chave desta loja
     let d = null;
-    const lsKey = 'cj_rascunhos_' + (store||_pickStore||'');
+    const lsKey = 'cj_rascunhos_' + store;
     try{
       const localDrafts = JSON.parse(localStorage.getItem(lsKey)||'[]');
       d = localDrafts.find(r=>r.id===id);
     }catch(e){}
     if(!d){
-      const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+id);
-      d = rows && rows[0];
+      try{
+        const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+id+'&loja=eq.'+store);
+        d = rows&&rows[0];
+      }catch(e){}
     }
     if(!d){ uload(); toast('Rascunho não encontrado.','e'); return; }
 
+    // Verificação de segurança: confirmar que o rascunho é desta loja
+    if(d.loja && d.loja !== store){
+      uload();
+      toast('Erro: rascunho não pertence a esta loja.','e');
+      return;
+    }
 
-    // ── LIMPAR TUDO antes de carregar (evitar conflitos entre lojas) ──
+    // 1. Limpar TUDO — estado completamente virgem
     vChecklist = {};
     vHaccp = {};
     vRut = {};
@@ -3309,27 +3312,32 @@ async function continuarRascunho(id, store){
     vRutObs = {};
     procAnswers = {};
     vChegadaPhoto = null;
-    vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],rh_horarios:[],rh_ferias:[],raid:[]};
+    vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],
+               rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],
+               rh_horarios:[],rh_ferias:[],raid:[]};
 
-    // Carregar dados do rascunho
-    if(d.checklist) try{ vChecklist = JSON.parse(d.checklist); }catch(e){}
-    if(d.rut_check) try{ vRut = JSON.parse(d.rut_check); }catch(e){}
-    if(d.haccp) try{ vHaccp = JSON.parse(d.haccp); }catch(e){}
-    if(d.proc_answers) try{ procAnswers = JSON.parse(d.proc_answers||"{}"); }catch(e){}
-    if(d.fotos_chegada) vChegadaPhoto = d.fotos_chegada;
-    if(d.fotos_checklist) try{
-      const fc = JSON.parse(d.fotos_checklist);
-      Object.keys(fc).forEach(k=>{
-        if(!vChecklist[k]) vChecklist[k]={fotos:[],nota:"",conforme:null};
-        vChecklist[k].fotos = fc[k]||[];
-        if(fc[k]&&fc[k].length) vChecklist[k].foto = fc[k][fc[k].length-1];
+    // 2. Carregar dados DO rascunho desta loja
+    if(d.checklist) try{
+      const chk = JSON.parse(d.checklist);
+      // Restaurar checklist COM fotos
+      Object.keys(chk).forEach(k=>{
+        vChecklist[k] = {
+          conforme: chk[k].conforme,
+          nota: chk[k].nota||'',
+          prazo: chk[k].prazo||'',
+          fotos: chk[k].fotos||[]
+        };
       });
     }catch(e){}
+    if(d.rut_check) try{ vRut = JSON.parse(d.rut_check); }catch(e){}
+    if(d.haccp) try{ vHaccp = JSON.parse(d.haccp); }catch(e){}
+    if(d.proc_answers) try{ procAnswers = JSON.parse(d.proc_answers||'{}'); }catch(e){}
+    if(d.fotos_chegada) vChegadaPhoto = d.fotos_chegada;
 
-    // Iniciar visita com skipReset=true para não apagar o que carregámos
-    await startV(d.loja, true);
+    // 3. Iniciar visita com skipReset=true (dados já estão carregados)
+    await startV(store, true);
 
-    // Restore text fields
+    // 4. Restaurar campos de texto
     if(el('v-hinicio')) el('v-hinicio').value = d.hora_inicio||'';
     if(el('v-cs')) el('v-cs').value = d.cafe_simples||'';
     if(el('v-cd')) el('v-cd').value = d.cafe_duplo||'';
@@ -3340,7 +3348,7 @@ async function continuarRascunho(id, store){
     if(el('v-margem')) el('v-margem').value = d.margem||'';
     if(el('v-nt')) el('v-nt').value = d.notas||'';
 
-    // Restore chegada photo
+    // 5. Restaurar foto de chegada
     if(vChegadaPhoto){
       const img = document.getElementById('chegada-img');
       const preview = document.getElementById('chegada-preview');
@@ -3348,7 +3356,7 @@ async function continuarRascunho(id, store){
       if(preview) preview.style.display = 'block';
     }
 
-    // Restore checklist visual state
+    // 6. Restaurar checklist visual
     Object.keys(vChecklist).forEach(id2=>{
       const item = vChecklist[id2];
       if(item.conforme !== null && item.conforme !== undefined){
@@ -3363,37 +3371,31 @@ async function continuarRascunho(id, store){
       }
       if(item.nota){ const notaEl = document.getElementById('chk-nota-'+id2); if(notaEl) notaEl.value = item.nota; }
       if(item.prazo){ const prazoDate = document.getElementById('chk-prazo-date-'+id2); if(prazoDate) prazoDate.value = item.prazo; }
+      if(item.fotos&&item.fotos.length){ try{ renderChkPhotos(id2); }catch(e){} }
     });
 
-    // Restore HACCP visual state
+    // 7. Restaurar HACCP visual
     Object.keys(vHaccp).forEach(id2=>{
-      const val = vHaccp[id2];
-      if(val === null) return;
+      const val2 = vHaccp[id2];
+      if(val2 === null) return;
       const okBtn = document.getElementById('hck-ok-'+id2);
       const failBtn = document.getElementById('hck-fail-'+id2);
-      if(okBtn){ okBtn.classList.toggle('ok', val===true); okBtn.classList.remove('fail'); }
-      if(failBtn){ failBtn.classList.toggle('fail', val===false); failBtn.classList.remove('ok'); }
+      if(okBtn){ okBtn.classList.toggle('ok', val2===true); okBtn.classList.remove('fail'); }
+      if(failBtn){ failBtn.classList.toggle('fail', val2===false); failBtn.classList.remove('ok'); }
     });
 
-    // Restore ruturas visual state
+    // 8. Restaurar ruturas visual
     Object.keys(vRut).forEach(k=>{
       const state = vRut[k];
-      const okBtn = document.querySelector('[onclick*="\''+k+'\'"][onclick*=",\'ok\'"]');
-      const failBtn = document.querySelector('[onclick*="\''+k+'\'"][onclick*=",\'fail\'"]');
+      const okBtn = document.getElementById('rut-ok-'+k);
+      const failBtn = document.getElementById('rut-fail-'+k);
       if(okBtn) okBtn.classList.toggle('ok', state==='ok');
       if(failBtn) failBtn.classList.toggle('fail', state==='fail');
     });
     updateRutCounter();
 
-    // Restore proc answers
+    // 9. Restaurar procedimentos
     renderProcVisita();
-
-    // Restore checklist photo previews
-    Object.keys(vChecklist).forEach(id2=>{
-      if(vChecklist[id2].fotos && vChecklist[id2].fotos.length){
-        try{ renderChkPhotos(id2); }catch(e){}
-      }
-    });
 
     uload();
     toast('▶ Rascunho carregado!');
