@@ -2443,6 +2443,23 @@ async function genRel(){
     {id:'rh_ts',label:'🚨 TS',desc:''},{id:'rh_horarios',label:'📅 Horários',desc:''},
     {id:'rh_ferias',label:'🌴 Férias RH',desc:''}
   ];
+  // Build HACCP table HTML
+  const HACCP_ITEMS_RPT = [
+    {id:'reg_3',label:'REG 3'},{id:'reg_4',label:'REG 4'},{id:'reg_8',label:'REG 8'},
+    {id:'reg_9',label:'REG 9'},{id:'reg_10',label:'REG 10'},{id:'reg_14',label:'REG 14'},
+    {id:'reg_21',label:'Checklist 21'},{id:'reg_141',label:'REG 141'},
+    {id:'dlus',label:'DLUS'},{id:'iogurte',label:'Iogurte'},
+    {id:'laranjas',label:'Laranjas'},{id:'manteiga',label:'Manteiga'}
+  ];
+  const haccpTableHtml = '<div style="margin-top:8px;margin-bottom:8px"><table style="width:100%;font-size:11px;border-collapse:collapse">'+
+    '<thead><tr style="background:#f3f4f6"><th style="padding:4px 8px;text-align:left">Registo</th><th style="padding:4px 8px;text-align:center">Estado</th></tr></thead><tbody>'+
+    HACCP_ITEMS_RPT.map(h=>{
+      const v = vHaccp[h.id];
+      const st = v===true ? '<span style="color:#057a55">✅</span>' : v===false ? '<span style="color:#e02424">❌</span>' : '<span style="color:#999">—</span>';
+      return '<tr style="border-bottom:1px solid #f3f4f6"><td style="padding:4px 8px">'+h.label+'</td><td style="padding:4px 8px;text-align:center">'+st+'</td></tr>';
+    }).join('')+
+    '</tbody></table></div>';
+
   const ncItems = allChkItems.filter(item => vChecklist[item.id]&&vChecklist[item.id].conforme===false);
   const okItems = allChkItems.filter(item => vChecklist[item.id]&&vChecklist[item.id].conforme===true);
   const pendItems = allChkItems.filter(item => !vChecklist[item.id]||vChecklist[item.id].conforme===null);
@@ -2622,7 +2639,7 @@ function gerarPDF(){
 }
 
 
-const COORD_EMAIL = 'INES.ISABEL.SANTOS@mc.pt';
+const COORD_EMAIL = '';
 function sendRel(){
   const emailField = document.getElementById('v-emails');
   if(emailField && !emailField.value) emailField.value = COORD_EMAIL;
@@ -3957,7 +3974,7 @@ function enviarParaCROP(){
   const data = now();
   const subject = encodeURIComponent('Visita GOP — ' + sn(store) + ' — ' + data);
   const body = encodeURIComponent('Relatório de visita GOP à loja ' + sn(store) + ' em ' + data + '.\n\nRelatório em anexo.');
-  const mailto = 'mailto:INES.ISABEL.SANTOS@mc.pt?subject=' + subject + '&body=' + body;
+  const mailto = 'mailto:?subject=' + subject + '&body=' + body;
   const a = document.createElement('a');
   a.href = mailto;
   a.target = '_blank';
