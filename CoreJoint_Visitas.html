@@ -1861,6 +1861,24 @@ async function startV(store, skipReset=false){
   }else if(!skipReset){['v-cs','v-cd','v-cr','v-nt'].forEach(i=>{const e=el(i);if(e)e.value='';});el('v-qe').value='';}
   try{ renderPhotos('cafe');renderPhotos('nc'); }catch(e){}
   try{ await rVRut(); }catch(e){}
+  // Restaurar visualmente botões estáticos de ruturas (sistema usado pelo utilizador)
+  Object.keys(vRut).forEach(function(id2){
+    const state = vRut[id2];
+    const row = document.getElementById('rut-row-'+id2);
+    const okBtn = document.getElementById('rut-ok-'+id2);
+    const failBtn = document.getElementById('rut-fail-'+id2);
+    if(okBtn) okBtn.classList.remove('ok');
+    if(failBtn) failBtn.classList.remove('fail');
+    if(row) row.style.background='';
+    if(state==='ok'){ if(okBtn) okBtn.classList.add('ok'); if(row) row.style.background='#f0fdf4'; }
+    if(state==='fail'){ if(failBtn) failBtn.classList.add('fail'); if(row) row.style.background='#fff5f5'; }
+  });
+  const okCountSV=Object.values(vRut).filter(v=>v==='ok').length;
+  const failCountSV=Object.values(vRut).filter(v=>v==='fail').length;
+  const okElSV=document.getElementById('rut-ok-count');
+  const failElSV=document.getElementById('rut-fail-count');
+  if(okElSV) okElSV.textContent='✓ '+okCountSV+' disponíveis';
+  if(failElSV) failElSV.textContent='✗ '+failCountSV+' em rutura';
   el('v-rep').style.display='none';
   switchVTab('audit'); // Always show audit tab
   try{
@@ -3916,6 +3934,24 @@ async function restoreAutoSave(store){
       if(vHaccp[id2]===true){ const b=document.getElementById('hck-ok-'+id2); if(b) b.classList.add('ok'); }
       if(vHaccp[id2]===false){ const b=document.getElementById('hck-fail-'+id2); if(b) b.classList.add('fail'); }
     });
+
+    // Restaurar ruturas (sistema estático com IDs fixos no HTML)
+    Object.keys(vRut).forEach(function(id2){
+      const state = vRut[id2];
+      const row = document.getElementById('rut-row-'+id2);
+      const okBtn = document.getElementById('rut-ok-'+id2);
+      const failBtn = document.getElementById('rut-fail-'+id2);
+      if(okBtn) okBtn.classList.remove('ok');
+      if(failBtn) failBtn.classList.remove('fail');
+      if(state==='ok'){ if(okBtn) okBtn.classList.add('ok'); if(row) row.style.background='#f0fdf4'; }
+      if(state==='fail'){ if(failBtn) failBtn.classList.add('fail'); if(row) row.style.background='#fff5f5'; }
+    });
+    const okCount2=Object.values(vRut).filter(v=>v==='ok').length;
+    const failCount2=Object.values(vRut).filter(v=>v==='fail').length;
+    const okEl2=document.getElementById('rut-ok-count');
+    const failEl2=document.getElementById('rut-fail-count');
+    if(okEl2) okEl2.textContent='✓ '+okCount2+' disponíveis';
+    if(failEl2) failEl2.textContent='✗ '+failCount2+' em rutura';
 
     // Restaurar ruturas + colaboradores + procedimentos
     try{ rVRut(); }catch(e){}
