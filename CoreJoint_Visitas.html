@@ -369,6 +369,15 @@
           <!-- FTEs -->
           <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:var(--rb);padding:12px;margin-bottom:12px">
             <div style="font-size:.75rem;font-weight:700;color:var(--blu);margin-bottom:10px;text-transform:uppercase;letter-spacing:.4px">👥 FTEs — Dotação de Colaboradores</div>
+            <div style="display:flex;gap:8px;margin-bottom:9px;align-items:center">
+              <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
+              <button class="ck" onclick="setConf('fte',true)" id="ck-ok-fte">✓</button>
+              <button class="ck" onclick="setConf('fte',false)" id="ck-fail-fte">✗</button>
+            </div>
+            <div id="chk-prazo-fte" style="display:none;margin-bottom:9px;padding:9px;background:#fff5f5;border:1.5px solid #fca5a5;border-radius:var(--rb)">
+              <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
+              <input type="date" class="fc" id="chk-prazo-date-fte" onchange="saveChkPrazo('fte')" style="border-color:#fca5a5">
+            </div>
             <div class="fr">
               <div class="fg">
                 <label>Nº FTEs Definido</label>
@@ -538,6 +547,15 @@
         <div class="ic" id="chk-procedimentos" style="margin-bottom:10px;border-left-color:var(--br)">
           <div style="font-size:.9rem;font-weight:700;margin-bottom:4px">📋 ⑪ Procedimentos</div>
           <div style="font-size:.76rem;color:var(--t2);margin-bottom:10px">Auditoria de procedimentos por dossiê</div>
+          <div style="display:flex;gap:8px;margin-bottom:9px;align-items:center">
+            <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
+            <button class="ck" onclick="setConf('procedimentos',true)" id="ck-ok-procedimentos">✓</button>
+            <button class="ck" onclick="setConf('procedimentos',false)" id="ck-fail-procedimentos">✗</button>
+          </div>
+          <div id="chk-prazo-procedimentos" style="display:none;margin-bottom:9px;padding:9px;background:#fff5f5;border:1.5px solid #fca5a5;border-radius:var(--rb)">
+            <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
+            <input type="date" class="fc" id="chk-prazo-date-procedimentos" onchange="saveChkPrazo('procedimentos')" style="border-color:#fca5a5">
+          </div>
           <!-- Progresso -->
           <div style="margin-bottom:12px">
             <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--t2);margin-bottom:4px">
@@ -2495,6 +2513,7 @@ async function genRel(){
     {id:'rh_ts',       label:'🚨 Trab. Suplementar', desc:''},
     {id:'rh_horarios', label:'📅 Horários',          desc:''},
     {id:'rh_ferias',   label:'🌴 Férias',            desc:''},
+    {id:'fte',         label:'👥 FTEs',              desc:''},
     {id:'procedimentos',label:'📋 Procedimentos',    desc:''},
     {id:'quebra_caixa',label:'💰 Quebra de Caixa',   desc:''},
     {id:'raid',        label:'🚨 RAID',              desc:''},
@@ -3008,7 +3027,8 @@ const CHECKLIST_ITEMS = [
   {id:'equipamentos',label:'⚙️ Equipamentos',    desc:'Estado e funcionamento dos equipamentos'},
   {id:'procedimentos',label:'📋 Procedimentos',  desc:'Cumprimento de procedimentos operacionais'},
   {id:'quebra_caixa',label:'💰 Quebra de Caixa', desc:'Verificação de quebras de caixa'},
-  {id:'rh',         label:'👥 Temas RH',         desc:'Fardamento, pontualidade, comportamento'}
+  {id:'rh',         label:'👥 Temas RH',         desc:'Fardamento, pontualidade, comportamento'},
+  {id:'fte',        label:'👥 FTEs',             desc:'Dotação de colaboradores'}
 ];
 
 const HACCP_REGS = [
