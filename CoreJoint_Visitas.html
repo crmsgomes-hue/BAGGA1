@@ -2434,6 +2434,12 @@ async function genRel(){
   function mkId(n){return n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'_');}
   const fail=staticRutItems.filter(item=>vRut[mkId(item)]==='fail');
   const ok=staticRutItems.filter(item=>vRut[mkId(item)]==='ok');
+  const cafePhotosHtml = (vPhotos.cafe||[]).map(p=>
+    '<div style="display:inline-block;margin:5px;text-align:center;vertical-align:top">'+
+    '<img src="'+p.src+'" style="width:130px;height:100px;object-fit:cover;border-radius:5px;border:1px solid #ddd;display:block">'+
+    '<div style="font-size:10px;color:#555;margin-top:3px;max-width:130px">'+(p.legenda||'Sem legenda')+'</div></div>'
+  ).join('');
+
   // Ordem do PDF = ordem da visita
   const allChkItems = [
     {id:'vitrine',     label:'🏪 Vitrine',          desc:'Apresentação, limpeza e organização da vitrine'},
@@ -2503,11 +2509,6 @@ async function genRel(){
     '<img src="'+vChegadaPhoto+'" style="width:200px;height:150px;object-fit:cover;border-radius:6px;border:2px solid #93c5fd">'+
     '</div>' : '';
 
-  const cafePhotosHtml = (vPhotos.cafe||[]).map(p=>
-    '<div style="display:inline-block;margin:5px;text-align:center;vertical-align:top">'+
-    '<img src="'+p.src+'" style="width:130px;height:100px;object-fit:cover;border-radius:5px;border:1px solid #ddd;display:block">'+
-    '<div style="font-size:10px;color:#555;margin-top:3px;max-width:130px">'+(p.legenda||'Sem legenda')+'</div></div>'
-  ).join('');
 
   const ncPhotosHtml = (vPhotos.nc||[]).map(p=>
     '<div style="display:inline-block;margin:5px;text-align:center;vertical-align:top">'+
