@@ -1772,10 +1772,11 @@ function handleCamPhoto(type,input){
   if(!input.files.length)return;
   const r=new FileReader();
   r.onload=e=>{
-    vPhotos[type]=vPhotos[type]||[];
-    const idx=vPhotos[type].length;
-    vPhotos[type].push({src:e.target.result,legenda:''});
-    renderPhotos(type);
+    compressPhoto(e.target.result, 800, 0.6, function(compressed){
+      vPhotos[type]=vPhotos[type]||[];
+      vPhotos[type].push({src:compressed,legenda:''});
+      renderPhotos(type);
+    });
   };
   r.readAsDataURL(input.files[0]);input.value='';
 }
@@ -1956,7 +1957,6 @@ let procSepIdSeq = 1000;
 async function abrirNovoDossie(){
   await loadProcDossiers();
   openM('m-proc-config');
-  setTimeout(()=>addProcDossier(), 100);
 }
 
 async function loadProcDossiers(){
