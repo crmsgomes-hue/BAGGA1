@@ -955,9 +955,10 @@
     <button class="mx" onclick="closeM('m-pdf-preview')">✕</button>
   </div>
   <div id="pdf-preview-content" style="font-size:.82rem"></div>
+  <div id="pdf-arquivado-msg" style="display:none;background:#f0fdf4;border:1.5px solid var(--grn);border-radius:var(--rb);padding:10px;margin-top:12px;font-size:.8rem;color:var(--grn);font-weight:600">✅ Relatório arquivado!</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:12px;border-top:1px solid var(--br)">
-    <button class="btn bp" style="flex:1" onclick="enviarParaCROP()">📧 Enviar para CROP</button>
-    <button class="btn bg2" style="flex:1" onclick="confirmarFinalizar()">✅ Confirmar & Fechar</button>
+    <button class="btn bp" id="btn-arquivar" style="flex:1" onclick="arquivarRelatorio()">📁 Arquivar</button>
+    <button class="btn bg2" style="flex:1" onclick="confirmarFinalizar()">✅ Finalizar & Reset</button>
   </div>
 </div></div>
 
@@ -4101,6 +4102,10 @@ async function finalizarVisita(){
       }
     }
     uload();
+    const btnArq = document.getElementById('btn-arquivar');
+    if(btnArq){ btnArq.disabled = false; btnArq.textContent = '📁 Arquivar'; }
+    const msgArq = document.getElementById('pdf-arquivado-msg');
+    if(msgArq) msgArq.style.display = 'none';
     openM('m-pdf-preview');
   }catch(e){
     uload();
@@ -4108,62 +4113,27 @@ async function finalizarVisita(){
   }
 }
 
-function enviarParaCROP(){
+async function arquivarRelatorio(){
   if(!_reportHtmlFinal){ toast('Sem relatório gerado.','e'); return; }
-  const store = vStore || '—';
-  const data = now();
-  const filename = 'Visita_'+sn(store).replace(/\s+/g,'_')+'_'+data.replace(/[/: ]/g,'-')+'.pdf';
-
-  toast('📄 A gerar PDF…');
-
-  // Render report HTML into hidden container for html2pdf
-  let container = document.getElementById('pdf-export-container');
-  if(!container){
-    container = document.createElement('div');
-    container.id = 'pdf-export-container';
-    container.style.position = 'fixed';
-    container.style.left = '-9999px';
-    container.style.top = '0';
-    document.body.appendChild(container);
+  if(!vStore){ toast('Sem loja selecionada.','e'); return; }
+  const btn = document.getElementById('btn-arquivar');
+  if(btn){ btn.disabled = true; btn.textContent = '📁 A arquivar…'; }
+  try{
+    await saveToHistory({
+      loja: vStore,
+      data: now(),
+      hora: (el('v-hinicio')||{value:''}).value,
+      resumo: sn(vStore) + ' — ' + now(),
+      html: _reportHtmlFinal
+    });
+    const msg = document.getElementById('pdf-arquivado-msg');
+    if(msg) msg.style.display = 'block';
+    if(btn){ btn.textContent = '✅ Arquivado'; }
+    toast('✅ Relatório arquivado em '+sn(vStore)+'!');
+  }catch(e){
+    if(btn){ btn.disabled = false; btn.textContent = '📁 Arquivar'; }
+    toast('Erro ao arquivar: '+e.message,'e');
   }
-  container.innerHTML = _reportHtmlFinal;
-
-  const opt = {
-    margin: 8,
-    filename: filename,
-    image: { type: 'jpeg', quality: 0.92 },
-    html2canvas: { scale: 2, useCORS: true },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  };
-
-  if(typeof html2pdf === 'undefined'){
-    toast('Biblioteca PDF não disponível — abrindo email sem anexo.','w');
-    abrirEmailCROP(store, data);
-    return;
-  }
-
-  html2pdf().set(opt).from(container).save().then(()=>{
-    toast('✅ PDF descarregado! Anexa-o no email a abrir…');
-    setTimeout(()=>abrirEmailCROP(store, data), 800);
-  }).catch(e=>{
-    toast('Erro ao gerar PDF: '+e.message,'e');
-    abrirEmailCROP(store, data);
-  });
-}
-
-function abrirEmailCROP(store, data){
-  const subject = encodeURIComponent('Visita GOP — ' + sn(store) + ' — ' + data);
-  const body = encodeURIComponent(
-    'Relatório de visita GOP à loja ' + sn(store) + ' em ' + data + '.\n\n' +
-    '⚠️ O PDF foi descarregado para o teu dispositivo — anexa-o manualmente a este email antes de enviar.'
-  );
-  const mailto = 'mailto:?subject=' + subject + '&body=' + body;
-  const a = document.createElement('a');
-  a.href = mailto;
-  a.target = '_blank';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
 }
 
 async function confirmarFinalizar(){
