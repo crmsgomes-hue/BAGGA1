@@ -2557,6 +2557,26 @@ async function genRel(){
       '<div style="font-size:13px;font-weight:700;color:#057a55">✅ Ruturas de Rede — Sem ruturas registadas</div>'+
       '</div>';
 
+  const dossiersSection = procDossiers.length ? '<div style="border:1.5px solid #ddd;border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
+    '<div style="font-size:13px;font-weight:700;margin-bottom:8px">📂 Dossiês de Procedimentos</div>'+
+    procDossiers.map(d=>{
+      const sepsHtml = d.seps.map(s=>{
+        const ans = procAnswers[s.id]||{};
+        const st = ans.state;
+        const icon = st==='ok' ? '<span style="color:#057a55;font-weight:700">✅</span>' : st==='nok' ? '<span style="color:#e02424;font-weight:700">❌</span>' : st==='na' ? '<span style="color:#999;font-weight:700">➖ N/A</span>' : '<span style="color:#999">—</span>';
+        return '<tr><td style="padding:4px 8px;border-bottom:1px solid #f3f4f6">'+s.name+'</td>'+
+          '<td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;text-align:center">'+icon+'</td>'+
+          '<td style="padding:4px 8px;border-bottom:1px solid #f3f4f6;font-size:11px;color:#555">'+(ans.obs||'')+'</td></tr>';
+      }).join('');
+      return '<div style="margin-bottom:10px">'+
+        '<div style="font-size:12px;font-weight:700;color:#1a56db;margin-bottom:4px">📁 '+d.name+'</div>'+
+        (d.seps.length ? '<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="background:#f3f4f6">'+
+          '<th style="padding:4px 8px;text-align:left">Separador</th><th style="padding:4px 8px">Estado</th><th style="padding:4px 8px;text-align:left">Observação</th></tr></thead>'+
+          '<tbody>'+sepsHtml+'</tbody></table>' : '<div style="font-size:11px;color:#999;font-style:italic">Sem separadores</div>')+
+        '</div>';
+    }).join('')+
+    '</div>' : '';
+
   const chkHtml = allChkItems.map(item => {
     const st = vChecklist[item.id]||{};
     const confLabel = st.conforme===true ? '<span style="color:#057a55;font-weight:700">✅ Conforme</span>' : st.conforme===false ? '<span style="color:#e02424;font-weight:700">❌ Não Conforme</span>' : '';
@@ -2572,6 +2592,7 @@ async function genRel(){
     let extra = '';
     if(item.id==='vitrine') extra = rutSection;
     if(item.id==='jsc') extra = cafeSection;
+    if(item.id==='procedimentos') extra = dossiersSection;
     return block + extra;
   }).join('');
 
