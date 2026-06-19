@@ -529,7 +529,7 @@
         <div class="ic" id="chk-procedimentos" style="margin-bottom:10px;border-left-color:var(--br)">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
             <div style="font-size:.9rem;font-weight:700">📋 ⑪ Procedimentos</div>
-            <button class="btn bsm bw" onclick="openM('m-proc-config')" style="font-size:.7rem">⚙️ Configurar</button>
+            <button class="btn bsm bw" onclick="abrirNovoDossie()" style="font-size:.7rem">📂 Novo Dossiê</button>
           </div>
           <div style="font-size:.76rem;color:var(--t2);margin-bottom:10px">Dossiers e separadores configurados pela GOP/Ops Core</div>
           <!-- Progresso -->
@@ -1060,7 +1060,7 @@ function openM(id){
   if(!el2){console.error('Modal not found:',id);return;}
   el2.classList.add('open');
   if(id==='m-proc-config'){
-    try{renderProcConfig();}catch(e){console.error('renderProcConfig error:',e);}
+    loadProcDossiers().then(()=>{ try{renderProcConfig();}catch(e){console.error('renderProcConfig error:',e);} });
   }
 }
 function closeM(id){document.getElementById(id).classList.remove('open');}
@@ -1952,6 +1952,12 @@ let procDossiers = [];
 let procAnswers = {}; // { sepId: { state: 'ok'|'nok'|'na', obs: '' } }
 let procDossierIdSeq = 100;
 let procSepIdSeq = 1000;
+
+async function abrirNovoDossie(){
+  await loadProcDossiers();
+  openM('m-proc-config');
+  setTimeout(()=>addProcDossier(), 100);
+}
 
 async function loadProcDossiers(){
   try {
@@ -3758,6 +3764,7 @@ async function doAutoSave(){
       rh_ftes_definido: (document.getElementById('rh-ftes-definido')||{value:''}).value,
       rh_ftes_real: (document.getElementById('rh-ftes-real')||{value:''}).value,
       fotos_chegada: vChegadaPhoto||null,
+      fotos_cafe: JSON.stringify(vPhotos.cafe||[]),
     };
 
     // Guardar APENAS na chave desta loja
@@ -3819,6 +3826,7 @@ async function restoreAutoSave(store){
     if(d.rh_ftes_real){ const fr=document.getElementById('rh-ftes-real'); if(fr) fr.value = d.rh_ftes_real; }
     try{ calcFTE(); }catch(e){}
     if(d.fotos_chegada) vChegadaPhoto = d.fotos_chegada;
+    if(d.fotos_cafe) try{ vPhotos.cafe = JSON.parse(d.fotos_cafe||'[]'); }catch(e){ vPhotos.cafe = []; }
 
     // Iniciar visita sem reset (dados já carregados)
     await startV(store, true);
@@ -3885,6 +3893,7 @@ async function restoreAutoSave(store){
     try{ rVRut(); }catch(e){}
     updateRutCounter();
     renderProcVisita();
+    try{ renderPhotos('cafe'); }catch(e){}
 
     toast('▶ Visita em curso restaurada!');
   }catch(e){
