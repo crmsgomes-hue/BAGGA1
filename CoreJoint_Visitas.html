@@ -2505,7 +2505,6 @@ async function genRel(){
     {id:'jsc',         label:'☕ JSC',               desc:'JSC'},
     {id:'equipamentos',label:'⚙️ Equipamentos',      desc:'Estado e funcionamento'},
     {id:'limpeza',     label:'🧹 Limpeza / HACCP',   desc:'Higiene, HACCP e registos', haccp:true},
-    {id:'rh',          label:'👥 Temas RH',          desc:'RH'},
     {id:'rh_formacoes',label:'🎓 Formações',         desc:''},
     {id:'rh_trocas',   label:'🔄 Trocas',            desc:''},
     {id:'rh_folgas',   label:'🗓️ Folgas',            desc:''},
@@ -2560,7 +2559,7 @@ async function genRel(){
 
   const chkHtml = allChkItems.map(item => {
     const st = vChecklist[item.id]||{};
-    const confLabel = st.conforme===true ? '<span style="color:#057a55;font-weight:700">✅ Conforme</span>' : st.conforme===false ? '<span style="color:#e02424;font-weight:700">❌ Não Conforme</span>' : '<span style="color:#d97706;font-weight:700">⏳ Por verificar</span>';
+    const confLabel = st.conforme===true ? '<span style="color:#057a55;font-weight:700">✅ Conforme</span>' : st.conforme===false ? '<span style="color:#e02424;font-weight:700">❌ Não Conforme</span>' : '';
     const border = st.conforme===false ? '#e02424' : st.conforme===true ? '#057a55' : '#ddd';
     const block = '<div style="border:1.5px solid '+border+';border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
@@ -3027,7 +3026,6 @@ const CHECKLIST_ITEMS = [
   {id:'equipamentos',label:'⚙️ Equipamentos',    desc:'Estado e funcionamento dos equipamentos'},
   {id:'procedimentos',label:'📋 Procedimentos',  desc:'Cumprimento de procedimentos operacionais'},
   {id:'quebra_caixa',label:'💰 Quebra de Caixa', desc:'Verificação de quebras de caixa'},
-  {id:'rh',         label:'👥 Temas RH',         desc:'Fardamento, pontualidade, comportamento'},
   {id:'fte',        label:'👥 FTEs',             desc:'Dotação de colaboradores'}
 ];
 
