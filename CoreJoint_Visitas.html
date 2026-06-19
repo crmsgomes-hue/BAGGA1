@@ -254,10 +254,16 @@
             <div class="fg"><label>Dose Simples — Manipula 1 (g)</label><input type="number" class="fc" id="v-cs" step="0.1" placeholder="7.5"></div>
             <div class="fg"><label>Dose Dupla — Manipula 2 (g)</label><input type="number" class="fc" id="v-cd" step="0.1" placeholder="15.0"></div>
           </div>
-          <div style="margin-top:8px">
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
             <input type="file" accept="image/*" capture="environment" class="pfi" id="pf-cafe" onchange="handleCamPhoto('cafe',this)">
-            <button class="cam-btn" onclick="openCam('cafe')">📷 <span>Foto da Pesagem</span></button>
-            <div class="ptb" id="v-cafe-photos" style="margin-top:8px"></div>
+            <button class="cam-btn" onclick="openCam('cafe')">📷 <span>Câmara</span></button>
+            <input type="file" accept="image/*" class="pfi" id="pf-cafe-gal" onchange="handleCamPhoto('cafe',this)">
+            <button class="cam-btn" onclick="document.getElementById('pf-cafe-gal').click()" style="background:var(--sf2);border-color:var(--br);color:var(--t2)">📁 <span>Galeria</span></button>
+          </div>
+          <div class="ptb" id="v-cafe-photos" style="margin-top:8px"></div>
+          <div style="margin-top:8px">
+            <label style="font-size:.72rem;font-weight:700;color:var(--t2);display:block;margin-bottom:4px">Comentário</label>
+            <textarea class="jta" id="v-cafe-comentario" placeholder="Observações sobre a pesagem de café…" style="min-height:55px"></textarea>
           </div>
         </div>
 
@@ -2423,6 +2429,7 @@ async function genRel(){
     '<tr><td style="padding:4px 8px;color:#555">Dose Simples</td><td style="padding:4px 8px;font-weight:600">'+(val('v-cs')||'—')+'g</td>'+
     '<td style="padding:4px 8px;color:#555">Dose Dupla</td><td style="padding:4px 8px;font-weight:600">'+(val('v-cd')||'—')+'g</td></tr></table>'+
     (cafePhotosHtml ? '<div style="margin-top:8px">'+cafePhotosHtml+'</div>' : '')+
+    (val('v-cafe-comentario') ? '<div style="font-size:12px;color:#555;background:#f9f9f9;padding:7px;border-radius:4px;margin-top:8px">'+val('v-cafe-comentario')+'</div>' : '')+
     '</div>';
 
   const rutSection = fail.length>0
@@ -3736,6 +3743,7 @@ async function doAutoSave(){
       hora_inicio: (el('v-hinicio')||{value:''}).value,
       cafe_simples: val('v-cs'),
       cafe_duplo: val('v-cd'),
+      cafe_comentario: (document.getElementById('v-cafe-comentario')||{value:''}).value,
       crescimento: val('v-cr'),
       estado_quebras: (el('v-qe')||{value:''}).value,
       ebita: val('v-ebita'),
@@ -3747,6 +3755,8 @@ async function doAutoSave(){
       haccp: JSON.stringify(vHaccp),
       proc_answers: JSON.stringify(procAnswers),
       rh_comentario: (document.getElementById('rh-comentario')||{value:''}).value,
+      rh_ftes_definido: (document.getElementById('rh-ftes-definido')||{value:''}).value,
+      rh_ftes_real: (document.getElementById('rh-ftes-real')||{value:''}).value,
       fotos_chegada: vChegadaPhoto||null,
     };
 
@@ -3805,6 +3815,9 @@ async function restoreAutoSave(store){
     if(d.haccp) try{ vHaccp = JSON.parse(d.haccp); }catch(e){}
     if(d.proc_answers) try{ procAnswers = JSON.parse(d.proc_answers||'{}'); }catch(e){}
     if(d.rh_comentario){ const rc=document.getElementById('rh-comentario'); if(rc) rc.value = d.rh_comentario; }
+    if(d.rh_ftes_definido){ const fd=document.getElementById('rh-ftes-definido'); if(fd) fd.value = d.rh_ftes_definido; }
+    if(d.rh_ftes_real){ const fr=document.getElementById('rh-ftes-real'); if(fr) fr.value = d.rh_ftes_real; }
+    try{ calcFTE(); }catch(e){}
     if(d.fotos_chegada) vChegadaPhoto = d.fotos_chegada;
 
     // Iniciar visita sem reset (dados já carregados)
@@ -3814,6 +3827,7 @@ async function restoreAutoSave(store){
     if(el('v-hinicio')) el('v-hinicio').value = d.hora_inicio||'';
     if(el('v-cs')) el('v-cs').value = d.cafe_simples||'';
     if(el('v-cd')) el('v-cd').value = d.cafe_duplo||'';
+    if(el('v-cafe-comentario')) el('v-cafe-comentario').value = d.cafe_comentario||'';
     if(el('v-cr')) el('v-cr').value = d.crescimento||'';
     if(el('v-qe')) el('v-qe').value = d.estado_quebras||'';
     if(el('v-ebita')) el('v-ebita').value = d.ebita||'';
