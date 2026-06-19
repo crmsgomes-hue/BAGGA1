@@ -2131,14 +2131,6 @@ function renderProcVisita(){
   el.innerHTML = procDossiers.map(d=>{
     const sepsHtml = d.seps.map(s=>{
       const ans = procAnswers[s.id] || {};
-      const obsVis = ans.state==='nok' ? 'display:block' : 'display:none';
-      const fotos = ans.fotos || [];
-      const fotosHtml = fotos.map((src,i)=>
-        '<div style="position:relative;display:inline-block;margin:3px">' +
-        '<img src="'+src+'" style="width:65px;height:50px;object-fit:cover;border-radius:5px;border:1px solid var(--br)">' +
-        '<button onclick="delProcFoto(\''+s.id+'\','+i+')" style="position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;border:none;border-radius:50%;width:16px;height:16px;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>' +
-        '</div>'
-      ).join('');
       return '<div style="border-bottom:1px solid var(--br);padding:8px 0;display:flex;flex-direction:column;gap:4px">' +
         '<div style="display:flex;align-items:center;gap:6px">' +
         '<span style="flex:1;font-size:.82rem">'+escH(s.name)+'</span>' +
@@ -2146,12 +2138,7 @@ function renderProcVisita(){
         '<button class="ck'+(ans.state==='nok'?' ck-fail':'')+'" onclick="setProcAns(\''+s.id+'\',\'nok\',this)" title="Não conforme">✗</button>' +
         '<button class="ck'+(ans.state==='na'?' ck-na':'')+'" onclick="setProcAns(\''+s.id+'\',\'na\',this)" title="N/A" style="font-size:.65rem;font-weight:700">N/A</button>' +
         '</div>' +
-        '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-        '<label class="cam-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:.7rem;padding:5px 8px"><input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleProcFoto(\''+s.id+'\',this)">📷 Câmara</label>' +
-        '<label class="cam-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:.7rem;padding:5px 8px;background:var(--sf2);border-color:var(--br);color:var(--t2)"><input type="file" accept="image/*" style="display:none" onchange="handleProcFoto(\''+s.id+'\',this)">📁 Galeria</label>' +
-        '</div>' +
-        (fotosHtml ? '<div>'+fotosHtml+'</div>' : '') +
-        '<textarea id="proc-obs-'+s.id+'" class="jta" placeholder="Observação…" style="min-height:40px;'+obsVis+'" onblur="setProcObs(\''+s.id+'\',this.value)">'+escH(ans.obs||'')+'</textarea>' +
+        '<textarea id="proc-obs-'+s.id+'" class="jta" placeholder="Comentário…" style="min-height:40px" onblur="setProcObs(\''+s.id+'\',this.value)">'+escH(ans.obs||'')+'</textarea>' +
         '</div>';
     }).join('');
 
@@ -2226,31 +2213,6 @@ function setProcAns(sepId, state, btn){
 
 function setProcObs(sepId, val){
   if(procAnswers[sepId]) procAnswers[sepId].obs = val;
-}
-
-function handleProcFoto(sepId, input){
-  if(!input.files||!input.files.length) return;
-  if(!procAnswers[sepId]) procAnswers[sepId]={state:null,obs:'',fotos:[]};
-  if(!procAnswers[sepId].fotos) procAnswers[sepId].fotos=[];
-  const files = Array.from(input.files);
-  let loaded = 0;
-  files.forEach(function(file){
-    const r = new FileReader();
-    r.onload = function(e){
-      compressPhoto(e.target.result, 800, 0.6, function(compressed){
-        procAnswers[sepId].fotos.push(compressed);
-        loaded++;
-        if(loaded===files.length){ renderProcVisita(); toast('Foto adicionada!'); }
-      });
-    };
-    r.readAsDataURL(file);
-  });
-  input.value='';
-}
-
-function delProcFoto(sepId, idx){
-  if(procAnswers[sepId]&&procAnswers[sepId].fotos) procAnswers[sepId].fotos.splice(idx,1);
-  renderProcVisita();
 }
 
 function getProcData(){ return { dossiers: procDossiers, answers: procAnswers }; }
@@ -2601,10 +2563,8 @@ async function genRel(){
         const ans = procAnswers[s.id]||{};
         const st = ans.state;
         const icon = st==='ok' ? '<span style="color:#057a55;font-weight:700">✅ Conforme</span>' : st==='nok' ? '<span style="color:#e02424;font-weight:700">❌ Não Conforme</span>' : st==='na' ? '<span style="color:#999;font-weight:700">➖ N/A</span>' : '<span style="color:#999">—</span>';
-        const fotosHtml = (ans.fotos||[]).map(f=>'<img src="'+f+'" style="width:90px;height:70px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:2px">').join('');
         return '<div style="padding:6px 0;border-bottom:1px solid #f3f4f6">'+
           '<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;font-weight:600">'+s.name+'</span>'+icon+'</div>'+
-          (fotosHtml ? '<div style="margin-top:4px">'+fotosHtml+'</div>' : '')+
           (ans.obs ? '<div style="font-size:11px;color:#555;background:#f9f9f9;padding:5px 8px;border-radius:4px;margin-top:4px">'+ans.obs+'</div>' : '')+
           '</div>';
       }).join('');
