@@ -536,11 +536,8 @@
 
         <!-- ⑪ PROCEDIMENTOS — DOSSIERS EDITÁVEIS -->
         <div class="ic" id="chk-procedimentos" style="margin-bottom:10px;border-left-color:var(--br)">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-            <div style="font-size:.9rem;font-weight:700">📋 ⑪ Procedimentos</div>
-            <button class="btn bsm bw" onclick="abrirNovoDossie()" style="font-size:.7rem">📂 Novo Dossiê</button>
-          </div>
-          <div style="font-size:.76rem;color:var(--t2);margin-bottom:10px">Dossiers e separadores configurados pela GOP/Ops Core</div>
+          <div style="font-size:.9rem;font-weight:700;margin-bottom:4px">📋 ⑪ Procedimentos</div>
+          <div style="font-size:.76rem;color:var(--t2);margin-bottom:10px">Auditoria de procedimentos por dossiê</div>
           <!-- Progresso -->
           <div style="margin-bottom:12px">
             <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--t2);margin-bottom:4px">
@@ -552,6 +549,11 @@
           </div>
           <!-- Dossiers renderizados por JS -->
           <div id="proc-dossiers-visita"></div>
+          <!-- Adicionar novo dossiê -->
+          <div style="display:flex;gap:6px;margin-top:10px">
+            <input type="text" class="fc" id="novo-dossie-input" placeholder="Nome do novo dossiê…" style="flex:1;margin:0" onkeydown="if(event.key==='Enter')adicionarDossieDireto()">
+            <button class="btn bp bsm" onclick="adicionarDossieDireto()">+ Adicionar</button>
+          </div>
         </div>
 
         <!-- ⑫ QUEBRA DE CAIXA -->
@@ -2124,9 +2126,15 @@ function renderProcVisita(){
     }).join('');
 
     return '<div style="border:1.5px solid var(--br);border-radius:var(--rb);margin-bottom:10px;overflow:hidden">' +
-      '<div style="background:var(--sf2);padding:9px 12px;font-weight:700;font-size:.83rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="toggleProcDossier(\'pd-'+d.id+'\')">' +
-      '📁 '+escH(d.name)+'<span style="color:var(--t2)">▾</span></div>' +
-      '<div id="pd-'+d.id+'" style="padding:0 12px 4px;display:none">'+sepsHtml+'</div>' +
+      '<div style="background:var(--sf2);padding:9px 12px;display:flex;justify-content:space-between;align-items:center">' +
+      '<div style="font-weight:700;font-size:.83rem;cursor:pointer;flex:1" onclick="toggleProcDossier(\'pd-'+d.id+'\')">📁 '+escH(d.name)+'</div>' +
+      '<button onclick="apagarDossieDireto(\''+d.id+'\')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:.9rem;padding:2px 6px">🗑</button>' +
+      '<span style="color:var(--t2);cursor:pointer" onclick="toggleProcDossier(\'pd-'+d.id+'\')">▾</span></div>' +
+      '<div id="pd-'+d.id+'" style="padding:10px 12px;display:none">'+sepsHtml+
+      '<div style="display:flex;gap:6px;margin-top:8px">' +
+      '<input type="text" class="fc" id="novo-sep-'+d.id+'" placeholder="Nome do separador…" style="flex:1;margin:0;font-size:.8rem" onkeydown="if(event.key===\'Enter\')adicionarSeparadorDireto(\''+d.id+'\')">' +
+      '<button class="btn bp bsm" onclick="adicionarSeparadorDireto(\''+d.id+'\')">+ Separador</button>' +
+      '</div></div>' +
       '</div>';
   }).join('');
 }
@@ -2135,6 +2143,44 @@ function toggleProcDossier(id){
   const el = document.getElementById(id);
   if(!el) return;
   el.style.display = el.style.display==='none' ? 'block' : 'none';
+}
+
+async function adicionarDossieDireto(){
+  const input = document.getElementById('novo-dossie-input');
+  if(!input) return;
+  const nome = input.value.trim();
+  if(!nome){ toast('Escreve o nome do dossiê.','e'); return; }
+  const id = 'd'+Date.now();
+  procDossiers.push({id, name:nome, seps:[]});
+  input.value = '';
+  renderProcVisita();
+  await saveProcDossiers();
+  toast('📁 Dossiê "'+nome+'" adicionado!');
+}
+
+async function apagarDossieDireto(dossierId){
+  if(!confirm('Apagar este dossiê e todos os seus separadores?')) return;
+  procDossiers = procDossiers.filter(d=>d.id!==dossierId);
+  renderProcVisita();
+  await saveProcDossiers();
+  toast('Dossiê apagado.');
+}
+
+async function adicionarSeparadorDireto(dossierId){
+  const input = document.getElementById('novo-sep-'+dossierId);
+  if(!input) return;
+  const nome = input.value.trim();
+  if(!nome){ toast('Escreve o nome do separador.','e'); return; }
+  const d = procDossiers.find(x=>x.id===dossierId);
+  if(!d) return;
+  const id = 's'+Date.now();
+  d.seps.push({id, name:nome});
+  renderProcVisita();
+  // Re-open dossier after re-render
+  const pd = document.getElementById('pd-'+dossierId);
+  if(pd) pd.style.display = 'block';
+  await saveProcDossiers();
+  toast('✅ Separador "'+nome+'" adicionado!');
 }
 
 function setProcAns(sepId, state, btn){
