@@ -369,14 +369,10 @@
               </div>
             </div>
 
-            <!-- COLABORADORES -->
+            <!-- COMENTÁRIO RH -->
             <div style="margin-top:12px">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                <div style="font-size:.72rem;font-weight:700;color:var(--blu)">📋 Colaboradores em Loja</div>
-                <button class="btn bsm bs" onclick="addColaborador()">+ Adicionar</button>
-              </div>
-              <div id="rh-contrato-alertas" style="display:none;margin-bottom:8px"></div>
-              <div id="rh-colab-list"></div>
+              <div style="font-size:.72rem;font-weight:700;color:var(--blu);margin-bottom:6px">📋 Comentário</div>
+              <textarea class="jta" id="rh-comentario" placeholder="Observações sobre a equipa, dotação, situações pontuais…" style="min-height:60px"></textarea>
             </div>
           </div>
 
@@ -1828,8 +1824,7 @@ async function startV(store, skipReset=false){
   el('v-name').textContent='📍 '+sn(store);el('v-dt').textContent='Data: '+now();
   if(!skipReset) setHoraAgora(); // só fixa hora em visita nova
   // (resets already handled at top of startV)
-  rhColabs = [];
-  renderColabs();
+  // RH comment field - no special reset needed (cleared with form)
   if(!skipReset) procAnswers = {};
   renderProcVisita();
   // Reset UI state (items are static HTML)
@@ -1925,8 +1920,6 @@ function updateRutCounter(){
 }
 
 // ── FTEs e COLABORADORES ─────────────────────────────
-let rhColabs = []; // [{nome, admissao, fim}]
-
 function calcFTE(){
   const def = parseFloat((document.getElementById('rh-ftes-definido')||{value:''}).value)||0;
   const real = parseFloat((document.getElementById('rh-ftes-real')||{value:''}).value)||0;
@@ -1939,85 +1932,11 @@ function calcFTE(){
   desvioEl.style.color = diff < 0 ? 'var(--red)' : diff > 0 ? 'var(--org)' : 'var(--grn)';
 }
 
-function addColaborador(){
-  rhColabs.push({nome:'', admissao:'', fim:''});
-  renderColabs();
-}
-
-function renderColabs(){
-  const container = document.getElementById('rh-colab-list');
-  if(!container) return;
-  if(!rhColabs.length){
-    container.innerHTML = '<div style="color:var(--t2);font-size:.78rem;padding:6px">Sem colaboradores adicionados.</div>';
-    return;
-  }
-  const today = new Date();
-  const alertas = [];
-  container.innerHTML = rhColabs.map((col,i) => {
-    // Check contract expiry
-    let alertHtml = '';
-    let borderColor = 'var(--br)';
-    if(col.fim){
-      const fimDate = new Date(col.fim);
-      const daysLeft = Math.floor((fimDate - today) / 86400000);
-      if(daysLeft <= 0){
-        alertHtml = '<div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:4px;padding:5px 8px;font-size:.72rem;color:var(--red);margin-top:6px;font-weight:600">⛔ Contrato terminado há '+Math.abs(daysLeft)+' dia(s)!</div>';
-        borderColor = 'var(--red)';
-        alertas.push({nome:col.nome, dias:daysLeft, tipo:'terminado'});
-      } else if(daysLeft <= 45){
-        alertHtml = '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:4px;padding:5px 8px;font-size:.72rem;color:var(--org);margin-top:6px;font-weight:600">⚠ Contrato termina em '+daysLeft+' dia(s) — '+fimDate.toLocaleDateString("pt-PT")+' — Notificar RH!</div>';
-        borderColor = 'var(--org)';
-        alertas.push({nome:col.nome, dias:daysLeft, tipo:'urgente'});
-      }
-    }
-    return '<div style="background:var(--sf);border:1.5px solid '+borderColor+';border-radius:var(--rb);padding:10px;margin-bottom:7px">' +
-    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">' +
-    '<div style="font-size:.72rem;font-weight:700;color:var(--t2)">#'+(i+1)+'</div>' +
-    (col.nome ? '<div style="font-size:.82rem;font-weight:600">'+col.nome+'</div>' : '') +
-    '<button onclick="delColaborador('+i+')" style="background:none;border:none;color:var(--t3);cursor:pointer;margin-left:auto;font-size:.9rem">🗑</button>' +
-    '</div>' +
-    '<div class="fr" style="margin-bottom:0">' +
-    '<div class="fg"><label>Nome</label><input type="text" class="fc" id="col-nome-'+i+'" placeholder="Nome do colaborador" value="'+(col.nome||'')+'" onchange="saveColab('+i+');renderColabs()"></div>' +
-    '<div class="fg"><label>Data Admissão</label><input type="date" class="fc" id="col-adm-'+i+'" value="'+(col.admissao||'')+'" onchange="saveColab('+i+')"></div>' +
-    '<div class="fg"><label>Data Fim <span style="font-size:.63rem;color:var(--t3)">opcional</span></label><input type="date" class="fc" id="col-fim-'+i+'" value="'+(col.fim||'')+'" onchange="saveColab('+i+');renderColabs()"></div>' +
-    '</div>'+alertHtml+'</div>';
-  }).join('');
-  // Show global alert banner if any contracts expiring
-  const alertBanner = document.getElementById('rh-contrato-alertas');
-  if(alertBanner){
-    if(alertas.length){
-      alertBanner.innerHTML = alertas.map(a =>
-        '<div class="al '+(a.tipo==='terminado'?'al-d':'al-w')+'" style="margin-bottom:5px">'+
-        (a.tipo==='terminado' ? '⛔ <strong>'+a.nome+'</strong> — contrato TERMINADO há '+Math.abs(a.dias)+' dia(s)' :
-        '⚠ <strong>'+a.nome+'</strong> — contrato termina em <strong>'+a.dias+' dia(s)</strong> — Notificar RH com antecedência!')+
-        '</div>'
-      ).join('');
-      alertBanner.style.display='block';
-    } else {
-      alertBanner.style.display='none';
-    }
-  }
-}
-
-function saveColab(i){
-  if(!rhColabs[i]) return;
-  rhColabs[i].nome = (document.getElementById('col-nome-'+i)||{value:''}).value;
-  rhColabs[i].admissao = (document.getElementById('col-adm-'+i)||{value:''}).value;
-  rhColabs[i].fim = (document.getElementById('col-fim-'+i)||{value:''}).value;
-}
-
-function delColaborador(i){
-  rhColabs.splice(i,1);
-  renderColabs();
-}
-
 function getRHFTEData(){
-  // Save all colab data before reading
-  rhColabs.forEach((_,i) => saveColab(i));
   return {
     ftes_definido: (document.getElementById('rh-ftes-definido')||{value:''}).value,
     ftes_real: (document.getElementById('rh-ftes-real')||{value:''}).value,
-    colaboradores: [...rhColabs]
+    comentario: (document.getElementById('rh-comentario')||{value:''}).value
   };
 }
 
@@ -2583,17 +2502,13 @@ async function genRel(){
 
   const resumo = `${ncItems.length} NC · ${okItems.length} OK · ${fail.length} ruturas`;
 
-  // ── FTEs e Alertas Contratos ──────────────────
+  // ── FTEs e Comentário RH ──────────────────
   const fteData = getRHFTEData();
   const fteDef = fteData.ftes_definido||'—';
   const fteReal = fteData.ftes_real||'—';
   const fteDiff = (parseFloat(fteData.ftes_real)||0)-(parseFloat(fteData.ftes_definido)||0);
   const fteDesvio = fteData.ftes_definido&&fteData.ftes_real?(fteDiff>=0?'+':'')+fteDiff.toFixed(1):'—';
-  const today45=new Date();
-  const contratoAlertas=fteData.colaboradores.filter(col=>{if(!col.fim)return false;return Math.floor((new Date(col.fim)-today45)/86400000)<=45;});
-  const contratoAlertasHtml=contratoAlertas.length?'<div style="padding:8px;background:#fffbeb;border:1px solid #fcd34d;border-radius:5px;margin-bottom:8px;font-size:11px"><strong style="color:#92400e">⚠ Contratos a terminar:</strong><br>'+contratoAlertas.map(col=>{const d=Math.floor((new Date(col.fim)-today45)/86400000);return '<b>'+col.nome+'</b>: '+(d<=0?'TERMINADO há '+Math.abs(d)+'d':'termina em '+d+'d')+' ('+new Date(col.fim).toLocaleDateString('pt-PT')+')'}).join(' | ')+'</div>':'';
-  const colabsHtml=fteData.colaboradores.length?'<table style="width:100%;font-size:11px;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:3px 6px;background:#f0f4ff">Nome</th><th style="text-align:left;padding:3px 6px;background:#f0f4ff">Admissão</th><th style="text-align:left;padding:3px 6px;background:#f0f4ff">Fim</th></tr></thead><tbody>'+fteData.colaboradores.map(col=>'<tr><td style="padding:3px 6px;border-bottom:1px solid #eee">'+(col.nome||'—')+'</td><td style="padding:3px 6px;border-bottom:1px solid #eee">'+(col.admissao?new Date(col.admissao).toLocaleDateString('pt-PT'):'—')+'</td><td style="padding:3px 6px;border-bottom:1px solid #eee;color:'+(col.fim&&Math.floor((new Date(col.fim)-today45)/86400000)<=45?'#e02424':'inherit')+'">'+(col.fim?new Date(col.fim).toLocaleDateString('pt-PT'):'—')+'</td></tr>').join('')+'</tbody></table>':'<i style="font-size:11px;color:#999">Sem colaboradores</i>';
-  const fteReportSection='<div style="margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:#1a56db;border-bottom:2px solid #1a56db;padding-bottom:4px;margin-bottom:8px">👥 FTEs e Colaboradores</div>'+contratoAlertasHtml+'<table style="font-size:12px;margin-bottom:8px"><tr><td style="padding:3px 10px 3px 0;color:#555">FTEs Definido</td><td style="font-weight:700">'+fteDef+'</td><td style="padding:3px 10px;color:#555">FTEs Real</td><td style="font-weight:700">'+fteReal+'</td><td style="padding:3px 10px;color:#555">Desvio</td><td style="font-weight:700;color:'+(fteDiff<0?'#e02424':fteDiff>0?'#d97706':'#057a55')+'">'+fteDesvio+'</td></tr></table>'+colabsHtml+'</div>';
+  const fteReportSection='<div style="margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:#1a56db;border-bottom:2px solid #1a56db;padding-bottom:4px;margin-bottom:8px">👥 FTEs — Dotação de Colaboradores</div><table style="font-size:12px;margin-bottom:8px"><tr><td style="padding:3px 10px 3px 0;color:#555">FTEs Definido</td><td style="font-weight:700">'+fteDef+'</td><td style="padding:3px 10px;color:#555">FTEs Real</td><td style="font-weight:700">'+fteReal+'</td><td style="padding:3px 10px;color:#555">Desvio</td><td style="font-weight:700;color:'+(fteDiff<0?'#e02424':fteDiff>0?'#d97706':'#057a55')+'">'+fteDesvio+'</td></tr></table>'+(fteData.comentario?'<div style="font-size:12px;color:#555;background:#f9f9f9;padding:7px;border-radius:4px">'+fteData.comentario+'</div>':'')+'</div>';
   const loicaData=[];
   const loicaReportSection='';
 
@@ -3831,7 +3746,7 @@ async function doAutoSave(){
       checklist: JSON.stringify(chkMeta),
       haccp: JSON.stringify(vHaccp),
       proc_answers: JSON.stringify(procAnswers),
-      rh_colabs: JSON.stringify(rhColabs),
+      rh_comentario: (document.getElementById('rh-comentario')||{value:''}).value,
       fotos_chegada: vChegadaPhoto||null,
     };
 
@@ -3869,7 +3784,6 @@ async function restoreAutoSave(store){
     vRutNotas = {};
     vRutObs = {};
     procAnswers = {};
-    rhColabs = [];
     vChegadaPhoto = null;
     vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],
                rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],
@@ -3890,7 +3804,7 @@ async function restoreAutoSave(store){
     if(d.rut_check) try{ vRut = JSON.parse(d.rut_check); }catch(e){}
     if(d.haccp) try{ vHaccp = JSON.parse(d.haccp); }catch(e){}
     if(d.proc_answers) try{ procAnswers = JSON.parse(d.proc_answers||'{}'); }catch(e){}
-    if(d.rh_colabs) try{ rhColabs = JSON.parse(d.rh_colabs||'[]'); }catch(e){}
+    if(d.rh_comentario){ const rc=document.getElementById('rh-comentario'); if(rc) rc.value = d.rh_comentario; }
     if(d.fotos_chegada) vChegadaPhoto = d.fotos_chegada;
 
     // Iniciar visita sem reset (dados já carregados)
@@ -3956,7 +3870,6 @@ async function restoreAutoSave(store){
     // Restaurar ruturas + colaboradores + procedimentos
     try{ rVRut(); }catch(e){}
     updateRutCounter();
-    renderColabs();
     renderProcVisita();
 
     toast('▶ Visita em curso restaurada!');
@@ -4066,7 +3979,6 @@ async function confirmarFinalizar(){
   vRutObs = {};
   procAnswers = {};
   vChegadaPhoto = null;
-  rhColabs = [];
   _reportHtmlFinal = null;
   vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],
              rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],
