@@ -3408,47 +3408,16 @@ function toggleTarHist(){
 
 async function rHistorico(){
   const container = document.getElementById('hist-list');
-  if(!container) return;
+  if(!container){ alert('hist-list não existe!'); return; }
   container.innerHTML = '<div style="color:var(--t2);font-size:.81rem;padding:10px">A carregar...</div>';
   try{
     const lf = CU&&CU.role==='mgr' ? '&loja=eq.'+CU.store : '';
     const q = 'select=id,loja,data,hora,resumo,local_key&order=created_at.desc'+lf;
     const hist = await dbGet('cj_historico', q) || [];
-    const byLoja = {};
-    hist.forEach(r=>{ if(!byLoja[r.loja])byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
-
-    const lojasParaMostrar = CU&&CU.role==='mgr' ? [CU.store] : STORES;
-
-    let html = '<div style="font-size:.78rem;color:var(--t2);margin-bottom:10px">📁 <strong>'+hist.length+'</strong> relatório(s) guardado(s)</div>';
-
-    lojasParaMostrar.forEach(loja=>{
-      const reports = byLoja[loja] || [];
-      const folderId = 'hist-folder-'+loja;
-      html += '<div style="border:1.5px solid var(--br);border-radius:var(--rb);margin-bottom:8px;overflow:hidden">' +
-        '<div style="background:var(--sf2);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleHistFolder(\''+folderId+'\')">' +
-        '<div style="font-weight:700;font-size:.85rem">📍 '+sn(loja)+'</div>' +
-        '<div style="display:flex;align-items:center;gap:8px">' +
-        '<span style="font-size:.72rem;color:var(--t2);background:var(--br);border-radius:99px;padding:2px 9px">'+reports.length+'</span>' +
-        '<span style="color:var(--t2)">▾</span></div></div>' +
-        '<div id="'+folderId+'" style="display:none;padding:10px 12px">' +
-        (reports.length ? reports.map(r=>
-          '<div class="ic inf" style="margin-bottom:7px">'+
-          '<div class="ic-top">'+
-          '<div class="ic-info">'+
-          '<div class="ic-title">'+r.data+(r.hora?' — '+r.hora:'')+'</div>'+
-          '<div class="ic-sub" style="font-size:.74rem">'+(r.resumo||'')+'</div>'+
-          '</div>'+
-          '<div class="ic-acts"><div class="ic-btns">'+
-          '<button class="btn bsm bp" onclick="reabrirRelatorio(\''+r.id+'\')">👁 Ver</button>'+
-          '<button class="del-btn" onclick="delHistorico(\''+r.id+'\')">🗑</button>'+
-          '</div></div></div></div>'
-        ).join('') : '<div style="color:var(--t2);font-size:.78rem;padding:6px">Sem relatórios guardados nesta loja.</div>') +
-        '</div></div>';
-    });
-
-    container.innerHTML = html;
+    container.innerHTML = '<div style="background:yellow;padding:10px;font-size:11px">DEBUG: hist.length='+hist.length+' | STORES='+(typeof STORES)+' ('+(STORES?STORES.length:'undef')+') | CU.role='+(CU?CU.role:'sem CU')+'</div>';
+    return;
   }catch(e){
-    container.innerHTML = '<div style="color:var(--red);font-size:.81rem;padding:10px">Erro ao carregar histórico: '+e.message+'</div>';
+    container.innerHTML = '<div style="color:var(--red);font-size:.81rem;padding:10px">ERRO CAPTURADO: '+e.message+'</div>';
   }
 }
 
