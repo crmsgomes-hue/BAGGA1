@@ -2434,15 +2434,25 @@ async function genRel(){
   function mkId(n){return n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'_');}
   const fail=staticRutItems.filter(item=>vRut[mkId(item)]==='fail');
   const ok=staticRutItems.filter(item=>vRut[mkId(item)]==='ok');
-  const allChkItems = [...CHECKLIST_ITEMS,
-    {id:'jsc',label:'📋 JSC',desc:'JSC'},{id:'marketing',label:'📣 Marketing',desc:'Marketing'},
-    {id:'procedimentos',label:'📋 Procedimentos',desc:'Procedimentos'},
-    {id:'raid',label:'🚨 RAID',desc:'RAID'},
-    {id:'rh_formacoes',label:'🎓 Formações',desc:''},{id:'rh_trocas',label:'🔄 Trocas',desc:''},
-    {id:'rh_folgas',label:'🗓️ Folgas',desc:''},{id:'rh_bh',label:'⏱️ BH',desc:''},
-    {id:'rh_ts',label:'🚨 TS',desc:''},{id:'rh_horarios',label:'📅 Horários',desc:''},
-    {id:'rh_ferias',label:'🌴 Férias RH',desc:''}
+  // Ordem do PDF = ordem da visita
+  const allChkItems = [
+    {id:'vitrine',     label:'🏪 Vitrine',          desc:'Apresentação, limpeza e organização da vitrine'},
+    {id:'tabaco',      label:'🚬 Tabaco',            desc:'Stock, organização e conformidade'},
+    {id:'jsc',         label:'☕ JSC',               desc:'JSC'},
+    {id:'equipamentos',label:'⚙️ Equipamentos',      desc:'Estado e funcionamento'},
+    {id:'limpeza',     label:'🧹 Limpeza / HACCP',   desc:'Higiene, HACCP e registos', haccp:true},
+    {id:'rh',          label:'👥 Temas RH',          desc:'RH'},
+    {id:'rh_formacoes',label:'🎓 Formações',         desc:''},
+    {id:'rh_trocas',   label:'🔄 Trocas',            desc:''},
+    {id:'rh_folgas',   label:'🗓️ Folgas',            desc:''},
+    {id:'rh_bh',       label:'⏱️ Banco Horas',       desc:''},
+    {id:'rh_ts',       label:'🚨 Trab. Suplementar', desc:''},
+    {id:'rh_horarios', label:'📅 Horários',          desc:''},
+    {id:'rh_ferias',   label:'🌴 Férias',            desc:''},
+    {id:'procedimentos',label:'📋 Procedimentos',    desc:''},
+    {id:'raid',        label:'🚨 RAID',              desc:''},
   ];
+
   // Build HACCP table HTML
   const HACCP_ITEMS_RPT = [
     {id:'reg_3',label:'REG 3'},{id:'reg_4',label:'REG 4'},{id:'reg_8',label:'REG 8'},
@@ -2463,11 +2473,20 @@ async function genRel(){
   const ncItems = allChkItems.filter(item => vChecklist[item.id]&&vChecklist[item.id].conforme===false);
   const okItems = allChkItems.filter(item => vChecklist[item.id]&&vChecklist[item.id].conforme===true);
   const pendItems = allChkItems.filter(item => !vChecklist[item.id]||vChecklist[item.id].conforme===null);
+  const cafeSection = '<div style="border:1.5px solid #ddd;border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
+    '<div style="font-size:13px;font-weight:700">☕ Pesagem de Café</div></div>'+
+    '<table style="width:100%;font-size:12px;border-collapse:collapse">'+
+    '<tr><td style="padding:4px 8px;color:#555">Dose Simples</td><td style="padding:4px 8px;font-weight:600">'+(val('v-cs')||'—')+'g</td>'+
+    '<td style="padding:4px 8px;color:#555">Dose Dupla</td><td style="padding:4px 8px;font-weight:600">'+(val('v-cd')||'—')+'g</td></tr></table>'+
+    (cafePhotosHtml ? '<div style="margin-top:8px">'+cafePhotosHtml+'</div>' : '')+
+    '</div>';
+
   const chkHtml = allChkItems.map(item => {
     const st = vChecklist[item.id]||{};
     const confLabel = st.conforme===true ? '<span style="color:#057a55;font-weight:700">✅ Conforme</span>' : st.conforme===false ? '<span style="color:#e02424;font-weight:700">❌ Não Conforme</span>' : '<span style="color:#d97706;font-weight:700">⏳ Por verificar</span>';
     const border = st.conforme===false ? '#e02424' : st.conforme===true ? '#057a55' : '#ddd';
-    return '<div style="border:1.5px solid '+border+';border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
+    const block = '<div style="border:1.5px solid '+border+';border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
       '<div style="font-size:13px;font-weight:700">'+item.label+'</div>'+
       '<div>'+confLabel+'</div></div>'+
@@ -2475,6 +2494,7 @@ async function genRel(){
       (st.fotos&&st.fotos.length ? st.fotos.map(f=>'<img src="'+f+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:3px">').join('') : st.foto ? '<img src="'+st.foto+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:3px">' : '<div style="font-size:11px;color:#999;margin-bottom:7px;font-style:italic">Sem foto</div>')+
       '<div style="font-size:12px;color:#555;background:#f9f9f9;padding:7px;border-radius:4px">'+(st.nota||'<em style="color:#aaa">Sem comentário</em>')+'</div>'+
       '</div>';
+    return block + (item.id==='jsc' ? cafeSection : '');
   }).join('');
 
   const chegadaHtml = vChegadaPhoto ?
@@ -2560,13 +2580,6 @@ async function genRel(){
     </table>`
   );
 
-  const cafeHtml = S('☕ Pesagem de Café',
-    `<table style="width:100%;font-size:12px;border-collapse:collapse">
-      <tr><td style="padding:4px 8px;color:#555">Dose Simples</td><td style="padding:4px 8px;font-weight:600">${val('v-cs')||'—'}g</td>
-      <td style="padding:4px 8px;color:#555">Dose Dupla</td><td style="padding:4px 8px;font-weight:600">${val('v-cd')||'—'}g</td></tr>
-    </table>${cafePhotosHtml ? '<div style="margin-top:8px">'+cafePhotosHtml+'</div>' : ''}`
-  );
-
   const rutHtml = fail.length>0
     ? S('⚠ Ruturas de Rede',
         `<ul style="font-size:12px;padding-left:18px;margin:0;columns:2">${fail.map(f=>'<li style="color:#e02424;margin-bottom:3px">'+f+'</li>').join('')}</ul>`)
@@ -2591,7 +2604,6 @@ async function genRel(){
   ${chegadaHtml}
   ${perfHtml}
   ${chkHtml}
-  ${cafeHtml}
   ${fteReportSection}
   ${rutHtml}
   <div style="margin-top:40px;border-top:1px solid #eee;padding-top:14px;display:flex;justify-content:space-between;font-size:11px;color:#aaa">
