@@ -3412,7 +3412,8 @@ async function rHistorico(){
   container.innerHTML = '<div style="color:var(--t2);font-size:.81rem;padding:10px">A carregar...</div>';
   try{
     const lf = CU&&CU.role==='mgr' ? '&loja=eq.'+CU.store : '';
-    const hist = await dbAll('cj_historico',lf.replace(/^&/,'')) || [];
+    const q = 'select=id,loja,data,hora,resumo,local_key&order=created_at.desc'+lf;
+    const hist = await dbGet('cj_historico', q) || [];
     const byLoja = {};
     hist.forEach(r=>{ if(!byLoja[r.loja])byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
 
@@ -3446,7 +3447,9 @@ async function rHistorico(){
     });
 
     container.innerHTML = html;
-  }catch(e){ container.innerHTML = '<div style="color:var(--red);font-size:.81rem;padding:10px">Erro ao carregar histórico.</div>'; }
+  }catch(e){
+    container.innerHTML = '<div style="color:var(--red);font-size:.81rem;padding:10px">Erro ao carregar histórico: '+e.message+'</div>';
+  }
 }
 
 function toggleHistFolder(id){
