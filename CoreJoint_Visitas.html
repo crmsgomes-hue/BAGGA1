@@ -250,6 +250,15 @@
         <!-- ⑤ PESAGEM DE CAFÉ -->
         <div style="background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);padding:14px;margin-bottom:14px">
           <div style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">☕ ⑤ Pesagem de Café</div>
+          <div style="display:flex;gap:8px;margin-bottom:9px;align-items:center">
+            <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
+            <button class="ck" onclick="setConf('cafe',true)" id="ck-ok-cafe">✓</button>
+            <button class="ck" onclick="setConf('cafe',false)" id="ck-fail-cafe">✗</button>
+          </div>
+          <div id="chk-prazo-cafe" style="display:none;margin-bottom:9px;padding:9px;background:#fff5f5;border:1.5px solid #fca5a5;border-radius:var(--rb)">
+            <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
+            <input type="date" class="fc" id="chk-prazo-date-cafe" onchange="saveChkPrazo('cafe')" style="border-color:#fca5a5">
+          </div>
           <div class="fr">
             <div class="fg"><label>Dose Simples — Manipula 1 (g)</label><input type="number" class="fc" id="v-cs" step="0.1" placeholder="7.5"></div>
             <div class="fg"><label>Dose Dupla — Manipula 2 (g)</label><input type="number" class="fc" id="v-cd" step="0.1" placeholder="15.0"></div>
@@ -1979,10 +1988,19 @@ let procDossierIdSeq = 100;
 let procSepIdSeq = 1000;
 
 function abrirNovoDossie(){
-  openM('m-proc-config');
-  loadProcDossiers().then(()=>{
-    try{ renderProcConfig(); }catch(e){ console.error('renderProcConfig:',e); }
-  }).catch(e=>console.error('loadProcDossiers:',e));
+  try{
+    openM('m-proc-config');
+  }catch(e){
+    toast('Erro ao abrir: '+e.message,'e');
+    return;
+  }
+  loadProcDossiers().then(function(){
+    try{ renderProcConfig(); }catch(e){ toast('Erro ao listar: '+e.message,'e'); }
+  }).catch(function(e){
+    toast('Erro ao carregar: '+e.message,'e');
+    procDossiers = [];
+    try{ renderProcConfig(); }catch(e2){}
+  });
 }
 
 async function loadProcDossiers(){
