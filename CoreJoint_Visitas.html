@@ -2488,6 +2488,15 @@ async function genRel(){
     (cafePhotosHtml ? '<div style="margin-top:8px">'+cafePhotosHtml+'</div>' : '')+
     '</div>';
 
+  const rutSection = fail.length>0
+    ? '<div style="border:1.5px solid #e02424;border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
+      '<div style="font-size:13px;font-weight:700;color:#e02424;margin-bottom:8px">⚠ Ruturas de Rede ('+fail.length+')</div>'+
+      '<ul style="font-size:12px;padding-left:18px;margin:0;columns:2">'+fail.map(f=>'<li style="color:#e02424;margin-bottom:3px">'+f+'</li>').join('')+'</ul>'+
+      '</div>'
+    : '<div style="border:1.5px solid #057a55;border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
+      '<div style="font-size:13px;font-weight:700;color:#057a55">✅ Ruturas de Rede — Sem ruturas registadas</div>'+
+      '</div>';
+
   const chkHtml = allChkItems.map(item => {
     const st = vChecklist[item.id]||{};
     const confLabel = st.conforme===true ? '<span style="color:#057a55;font-weight:700">✅ Conforme</span>' : st.conforme===false ? '<span style="color:#e02424;font-weight:700">❌ Não Conforme</span>' : '<span style="color:#d97706;font-weight:700">⏳ Por verificar</span>';
@@ -2500,7 +2509,10 @@ async function genRel(){
       (st.fotos&&st.fotos.length ? st.fotos.map(f=>'<img src="'+f+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:3px">').join('') : st.foto ? '<img src="'+st.foto+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:3px">' : '<div style="font-size:11px;color:#999;margin-bottom:7px;font-style:italic">Sem foto</div>')+
       '<div style="font-size:12px;color:#555;background:#f9f9f9;padding:7px;border-radius:4px">'+(st.nota||'<em style="color:#aaa">Sem comentário</em>')+'</div>'+
       '</div>';
-    return block + (item.id==='jsc' ? cafeSection : '');
+    let extra = '';
+    if(item.id==='vitrine') extra = rutSection;
+    if(item.id==='jsc') extra = cafeSection;
+    return block + extra;
   }).join('');
 
   const chegadaHtml = vChegadaPhoto ?
@@ -2581,11 +2593,6 @@ async function genRel(){
     </table>`
   );
 
-  const rutHtml = fail.length>0
-    ? S('⚠ Ruturas de Rede',
-        `<ul style="font-size:12px;padding-left:18px;margin:0;columns:2">${fail.map(f=>'<li style="color:#e02424;margin-bottom:3px">'+f+'</li>').join('')}</ul>`)
-    : S('✅ Ruturas de Rede','<div style="font-size:12px;color:#057a55">Sem ruturas registadas.</div>');
-
   const reportHtml = `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>Relatório Visita — ${sn(vStore)}</title>
   <style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#111}@media print{body{margin:0;padding:15px}.no-print{display:none!important}}</style></head><body>
   <div id="pdf-report">
@@ -2606,7 +2613,6 @@ async function genRel(){
   ${perfHtml}
   ${chkHtml}
   ${fteReportSection}
-  ${rutHtml}
   <div style="margin-top:40px;border-top:1px solid #eee;padding-top:14px;display:flex;justify-content:space-between;font-size:11px;color:#aaa">
     <div>CoreJoint · Bagga · ${now()}</div><div>${who()}</div>
   </div>
