@@ -1214,9 +1214,12 @@ function showFaseGopNome(){
   el('ls-fase-gop-nome').style.display='block';
   el('ls-fase-pin').style.display='none';
   const grid = el('gop-nome-grid');
-  grid.innerHTML = Object.keys(GOP_NAMES).map(id =>
-    '<button class="sb" style="text-align:left;padding:14px" onclick="showFasePin(\''+id+'\')">👤 '+GOP_NAMES[id]+'</button>'
-  ).join('');
+  grid.innerHTML = Object.keys(GOP_NAMES).map(id => {
+    const locked = isLocked(id);
+    return '<button class="sb" style="text-align:left;padding:14px'+(locked?';opacity:.6':'')+'" onclick="showFasePin(\''+id+'\')">'+
+      (locked?'🔒 ':'👤 ')+GOP_NAMES[id]+(locked?' <span style="color:var(--red);font-size:.7rem">(bloqueado)</span>':'')+
+      '</button>';
+  }).join('');
 }
 
 let _loginGopId = null;
@@ -1231,19 +1234,58 @@ function showFasePin(idOrCrop){
   else{ titulo.textContent = '👤 ' + (GOP_NAMES[idOrCrop]||idOrCrop); }
   el('l-pin').value='';
   kpClear();
+  const err = el('l-err');
+  if(isLocked(idOrCrop)){
+    err.textContent = '🔒 Perfil bloqueado. Só a CROP pode desbloquear.';
+    err.style.display = 'block';
+  } else {
+    err.style.display = 'none';
+  }
 }
+
+function getFailKey(id){ return 'cj_fails_'+id; }
+function getFails(id){ return parseInt(localStorage.getItem(getFailKey(id))||'0',10); }
+function setFails(id, n){ try{ localStorage.setItem(getFailKey(id), String(n)); }catch(e){} }
+function isLocked(id){ return getFails(id) >= 5; }
+function resetFails(id){ setFails(id, 0); }
 
 async function doLogin(){
   const pin=val('l-pin'),err=el('l-err');err.style.display='none';
 
   if(_loginGopId==='crop'){
-    if(pin!==GOP_PINS.crop){ err.textContent='PIN incorreto.'; err.style.display='block'; kpClear(); return; }
+    // CROP só tem PIN próprio (a palavra-mestre)
+    if(isLocked('crop')){
+      err.textContent='Perfil bloqueado por demasiadas tentativas erradas.'; err.style.display='block'; kpClear(); return;
+    }
+    if(pin!==GOP_PINS.crop){
+      setFails('crop', getFails('crop')+1);
+      const restantes = 5-getFails('crop');
+      err.textContent = restantes>0 ? 'PIN incorreto. Tentativas restantes: '+restantes : 'Perfil bloqueado por demasiadas tentativas erradas.';
+      err.style.display='block'; kpClear(); return;
+    }
+    resetFails('crop');
     CU={role:'crop', gopId:null, store:null};
     STORES = Object.values(GOP_STORES).flat();
   } else if(_loginGopId && GOP_NAMES[_loginGopId]){
-    if(pin!==GOP_PINS[_loginGopId]){ err.textContent='PIN incorreto.'; err.style.display='block'; kpClear(); return; }
-    CU={role:'gop', gopId:_loginGopId, store:null};
-    STORES = GOP_STORES[_loginGopId];
+    // A palavra-mestre da CROP também desbloqueia/entra como qualquer GOP
+    if(pin===GOP_PINS.crop){
+      resetFails(_loginGopId); // desbloqueia este GOP automaticamente
+      CU={role:'gop', gopId:_loginGopId, store:null};
+      STORES = GOP_STORES[_loginGopId];
+    } else {
+      if(isLocked(_loginGopId)){
+        err.textContent='Perfil bloqueado. Peça à CROP para desbloquear.'; err.style.display='block'; kpClear(); return;
+      }
+      if(pin!==GOP_PINS[_loginGopId]){
+        setFails(_loginGopId, getFails(_loginGopId)+1);
+        const restantes = 5-getFails(_loginGopId);
+        err.textContent = restantes>0 ? 'PIN incorreto. Tentativas restantes: '+restantes : 'Perfil bloqueado. Peça à CROP para desbloquear.';
+        err.style.display='block'; kpClear(); return;
+      }
+      resetFails(_loginGopId);
+      CU={role:'gop', gopId:_loginGopId, store:null};
+      STORES = GOP_STORES[_loginGopId];
+    }
   } else {
     err.textContent='Selecione o seu perfil.'; err.style.display='block'; return;
   }
