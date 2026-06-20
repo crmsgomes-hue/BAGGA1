@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TESTE Histórico</title>
+<style>
+body { font-family: Arial; padding: 16px; font-size: 16px; }
+.box { border: 2px solid #333; padding: 12px; margin-bottom: 10px; border-radius: 8px; }
+.error { background: #fee; border-color: red; color: red; }
+.ok { background: #efe; border-color: green; }
+</style>
+</head>
+<body>
+<h2>Teste isolado — Histórico</h2>
+<div id="output">A iniciar...</div>
+
+<script>
+const SB='https://isdaegejkxgtzjcpzstr.supabase.co';
+const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k';
+
+async function testar(){
+  const out = document.getElementById('output');
+  out.innerHTML = '';
+
+  function log(msg, isError){
+    const div = document.createElement('div');
+    div.className = 'box ' + (isError ? 'error' : 'ok');
+    div.textContent = msg;
+    out.appendChild(div);
+  }
+
+  try{
+    log('Passo 1: A chamar fetch direto à Supabase...');
+    const url = SB+'/rest/v1/cj_historico?select=id,loja,data,hora,resumo&order=created_at.desc';
+    const r = await fetch(url, {
+      headers: {
+        'apikey': SK,
+        'Authorization': 'Bearer '+SK
+      }
+    });
+    log('Passo 2: Resposta recebida. Status: ' + r.status);
+    if(!r.ok){
+      const errText = await r.text();
+      log('ERRO na resposta: ' + errText, true);
+      return;
+    }
+    const data = await r.json();
+    log('Passo 3: JSON parseado. Total de registos: ' + data.length);
+    if(data.length > 0){
+      log('Passo 4: Primeiro registo: ' + JSON.stringify(data[0]));
+      const lojas = [...new Set(data.map(d=>d.loja))];
+      log('Passo 5: Lojas encontradas: ' + lojas.join(', '));
+    } else {
+      log('Não há registos retornados.', true);
+    }
+  }catch(e){
+    log('EXCEÇÃO CAPTURADA: ' + e.message, true);
+    log('Stack: ' + e.stack, true);
+  }
+}
+
+testar();
+</script>
+</body>
+</html>
