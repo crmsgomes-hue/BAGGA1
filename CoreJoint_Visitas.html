@@ -159,6 +159,16 @@
       <div class="sb" onclick="pickStore('torres_novas')">🏪 Torres Novas</div><div class="sb" onclick="pickStore('rio_maior')">🏪 Rio Maior</div>
       <div class="sb" onclick="pickStore('santarem')">🏪 Santarém</div><div class="sb" onclick="pickStore('carregado')">🏪 Carregado</div>
     </div>
+  </div>
+  <div class="card">
+    <div class="ch"><div class="ct">📁 Histórico de Visitas</div></div>
+    <div class="sg">
+      <div class="sb" onclick="abrirHistLoja('caldas')">🏪 Caldas</div><div class="sb" onclick="abrirHistLoja('bombarral')">🏪 Bombarral</div>
+      <div class="sb" onclick="abrirHistLoja('ponte_sor')">🏪 Ponte de Sor</div><div class="sb" onclick="abrirHistLoja('peniche')">🏪 Peniche</div>
+      <div class="sb" onclick="abrirHistLoja('almeirim')">🏪 Almeirim</div><div class="sb" onclick="abrirHistLoja('torres_mh')">🏪 Torres MH</div>
+      <div class="sb" onclick="abrirHistLoja('torres_novas')">🏪 Torres Novas</div><div class="sb" onclick="abrirHistLoja('rio_maior')">🏪 Rio Maior</div>
+      <div class="sb" onclick="abrirHistLoja('santarem')">🏪 Santarém</div><div class="sb" onclick="abrirHistLoja('carregado')">🏪 Carregado</div>
+    </div>
   </div></div>
   <div id="v-form" style="display:none">
     <div class="card">
@@ -960,6 +970,12 @@
     <button class="btn bp" id="btn-arquivar" style="flex:1" onclick="arquivarRelatorio()">📁 Arquivar</button>
     <button class="btn bg2" style="flex:1" onclick="confirmarFinalizar()">✅ Finalizar & Reset</button>
   </div>
+</div></div>
+
+<!-- MODAL: Histórico de uma loja -->
+<div class="mo" id="m-hist-loja"><div class="md" style="max-height:85vh;overflow-y:auto">
+  <div class="mh"><div class="mtt" id="m-hist-loja-title">📁 Histórico</div><button class="mx" onclick="closeM('m-hist-loja')">✕</button></div>
+  <div id="m-hist-loja-list"></div>
 </div></div>
 
 <div class="mo" id="m-pick-store"><div class="md" style="max-height:85vh;overflow-y:auto">
@@ -4052,6 +4068,49 @@ async function restoreAutoSave(store){
 }
 
 // ── PICK STORE — Nova ou Continuar ──────────────────
+async function abrirHistLoja(store){
+  const titleEl = document.getElementById('m-hist-loja-title');
+  const listEl = document.getElementById('m-hist-loja-list');
+  if(titleEl) titleEl.textContent = '📁 Histórico — ' + sn(store);
+  if(listEl) listEl.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:10px">A carregar...</div>';
+  openM('m-hist-loja');
+  try{
+    const url = SB+'/rest/v1/cj_historico?select=id,data,hora,resumo&loja=eq.'+store+'&order=created_at.desc';
+    const r = await fetch(url, { headers: { 'apikey': SK, 'Authorization': 'Bearer '+SK } });
+    if(!r.ok){ const t = await r.text(); throw new Error(t); }
+    const hist = await r.json();
+    if(!hist.length){
+      listEl.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:10px">Sem relatórios guardados para esta loja.</div>';
+      return;
+    }
+    listEl.innerHTML = hist.map(h =>
+      '<div class="ic" style="margin-bottom:8px">'+
+      '<div class="ic-top"><div class="ic-info">'+
+      '<div class="ic-title">'+(h.data||'')+(h.hora?' — '+h.hora:'')+'</div>'+
+      '<div class="ic-sub" style="font-size:.74rem">'+(h.resumo||'')+'</div>'+
+      '</div>'+
+      '<div class="ic-acts"><div class="ic-btns">'+
+      '<button class="btn bsm bp" onclick="reabrirRelatorio(\''+h.id+'\')">👁 Ver</button>'+
+      '<button class="del-btn" onclick="delHistLoja(\''+h.id+'\',\''+store+'\')">🗑</button>'+
+      '</div></div></div></div>'
+    ).join('');
+  }catch(e){
+    if(listEl) listEl.innerHTML = '<div style="color:var(--red);font-size:.82rem;padding:10px">Erro: '+e.message+'</div>';
+  }
+}
+
+async function delHistLoja(id, store){
+  if(!confirm('Apagar este relatório?')) return;
+  try{
+    await fetch(SB+'/rest/v1/cj_historico?id=eq.'+id, {
+      method: 'DELETE',
+      headers: { 'apikey': SK, 'Authorization': 'Bearer '+SK }
+    });
+    abrirHistLoja(store);
+    toast('Relatório apagado.');
+  }catch(e){ toast('Erro ao apagar: '+e.message,'e'); }
+}
+
 function pickStore(store){
   _pickStore = store;
   const title = document.getElementById('m-pick-title');
