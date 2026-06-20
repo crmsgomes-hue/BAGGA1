@@ -587,6 +587,11 @@
               <div id="proc-prog-bar" style="background:var(--grn);border-radius:99px;height:5px;width:0%;transition:width .3s"></div>
             </div>
           </div>
+          <!-- Seletor: qual(is) dossiê(s) vou auditar nesta visita -->
+          <div style="margin-bottom:12px">
+            <div style="font-size:.72rem;color:var(--t2);font-weight:600;margin-bottom:6px">📌 Seleciona os dossiês a auditar nesta visita:</div>
+            <div id="proc-selector-visita" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          </div>
           <!-- Dossiers renderizados por JS -->
           <div id="proc-dossiers-visita"></div>
           <!-- Adicionar novo dossiê -->
@@ -1985,6 +1990,7 @@ async function startV(store, skipReset=false){
     vChecklist={};
     vHaccp={};
     procAnswers={};
+    procSelected=[];
     vChegadaPhoto=null;
     // Limpar UI — chegada
     const cp=document.getElementById('chegada-preview');
@@ -2011,7 +2017,7 @@ async function startV(store, skipReset=false){
   if(!skipReset) setHoraAgora(); // só fixa hora em visita nova
   // (resets already handled at top of startV)
   // RH comment field - no special reset needed (cleared with form)
-  if(!skipReset) procAnswers = {};
+  if(!skipReset){ procAnswers = {}; procSelected = []; }
   renderProcVisita();
   // Reset UI state (items are static HTML)
   if(!skipReset) ['vitrine','tabaco','limpeza','equipamentos','procedimentos','rh'].forEach(id=>{
@@ -2130,6 +2136,7 @@ function getRHFTEData(){
 // Estrutura de dossiers (será guardada no Supabase / localStorage)
 let procDossiers = [];
 let procAnswers = {}; // { sepId: { state: 'ok'|'nok'|'na', obs: '' } }
+let procSelected = []; // dossierIds escolhidos pelo GOP para esta visita específica
 let procDossierIdSeq = 100;
 let procSepIdSeq = 1000;
 
@@ -2243,18 +2250,47 @@ async function saveProcConfig(){
   toast('Procedimentos guardados!');
 }
 
+function renderProcSelector(){
+  const el = document.getElementById('proc-selector-visita');
+  if(!el) return;
+  if(!procDossiers.length){
+    el.innerHTML = '<div style="color:var(--t2);font-size:.78rem">Sem dossiês configurados ainda. Cria um abaixo em "+ Adicionar".</div>';
+    return;
+  }
+  el.innerHTML = procDossiers.map(d=>{
+    const on = procSelected.includes(d.id);
+    return '<button type="button" class="btn bsm '+(on?'bp':'bw')+'" onclick="toggleProcSelect(\''+d.id+'\')" style="font-size:.74rem">'+(on?'✓ ':'')+'📁 '+escH(d.name)+'</button>';
+  }).join('');
+}
+
+async function toggleProcSelect(dossierId){
+  const idx = procSelected.indexOf(dossierId);
+  if(idx>=0) procSelected.splice(idx,1);
+  else procSelected.push(dossierId);
+  renderProcSelector();
+  renderProcVisita();
+  scheduleAutoSave();
+}
+
 function renderProcVisita(){
+  renderProcSelector();
   const el = document.getElementById('proc-dossiers-visita');
   if(!el) return;
-  const total = procDossiers.reduce((a,d)=>a+d.seps.length,0);
-  const done = Object.values(procAnswers).filter(a=>a.state).length;
+  const selecionados = procDossiers.filter(d=>procSelected.includes(d.id));
+  const total = selecionados.reduce((a,d)=>a+d.seps.length,0);
+  const done = selecionados.reduce((a,d)=>a+d.seps.filter(s=>procAnswers[s.id]&&procAnswers[s.id].state).length,0);
   const pct = total>0 ? Math.round(done/total*100) : 0;
   const cnt = document.getElementById('proc-prog-count');
   const bar = document.getElementById('proc-prog-bar');
   if(cnt) cnt.textContent = done+' / '+total;
   if(bar) bar.style.width = pct+'%';
 
-  el.innerHTML = procDossiers.map(d=>{
+  if(!selecionados.length){
+    el.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:10px;text-align:center;border:1.5px dashed var(--br);border-radius:var(--rb)">Nenhum dossiê selecionado para esta visita.<br>Escolhe acima os dossiês que vais auditar.</div>';
+    return;
+  }
+
+  el.innerHTML = selecionados.map(d=>{
     const sepsHtml = d.seps.map(s=>{
       const ans = procAnswers[s.id] || {};
       return '<div style="border-bottom:1px solid var(--br);padding:8px 0;display:flex;flex-direction:column;gap:4px">' +
@@ -2271,7 +2307,7 @@ function renderProcVisita(){
     return '<div style="border:1.5px solid var(--br);border-radius:var(--rb);margin-bottom:10px;overflow:hidden">' +
       '<div style="background:var(--sf2);padding:9px 12px;display:flex;justify-content:space-between;align-items:center">' +
       '<div style="font-weight:700;font-size:.83rem;cursor:pointer;flex:1" onclick="toggleProcDossier(\'pd-'+d.id+'\')">📁 '+escH(d.name)+'</div>' +
-      '<button onclick="apagarDossieDireto(\''+d.id+'\')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:.9rem;padding:2px 6px">🗑</button>' +
+      '<button onclick="toggleProcSelect(\''+d.id+'\')" title="Remover desta visita" style="background:none;border:none;color:var(--t2);cursor:pointer;font-size:.9rem;padding:2px 6px">✕</button>' +
       '<span style="color:var(--t2);cursor:pointer" onclick="toggleProcDossier(\'pd-'+d.id+'\')">▾</span></div>' +
       '<div id="pd-'+d.id+'" style="padding:10px 12px;display:none">'+sepsHtml+
       '<div style="display:flex;gap:6px;margin-top:8px">' +
@@ -2295,17 +2331,21 @@ async function adicionarDossieDireto(){
   if(!nome){ toast('Escreve o nome do dossiê.','e'); return; }
   const id = 'd'+Date.now();
   procDossiers.push({id, name:nome, seps:[]});
+  procSelected.push(id); // novo dossiê fica automaticamente selecionado nesta visita
   input.value = '';
   renderProcVisita();
   await saveProcDossiers();
-  toast('📁 Dossiê "'+nome+'" adicionado!');
+  scheduleAutoSave();
+  toast('📁 Dossiê "'+nome+'" adicionado e selecionado!');
 }
 
 async function apagarDossieDireto(dossierId){
   if(!confirm('Apagar este dossiê e todos os seus separadores?')) return;
   procDossiers = procDossiers.filter(d=>d.id!==dossierId);
+  procSelected = procSelected.filter(id=>id!==dossierId);
   renderProcVisita();
   await saveProcDossiers();
+  scheduleAutoSave();
   toast('Dossiê apagado.');
 }
 
@@ -2657,9 +2697,10 @@ async function genRel(){
       '<div style="font-size:13px;font-weight:700;color:#057a55">✅ Ruturas de Rede — Sem ruturas registadas</div>'+
       '</div>';
 
-  const dossiersSection = procDossiers.length ? '<div style="border:1.5px solid #ddd;border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
+  const dossiersSelecionados = procDossiers.filter(d=>procSelected.includes(d.id));
+  const dossiersSection = dossiersSelecionados.length ? '<div style="border:1.5px solid #ddd;border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
     '<div style="font-size:13px;font-weight:700;margin-bottom:8px">📂 Dossiês de Procedimentos</div>'+
-    procDossiers.map(d=>{
+    dossiersSelecionados.map(d=>{
       const sepsHtml = d.seps.map(s=>{
         const ans = procAnswers[s.id]||{};
         const st = ans.state;
@@ -4029,7 +4070,7 @@ async function doAutoSave(){
       checklist: JSON.stringify(chkMeta),
       haccp: JSON.stringify(vHaccp),
       proc_answers: JSON.stringify(procAnswers),
-      rh_comentario: (document.getElementById('rh-comentario')||{value:''}).value,
+      proc_selected: JSON.stringify(procSelected),
       rh_ftes_definido: (document.getElementById('rh-ftes-definido')||{value:''}).value,
       rh_ftes_real: (document.getElementById('rh-ftes-real')||{value:''}).value,
       fotos_chegada: vChegadaPhoto||null,
@@ -4061,6 +4102,7 @@ async function doAutoSave(){
         checklist: snapshot.checklist,
         haccp: snapshot.haccp,
         proc_answers: snapshot.proc_answers,
+        proc_selected: snapshot.proc_selected,
         rh_comentario: snapshot.rh_comentario,
         rh_ftes_definido: snapshot.rh_ftes_definido,
         rh_ftes_real: snapshot.rh_ftes_real,
@@ -4127,6 +4169,7 @@ async function restoreAutoSave(store){
             checklist: row.checklist,
             haccp: row.haccp,
             proc_answers: row.proc_answers,
+            proc_selected: row.proc_selected,
             rh_comentario: row.rh_comentario,
             rh_ftes_definido: row.rh_ftes_definido,
             rh_ftes_real: row.rh_ftes_real,
@@ -4148,6 +4191,7 @@ async function restoreAutoSave(store){
     vRutNotas = {};
     vRutObs = {};
     procAnswers = {};
+    procSelected = [];
     vChegadaPhoto = null;
     vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],
                rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],
@@ -4168,6 +4212,7 @@ async function restoreAutoSave(store){
     if(d.rut_check) try{ vRut = JSON.parse(d.rut_check); }catch(e){}
     if(d.haccp) try{ vHaccp = JSON.parse(d.haccp); }catch(e){}
     if(d.proc_answers) try{ procAnswers = JSON.parse(d.proc_answers||'{}'); }catch(e){}
+    if(d.proc_selected) try{ procSelected = JSON.parse(d.proc_selected||'[]'); }catch(e){}
     if(d.rh_comentario){ const rc=document.getElementById('rh-comentario'); if(rc) rc.value = d.rh_comentario; }
     if(d.rh_ftes_definido){ const fd=document.getElementById('rh-ftes-definido'); if(fd) fd.value = d.rh_ftes_definido; }
     if(d.rh_ftes_real){ const fr=document.getElementById('rh-ftes-real'); if(fr) fr.value = d.rh_ftes_real; }
@@ -4516,7 +4561,7 @@ async function salvarPendentes(){
   // (Os itens normais da checklist já criam tarefas NC- automaticamente em genRel/saveV)
   if(typeof procDossiers !== 'undefined' && typeof procAnswers !== 'undefined'){
     const tasks = [];
-    procDossiers.forEach(d=>{
+    procDossiers.filter(d=>procSelected.includes(d.id)).forEach(d=>{
       d.seps.forEach(s=>{
         const ans = procAnswers[s.id];
         if(ans && ans.state==='nok'){
@@ -4559,6 +4604,7 @@ async function confirmarFinalizar(){
   vRutNotas = {};
   vRutObs = {};
   procAnswers = {};
+  procSelected = [];
   vChegadaPhoto = null;
   _reportHtmlFinal = null;
   vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],
