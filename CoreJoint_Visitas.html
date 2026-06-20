@@ -379,9 +379,8 @@
             <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
             <input type="date" class="fc" id="chk-prazo-date-jsc" onchange="saveChkPrazo('jsc')" style="border-color:#fca5a5">
           </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px"><label for="pf-chk-jsc" class="cam-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">📷 <span>Câmara</span></label><label for="pf-chk-jsc-gal" class="cam-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:var(--sf2);border-color:var(--br);color:var(--t2)">📁 <span>Galeria</span></label></div><label for="pf-chk-jsc-gal" class="cam-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:var(--sf2);border-color:var(--br);color:var(--t2)">📁 <span>Galeria</span></label></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px"><label for="pf-chk-jsc" class="cam-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">📷 <span>Câmara</span></label><label for="pf-chk-jsc-gal" class="cam-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:var(--sf2);border-color:var(--br);color:var(--t2)">📁 <span>Galeria</span></label></div>
           <input type="file" accept="image/*" capture="environment" id="pf-chk-jsc" onchange="handleChkPhoto('jsc',this)" multiple style="display:none"><input type="file" accept="image/*" id="pf-chk-jsc-gal" onchange="handleChkPhoto('jsc',this)" multiple style="display:none">
-          <input type="file" accept="image/*" id="pf-chk-jsc-gal" onchange="handleChkPhoto('jsc',this)" multiple style="display:none">
           <span id="chk-count-jsc" style="font-size:.69rem;color:var(--t2);margin-left:6px"></span>
           <div id="chk-photo-prev-jsc" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:7px" style="margin-top:7px"></div>
           <textarea class="jta" id="chk-nota-jsc" placeholder="Comentário / Observação…" style="min-height:55px;margin-top:8px" onblur="saveChkNota('jsc')"></textarea>
@@ -1253,17 +1252,11 @@ async function doLogin(){
   const pin=val('l-pin'),err=el('l-err');err.style.display='none';
 
   if(_loginGopId==='crop'){
-    // CROP só tem PIN próprio (a palavra-mestre)
-    if(isLocked('crop')){
-      err.textContent='Perfil bloqueado por demasiadas tentativas erradas.'; err.style.display='block'; kpClear(); return;
-    }
+    // CROP nunca bloqueia — tentativas ilimitadas
     if(pin!==GOP_PINS.crop){
-      setFails('crop', getFails('crop')+1);
-      const restantes = 5-getFails('crop');
-      err.textContent = restantes>0 ? 'PIN incorreto. Tentativas restantes: '+restantes : 'Perfil bloqueado por demasiadas tentativas erradas.';
+      err.textContent='PIN incorreto.';
       err.style.display='block'; kpClear(); return;
     }
-    resetFails('crop');
     CU={role:'crop', gopId:null, store:null};
     STORES = Object.values(GOP_STORES).flat();
   } else if(_loginGopId && GOP_NAMES[_loginGopId]){
@@ -2431,12 +2424,7 @@ async function syncRuturasVisita(){
 
 async function syncNCAlerts(){
   if(!vStore)return;
-  const allNcItems=[...CHECKLIST_ITEMS,
-    {id:'rh_formacoes',label:'🎓 Formações'},{id:'rh_trocas',label:'🔄 Trocas'},
-    {id:'rh_folgas',label:'🗓️ Folgas'},{id:'rh_bh',label:'⏱️ Banco de Horas'},
-    {id:'rh_ts',label:'🚨 Trab. Suplementar'},{id:'rh_horarios',label:'📅 Horários Afixados'},
-    {id:'rh_ferias',label:'🌴 Mapa de Férias'},{id:'raid',label:'🚨 RAID'}
-  ];
+  const allNcItems=CHK_ITEM_LABELS;
   allNcItems.forEach(item=>{
     const el2=document.getElementById('chk-nota-'+item.id);
     if(el2&&vChecklist[item.id]) vChecklist[item.id].nota=el2.value.trim();
@@ -2614,10 +2602,7 @@ function handleChegadaPhoto(input){ scheduleAutoSave();
 
 async function genRel(){
   const hinicio = (document.getElementById('v-hinicio')||{value:now()}).value || now();
-  const allItemIds = [...CHECKLIST_ITEMS.map(i=>i.id),
-    'jsc','marketing','procedimentos','raid',
-    'rh_formacoes','rh_trocas','rh_folgas','rh_bh','rh_ts','rh_horarios','rh_ferias'
-  ];
+  const allItemIds = CHK_ITEM_LABELS.map(i=>i.id).concat(['marketing']);
   allItemIds.forEach(id => {
     const el2 = document.getElementById('chk-nota-'+id);
     if(el2 && vChecklist[id]) vChecklist[id].nota = el2.value.trim();
@@ -2861,7 +2846,7 @@ function sendRel(){
   const email = val('v-emails') || COORD_EMAIL;
   if(!vStore){ toast('Nenhuma loja selecionada.','e'); return; }
   // Build email body from report
-  const ncItems = CHECKLIST_ITEMS.concat([{id:'jsc',label:'JSC'},{id:'marketing',label:'Marketing'}])
+  const ncItems = CHK_ITEM_LABELS
     .filter(item => vChecklist[item.id] && vChecklist[item.id].conforme===false)
     .map(item => '  ✗ ' + item.label);
   const failRut = Object.keys(vRut).filter(k=>vRut[k]==='fail').length;
