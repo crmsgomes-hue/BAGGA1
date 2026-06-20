@@ -4317,14 +4317,12 @@ async function rDashboard(){
   if(!resumoEl || !listEl) return;
   listEl.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:10px">A carregar...</div>';
   try{
-    const q = 'select=id,loja,item_label,nota,prazo,estado,visita_data&estado=eq.pendente&order=prazo.asc.nullslast';
-    const rows = await dbGet('cj_pendentes', q) || [];
+    const q = 'select=id,loja,codigo,descricao,notas,prazo,estado,justificacao&estado=eq.pendente&order=prazo.asc.nullslast';
+    const rows = await dbGet('cj_tarefas', q) || [];
     const today = new Date().toISOString().slice(0,10);
 
     const atrasados = rows.filter(r=>r.prazo && r.prazo < today);
     const hoje = rows.filter(r=>r.prazo === today);
-    const semPrazo = rows.filter(r=>!r.prazo);
-    const futuro = rows.filter(r=>r.prazo && r.prazo > today);
 
     resumoEl.innerHTML =
       '<div class="sc" style="flex:1;min-width:90px"><div class="slb">Total</div><div class="svl">'+rows.length+'</div></div>' +
@@ -4353,9 +4351,8 @@ async function rDashboard(){
             : '— Sem prazo definido';
           return '<div class="ic" style="border-left-color:'+borderCol+';margin-bottom:6px">' +
             '<div class="ic-top"><div class="ic-info">' +
-            '<div class="ic-title">'+r.item_label+'</div>' +
+            '<div class="ic-title">'+(r.descricao||r.codigo)+'</div>' +
             '<div class="ic-sub">'+prazoTxt+'</div>' +
-            (r.nota ? '<div class="ic-sub" style="margin-top:3px;font-style:italic">"'+r.nota+'"</div>' : '') +
             '</div>' +
             '<div class="ic-acts"><div class="ic-btns">' +
             '<button class="btn bsm bg2" onclick="resolverPendente(\''+r.id+'\')">✅ Resolvido</button>' +
@@ -4372,7 +4369,7 @@ async function rDashboard(){
 
 async function resolverPendente(id){
   try{
-    await dbUpd('cj_pendentes', id, { estado:'resolvido', resolvido_em: new Date().toISOString() });
+    await dbUpd('cj_tarefas', id, { estado:'concluida', concluido_por:who(), concluido_em:now(), log:'Concluída via Dashboard: '+who() });
     toast('✅ Pendente resolvido!');
     rDashboard();
   }catch(e){ toast('Erro: '+e.message,'e'); }
@@ -4380,55 +4377,38 @@ async function resolverPendente(id){
 
 async function salvarPendentes(){
   if(!vStore) return;
-  const today = new Date().toISOString().slice(0,10);
-  const pendentes = [];
 
-  // Itens da checklist com ❌ e prazo
-  CHK_ITEM_LABELS.forEach(item=>{
-    const st = vChecklist[item.id];
-    if(st && st.conforme===false){
-      pendentes.push({
-        id: vStore+'_'+item.id+'_'+today,
-        loja: vStore,
-        item_id: item.id,
-        item_label: item.label,
-        nota: st.nota||'',
-        prazo: st.prazo || null,
-        estado: 'pendente',
-        visita_data: now()
-      });
-    }
-  });
-
-  // Separadores dos dossiês de procedimentos marcados como ❌
+  // Separadores dos dossiês de procedimentos marcados como ❌ — criar como tarefas (cj_tarefas)
+  // (Os itens normais da checklist já criam tarefas NC- automaticamente em genRel/saveV)
   if(typeof procDossiers !== 'undefined' && typeof procAnswers !== 'undefined'){
+    const tasks = [];
     procDossiers.forEach(d=>{
       d.seps.forEach(s=>{
         const ans = procAnswers[s.id];
         if(ans && ans.state==='nok'){
-          pendentes.push({
-            id: vStore+'_proc_'+s.id+'_'+today,
+          tasks.push({
+            id: 'nc_proc_'+s.id+'_'+vStore+'_'+Date.now(),
             loja: vStore,
-            item_id: 'proc_'+s.id,
-            item_label: '📁 '+d.name+' — '+s.name,
-            nota: ans.obs||'',
-            prazo: null,
+            codigo: 'NC-PROC-'+s.id.toUpperCase(),
+            descricao: '🔴 Não Conformidade: 📁 '+d.name+' — '+s.name+(ans.obs?' — '+ans.obs:''),
+            criticidade: 'critica',
+            prazo: new Date(Date.now()+86400000).toISOString().slice(0,10),
+            notas: 'Identificada em visita de '+who()+' em '+now()+'. Requer ação corretiva.',
             estado: 'pendente',
-            visita_data: now()
+            justificacao: '',
+            criado_por: who(),
+            criado_em: now(),
+            criado_iso: new Date().toISOString().slice(0,10),
+            concluido_por: '',
+            concluido_em: '',
+            log: 'Criada automaticamente por visita de '+who()
           });
         }
       });
     });
-  }
-
-  if(!pendentes.length) return;
-
-  for(const p of pendentes){
-    try{
-      const ex = await dbGet('cj_pendentes','id=eq.'+p.id);
-      if(ex && ex.length) await dbUpd('cj_pendentes', p.id, p);
-      else await dbIns('cj_pendentes',[p]);
-    }catch(e){ console.error('salvarPendentes item:',e); }
+    if(tasks.length){
+      try{ await dbIns('cj_tarefas', tasks); }catch(e){ console.error('salvarPendentes (dossiês):', e); }
+    }
   }
 }
 
