@@ -60,7 +60,8 @@
 </div>
 
 <div id="NV">
-  <span class="ni on" data-s="visitas" onclick="go('visitas')">🔍 Visitas</span>
+  <span class="ni on" data-s="dashboard" onclick="go('dashboard')">📊 Dashboard</span>
+  <span class="ni" data-s="visitas" onclick="go('visitas')">🔍 Visitas</span>
   <span class="ni" data-s="historico" onclick="go('historico')">📁 Histórico</span>
 </div>
 
@@ -147,6 +148,13 @@
     <button class="btn bsm bs" onclick="openM('m-wfm')" style="margin-top:7px">+ Inserir manualmente</button>
   </div></div>
   <div id="wfm-list"></div>
+</div>
+
+<div class="sec on" id="s-dashboard">
+  <div class="pt">Dashboard</div>
+  <div class="ps">Pendentes em aberto nas lojas</div>
+  <div id="dash-resumo" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
+  <div id="dash-pendentes-list"></div>
 </div>
 
 <div class="sec" id="s-visitas">
@@ -1195,7 +1203,7 @@ async function doLogin(){
   el('btn-addrt').style.display=adm()?'inline-flex':'none';
   el('btn-addf').style.display=adm()?'inline-flex':'none';
   el('test-btns').style.display=adm()?'flex':'none';
-  await go('visitas');
+  await go('dashboard');
   ['q-st','tf-st','wfm-st'].forEach(id=>{const e=el(id);if(e)e.textContent='';});
   loadProcDossiers();
 }
@@ -1206,7 +1214,7 @@ async function go(s){
   document.querySelectorAll('.ni').forEach(x=>x.classList.remove('on'));
   const sec=el('s-'+s);if(sec)sec.classList.add('on');
   const ni=document.querySelector('.ni[data-s="'+s+'"]');if(ni)ni.classList.add('on');
-  const fn={dash:rDash,tarefas:rTarefas,quebras:rQ,trocas:()=>{rT();rF();},avarias:rA,srm:rS,wfm:rWFM,ruturas:rRut,ferias:rFer,historico:rHistorico,operacional:rOperacional,marketing:rMkt,visitas:()=>{}};
+  const fn={dash:rDash,tarefas:rTarefas,quebras:rQ,trocas:()=>{rT();rF();},avarias:rA,srm:rS,wfm:rWFM,ruturas:rRut,ferias:rFer,historico:rHistorico,operacional:rOperacional,marketing:rMkt,visitas:()=>{},dashboard:rDashboard};
   if(fn[s])await fn[s]();
 }
 
@@ -2517,24 +2525,7 @@ async function genRel(){
   ).join('');
 
   // Ordem do PDF = ordem da visita
-  const allChkItems = [
-    {id:'vitrine',     label:'🏪 Vitrine',          desc:'Apresentação, limpeza e organização da vitrine'},
-    {id:'tabaco',      label:'🚬 Tabaco',            desc:'Stock, organização e conformidade'},
-    {id:'jsc',         label:'☕ JSC',               desc:'JSC'},
-    {id:'equipamentos',label:'⚙️ Equipamentos',      desc:'Estado e funcionamento'},
-    {id:'limpeza',     label:'🧹 Limpeza / HACCP',   desc:'Higiene, HACCP e registos', haccp:true},
-    {id:'rh_formacoes',label:'🎓 Formações',         desc:''},
-    {id:'rh_trocas',   label:'🔄 Trocas',            desc:''},
-    {id:'rh_folgas',   label:'🗓️ Folgas',            desc:''},
-    {id:'rh_bh',       label:'⏱️ Banco Horas',       desc:''},
-    {id:'rh_ts',       label:'🚨 Trab. Suplementar', desc:''},
-    {id:'rh_horarios', label:'📅 Horários',          desc:''},
-    {id:'rh_ferias',   label:'🌴 Férias',            desc:''},
-    {id:'fte',         label:'👥 FTEs',              desc:''},
-    {id:'procedimentos',label:'📋 Procedimentos',    desc:''},
-    {id:'quebra_caixa',label:'💰 Quebra de Caixa',   desc:''},
-    {id:'raid',        label:'🚨 RAID',              desc:''},
-  ];
+  const allChkItems = CHK_ITEM_LABELS;
 
   // Build HACCP table HTML
   const HACCP_ITEMS_RPT = [
@@ -3055,6 +3046,27 @@ async function loadTestData(){
     toast('Dados de teste carregados!');await rDash();updB();
   }catch(e){showErr('Teste: '+e.message);}uload();
 }
+
+// Labels completos de todos os itens da checklist (usado no PDF e nos pendentes)
+const CHK_ITEM_LABELS = [
+  {id:'vitrine',     label:'🏪 Vitrine',          desc:'Apresentação, limpeza e organização da vitrine'},
+  {id:'tabaco',      label:'🚬 Tabaco',            desc:'Stock, organização e conformidade'},
+  {id:'jsc',         label:'☕ JSC',               desc:'JSC'},
+  {id:'equipamentos',label:'⚙️ Equipamentos',      desc:'Estado e funcionamento'},
+  {id:'limpeza',     label:'🧹 Limpeza / HACCP',   desc:'Higiene, HACCP e registos', haccp:true},
+  {id:'rh_formacoes',label:'🎓 Formações',         desc:''},
+  {id:'rh_trocas',   label:'🔄 Trocas',            desc:''},
+  {id:'rh_folgas',   label:'🗓️ Folgas',            desc:''},
+  {id:'rh_bh',       label:'⏱️ Banco Horas',       desc:''},
+  {id:'rh_ts',       label:'🚨 Trab. Suplementar', desc:''},
+  {id:'rh_horarios', label:'📅 Horários',          desc:''},
+  {id:'rh_ferias',   label:'🌴 Férias',            desc:''},
+  {id:'fte',         label:'👥 FTEs',              desc:''},
+  {id:'procedimentos',label:'📋 Procedimentos',    desc:''},
+  {id:'quebra_caixa',label:'💰 Quebra de Caixa',   desc:''},
+  {id:'raid',        label:'🚨 RAID',              desc:''},
+  {id:'cafe',        label:'☕ Pesagem de Café',   desc:''},
+];
 
 const CHECKLIST_ITEMS = [
   {id:'vitrine',    label:'🏪 Vitrine',         desc:'Apresentação, limpeza e organização da vitrine'},
@@ -4196,8 +4208,131 @@ async function arquivarRelatorio(){
   }
 }
 
+async function rDashboard(){
+  const resumoEl = document.getElementById('dash-resumo');
+  const listEl = document.getElementById('dash-pendentes-list');
+  if(!resumoEl || !listEl) return;
+  listEl.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:10px">A carregar...</div>';
+  try{
+    const q = 'select=id,loja,item_label,nota,prazo,estado,visita_data&estado=eq.pendente&order=prazo.asc.nullslast';
+    const rows = await dbGet('cj_pendentes', q) || [];
+    const today = new Date().toISOString().slice(0,10);
+
+    const atrasados = rows.filter(r=>r.prazo && r.prazo < today);
+    const hoje = rows.filter(r=>r.prazo === today);
+    const semPrazo = rows.filter(r=>!r.prazo);
+    const futuro = rows.filter(r=>r.prazo && r.prazo > today);
+
+    resumoEl.innerHTML =
+      '<div class="sc" style="flex:1;min-width:90px"><div class="slb">Total</div><div class="svl">'+rows.length+'</div></div>' +
+      '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🔴 Atrasados</div><div class="svl cr">'+atrasados.length+'</div></div>' +
+      '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🟡 Hoje</div><div class="svl co">'+hoje.length+'</div></div>';
+
+    if(!rows.length){
+      listEl.innerHTML = '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:24px">✅ Sem pendentes em aberto!</div>';
+      return;
+    }
+
+    const byLoja = {};
+    rows.forEach(r=>{ if(!byLoja[r.loja]) byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
+
+    let html = '';
+    Object.keys(byLoja).sort((a,b)=>sn(a).localeCompare(sn(b))).forEach(loja=>{
+      const items = byLoja[loja];
+      html += '<div class="card" style="margin-bottom:10px">' +
+        '<div class="ch"><div class="ct">📍 '+sn(loja)+'</div><span class="bk bk-n">'+items.length+'</span></div>' +
+        items.map(r=>{
+          const isAtrasado = r.prazo && r.prazo < today;
+          const isHoje = r.prazo === today;
+          const borderCol = isAtrasado ? 'var(--red)' : isHoje ? 'var(--org)' : 'var(--br)';
+          const prazoTxt = r.prazo
+            ? (isAtrasado ? '🔴 Atrasado — ' : isHoje ? '🟡 Hoje — ' : '📅 ') + new Date(r.prazo+'T00:00:00').toLocaleDateString('pt-PT')
+            : '— Sem prazo definido';
+          return '<div class="ic" style="border-left-color:'+borderCol+';margin-bottom:6px">' +
+            '<div class="ic-top"><div class="ic-info">' +
+            '<div class="ic-title">'+r.item_label+'</div>' +
+            '<div class="ic-sub">'+prazoTxt+'</div>' +
+            (r.nota ? '<div class="ic-sub" style="margin-top:3px;font-style:italic">"'+r.nota+'"</div>' : '') +
+            '</div>' +
+            '<div class="ic-acts"><div class="ic-btns">' +
+            '<button class="btn bsm bg2" onclick="resolverPendente(\''+r.id+'\')">✅ Resolvido</button>' +
+            '</div></div></div></div>';
+        }).join('') +
+        '</div>';
+    });
+
+    listEl.innerHTML = html;
+  }catch(e){
+    listEl.innerHTML = '<div style="color:var(--red);font-size:.82rem;padding:10px">Erro ao carregar pendentes: '+e.message+'</div>';
+  }
+}
+
+async function resolverPendente(id){
+  try{
+    await dbUpd('cj_pendentes', id, { estado:'resolvido', resolvido_em: new Date().toISOString() });
+    toast('✅ Pendente resolvido!');
+    rDashboard();
+  }catch(e){ toast('Erro: '+e.message,'e'); }
+}
+
+async function salvarPendentes(){
+  if(!vStore) return;
+  const today = new Date().toISOString().slice(0,10);
+  const pendentes = [];
+
+  // Itens da checklist com ❌ e prazo
+  CHK_ITEM_LABELS.forEach(item=>{
+    const st = vChecklist[item.id];
+    if(st && st.conforme===false){
+      pendentes.push({
+        id: vStore+'_'+item.id+'_'+today,
+        loja: vStore,
+        item_id: item.id,
+        item_label: item.label,
+        nota: st.nota||'',
+        prazo: st.prazo || null,
+        estado: 'pendente',
+        visita_data: now()
+      });
+    }
+  });
+
+  // Separadores dos dossiês de procedimentos marcados como ❌
+  if(typeof procDossiers !== 'undefined' && typeof procAnswers !== 'undefined'){
+    procDossiers.forEach(d=>{
+      d.seps.forEach(s=>{
+        const ans = procAnswers[s.id];
+        if(ans && ans.state==='nok'){
+          pendentes.push({
+            id: vStore+'_proc_'+s.id+'_'+today,
+            loja: vStore,
+            item_id: 'proc_'+s.id,
+            item_label: '📁 '+d.name+' — '+s.name,
+            nota: ans.obs||'',
+            prazo: null,
+            estado: 'pendente',
+            visita_data: now()
+          });
+        }
+      });
+    });
+  }
+
+  if(!pendentes.length) return;
+
+  for(const p of pendentes){
+    try{
+      const ex = await dbGet('cj_pendentes','id=eq.'+p.id);
+      if(ex && ex.length) await dbUpd('cj_pendentes', p.id, p);
+      else await dbIns('cj_pendentes',[p]);
+    }catch(e){ console.error('salvarPendentes item:',e); }
+  }
+}
+
 async function confirmarFinalizar(){
   closeM('m-pdf-preview');
+  // Guardar pendentes (itens não conformes com prazo) antes de limpar
+  try{ await salvarPendentes(); }catch(e){ console.error('salvarPendentes:',e); }
   // Limpar tudo (o arquivo já foi feito pelo botão "Arquivar", se o utilizador clicou nele)
   const finishedStore = vStore;
   clearAutoSave(finishedStore);
