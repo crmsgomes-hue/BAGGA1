@@ -2715,8 +2715,7 @@ async function genRel(){
   </div>
   </body></html>`;
 
-  await saveToHistory({loja:vStore, data:now(), hora:hinicio, resumo, html:reportHtml});
-  toast('📁 Relatório de visita guardado no histórico!');
+  toast('📄 Relatório gerado!');
 
   const repCard = el('v-rep');
   repCard.style.display='block';
@@ -4198,19 +4197,7 @@ async function arquivarRelatorio(){
 
 async function confirmarFinalizar(){
   closeM('m-pdf-preview');
-  // Guardar no histórico
-  if(_reportHtmlFinal){
-    try{
-      await saveToHistory({
-        loja: vStore,
-        data: now(),
-        hora: (el('v-hinicio')||{value:''}).value,
-        resumo: sn(vStore) + ' — ' + now(),
-        html: _reportHtmlFinal
-      });
-    }catch(e){}
-  }
-  // Limpar tudo
+  // Limpar tudo (o arquivo já foi feito pelo botão "Arquivar", se o utilizador clicou nele)
   const finishedStore = vStore;
   clearAutoSave(finishedStore);
   vStore = null;
