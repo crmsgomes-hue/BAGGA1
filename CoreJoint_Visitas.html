@@ -2839,12 +2839,10 @@ async function genRel(){
     '<div class="ch"><div class="ct">Relatório de Visita</div>'+
     '<div style="display:flex;gap:7px;flex-wrap:wrap">'+
     '<button class="btn bsm bp" onclick="gerarPDF()">📄 Gerar PDF</button>'+
-    '<button class="btn bsm bs" onclick="sendRel()">📧 Enviar</button>'+
     '</div></div>'+
     '<div id="pdf-report-container" style="border:1px solid var(--br);border-radius:var(--rb);overflow:hidden;margin-bottom:12px;max-height:400px;overflow-y:auto">'+
     '<iframe id="rep-iframe" style="width:100%;height:380px;border:none"></iframe>'+
-    '</div>'+
-    '<div class="fg"><label>Enviar para</label><input type="text" class="fc" id="v-emails" placeholder="email@bagga.com" value="INES.ISABEL.SANTOS@mc.pt"></div>';
+    '</div>';
   const iframe = document.getElementById('rep-iframe');
   if(iframe){
     iframe.srcdoc = reportHtml;
@@ -2868,52 +2866,6 @@ function gerarPDF(){
 }
 
 
-const COORD_EMAIL = '';
-function sendRel(){
-  const emailField = document.getElementById('v-emails');
-  if(emailField && !emailField.value) emailField.value = COORD_EMAIL;
-  const email = val('v-emails') || COORD_EMAIL;
-  if(!vStore){ toast('Nenhuma loja selecionada.','e'); return; }
-  // Build email body from report
-  const ncItems = CHK_ITEM_LABELS
-    .filter(item => vChecklist[item.id] && vChecklist[item.id].conforme===false)
-    .map(item => '  ✗ ' + item.label);
-  const failRut = Object.keys(vRut).filter(k=>vRut[k]==='fail').length;
-  const body = 'Relatório de Visita — CoreJoint\n'
-    + '================================\n'
-    + 'Loja: ' + sn(vStore) + '\n'
-    + 'Data: ' + now() + '\n'
-    + 'Auditado por: ' + who() + '\n'
-    + (document.getElementById('v-hinicio')?'Hora chegada: '+(document.getElementById('v-hinicio').value||'—')+'\n':'')
-    + '\nNÃO CONFORMIDADES:\n'
-    + (ncItems.length ? ncItems.join('\n') : '  Nenhuma') + '\n'
-    + '\nRUTURAS: ' + failRut + ' artigos em falta\n'
-    + '================================\n'
-    + 'Gerado pela CoreJoint · Bagga';
-  const subject = 'Relatório Visita — ' + sn(vStore) + ' — ' + now();
-  const mailtoLink = 'mailto:' + encodeURIComponent(email)
-    + '?subject=' + encodeURIComponent(subject)
-    + '&body=' + encodeURIComponent(body);
-  // Also send to CROP if email provided
-  const cropEmail = (document.getElementById('v-crop-email')||{value:''}).value.trim();
-  const finalEmail = [email, cropEmail].filter(Boolean).join(',');
-  const mailtoLinkFinal = 'mailto:' + encodeURIComponent(finalEmail)
-    + '?subject=' + encodeURIComponent(subject)
-    + '&body=' + encodeURIComponent(body);
-  try {
-    const a = document.createElement('a');
-    a.href = mailtoLinkFinal;
-    a.target = '_blank';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    toast('A abrir cliente de email…');
-  } catch(e) {
-    navigator.clipboard.writeText('Assunto: '+subject+'\n\n'+body)
-      .then(()=>toast('Email copiado! Cola no teu email.'))
-      .catch(()=>toast('Erro ao abrir email.','e'));
-  }
-}
 function copyRel(){const t=el('rep-out').textContent;navigator.clipboard.writeText(t).then(()=>toast('Copiado!')).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');document.body.removeChild(a);toast('Copiado!');});}
 
 async function rVTasks(){
