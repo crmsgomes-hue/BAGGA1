@@ -20,35 +20,54 @@
   <div class="logo">CoreJoint</div>
   <div class="logo-s">Visitas GOP · Bagga</div>
   <div class="lc">
-    <div class="ptabs">
-      <button class="ptab on" id="tab-gop">GOP</button>
-    </div>
-    <div style="text-align:center;font-size:.88rem;color:var(--t2);margin-bottom:16px;font-weight:600">👤 João Martinho</div>
-    <div class="fg">
-      <label>Código PIN</label>
-      <input type="hidden" id="l-pin" maxlength="4">
-      <div class="pin-dots" id="pin-dots">
-        <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
-        <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
-      </div>
-      <div class="keypad">
-        <button class="kbtn" onclick="kp('1')">1</button>
-        <button class="kbtn" onclick="kp('2')">2</button>
-        <button class="kbtn" onclick="kp('3')">3</button>
-        <button class="kbtn" onclick="kp('4')">4</button>
-        <button class="kbtn" onclick="kp('5')">5</button>
-        <button class="kbtn" onclick="kp('6')">6</button>
-        <button class="kbtn" onclick="kp('7')">7</button>
-        <button class="kbtn" onclick="kp('8')">8</button>
-        <button class="kbtn" onclick="kp('9')">9</button>
-        <button class="kbtn kclr" onclick="kpClear()">✕</button>
-        <button class="kbtn" onclick="kp('0')">0</button>
-        <button class="kbtn kdel" onclick="kpDel()">⌫</button>
+
+    <!-- FASE 1: Escolher GOP ou CROP -->
+    <div id="ls-fase-role">
+      <div style="font-size:.8rem;color:var(--t2);text-align:center;margin-bottom:14px">Quem é?</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn bp" style="padding:16px;font-size:1rem" onclick="showFaseGopNome()">👤 GOP</button>
+        <button class="btn bs" style="padding:16px;font-size:1rem" onclick="showFasePin('crop')">👔 CROP</button>
       </div>
     </div>
-    <button class="btn bp bf" style="margin-top:12px" onclick="doLogin()">Entrar</button>
-    <div class="lerr" id="l-err"></div>
-    <button class="lrst" onclick="showReset()">🗑️ Limpar todos os dados</button>
+
+    <!-- FASE 2: Escolher o nome do GOP -->
+    <div id="ls-fase-gop-nome" style="display:none">
+      <div style="font-size:.8rem;color:var(--t2);text-align:center;margin-bottom:14px">Selecione o seu nome</div>
+      <div id="gop-nome-grid" style="display:flex;flex-direction:column;gap:8px"></div>
+      <button class="lrst" style="margin-top:10px" onclick="showFaseRole()">← Voltar</button>
+    </div>
+
+    <!-- FASE 3: PIN -->
+    <div id="ls-fase-pin" style="display:none">
+      <div style="text-align:center;font-size:.88rem;color:var(--t2);margin-bottom:16px;font-weight:600" id="ls-pin-titulo">👤</div>
+      <div class="fg">
+        <label>Código PIN</label>
+        <input type="hidden" id="l-pin" maxlength="4">
+        <div class="pin-dots" id="pin-dots">
+          <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
+          <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
+        </div>
+        <div class="keypad">
+          <button class="kbtn" onclick="kp('1')">1</button>
+          <button class="kbtn" onclick="kp('2')">2</button>
+          <button class="kbtn" onclick="kp('3')">3</button>
+          <button class="kbtn" onclick="kp('4')">4</button>
+          <button class="kbtn" onclick="kp('5')">5</button>
+          <button class="kbtn" onclick="kp('6')">6</button>
+          <button class="kbtn" onclick="kp('7')">7</button>
+          <button class="kbtn" onclick="kp('8')">8</button>
+          <button class="kbtn" onclick="kp('9')">9</button>
+          <button class="kbtn kclr" onclick="kpClear()">✕</button>
+          <button class="kbtn" onclick="kp('0')">0</button>
+          <button class="kbtn kdel" onclick="kpDel()">⌫</button>
+        </div>
+      </div>
+      <button class="btn bp bf" style="margin-top:12px" onclick="doLogin()">Entrar</button>
+      <div class="lerr" id="l-err"></div>
+      <button class="lrst" onclick="showFaseRole()">← Voltar</button>
+    </div>
+
+    <button class="lrst" onclick="showReset()" style="margin-top:14px">🗑️ Limpar todos os dados</button>
   </div>
 </div>
 
@@ -160,23 +179,11 @@
 <div class="sec" id="s-visitas">
   <div class="pt">Visitas GOP</div><div class="ps">Auditoria de loja com câmara e tarefas</div>
   <div id="v-stores"><div class="card"><div class="ch"><div class="ct">Selecionar Loja</div></div>
-    <div class="sg">
-      <div class="sb" onclick="pickStore('caldas')">🏪 Caldas</div><div class="sb" onclick="pickStore('bombarral')">🏪 Bombarral</div>
-      <div class="sb" onclick="pickStore('ponte_sor')">🏪 Ponte de Sor</div><div class="sb" onclick="pickStore('peniche')">🏪 Peniche</div>
-      <div class="sb" onclick="pickStore('almeirim')">🏪 Almeirim</div><div class="sb" onclick="pickStore('torres_mh')">🏪 Torres MH</div>
-      <div class="sb" onclick="pickStore('torres_novas')">🏪 Torres Novas</div><div class="sb" onclick="pickStore('rio_maior')">🏪 Rio Maior</div>
-      <div class="sb" onclick="pickStore('santarem')">🏪 Santarém</div><div class="sb" onclick="pickStore('carregado')">🏪 Carregado</div>
-    </div>
+    <div class="sg" id="v-stores-grid"></div>
   </div>
   <div class="card">
     <div class="ch"><div class="ct">📁 Histórico de Visitas</div></div>
-    <div class="sg">
-      <div class="sb" onclick="abrirHistLoja('caldas')">🏪 Caldas</div><div class="sb" onclick="abrirHistLoja('bombarral')">🏪 Bombarral</div>
-      <div class="sb" onclick="abrirHistLoja('ponte_sor')">🏪 Ponte de Sor</div><div class="sb" onclick="abrirHistLoja('peniche')">🏪 Peniche</div>
-      <div class="sb" onclick="abrirHistLoja('almeirim')">🏪 Almeirim</div><div class="sb" onclick="abrirHistLoja('torres_mh')">🏪 Torres MH</div>
-      <div class="sb" onclick="abrirHistLoja('torres_novas')">🏪 Torres Novas</div><div class="sb" onclick="abrirHistLoja('rio_maior')">🏪 Rio Maior</div>
-      <div class="sb" onclick="abrirHistLoja('santarem')">🏪 Santarém</div><div class="sb" onclick="abrirHistLoja('carregado')">🏪 Carregado</div>
-    </div>
+    <div class="sg" id="v-hist-grid"></div>
   </div></div>
   <div id="v-form" style="display:none">
     <div class="card">
@@ -1085,9 +1092,11 @@
 <script>
 const SB='https://isdaegejkxgtzjcpzstr.supabase.co';
 const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k';
-const PINS={gop:'3028',ops:'2024',caldas:'1204',bombarral:'5836',ponte_sor:'7045',peniche:'9240',almeirim:'4928',torres_mh:'6419',torres_novas:'8352',rio_maior:'1763',santarem:'2074',carregado:'3617'};
-const SN={caldas:'Caldas da Rainha',bombarral:'Bombarral',ponte_sor:'Ponte de Sor',peniche:'Peniche',almeirim:'Almeirim',torres_mh:'Torres MH',torres_novas:'Torres Novas',rio_maior:'Rio Maior',santarem:'Santarém',carregado:'Carregado',rede:'Toda a Rede'};
-const STORES=Object.keys(SN).filter(k=>k!=='rede');
+const GOP_NAMES={joao_martinho:'João Martinho',carla_costa:'Carla Costa',luis_serrano:'Luís Serrano',carina_paixao:'Carina Paixão',tiago_campos:'Tiago Campos',catia_peleve:'Cátia Pé-Leve'};
+const GOP_PINS={joao_martinho:'3028',carla_costa:'1002',luis_serrano:'1003',carina_paixao:'1004',tiago_campos:'1005',catia_peleve:'1006',crop:'9000'};
+const GOP_STORES={joao_martinho:['bombarral','peniche','rio_maior','caldas','carregado','torres_novas_mch','ponte_sor','torres_novas','santarem','almeirim'],carla_costa:['malveira','mafra_mh','mafra_mch','vf_xira','alverca','montelavar','torres_vedras','estoril','porto_alto_i','s_magos'],luis_serrano:['vasco_da_gama','loures','marechal_g_cos','colombo','s_joao_talha','arroja','alto_lumiar','alta_lisboa','belas','defens_chaves'],carina_paixao:['sesimbra','barreiro_mch','setubal','moita','palmela','alhos_vedros','quinta_conde','pinhal_novo','mdl_seixal','sines','grandola'],tiago_campos:['beja_retail_mh','evora','beja_mch','estremoz','reguengos','sintra','tapada_merces','carcavelos','mem_martins','tires','cacem'],catia_peleve:['loule_mh','silves','lagos','quarteira','vrs_antonio','olhao','faro','odiaxere','loule_mch','portimao_ii']};
+const SN={bombarral:'Bombarral',peniche:'Peniche',rio_maior:'Rio Maior',caldas:'Caldas da Rainha',carregado:'Carregado',torres_novas_mch:'T. Novas MCH',ponte_sor:'Ponte de Sor',torres_novas:'Torres Novas',santarem:'Santarém',almeirim:'Almeirim',malveira:'Malveira',mafra_mh:'Mafra MH',mafra_mch:'Mafra MCH',vf_xira:'V F Xira',alverca:'Alverca',montelavar:'Montelavar',torres_vedras:'Torres Vedras',estoril:'Estoril',porto_alto_i:'Porto Alto I',s_magos:'S Magos',vasco_da_gama:'Vasco da Gama',loures:'Loures',marechal_g_cos:'Marechal G Cos',colombo:'Colombo',s_joao_talha:'S João Talha',arroja:'Arroja',alto_lumiar:'Alto do Lumiar',alta_lisboa:'Alta Lisboa',belas:'Belas',defens_chaves:'Defens Chaves',sesimbra:'Sesimbra',barreiro_mch:'Barreiro MCH',setubal:'Setúbal',moita:'Moita',palmela:'Palmela',alhos_vedros:'Alhos Vedros',quinta_conde:'Quinta Conde',pinhal_novo:'Pinhal Novo',mdl_seixal:'MDL Seixal',sines:'Sines',grandola:'Grândola',beja_retail_mh:'Beja Retail MH',evora:'Évora',beja_mch:'Beja MCH',estremoz:'Estremoz',reguengos:'Reguengos',sintra:'Sintra',tapada_merces:'Tapada Merces',carcavelos:'Carcavelos',mem_martins:'Mem Martins',tires:'Tires',cacem:'Cacém',loule_mh:'Loulé MH',silves:'Silves',lagos:'Lagos',quarteira:'Quarteira',vrs_antonio:'VRS António',olhao:'Olhão',faro:'Faro',odiaxere:'Odiaxere',loule_mch:'Loulé MCH',portimao_ii:'Portimão II',rede:'Toda a Rede'};
+let STORES=GOP_STORES.joao_martinho; // será redefinido dinamicamente após login conforme o GOP
 const CRIT={baixa:{l:'🟢 Baixa',c:'bk-g',w:7},media:{l:'🟡 Média',c:'bk-i',w:3},alta:{l:'🟠 Alta',c:'bk-o',w:2},critica:{l:'🔴 Crítica',c:'bk-d',w:1}};
 let CU=null,loginP='gop',avPhoto=null,vStore=null,vPhotos={cafe:[],nc:[]},vRut={},vRutNotas={},vRutObs={},_eS='',_eB='';
 
@@ -1128,8 +1137,8 @@ function eb(e){
   const M={pendente:'<span class="bk bk-p">⏳ Pendente</span>',validada:'<span class="bk bk-g">✅ Validada</span>',justificada:'<span class="bk bk-i">💬 Justificada</span>',confirmada:'<span class="bk bk-g">✅ Confirmada</span>',aberta:'<span class="bk bk-d">🔴 Aberta</span>',em_compra:'<span class="bk bk-o">🛒 Em Compra</span>',aguarda_gerente:'<span class="bk bk-p">⏳ Aguarda Gerente</span>',resolvida:'<span class="bk bk-g">✅ Resolvida</span>',aberto:'<span class="bk bk-d">🔴 Aberto</span>',resolvido:'<span class="bk bk-g">✅ Resolvido</span>',validado:'<span class="bk bk-g">✅ Validado</span>',corrigido:'<span class="bk bk-i">🔧 Corrigido</span>',em_curso:'<span class="bk bk-o">▶ Em Curso</span>',concluida:'<span class="bk bk-g">✅ Concluída</span>'};
   return M[e]||'<span class="bk bk-n">'+(e||'—')+'</span>';
 }
-function adm(){return CU&&(CU.role==='gop'||CU.role==='ops');}
-function who(){if(!CU)return'Sistema';if(CU.role==='gop')return'GOP — João Martinho';if(CU.role==='ops')return'Ops Core';return'Gerente '+sn(CU.store);}
+function adm(){return CU&&(CU.role==='gop'||CU.role==='crop');}
+function who(){if(!CU)return'Sistema';if(CU.role==='gop')return'GOP — '+(GOP_NAMES[CU.gopId]||CU.gopId);if(CU.role==='crop')return'CROP';return'Gerente '+sn(CU.store);}
 
 function load(msg){const e=document.getElementById('loading');document.getElementById('load-msg').textContent=msg||'A carregar…';e.classList.add('show');}
 function uload(){document.getElementById('loading').classList.remove('show');}
@@ -1190,24 +1199,83 @@ function updPinDots(){
   }
 }
 
+function safeShow(id, display){ const e=el(id); if(e) e.style.display=display; }
+
+function showFaseRole(){
+  el('ls-fase-role').style.display='block';
+  el('ls-fase-gop-nome').style.display='none';
+  el('ls-fase-pin').style.display='none';
+  el('l-pin').value='';
+  kpClear();
+}
+
+function showFaseGopNome(){
+  el('ls-fase-role').style.display='none';
+  el('ls-fase-gop-nome').style.display='block';
+  el('ls-fase-pin').style.display='none';
+  const grid = el('gop-nome-grid');
+  grid.innerHTML = Object.keys(GOP_NAMES).map(id =>
+    '<button class="sb" style="text-align:left;padding:14px" onclick="showFasePin(\''+id+'\')">👤 '+GOP_NAMES[id]+'</button>'
+  ).join('');
+}
+
+let _loginGopId = null;
+
+function showFasePin(idOrCrop){
+  _loginGopId = idOrCrop;
+  el('ls-fase-role').style.display='none';
+  el('ls-fase-gop-nome').style.display='none';
+  el('ls-fase-pin').style.display='block';
+  const titulo = el('ls-pin-titulo');
+  if(idOrCrop==='crop'){ titulo.textContent = '👔 CROP'; }
+  else{ titulo.textContent = '👤 ' + (GOP_NAMES[idOrCrop]||idOrCrop); }
+  el('l-pin').value='';
+  kpClear();
+}
+
 async function doLogin(){
   const pin=val('l-pin'),err=el('l-err');err.style.display='none';
-  if(loginP==='gop'){if(pin!==PINS.gop){err.textContent='PIN incorreto.';err.style.display='block';kpClear();return;}CU={role:'gop',store:null};}
-  else if(loginP==='ops'){if(pin!==PINS.ops){err.textContent='PIN incorreto.';err.style.display='block';kpClear();return;}CU={role:'ops',store:null};}
-  else{const s=el('l-store').value;if(!s){err.textContent='Selecione uma loja.';err.style.display='block';return;}if(pin!==PINS[s]){err.textContent='PIN incorreto.';err.style.display='block';kpClear();return;}CU={role:'mgr',store:s};}
-  el('LS').style.display='none';el('HD').style.display='flex';el('NV').style.display='block';el('MN').style.display='block';
-  const tag=el('h-rtag');tag.textContent=who();tag.className='hrtag '+(CU.role==='ops'?'ops':CU.role==='mgr'?'mgr':'gop');
-  el('n-vis').style.display=adm()?'inline-flex':'none';
-  ['q-imp','tf-imp','wfm-imp'].forEach(i=>el(i).style.display=adm()?'block':'none');
-  el('d-filter').style.display=adm()?'block':'none';
-  el('btn-addrt').style.display=adm()?'inline-flex':'none';
-  el('btn-addf').style.display=adm()?'inline-flex':'none';
-  el('test-btns').style.display=adm()?'flex':'none';
+
+  if(_loginGopId==='crop'){
+    if(pin!==GOP_PINS.crop){ err.textContent='PIN incorreto.'; err.style.display='block'; kpClear(); return; }
+    CU={role:'crop', gopId:null, store:null};
+    STORES = Object.values(GOP_STORES).flat();
+  } else if(_loginGopId && GOP_NAMES[_loginGopId]){
+    if(pin!==GOP_PINS[_loginGopId]){ err.textContent='PIN incorreto.'; err.style.display='block'; kpClear(); return; }
+    CU={role:'gop', gopId:_loginGopId, store:null};
+    STORES = GOP_STORES[_loginGopId];
+  } else {
+    err.textContent='Selecione o seu perfil.'; err.style.display='block'; return;
+  }
+
+  el('LS').style.display='none'; el('HD').style.display='flex'; el('NV').style.display='block'; el('MN').style.display='block';
+  const tag=el('h-rtag');
+  tag.textContent = CU.role==='crop' ? 'CROP' : GOP_NAMES[CU.gopId];
+  tag.className = 'hrtag '+(CU.role==='crop' ? 'ops' : 'gop');
+
+  // CROP não tem acesso a Visitas
+  const visitasTab = document.querySelector('.ni[data-s="visitas"]');
+  if(visitasTab) visitasTab.style.display = CU.role==='crop' ? 'none' : 'inline-flex';
+
+  safeShow('n-vis', adm()?'inline-flex':'none');
+  renderStoreGrids();
   await go('dashboard');
-  ['q-st','tf-st','wfm-st'].forEach(id=>{const e=el(id);if(e)e.textContent='';});
   loadProcDossiers();
 }
-function doLogout(){CU=null;el('LS').style.display='flex';el('HD').style.display='none';el('NV').style.display='none';el('MN').style.display='none';el('l-pin').value='';}
+
+function renderStoreGrids(){
+  const gridV = document.getElementById('v-stores-grid');
+  const gridH = document.getElementById('v-hist-grid');
+  if(gridV) gridV.innerHTML = STORES.map(s => '<div class="sb" onclick="pickStore(\''+s+'\')">🏪 '+sn(s)+'</div>').join('');
+  if(gridH) gridH.innerHTML = STORES.map(s => '<div class="sb" onclick="abrirHistLoja(\''+s+'\')">🏪 '+sn(s)+'</div>').join('');
+}
+
+function doLogout(){
+  CU=null; _loginGopId=null;
+  el('LS').style.display='flex'; el('HD').style.display='none'; el('NV').style.display='none'; el('MN').style.display='none';
+  el('l-pin').value='';
+  showFaseRole();
+}
 
 async function go(s){
   document.querySelectorAll('.sec').forEach(x=>x.classList.remove('on'));
@@ -4318,7 +4386,8 @@ async function rDashboard(){
   listEl.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:10px">A carregar...</div>';
   try{
     const q = 'select=id,loja,codigo,descricao,notas,prazo,estado,justificacao&estado=eq.pendente&order=prazo.asc.nullslast';
-    const rows = await dbGet('cj_tarefas', q) || [];
+    const allRows = await dbGet('cj_tarefas', q) || [];
+    const rows = allRows.filter(r => STORES.includes(r.loja));
     const today = new Date().toISOString().slice(0,10);
 
     const atrasados = rows.filter(r=>r.prazo && r.prazo < today);
