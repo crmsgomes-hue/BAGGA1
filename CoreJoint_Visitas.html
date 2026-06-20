@@ -996,7 +996,7 @@
         <small id="m-pick-ts" style="display:block;font-size:.72rem;opacity:.8;margin-top:2px"></small>
       </button>
     </div>
-    <button id="m-pick-nova" class="btn bs" style="padding:14px;font-size:.95rem" onclick="if(hasAutoSave(_pickStore)&&!confirm('Tens uma visita em curso. Iniciar nova visita vai apagar o progresso anterior. Continuar?'))return;clearAutoSave(_pickStore);startV(_pickStore);closeM('m-pick-store')">
+    <button id="m-pick-nova" class="btn bs" style="padding:14px;font-size:.95rem" onclick="iniciarNovaVisita()">
       🆕 Nova Visita
     </button>
   </div>
@@ -3898,6 +3898,7 @@ let _autoSaveTimer = null;
 let _autoSaveStore = null; // loja activa no momento do save
 
 function getAutoSaveKey(store){ return 'cj_as_' + (store||vStore); }
+function getAutoSaveId(store){ return 'as_' + (store||vStore); }
 
 function scheduleAutoSave(){
   if(!vStore) return;
@@ -3948,27 +3949,105 @@ async function doAutoSave(){
     const key = getAutoSaveKey(saveStore);
     localStorage.setItem(key, JSON.stringify(snapshot));
 
+    // Guardar também no Supabase (fonte de verdade, sobrevive a limpeza de cache)
+    try{
+      const sbId = getAutoSaveId(saveStore);
+      const dbRow = {
+        id: sbId,
+        loja: saveStore,
+        data: snapshot.ts,
+        hora_inicio: snapshot.hora_inicio,
+        cafe_simples: snapshot.cafe_simples,
+        cafe_duplo: snapshot.cafe_duplo,
+        cafe_comentario: snapshot.cafe_comentario,
+        crescimento: snapshot.crescimento,
+        estado_quebras: snapshot.estado_quebras,
+        ebita: snapshot.ebita,
+        staffcos: snapshot.staffcos,
+        margem: snapshot.margem,
+        notas: snapshot.notas,
+        rut_check: snapshot.rut_check,
+        checklist: snapshot.checklist,
+        haccp: snapshot.haccp,
+        proc_answers: snapshot.proc_answers,
+        rh_comentario: snapshot.rh_comentario,
+        rh_ftes_definido: snapshot.rh_ftes_definido,
+        rh_ftes_real: snapshot.rh_ftes_real,
+        fotos_chegada: snapshot.fotos_chegada,
+        fotos_cafe: snapshot.fotos_cafe,
+        saved_by: who()
+      };
+      const ex = await dbGet('cj_visitas_rascunhos','id=eq.'+sbId);
+      if(ex && ex.length) await dbUpd('cj_visitas_rascunhos', sbId, dbRow);
+      else await dbIns('cj_visitas_rascunhos',[dbRow]);
+    }catch(e){ console.warn('AutoSave Supabase error:', e); }
+
     // Indicador visual
     const ind = document.getElementById('autosave-indicator');
     if(ind){ ind.textContent = '💾 Guardado às '+new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}); }
   }catch(e){ console.warn('AutoSave error:', e); }
 }
 
-function hasAutoSave(store){
+function hasAutoSaveLocal(store){
   try{
     const d = JSON.parse(localStorage.getItem(getAutoSaveKey(store))||'null');
-    return d && d.loja === store; // verificação de segurança
+    return d && d.loja === store;
   }catch(e){ return false; }
 }
 
-function clearAutoSave(store){
+async function hasAutoSave(store){
+  if(hasAutoSaveLocal(store)) return true;
+  try{
+    const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+getAutoSaveId(store));
+    return !!(rows && rows.length);
+  }catch(e){ return false; }
+}
+
+async function clearAutoSave(store){
   localStorage.removeItem(getAutoSaveKey(store||vStore));
+  try{ await dbDel('cj_visitas_rascunhos', getAutoSaveId(store||vStore)); }catch(e){}
 }
 
 async function restoreAutoSave(store){
   try{
     const key = getAutoSaveKey(store);
-    const d = JSON.parse(localStorage.getItem(key)||'null');
+    let d = JSON.parse(localStorage.getItem(key)||'null');
+
+    // Se não há cópia local (ex: cache/cookies limpos), buscar do Supabase
+    if(!d || d.loja !== store){
+      try{
+        const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+getAutoSaveId(store));
+        if(rows && rows.length){
+          const row = rows[0];
+          d = {
+            loja: row.loja,
+            ts: row.data,
+            hora_inicio: row.hora_inicio,
+            cafe_simples: row.cafe_simples,
+            cafe_duplo: row.cafe_duplo,
+            cafe_comentario: row.cafe_comentario,
+            crescimento: row.crescimento,
+            estado_quebras: row.estado_quebras,
+            ebita: row.ebita,
+            staffcos: row.staffcos,
+            margem: row.margem,
+            notas: row.notas,
+            rut_check: row.rut_check,
+            checklist: row.checklist,
+            haccp: row.haccp,
+            proc_answers: row.proc_answers,
+            rh_comentario: row.rh_comentario,
+            rh_ftes_definido: row.rh_ftes_definido,
+            rh_ftes_real: row.rh_ftes_real,
+            fotos_chegada: row.fotos_chegada,
+            fotos_cafe: row.fotos_cafe
+          };
+          // Repor cópia local para acelerar próximas leituras
+          try{ localStorage.setItem(key, JSON.stringify(d)); }catch(e){}
+        }
+      }catch(e){ console.warn('restoreAutoSave Supabase fallback:', e); }
+    }
+
     if(!d || d.loja !== store) return; // segurança: só restaura se for desta loja
 
     // Limpar estado global antes de restaurar
@@ -4123,7 +4202,15 @@ async function delHistLoja(id, store){
   }catch(e){ toast('Erro ao apagar: '+e.message,'e'); }
 }
 
-function pickStore(store){
+async function iniciarNovaVisita(){
+  const existe = await hasAutoSave(_pickStore);
+  if(existe && !confirm('Tens uma visita em curso. Iniciar nova visita vai apagar o progresso anterior. Continuar?')) return;
+  await clearAutoSave(_pickStore);
+  startV(_pickStore);
+  closeM('m-pick-store');
+}
+
+async function pickStore(store){
   _pickStore = store;
   const title = document.getElementById('m-pick-title');
   if(title) title.textContent = '📍 ' + sn(store);
@@ -4132,18 +4219,32 @@ function pickStore(store){
   const newBtn = document.getElementById('m-pick-nova');
   const badge = document.getElementById('m-pick-badge');
 
-  if(hasAutoSave(store)){
-    // Há visita em curso
-    const d = JSON.parse(localStorage.getItem(getAutoSaveKey(store)));
-    const ts = d.ts ? new Date(d.ts).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
-    if(continuarBtn){ continuarBtn.style.display='block'; document.getElementById('m-pick-ts').textContent = ts ? 'Guardada às '+ts : ''; }
+  // Esconder tudo enquanto verifica
+  if(continuarBtn) continuarBtn.style.display='none';
+  if(badge) badge.style.display='none';
+  openM('m-pick-store');
+
+  const existe = await hasAutoSave(store);
+  if(existe){
+    // Tentar obter timestamp (local primeiro, depois Supabase)
+    let ts = '';
+    try{
+      const dLocal = JSON.parse(localStorage.getItem(getAutoSaveKey(store))||'null');
+      if(dLocal && dLocal.ts) ts = dLocal.ts;
+    }catch(e){}
+    if(!ts){
+      try{
+        const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+getAutoSaveId(store));
+        if(rows && rows.length) ts = rows[0].data;
+      }catch(e){}
+    }
+    const tsFmt = ts ? new Date(ts).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+    if(continuarBtn){ continuarBtn.style.display='block'; const tsEl=document.getElementById('m-pick-ts'); if(tsEl) tsEl.textContent = tsFmt ? 'Guardada às '+tsFmt : ''; }
     if(badge){ badge.style.display='inline'; }
   } else {
     if(continuarBtn) continuarBtn.style.display='none';
     if(badge) badge.style.display='none';
   }
-
-  openM('m-pick-store');
 }
 
 // ── FINALIZAR VISITA ────────────────────────────────
@@ -4159,6 +4260,8 @@ async function finalizarVisita(){
   if(!vStore){ toast('Sem loja selecionada.','e'); return; }
   load('A gerar relatório…');
   try{
+    // Guardar pendentes já neste momento (não depender do utilizador clicar "Finalizar & Reset" mais tarde)
+    try{ await salvarPendentes(); }catch(e){ console.error('salvarPendentes (finalizarVisita):', e); }
     // Gerar HTML do relatório
     const html = await buildReportHtml();
     _reportHtmlFinal = html;
@@ -4331,11 +4434,10 @@ async function salvarPendentes(){
 
 async function confirmarFinalizar(){
   closeM('m-pdf-preview');
-  // Guardar pendentes (itens não conformes com prazo) antes de limpar
-  try{ await salvarPendentes(); }catch(e){ console.error('salvarPendentes:',e); }
+  // Pendentes já foram guardados em finalizarVisita()
   // Limpar tudo (o arquivo já foi feito pelo botão "Arquivar", se o utilizador clicou nele)
   const finishedStore = vStore;
-  clearAutoSave(finishedStore);
+  await clearAutoSave(finishedStore);
   vStore = null;
   vChecklist = {};
   vHaccp = {};
