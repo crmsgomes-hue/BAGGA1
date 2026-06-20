@@ -4421,6 +4421,37 @@ async function arquivarRelatorio(){
   }
 }
 
+function getGopByLoja(loja){
+  for(const gopId of Object.keys(GOP_STORES)){
+    if(GOP_STORES[gopId].includes(loja)) return gopId;
+  }
+  return null;
+}
+
+function renderPendenteItem(r, today){
+  const isAtrasado = r.prazo && r.prazo < today;
+  const isHoje = r.prazo === today;
+  const borderCol = isAtrasado ? 'var(--red)' : isHoje ? 'var(--org)' : 'var(--br)';
+  const prazoTxt = r.prazo
+    ? (isAtrasado ? '🔴 Atrasado — ' : isHoje ? '🟡 Hoje — ' : '📅 ') + new Date(r.prazo+'T00:00:00').toLocaleDateString('pt-PT')
+    : '— Sem prazo definido';
+  return '<div class="ic" style="border-left-color:'+borderCol+';margin-bottom:6px">' +
+    '<div class="ic-top"><div class="ic-info">' +
+    '<div class="ic-store">📍 '+sn(r.loja)+'</div>' +
+    '<div class="ic-title">'+(r.descricao||r.codigo)+'</div>' +
+    '<div class="ic-sub">'+prazoTxt+'</div>' +
+    '</div>' +
+    '<div class="ic-acts"><div class="ic-btns">' +
+    '<button class="btn bsm bg2" onclick="resolverPendente(\''+r.id+'\')">✅ Resolvido</button>' +
+    '</div></div></div></div>';
+}
+
+function toggleDashFolder(id){
+  const el2 = document.getElementById(id);
+  if(!el2) return;
+  el2.style.display = el2.style.display==='none' ? 'block' : 'none';
+}
+
 async function rDashboard(){
   const resumoEl = document.getElementById('dash-resumo');
   const listEl = document.getElementById('dash-pendentes-list');
@@ -4445,32 +4476,43 @@ async function rDashboard(){
       return;
     }
 
-    const byLoja = {};
-    rows.forEach(r=>{ if(!byLoja[r.loja]) byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
-
     let html = '';
-    Object.keys(byLoja).sort((a,b)=>sn(a).localeCompare(sn(b))).forEach(loja=>{
-      const items = byLoja[loja];
-      html += '<div class="card" style="margin-bottom:10px">' +
-        '<div class="ch"><div class="ct">📍 '+sn(loja)+'</div><span class="bk bk-n">'+items.length+'</span></div>' +
-        items.map(r=>{
-          const isAtrasado = r.prazo && r.prazo < today;
-          const isHoje = r.prazo === today;
-          const borderCol = isAtrasado ? 'var(--red)' : isHoje ? 'var(--org)' : 'var(--br)';
-          const prazoTxt = r.prazo
-            ? (isAtrasado ? '🔴 Atrasado — ' : isHoje ? '🟡 Hoje — ' : '📅 ') + new Date(r.prazo+'T00:00:00').toLocaleDateString('pt-PT')
-            : '— Sem prazo definido';
-          return '<div class="ic" style="border-left-color:'+borderCol+';margin-bottom:6px">' +
-            '<div class="ic-top"><div class="ic-info">' +
-            '<div class="ic-title">'+(r.descricao||r.codigo)+'</div>' +
-            '<div class="ic-sub">'+prazoTxt+'</div>' +
-            '</div>' +
-            '<div class="ic-acts"><div class="ic-btns">' +
-            '<button class="btn bsm bg2" onclick="resolverPendente(\''+r.id+'\')">✅ Resolvido</button>' +
-            '</div></div></div></div>';
-        }).join('') +
-        '</div>';
-    });
+
+    if(CU && CU.role==='crop'){
+      // Agrupar por GOP (cada GOP é uma pasta colapsável)
+      const byGop = {};
+      rows.forEach(r=>{
+        const gopId = getGopByLoja(r.loja) || 'outras';
+        if(!byGop[gopId]) byGop[gopId]=[];
+        byGop[gopId].push(r);
+      });
+      Object.keys(byGop).sort((a,b)=>(GOP_NAMES[a]||a).localeCompare(GOP_NAMES[b]||b)).forEach(gopId=>{
+        const items = byGop[gopId];
+        const folderId = 'dash-folder-'+gopId;
+        const atrasadosGop = items.filter(r=>r.prazo && r.prazo<today).length;
+        html += '<div class="card" style="margin-bottom:10px;padding:0;overflow:hidden">' +
+          '<div style="padding:13px 15px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleDashFolder(\''+folderId+'\')">' +
+          '<div style="font-weight:700;font-size:.92rem">👤 '+(GOP_NAMES[gopId]||'Outras lojas')+'</div>' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+          (atrasadosGop>0 ? '<span class="bk bk-d">🔴 '+atrasadosGop+'</span>' : '') +
+          '<span class="bk bk-n">'+items.length+'</span>' +
+          '<span style="color:var(--t2)">▾</span></div></div>' +
+          '<div id="'+folderId+'" style="display:none;padding:0 15px 13px">' +
+          items.map(r=>renderPendenteItem(r, today)).join('') +
+          '</div></div>';
+      });
+    } else {
+      // GOP normal — agrupar por loja
+      const byLoja = {};
+      rows.forEach(r=>{ if(!byLoja[r.loja]) byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
+      Object.keys(byLoja).sort((a,b)=>sn(a).localeCompare(sn(b))).forEach(loja=>{
+        const items = byLoja[loja];
+        html += '<div class="card" style="margin-bottom:10px">' +
+          '<div class="ch"><div class="ct">📍 '+sn(loja)+'</div><span class="bk bk-n">'+items.length+'</span></div>' +
+          items.map(r=>renderPendenteItem(r, today)).join('') +
+          '</div>';
+      });
+    }
 
     listEl.innerHTML = html;
   }catch(e){
