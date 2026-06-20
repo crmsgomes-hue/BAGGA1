@@ -14,7 +14,6 @@
 <div id="loading"><div class="spin"></div><div id="load-msg" style="font-size:.88rem;color:var(--t2)">A carregar…</div></div>
 <div id="toast"></div>
 <div id="err-bar"><span id="err-msg"></span><button onclick="location.reload()">Recarregar</button></div>
-<div id="RO"><div class="rbox"><div style="font-size:2.5rem">🗑️</div><h2>Limpar Todos os Dados</h2><p>Apaga todos os dados do Supabase e localStorage.<br><strong>Não pode ser desfeito.</strong></p><button class="rcn" onclick="hideReset()">Cancelar</button><button class="rok" onclick="doReset()">✅ Sim, apagar tudo</button><div id="RST"></div></div></div>
 
 <div id="LS">
   <div class="logo">CoreJoint</div>
@@ -62,7 +61,6 @@
     </div>
     <button class="btn bp bf" style="margin-top:12px" onclick="doLogin()">Entrar</button>
     <div class="lerr" id="l-err"></div>
-    <button class="lrst" onclick="showReset()">🗑️ Limpar todos os dados</button>
   </div>
 </div>
 
@@ -87,7 +85,6 @@
   <span class="ni" data-s="tarefas" onclick="go('tarefas')">✅ Tarefas</span>
   <span class="ni" data-s="operacional" onclick="go('operacional')">📋 Operacional</span>
   <span class="ni" data-s="historico" onclick="go('historico')">📁 Histórico</span>
-  <span class="ni" style="color:var(--red)" onclick="showReset()">🗑️</span>
 </div>
 
 <div id="MN">
@@ -95,10 +92,10 @@
 <div class="sec" id="s-dash">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
     <div class="pt">Dashboard</div>
-    <div id="test-btns" style="display:none;gap:6px"><button class="btn bsm bw" onclick="loadTestData()">🧪 Dados de Teste</button><button class="btn bsm bd" onclick="showReset()">🗑️ Reset</button></div>
+    <div id="test-btns" style="display:none;gap:6px"><button class="btn bsm bw" onclick="loadTestData()">🧪 Dados de Teste</button></div>
   </div>
   <div class="ps">Visão geral da rede Bagga</div>
-  <div id="test-bar-el" style="display:none" class="test-bar"><span>🧪 <strong>Modo Teste Ativo</strong></span><button class="btn bsm bd" onclick="showReset()">Limpar</button></div>
+  <div id="test-bar-el" style="display:none" class="test-bar"><span>🧪 <strong>Modo Teste Ativo</strong></span></div>
   <div id="d-filter" style="display:none;margin-bottom:12px">
     <div style="display:flex;gap:7px;flex-wrap:wrap">
       <select class="fc" id="df-e" onchange="rDash()" style="width:auto;padding:5px 9px;font-size:.74rem"><option value="">Todos os estados</option><option value="pend">⏳ Pendentes</option><option value="done">✅ Concluídos</option></select>
@@ -1058,19 +1055,6 @@ function closeM(id){document.getElementById(id).classList.remove('open');}
 function bigPhoto(src){document.getElementById('big-photo').src=src;openM('m-photo');}
 function el(id){return document.getElementById(id);}
 function val(id){const e=el(id);return e?(e.value||'').trim():'';}
-
-function showReset(){el('RO').classList.add('show');}
-function hideReset(){el('RO').classList.remove('show');}
-async function doReset(){
-  const s=el('RST');s.textContent='A apagar…';s.style.color='#374151';
-  try{
-    for(const t of['cj_quebras','cj_avarias','cj_trocas','cj_srm','cj_wfm','cj_ruturas','cj_tarefas','cj_ferias','cj_visitas'])
-      await sb('DELETE',t,null,'id=neq.___');
-    localStorage.clear();
-    s.style.color='#057a55';s.textContent='✅ Feito!';
-    setTimeout(()=>location.reload(),900);
-  }catch(e){s.style.color='#e02424';s.textContent='Erro: '+e.message;}
-}
 
 function setP(p){loginP=p;['gop','ops','mgr'].forEach(x=>el('tab-'+x).classList.toggle('on',x===p));el('sw-store').style.display=p==='mgr'?'block':'none';}
 function kp(digit){
