@@ -1989,6 +1989,7 @@ async function startV(store, skipReset=false){
     if(cp) cp.style.display='none';
     // Limpar UI — checklist buttons
     document.querySelectorAll('.ck').forEach(b=>b.classList.remove('ok','fail','ck-on','ck-fail','ck-na'));
+    document.querySelectorAll('[id^="rut-row-"]').forEach(r=>{ r.style.background=''; });
     document.querySelectorAll('[id^="chk-"]').forEach(c=>{
       if(c.style) c.style.borderLeftColor='var(--br)';
     });
@@ -4140,8 +4141,9 @@ async function restoreAutoSave(store){
     vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],
                rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],
                rh_horarios:[],rh_ferias:[],raid:[]};
-
-    // Restaurar dados
+    // Limpar visual residual das ruturas (IDs fixos, fundo pintado por JS direto)
+    document.querySelectorAll('[id^="rut-row-"]').forEach(r=>{ r.style.background=''; });
+    document.querySelectorAll('[id^="rut-ok-"],[id^="rut-fail-"]').forEach(b=>{ b.classList.remove('ok','fail'); });
     if(d.checklist) try{
       const chk = JSON.parse(d.checklist);
       Object.keys(chk).forEach(k=>{
