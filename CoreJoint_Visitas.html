@@ -876,7 +876,6 @@
   <div class="ps">Histórico de visitas auditadas</div>
   <div class="card">
     <div class="ch"><div class="ct">Arquivo de Visitas</div>
-      <button class="btn bsm bd" onclick="limparHistorico()">🗑 Limpar</button>
     </div>
     <div id="hist-list"></div>
   </div>
@@ -3587,14 +3586,6 @@ async function delHistorico(id){
   if(!confirm('Apagar este relatório?')) return;
   await dbDel('cj_historico',id);
   rHistorico();
-}
-
-async function limparHistorico(){
-  if(!confirm('Apagar todos os relatórios guardados?')) return;
-  const lf = CU&&CU.role==='mgr' ? '&loja=eq.'+CU.store : '';
-  await sb('DELETE','cj_historico',null,lf.replace(/^&/,'')||'id=neq.___');
-  rHistorico();
-  toast('Histórico limpo!');
 }
 
 const OP_DIARIA = [
