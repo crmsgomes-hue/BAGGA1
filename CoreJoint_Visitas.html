@@ -1281,9 +1281,9 @@ async function doLogin(){
   tag.textContent = CU.role==='crop' ? 'CROP' : GOP_NAMES[CU.gopId];
   tag.className = 'hrtag '+(CU.role==='crop' ? 'ops' : 'gop');
 
-  // CROP não tem acesso a Visitas
+  // CROP também pode auditar lojas — separador Visitas disponível para todos
   const visitasTab = document.querySelector('.ni[data-s="visitas"]');
-  if(visitasTab) visitasTab.style.display = CU.role==='crop' ? 'none' : 'inline-flex';
+  if(visitasTab) visitasTab.style.display = 'inline-flex';
 
   safeShow('n-vis', adm()?'inline-flex':'none');
   renderStoreGrids();
@@ -3515,16 +3515,24 @@ async function rHistorico(){
   container.innerHTML = '<div style="color:var(--t2);font-size:.81rem;padding:10px">A carregar...</div>';
   try{
     const lf = CU&&CU.role==='mgr' ? '&loja=eq.'+CU.store : '';
-    const q = 'select=id,loja,data,hora,resumo&order=created_at.desc'+lf;
-    const hist = await dbGet('cj_historico', q) || [];
+    const q = 'select=id,loja,data,hora,resumo,saved_by&order=created_at.desc'+lf;
+    const histAll = await dbGet('cj_historico', q) || [];
+
+    // Separar visitas feitas pela própria CROP — nunca se misturam com o arquivo de um GOP
+    const hist = CU&&CU.role==='crop' ? histAll.filter(r=>r.saved_by!=='CROP') : histAll;
+    const cropVisits = CU&&CU.role==='crop' ? histAll.filter(r=>r.saved_by==='CROP') : [];
+
     const byLoja = {};
     hist.forEach(r=>{ if(!byLoja[r.loja])byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
+    const byLojaCrop = {};
+    cropVisits.forEach(r=>{ if(!byLojaCrop[r.loja])byLojaCrop[r.loja]=[]; byLojaCrop[r.loja].push(r); });
 
     const lojasParaMostrar = CU&&CU.role==='mgr' ? [CU.store] : STORES;
 
-    const storeFolderHtml = (loja) => {
-      const reports = byLoja[loja] || [];
-      const folderId = 'hist-folder-'+loja;
+    const storeFolderHtml = (loja, src) => {
+      const map = src || byLoja;
+      const reports = map[loja] || [];
+      const folderId = 'hist-folder-'+(src?'crop-':'')+loja;
       return '<div style="border:1.5px solid var(--br);border-radius:var(--rb);margin-bottom:8px;overflow:hidden">' +
         '<div style="background:var(--sf2);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleHistFolder(\''+folderId+'\')">' +
         '<div style="font-weight:700;font-size:.85rem">📍 '+sn(loja)+'</div>' +
@@ -3547,10 +3555,23 @@ async function rHistorico(){
         '</div></div>';
     };
 
-    let html = '<div style="font-size:.78rem;color:var(--t2);margin-bottom:10px">📁 <strong>'+hist.length+'</strong> relatório(s) guardado(s)</div>';
+    let html = '<div style="font-size:.78rem;color:var(--t2);margin-bottom:10px">📁 <strong>'+histAll.length+'</strong> relatório(s) guardado(s)</div>';
 
     if(CU && CU.role==='crop'){
-      // Agrupar por GOP primeiro, depois por loja dentro de cada GOP
+      // Bloco próprio com as auditorias feitas pela CROP — separado dos GOPs
+      const lojasComVisitaCrop = Object.keys(byLojaCrop);
+      html += '<div style="border:1.5px solid var(--vio,#7c3aed);border-radius:var(--rb);margin-bottom:14px;overflow:hidden">' +
+        '<div style="background:#f5f3ff;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleHistFolder(\'hist-crop-own\')">' +
+        '<div style="font-weight:700;font-size:.85rem;color:#7c3aed">🟣 Auditorias feitas pela CROP</div>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span style="font-size:.72rem;color:#7c3aed;background:#fff;border-radius:99px;padding:2px 9px">'+cropVisits.length+'</span>' +
+        '<span style="color:#7c3aed">▾</span></div></div>' +
+        '<div id="hist-crop-own" style="display:none;padding:10px 12px;background:var(--bg)">' +
+        (lojasComVisitaCrop.length ? lojasComVisitaCrop.map(l=>storeFolderHtml(l, byLojaCrop)).join('') :
+          '<div style="color:var(--t2);font-size:.78rem;padding:6px">Ainda sem visitas auditadas pela CROP.</div>') +
+        '</div></div>';
+
+      // Agrupar por GOP, depois por loja dentro de cada GOP (sem incluir visitas da CROP)
       Object.keys(GOP_STORES).forEach(gopId=>{
         const lojasDoGop = GOP_STORES[gopId];
         const totalGop = lojasDoGop.reduce((a,l)=>a+(byLoja[l]?byLoja[l].length:0),0);
@@ -3562,7 +3583,7 @@ async function rHistorico(){
           '<span style="font-size:.72rem;color:var(--ac);background:#fff;border-radius:99px;padding:2px 9px">'+totalGop+'</span>' +
           '<span style="color:var(--ac)">▾</span></div></div>' +
           '<div id="'+groupId+'" style="display:none;padding:10px 12px;background:var(--bg)">' +
-          lojasDoGop.map(storeFolderHtml).join('') +
+          lojasDoGop.map(l=>storeFolderHtml(l)).join('') +
           '</div></div>';
       });
     } else {
