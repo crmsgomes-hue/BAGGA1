@@ -4524,9 +4524,12 @@ async function rDashboard(){
           '</div></div>';
       });
     } else {
-      // GOP normal — agrupar por loja
+      // GOP normal — agrupar por loja, com os alertas da CROP separados abaixo
+      const rowsProprios = rows.filter(r=>r.criado_por!=='CROP');
+      const rowsCrop = rows.filter(r=>r.criado_por==='CROP');
+
       const byLoja = {};
-      rows.forEach(r=>{ if(!byLoja[r.loja]) byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
+      rowsProprios.forEach(r=>{ if(!byLoja[r.loja]) byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
       Object.keys(byLoja).sort((a,b)=>sn(a).localeCompare(sn(b))).forEach(loja=>{
         const items = byLoja[loja];
         html += '<div class="card" style="margin-bottom:10px">' +
@@ -4534,6 +4537,20 @@ async function rDashboard(){
           items.map(r=>renderPendenteItem(r, today)).join('') +
           '</div>';
       });
+
+      if(rowsCrop.length){
+        const atrasadosCrop = rowsCrop.filter(r=>r.prazo && r.prazo<today).length;
+        html += '<div style="font-size:.72rem;font-weight:700;color:#7c3aed;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.5px">🟣 Alertas identificados pela CROP</div>';
+        const byLojaCrop = {};
+        rowsCrop.forEach(r=>{ if(!byLojaCrop[r.loja]) byLojaCrop[r.loja]=[]; byLojaCrop[r.loja].push(r); });
+        Object.keys(byLojaCrop).sort((a,b)=>sn(a).localeCompare(sn(b))).forEach(loja=>{
+          const items = byLojaCrop[loja];
+          html += '<div class="card" style="margin-bottom:10px;border-left:3px solid #7c3aed">' +
+            '<div class="ch"><div class="ct">📍 '+sn(loja)+'</div><span class="bk bk-n">'+items.length+'</span></div>' +
+            items.map(r=>renderPendenteItem(r, today)).join('') +
+            '</div>';
+        });
+      }
     }
 
     listEl.innerHTML = html;
