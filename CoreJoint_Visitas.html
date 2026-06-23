@@ -4493,7 +4493,7 @@ async function rDashboard(){
       '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🔴 Atrasados</div><div class="svl cr">'+atrasados.length+'</div></div>' +
       '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🟡 Hoje</div><div class="svl co">'+hoje.length+'</div></div>';
 
-    if(!rows.length){
+    if(!rows.length && CU && CU.role==='crop'){
       listEl.innerHTML = '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:24px">✅ Sem pendentes em aberto!</div>';
       return;
     }
@@ -4524,23 +4524,28 @@ async function rDashboard(){
           '</div></div>';
       });
     } else {
-      // GOP normal — agrupar por loja, com os alertas da CROP separados abaixo
+      // GOP normal — agrupar por loja, com os alertas da CROP numa secção própria, sempre visível
       const rowsProprios = rows.filter(r=>r.criado_por!=='CROP');
       const rowsCrop = rows.filter(r=>r.criado_por==='CROP');
 
-      const byLoja = {};
-      rowsProprios.forEach(r=>{ if(!byLoja[r.loja]) byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
-      Object.keys(byLoja).sort((a,b)=>sn(a).localeCompare(sn(b))).forEach(loja=>{
-        const items = byLoja[loja];
-        html += '<div class="card" style="margin-bottom:10px">' +
-          '<div class="ch"><div class="ct">📍 '+sn(loja)+'</div><span class="bk bk-n">'+items.length+'</span></div>' +
-          items.map(r=>renderPendenteItem(r, today)).join('') +
-          '</div>';
-      });
+      if(!rowsProprios.length){
+        html += '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:20px;margin-bottom:14px">✅ Sem pendentes em aberto nas tuas lojas!</div>';
+      } else {
+        const byLoja = {};
+        rowsProprios.forEach(r=>{ if(!byLoja[r.loja]) byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
+        Object.keys(byLoja).sort((a,b)=>sn(a).localeCompare(sn(b))).forEach(loja=>{
+          const items = byLoja[loja];
+          html += '<div class="card" style="margin-bottom:10px">' +
+            '<div class="ch"><div class="ct">📍 '+sn(loja)+'</div><span class="bk bk-n">'+items.length+'</span></div>' +
+            items.map(r=>renderPendenteItem(r, today)).join('') +
+            '</div>';
+        });
+      }
 
-      if(rowsCrop.length){
-        const atrasadosCrop = rowsCrop.filter(r=>r.prazo && r.prazo<today).length;
-        html += '<div style="font-size:.72rem;font-weight:700;color:#7c3aed;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.5px">🟣 Alertas identificados pela CROP</div>';
+      html += '<div style="font-size:.72rem;font-weight:700;color:#7c3aed;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.5px">🟣 Alertas identificados pela CROP</div>';
+      if(!rowsCrop.length){
+        html += '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:20px">✅ Sem pendentes deixados pela CROP!</div>';
+      } else {
         const byLojaCrop = {};
         rowsCrop.forEach(r=>{ if(!byLojaCrop[r.loja]) byLojaCrop[r.loja]=[]; byLojaCrop[r.loja].push(r); });
         Object.keys(byLojaCrop).sort((a,b)=>sn(a).localeCompare(sn(b))).forEach(loja=>{
