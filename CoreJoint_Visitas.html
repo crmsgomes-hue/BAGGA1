@@ -1294,8 +1294,27 @@ async function doLogin(){
 function renderStoreGrids(){
   const gridV = document.getElementById('v-stores-grid');
   const gridH = document.getElementById('v-hist-grid');
-  if(gridV) gridV.innerHTML = STORES.map(s => '<div class="sb" onclick="pickStore(\''+s+'\')">🏪 '+sn(s)+'</div>').join('');
-  if(gridH) gridH.innerHTML = STORES.map(s => '<div class="sb" onclick="abrirHistLoja(\''+s+'\')">🏪 '+sn(s)+'</div>').join('');
+  if(CU && CU.role==='crop'){
+    // CROP: agrupar lojas por GOP, para ser mais fácil encontrar
+    const buildGrouped = (prefix, onClickFn) => Object.keys(GOP_STORES).map(gopId=>{
+      const lojas = GOP_STORES[gopId];
+      const groupId = prefix+'-'+gopId;
+      return '<div style="margin-bottom:8px;border:1px solid var(--br);border-radius:var(--rb);overflow:hidden">' +
+        '<div style="background:var(--sf2);padding:9px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleHistFolder(\''+groupId+'\')">' +
+        '<div style="font-weight:700;font-size:.82rem">👤 '+(GOP_NAMES[gopId]||gopId)+'</div>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span style="font-size:.7rem;color:var(--t2);background:var(--br);border-radius:99px;padding:2px 8px">'+lojas.length+'</span>' +
+        '<span style="color:var(--t2)">▾</span></div></div>' +
+        '<div id="'+groupId+'" class="sg" style="display:none;padding:9px">' +
+        lojas.map(s => '<div class="sb" onclick="'+onClickFn+'(\''+s+'\')">🏪 '+sn(s)+'</div>').join('') +
+        '</div></div>';
+    }).join('');
+    if(gridV) gridV.outerHTML = '<div id="v-stores-grid">'+buildGrouped('vsg','pickStore')+'</div>';
+    if(gridH) gridH.outerHTML = '<div id="v-hist-grid">'+buildGrouped('vhg','abrirHistLoja')+'</div>';
+  } else {
+    if(gridV) gridV.innerHTML = STORES.map(s => '<div class="sb" onclick="pickStore(\''+s+'\')">🏪 '+sn(s)+'</div>').join('');
+    if(gridH) gridH.innerHTML = STORES.map(s => '<div class="sb" onclick="abrirHistLoja(\''+s+'\')">🏪 '+sn(s)+'</div>').join('');
+  }
 }
 
 function doLogout(){
@@ -4005,8 +4024,8 @@ function rOperacional(){
 let _autoSaveTimer = null;
 let _autoSaveStore = null; // loja activa no momento do save
 
-function getAutoSaveKey(store){ return 'cj_as_' + (store||vStore); }
-function getAutoSaveId(store){ return 'as_' + (store||vStore); }
+function getAutoSaveKey(store){ return 'cj_as_' + (store||vStore) + (CU&&CU.role==='crop'?'_crop':''); }
+function getAutoSaveId(store){ return 'as_' + (store||vStore) + (CU&&CU.role==='crop'?'_crop':''); }
 
 function scheduleAutoSave(){
   if(!vStore) return;
