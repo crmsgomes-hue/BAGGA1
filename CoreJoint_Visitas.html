@@ -2372,6 +2372,7 @@ async function adicionarSeparadorDireto(dossierId){
   if(!d) return;
   const id = 's'+Date.now();
   d.seps.push({id, name:nome});
+  procOpenDossiers.add('pd-'+dossierId);
   renderProcVisita();
   // Re-open dossier after re-render
   const pd = document.getElementById('pd-'+dossierId);
