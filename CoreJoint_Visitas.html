@@ -2744,19 +2744,20 @@ async function genRel(){
     const st = vChecklist[item.id]||{};
     const confLabel = st.conforme===true ? '<span style="color:#057a55;font-weight:700">✅ Conforme</span>' : st.conforme===false ? '<span style="color:#e02424;font-weight:700">❌ Não Conforme</span>' : '';
     const border = st.conforme===false ? '#e02424' : st.conforme===true ? '#057a55' : '#ddd';
+    const bodyContent = item.id==='fte' ? fteNumerosHtml :
+      (item.id==='limpeza' ? haccpTableHtml : '')+
+      (st.fotos&&st.fotos.length ? st.fotos.map(f=>'<img src="'+f+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:3px">').join('') : st.foto ? '<img src="'+st.foto+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:3px">' : '<div style="font-size:11px;color:#999;margin-bottom:7px;font-style:italic">Sem foto</div>')+
+      '<div style="font-size:12px;color:#555;background:#f9f9f9;padding:7px;border-radius:4px">'+(st.nota||'<em style="color:#aaa">Sem comentário</em>')+'</div>';
     const block = '<div style="border:1.5px solid '+border+';border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
       '<div style="font-size:13px;font-weight:700">'+item.label+'</div>'+
       '<div>'+confLabel+'</div></div>'+
-      (item.id==='limpeza' ? haccpTableHtml : '')+
-      (st.fotos&&st.fotos.length ? st.fotos.map(f=>'<img src="'+f+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:3px">').join('') : st.foto ? '<img src="'+st.foto+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:3px">' : '<div style="font-size:11px;color:#999;margin-bottom:7px;font-style:italic">Sem foto</div>')+
-      '<div style="font-size:12px;color:#555;background:#f9f9f9;padding:7px;border-radius:4px">'+(st.nota||'<em style="color:#aaa">Sem comentário</em>')+'</div>'+
+      bodyContent+
       '</div>';
     let extra = '';
     if(item.id==='vitrine') extra = rutSection;
     if(item.id==='jsc') extra = cafeSection;
     if(item.id==='procedimentos') extra = dossiersSection;
-    if(item.id==='fte') extra = fteNumerosHtml;
     return block + extra;
   }).join('');
 
