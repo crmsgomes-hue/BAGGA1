@@ -2732,6 +2732,14 @@ async function genRel(){
     }).join('')+
     '</div>' : '';
 
+  // ── FTEs e Comentário RH ──────────────────
+  const fteData = getRHFTEData();
+  const fteDef = fteData.ftes_definido||'—';
+  const fteReal = fteData.ftes_real||'—';
+  const fteDiff = (parseFloat(fteData.ftes_real)||0)-(parseFloat(fteData.ftes_definido)||0);
+  const fteDesvio = fteData.ftes_definido&&fteData.ftes_real?(fteDiff>=0?'+':'')+fteDiff.toFixed(1):'—';
+  const fteNumerosHtml = '<table style="font-size:12px;margin-top:4px"><tr><td style="padding:3px 10px 3px 0;color:#555">FTEs Definido</td><td style="font-weight:700">'+fteDef+'</td><td style="padding:3px 10px;color:#555">FTEs Real</td><td style="font-weight:700">'+fteReal+'</td><td style="padding:3px 10px;color:#555">Desvio</td><td style="font-weight:700;color:'+(fteDiff<0?'#e02424':fteDiff>0?'#d97706':'#057a55')+'">'+fteDesvio+'</td></tr></table>'+(fteData.comentario?'<div style="font-size:12px;color:#555;background:#f9f9f9;padding:7px;border-radius:4px;margin-top:6px">'+fteData.comentario+'</div>':'');
+
   const chkHtml = allChkItems.map(item => {
     const st = vChecklist[item.id]||{};
     const confLabel = st.conforme===true ? '<span style="color:#057a55;font-weight:700">✅ Conforme</span>' : st.conforme===false ? '<span style="color:#e02424;font-weight:700">❌ Não Conforme</span>' : '';
@@ -2748,6 +2756,7 @@ async function genRel(){
     if(item.id==='vitrine') extra = rutSection;
     if(item.id==='jsc') extra = cafeSection;
     if(item.id==='procedimentos') extra = dossiersSection;
+    if(item.id==='fte') extra = fteNumerosHtml;
     return block + extra;
   }).join('');
 
@@ -2801,13 +2810,6 @@ async function genRel(){
 
   const resumo = `${ncItems.length} NC · ${okItems.length} OK · ${fail.length} ruturas`;
 
-  // ── FTEs e Comentário RH ──────────────────
-  const fteData = getRHFTEData();
-  const fteDef = fteData.ftes_definido||'—';
-  const fteReal = fteData.ftes_real||'—';
-  const fteDiff = (parseFloat(fteData.ftes_real)||0)-(parseFloat(fteData.ftes_definido)||0);
-  const fteDesvio = fteData.ftes_definido&&fteData.ftes_real?(fteDiff>=0?'+':'')+fteDiff.toFixed(1):'—';
-  const fteReportSection='<div style="margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:#1a56db;border-bottom:2px solid #1a56db;padding-bottom:4px;margin-bottom:8px">👥 FTEs — Dotação de Colaboradores</div><table style="font-size:12px;margin-bottom:8px"><tr><td style="padding:3px 10px 3px 0;color:#555">FTEs Definido</td><td style="font-weight:700">'+fteDef+'</td><td style="padding:3px 10px;color:#555">FTEs Real</td><td style="font-weight:700">'+fteReal+'</td><td style="padding:3px 10px;color:#555">Desvio</td><td style="font-weight:700;color:'+(fteDiff<0?'#e02424':fteDiff>0?'#d97706':'#057a55')+'">'+fteDesvio+'</td></tr></table>'+(fteData.comentario?'<div style="font-size:12px;color:#555;background:#f9f9f9;padding:7px;border-radius:4px">'+fteData.comentario+'</div>':'')+'</div>';
   const loicaData=[];
   const loicaReportSection='';
 
@@ -2844,7 +2846,6 @@ async function genRel(){
   ${chegadaHtml}
   ${perfHtml}
   ${chkHtml}
-  ${fteReportSection}
   <div style="margin-top:40px;border-top:1px solid #eee;padding-top:14px;display:flex;justify-content:space-between;font-size:11px;color:#aaa">
     <div>CoreJoint · Bagga · ${now()}</div><div>${who()}</div>
   </div>
