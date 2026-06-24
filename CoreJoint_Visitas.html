@@ -2148,6 +2148,7 @@ function getRHFTEData(){
 let procDossiers = [];
 let procAnswers = {}; // { sepId: { state: 'ok'|'nok'|'na', obs: '' } }
 let procSelected = []; // dossierIds escolhidos pelo GOP para esta visita específica
+let procOpenDossiers = new Set(); // ids dos dossiês atualmente expandidos (para não fecharem ao marcar ✓/✗)
 let procDossierIdSeq = 100;
 let procSepIdSeq = 1000;
 
@@ -2320,7 +2321,7 @@ function renderProcVisita(){
       '<div style="font-weight:700;font-size:.83rem;cursor:pointer;flex:1" onclick="toggleProcDossier(\'pd-'+d.id+'\')">📁 '+escH(d.name)+'</div>' +
       '<button onclick="toggleProcSelect(\''+d.id+'\')" title="Remover desta visita" style="background:none;border:none;color:var(--t2);cursor:pointer;font-size:.9rem;padding:2px 6px">✕</button>' +
       '<span style="color:var(--t2);cursor:pointer" onclick="toggleProcDossier(\'pd-'+d.id+'\')">▾</span></div>' +
-      '<div id="pd-'+d.id+'" style="padding:10px 12px;display:none">'+sepsHtml+
+      '<div id="pd-'+d.id+'" style="padding:10px 12px;display:'+(procOpenDossiers.has('pd-'+d.id)?'block':'none')+'">'+sepsHtml+
       '<div style="display:flex;gap:6px;margin-top:8px">' +
       '<input type="text" class="fc" id="novo-sep-'+d.id+'" placeholder="Nome do separador…" style="flex:1;margin:0;font-size:.8rem" onkeydown="if(event.key===\'Enter\')adicionarSeparadorDireto(\''+d.id+'\')">' +
       '<button class="btn bp bsm" onclick="adicionarSeparadorDireto(\''+d.id+'\')">+ Separador</button>' +
@@ -2332,7 +2333,9 @@ function renderProcVisita(){
 function toggleProcDossier(id){
   const el = document.getElementById(id);
   if(!el) return;
-  el.style.display = el.style.display==='none' ? 'block' : 'none';
+  const willOpen = el.style.display==='none';
+  el.style.display = willOpen ? 'block' : 'none';
+  if(willOpen) procOpenDossiers.add(id); else procOpenDossiers.delete(id);
 }
 
 async function adicionarDossieDireto(){
