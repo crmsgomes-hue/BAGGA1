@@ -219,9 +219,22 @@
         <!-- ② PERFORMANCE -->
         <div style="background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);padding:14px;margin-bottom:14px">
           <div style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">📈 ② Performance</div>
+          <div style="font-size:.71rem;font-weight:700;color:var(--t2);margin-bottom:6px">📊 Crescimento — Food</div>
           <div class="fr">
-            <div class="fg"><label>Crescimento (%)</label><input type="text" class="fc" id="v-cr" placeholder="+3.2%"></div>
-            <div class="fg"><label>Estado das Quebras</label><select class="fc" id="v-qe"><option value="">—</option><option value="ok">✅ No target</option><option value="at">⚠️ Atenção</option><option value="cr">🔴 Crítico</option></select></div>
+            <div class="fg"><label>Food / Mês (%)</label><input type="number" class="fc" id="v-cr-food-mes" step="0.1" placeholder="3.2" oninput="calcCrescimento()"></div>
+            <div class="fg"><label>Food / Ano (%)</label><input type="number" class="fc" id="v-cr-food-ano" step="0.1" placeholder="4.5" oninput="calcCrescimento()"></div>
+            <div class="fg"><label>Diferença (Ano-Mês)</label><input type="text" class="fc" id="v-cr-food-dif" readonly style="background:var(--sf2);font-weight:700"></div>
+          </div>
+          <div style="font-size:.71rem;font-weight:700;color:var(--t2);margin:10px 0 6px">📊 Crescimento — Total</div>
+          <div class="fr">
+            <div class="fg"><label>Total / Mês (%)</label><input type="number" class="fc" id="v-cr-total-mes" step="0.1" placeholder="2.8" oninput="calcCrescimento()"></div>
+            <div class="fg"><label>Total / Ano (%)</label><input type="number" class="fc" id="v-cr-total-ano" step="0.1" placeholder="3.9" oninput="calcCrescimento()"></div>
+            <div class="fg"><label>Diferença (Ano-Mês)</label><input type="text" class="fc" id="v-cr-total-dif" readonly style="background:var(--sf2);font-weight:700"></div>
+          </div>
+          <div style="font-size:.71rem;font-weight:700;color:var(--t2);margin:10px 0 6px">📉 Quebra</div>
+          <div class="fr">
+            <div class="fg"><label>Quebra Total</label><input type="text" class="fc" id="v-quebra-total" placeholder="Ex: 1.250€ ou 2.1%"></div>
+            <div class="fg"><label>Quebra Food</label><input type="text" class="fc" id="v-quebra-food" placeholder="Ex: 850€ ou 1.4%"></div>
           </div>
           <div class="fr">
             <div class="fg"><label>EBITA</label><input type="text" class="fc" id="v-ebita" placeholder="Ex: 12.5%"></div>
@@ -2064,11 +2077,18 @@ async function startV(store, skipReset=false){
   if(ex&&ex[0]&&!skipReset){
     const e=ex[0];
     el('v-cs').value=e.cafe_simples||'';el('v-cd').value=e.cafe_duplo||'';
-    el('v-cr').value=e.crescimento||'';el('v-qe').value=e.estado_quebras||'';const ve=el('v-ebita');if(ve)ve.value=e.ebita||'';const vs=el('v-staffcos');if(vs)vs.value=e.staffcos||'';const vm=el('v-margem');if(vm)vm.value=e.margem||'';el('v-nt').value=e.notas||'';
+    const setIf=(id,v)=>{const x=el(id);if(x)x.value=v||'';};
+    setIf('v-cr-food-mes',e.crescimento_food_mes);setIf('v-cr-food-ano',e.crescimento_food_ano);
+    setIf('v-cr-total-mes',e.crescimento_total_mes);setIf('v-cr-total-ano',e.crescimento_total_ano);
+    setIf('v-quebra-total',e.quebra_total);setIf('v-quebra-food',e.quebra_food);
+    calcCrescimento();
+    const ve=el('v-ebita');if(ve)ve.value=e.ebita||'';const vs=el('v-staffcos');if(vs)vs.value=e.staffcos||'';const vm=el('v-margem');if(vm)vm.value=e.margem||'';el('v-nt').value=e.notas||'';
     try{vPhotos.cafe=JSON.parse(e.fotos_cafe||'[]');}catch(err){vPhotos.cafe=[];}
     try{vPhotos.nc=JSON.parse(e.fotos_nc||'[]');}catch(err){vPhotos.nc=[];}
     try{vRut=JSON.parse(e.rut_check||'{}');}catch(err){vRut={};}
-  }else if(!skipReset){['v-cs','v-cd','v-cr','v-nt'].forEach(i=>{const e=el(i);if(e)e.value='';});el('v-qe').value='';}
+  }else if(!skipReset){
+    ['v-cs','v-cd','v-nt','v-cr-food-mes','v-cr-food-ano','v-cr-food-dif','v-cr-total-mes','v-cr-total-ano','v-cr-total-dif','v-quebra-total','v-quebra-food'].forEach(i=>{const e=el(i);if(e)e.value='';});
+  }
   try{ renderPhotos('cafe');renderPhotos('nc'); }catch(e){}
   try{ await rVRut(); }catch(e){}
   // Restaurar visualmente botões estáticos de ruturas (sistema usado pelo utilizador)
@@ -2458,7 +2478,9 @@ async function saveV(){
     const entry={
       loja:vStore, data:now(), hora_inicio:hora_i,
       cafe_simples:val('v-cs'), cafe_duplo:val('v-cd'),
-      crescimento:val('v-cr'), estado_quebras:(el('v-qe')||{value:''}).value,
+      crescimento_food_mes:val('v-cr-food-mes'), crescimento_food_ano:val('v-cr-food-ano'),
+      crescimento_total_mes:val('v-cr-total-mes'), crescimento_total_ano:val('v-cr-total-ano'),
+      quebra_total:val('v-quebra-total'), quebra_food:val('v-quebra-food'),
       ebita:val('v-ebita'), staffcos:val('v-staffcos'), margem:val('v-margem'), notas:val('v-nt'),
       rut_check:JSON.stringify(vRut),
       checklist:JSON.stringify(chkMeta),
@@ -2834,7 +2856,10 @@ async function genRel(){
 
   const perfHtml = S('📈 Performance',
     `<table style="width:100%;font-size:12px;border-collapse:collapse">
-      <tr><td style="padding:4px 8px;color:#555;width:25%">Crescimento</td><td style="padding:4px 8px;font-weight:600">${val('v-cr')||'—'}</td><td style="padding:4px 8px;color:#555;width:25%">Quebras</td><td style="padding:4px 8px;font-weight:600">${(el('v-qe')||{value:'—'}).value||'—'}</td></tr>
+      <tr><td style="padding:4px 8px;color:#555;width:25%">Food / Mês</td><td style="padding:4px 8px;font-weight:600">${val('v-cr-food-mes')?val('v-cr-food-mes')+'%':'—'}</td><td style="padding:4px 8px;color:#555;width:25%">Food / Ano</td><td style="padding:4px 8px;font-weight:600">${val('v-cr-food-ano')?val('v-cr-food-ano')+'%':'—'}</td></tr>
+      <tr style="background:#f8f8f8"><td style="padding:4px 8px;color:#555">Dif. Food (Ano-Mês)</td><td style="padding:4px 8px;font-weight:600">${val('v-cr-food-dif')||'—'}</td><td style="padding:4px 8px;color:#555">Total / Mês</td><td style="padding:4px 8px;font-weight:600">${val('v-cr-total-mes')?val('v-cr-total-mes')+'%':'—'}</td></tr>
+      <tr><td style="padding:4px 8px;color:#555">Total / Ano</td><td style="padding:4px 8px;font-weight:600">${val('v-cr-total-ano')?val('v-cr-total-ano')+'%':'—'}</td><td style="padding:4px 8px;color:#555">Dif. Total (Ano-Mês)</td><td style="padding:4px 8px;font-weight:600">${val('v-cr-total-dif')||'—'}</td></tr>
+      <tr style="background:#f8f8f8"><td style="padding:4px 8px;color:#555">Quebra Total</td><td style="padding:4px 8px;font-weight:600">${val('v-quebra-total')||'—'}</td><td style="padding:4px 8px;color:#555">Quebra Food</td><td style="padding:4px 8px;font-weight:600">${val('v-quebra-food')||'—'}</td></tr>
       <tr style="background:#f8f8f8"><td style="padding:4px 8px;color:#555">EBITA</td><td style="padding:4px 8px;font-weight:600">${val('v-ebita')||'—'}</td><td style="padding:4px 8px;color:#555">Staffcos</td><td style="padding:4px 8px;font-weight:600">${val('v-staffcos')||'—'}</td></tr>
       <tr><td style="padding:4px 8px;color:#555">Margem</td><td style="padding:4px 8px;font-weight:600">${val('v-margem')||'—'}</td><td style="padding:4px 8px;color:#555">Notas</td><td style="padding:4px 8px">${val('v-nt')||'—'}</td></tr>
     </table>`
@@ -3286,6 +3311,21 @@ function setHaccp(id, val){ scheduleAutoSave();
   const failBtn= document.getElementById('hck-fail-'+id);
   if(okBtn)  { okBtn.classList.toggle('ok',   vHaccp[id]===true);  okBtn.classList.remove('fail'); }
   if(failBtn){ failBtn.classList.toggle('fail',vHaccp[id]===false); failBtn.classList.remove('ok'); }
+}
+
+function calcCrescimento(){
+  scheduleAutoSave();
+  const calc = (mesId, anoId, difId) => {
+    const mesEl = el(mesId), anoEl = el(anoId), difEl = el(difId);
+    if(!mesEl || !anoEl || !difEl) return;
+    const mes = parseFloat(mesEl.value), ano = parseFloat(anoEl.value);
+    if(isNaN(mes) || isNaN(ano)){ difEl.value=''; difEl.style.color=''; return; }
+    const dif = ano - mes;
+    difEl.value = (dif>=0?'+':'')+dif.toFixed(1)+'%';
+    difEl.style.color = dif>0?'var(--grn)':dif<0?'var(--red)':'var(--t2)';
+  };
+  calc('v-cr-food-mes','v-cr-food-ano','v-cr-food-dif');
+  calc('v-cr-total-mes','v-cr-total-ano','v-cr-total-dif');
 }
 
 function setConf(id, val){ scheduleAutoSave();
@@ -4073,8 +4113,12 @@ async function doAutoSave(){
       cafe_simples: val('v-cs'),
       cafe_duplo: val('v-cd'),
       cafe_comentario: (document.getElementById('v-cafe-comentario')||{value:''}).value,
-      crescimento: val('v-cr'),
-      estado_quebras: (el('v-qe')||{value:''}).value,
+      crescimento_food_mes: val('v-cr-food-mes'),
+      crescimento_food_ano: val('v-cr-food-ano'),
+      crescimento_total_mes: val('v-cr-total-mes'),
+      crescimento_total_ano: val('v-cr-total-ano'),
+      quebra_total: val('v-quebra-total'),
+      quebra_food: val('v-quebra-food'),
       ebita: val('v-ebita'),
       staffcos: val('v-staffcos'),
       margem: val('v-margem'),
@@ -4106,8 +4150,12 @@ async function doAutoSave(){
         cafe_simples: snapshot.cafe_simples,
         cafe_duplo: snapshot.cafe_duplo,
         cafe_comentario: snapshot.cafe_comentario,
-        crescimento: snapshot.crescimento,
-        estado_quebras: snapshot.estado_quebras,
+        crescimento_food_mes: snapshot.crescimento_food_mes,
+        crescimento_food_ano: snapshot.crescimento_food_ano,
+        crescimento_total_mes: snapshot.crescimento_total_mes,
+        crescimento_total_ano: snapshot.crescimento_total_ano,
+        quebra_total: snapshot.quebra_total,
+        quebra_food: snapshot.quebra_food,
         ebita: snapshot.ebita,
         staffcos: snapshot.staffcos,
         margem: snapshot.margem,
@@ -4173,8 +4221,12 @@ async function restoreAutoSave(store){
             cafe_simples: row.cafe_simples,
             cafe_duplo: row.cafe_duplo,
             cafe_comentario: row.cafe_comentario,
-            crescimento: row.crescimento,
-            estado_quebras: row.estado_quebras,
+            crescimento_food_mes: row.crescimento_food_mes,
+            crescimento_food_ano: row.crescimento_food_ano,
+            crescimento_total_mes: row.crescimento_total_mes,
+            crescimento_total_ano: row.crescimento_total_ano,
+            quebra_total: row.quebra_total,
+            quebra_food: row.quebra_food,
             ebita: row.ebita,
             staffcos: row.staffcos,
             margem: row.margem,
@@ -4243,8 +4295,13 @@ async function restoreAutoSave(store){
     if(el('v-cs')) el('v-cs').value = d.cafe_simples||'';
     if(el('v-cd')) el('v-cd').value = d.cafe_duplo||'';
     if(el('v-cafe-comentario')) el('v-cafe-comentario').value = d.cafe_comentario||'';
-    if(el('v-cr')) el('v-cr').value = d.crescimento||'';
-    if(el('v-qe')) el('v-qe').value = d.estado_quebras||'';
+    if(el('v-cr-food-mes')) el('v-cr-food-mes').value = d.crescimento_food_mes||'';
+    if(el('v-cr-food-ano')) el('v-cr-food-ano').value = d.crescimento_food_ano||'';
+    if(el('v-cr-total-mes')) el('v-cr-total-mes').value = d.crescimento_total_mes||'';
+    if(el('v-cr-total-ano')) el('v-cr-total-ano').value = d.crescimento_total_ano||'';
+    if(el('v-quebra-total')) el('v-quebra-total').value = d.quebra_total||'';
+    if(el('v-quebra-food')) el('v-quebra-food').value = d.quebra_food||'';
+    try{ calcCrescimento(); }catch(e){}
     if(el('v-ebita')) el('v-ebita').value = d.ebita||'';
     if(el('v-staffcos')) el('v-staffcos').value = d.staffcos||'';
     if(el('v-margem')) el('v-margem').value = d.margem||'';
