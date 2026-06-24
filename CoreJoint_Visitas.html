@@ -2701,7 +2701,7 @@ async function genRel(){
   const cafePhotosHtml = (vPhotos.cafe||[]).map(p=>
     '<span style="display:inline-block;text-align:center;vertical-align:top">'+
     '<img src="'+p.src+'" class="rep-photo">'+
-    '<span class="rep-photo-cap">'+(p.legenda||'Sem legenda')+'</span></span>'
+    (p.legenda?'<span class="rep-photo-cap">'+p.legenda+'</span>':'')+'</span>'
   ).join('');
 
   // Ordem do PDF = ordem da visita
@@ -2781,7 +2781,7 @@ async function genRel(){
       (st.fotos&&st.fotos.length ? st.fotos.map(f=>{
         const fsrc = (typeof f==='string') ? f : f.src;
         const fleg = (typeof f==='string') ? '' : (f.legenda||'');
-        return '<span style="display:inline-block;text-align:center;vertical-align:top"><img src="'+fsrc+'" class="rep-photo"><span class="rep-photo-cap">'+(fleg||'Sem legenda')+'</span></span>';
+        return '<span style="display:inline-block;text-align:center;vertical-align:top"><img src="'+fsrc+'" class="rep-photo">'+(fleg?'<span class="rep-photo-cap">'+fleg+'</span>':'')+'</span>';
       }).join('') : st.foto ? '<img src="'+st.foto+'" class="rep-photo">' : '<div class="rep-comment">Sem foto</div>')+
       '<div class="rep-comment'+(st.nota?' filled':'')+'">'+(st.nota||'Sem comentário')+'</div>';
     const block = '<div class="rep-card">'+
@@ -2807,7 +2807,7 @@ async function genRel(){
   const ncPhotosHtml = (vPhotos.nc||[]).map(p=>
     '<span style="display:inline-block;text-align:center;vertical-align:top">'+
     '<img src="'+p.src+'" class="rep-photo" style="border-color:#B0432F">'+
-    '<span class="rep-photo-cap" style="color:#B0432F">'+(p.legenda||'Sem legenda')+'</span></span>'
+    (p.legenda?'<span class="rep-photo-cap" style="color:#B0432F">'+p.legenda+'</span>':'')+'</span>'
   ).join('');
 
   const resumo = `${ncItems.length} NC · ${okItems.length} OK · ${fail.length} ruturas`;
