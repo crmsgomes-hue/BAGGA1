@@ -186,7 +186,7 @@
   <div id="v-stores"><div class="card"><div class="ch"><div class="ct">Selecionar Loja</div></div>
     <div class="sg" id="v-stores-grid"></div>
   </div>
-  <div class="card">
+  <div class="card" id="v-hist-card">
     <div class="ch"><div class="ct">📁 Histórico de Visitas</div></div>
     <div class="sg" id="v-hist-grid"></div>
   </div></div>
@@ -1290,6 +1290,9 @@ async function doLogin(){
   // CROP também pode auditar lojas — separador Visitas disponível para todos
   const visitasTab = document.querySelector('.ni[data-s="visitas"]');
   if(visitasTab) visitasTab.style.display = 'inline-flex';
+  // A CROP já tem o seu próprio separador "Histórico" — não precisa deste, embutido na página de Visitas
+  const histCard = document.getElementById('v-hist-card');
+  if(histCard) histCard.style.display = (CU&&CU.role==='crop') ? 'none' : 'block';
 
   safeShow('n-vis', adm()?'inline-flex':'none');
   renderStoreGrids();
@@ -2752,13 +2755,7 @@ async function genRel(){
     const border = st.conforme===false ? '#e02424' : st.conforme===true ? '#057a55' : '#ddd';
     const bodyContent = item.id==='fte' ? fteNumerosHtml :
       (item.id==='limpeza' ? haccpTableHtml : '')+
-      (st.fotos&&st.fotos.length ? st.fotos.map(f=>{
-        const fsrc = (typeof f==='string') ? f : f.src;
-        const fleg = (typeof f==='string') ? '' : (f.legenda||'');
-        return '<div style="display:inline-block;margin:3px;text-align:center;vertical-align:top">'+
-          '<img src="'+fsrc+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:block">'+
-          '<div style="font-size:10px;color:#555;margin-top:2px;max-width:120px">'+(fleg||'Sem legenda')+'</div></div>';
-      }).join('') : st.foto ? '<img src="'+st.foto+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:3px">' : '<div style="font-size:11px;color:#999;margin-bottom:7px;font-style:italic">Sem foto</div>')+
+      (st.fotos&&st.fotos.length ? st.fotos.map(f=>'<img src="'+f+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:3px">').join('') : st.foto ? '<img src="'+st.foto+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:3px">' : '<div style="font-size:11px;color:#999;margin-bottom:7px;font-style:italic">Sem foto</div>')+
       '<div style="font-size:12px;color:#555;background:#f9f9f9;padding:7px;border-radius:4px">'+(st.nota||'<em style="color:#aaa">Sem comentário</em>')+'</div>';
     const block = '<div style="border:1.5px solid '+border+';border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
@@ -2785,6 +2782,41 @@ async function genRel(){
     '<img src="'+p.src+'" style="width:130px;height:100px;object-fit:cover;border-radius:5px;border:2px solid #e02424;display:block">'+
     '<div style="font-size:10px;color:#e02424;margin-top:3px;max-width:130px">'+(p.legenda||'Sem legenda')+'</div></div>'
   ).join('');
+
+  // ── Fotos de todas as secções para o PDF ──────────────
+  const SECTION_PHOTOS = [
+    { key:'vitrine',      label:'Vitrine',         icon:'🪟' },
+    { key:'tabaco',       label:'Tabaco',           icon:'🚬' },
+    { key:'equipamentos', label:'Equipamentos',     icon:'🔧' },
+    { key:'limpeza',      label:'Limpeza / HACCP',  icon:'🧹' },
+    { key:'jsc',          label:'JSC',              icon:'☕' },
+    { key:'marketing',    label:'Marketing',        icon:'📣' },
+    { key:'rh_formacoes', label:'RH — Formações',   icon:'📚' },
+    { key:'rh_trocas',    label:'RH — Trocas',      icon:'🔄' },
+    { key:'rh_folgas',    label:'RH — Folgas',      icon:'📅' },
+    { key:'rh_bh',        label:'RH — Banco Horas', icon:'⏱' },
+    { key:'rh_ts',        label:'RH — Suplementar', icon:'⚠' },
+    { key:'rh_horarios',  label:'RH — Horários',    icon:'📋' },
+    { key:'rh_ferias',    label:'RH — Férias',      icon:'🏖' },
+    { key:'raid',         label:'RAID',             icon:'🚨' },
+  ];
+
+  const sectionPhotosHtml = SECTION_PHOTOS.map(s => {
+    const chkFotos = (vChecklist[s.key]&&vChecklist[s.key].fotos)||[];
+    const vPhotoFotos = (vPhotos[s.key]||[]).map(p=>({src:p.src||p,legenda:p.legenda||''}));
+    const photos = chkFotos.length ? chkFotos.map(src=>({src,legenda:''})) : vPhotoFotos;
+    if(!photos.length) return '';
+    const imgs = photos.map(p =>
+      '<div style="display:inline-block;margin:4px;text-align:center;vertical-align:top">' +
+      '<img src="'+p.src+'" style="width:130px;height:100px;object-fit:cover;border-radius:5px;border:1px solid #ddd;display:block">' +
+      '<div style="font-size:10px;color:#555;margin-top:3px;max-width:130px">'+(p.legenda||'Sem legenda')+'</div>' +
+      '</div>'
+    ).join('');
+    return '<div style="margin-bottom:14px;break-inside:avoid">' +
+      '<div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px">'+s.icon+' '+s.label+'</div>' +
+      '<div>'+imgs+'</div>' +
+      '</div>';
+  }).join('');
 
   const resumo = `${ncItems.length} NC · ${okItems.length} OK · ${fail.length} ruturas`;
 
@@ -3295,7 +3327,7 @@ function handleChkPhoto(id, input){ scheduleAutoSave();
     r.onload = function(e){
       compressPhoto(e.target.result, 800, 0.6, function(compressed){
         if(vStore !== _storeAtCapture) return; // discard if store changed
-        vChecklist[id].fotos.push({src:compressed, legenda:''});
+        vChecklist[id].fotos.push(compressed);
         vPhotos[id].push({src:compressed, legenda:''});
         vChecklist[id].foto = compressed;
         loaded++;
@@ -3317,11 +3349,9 @@ function renderChkPhotos(id){
   if(count) count.textContent = fotos.length>0 ? fotos.length+' foto(s)' : '';
   if(!prev) return;
   prev.innerHTML = '';
-  fotos.forEach(function(f,i){
-    const src = (typeof f==='string') ? f : f.src;
-    const legenda = (typeof f==='string') ? '' : (f.legenda||'');
+  fotos.forEach(function(src,i){
     const div = document.createElement('div');
-    div.style.cssText = 'display:inline-block;margin:4px;position:relative;vertical-align:top;text-align:center';
+    div.style.cssText = 'display:inline-block;margin:4px;position:relative;vertical-align:top';
     const img = document.createElement('img');
     img.src = src;
     img.style.cssText = 'width:90px;height:70px;object-fit:cover;border-radius:5px;border:1.5px solid var(--br);cursor:pointer;display:block';
@@ -3330,25 +3360,10 @@ function renderChkPhotos(id){
     btn.textContent = '✕';
     btn.style.cssText = 'position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:.7rem;cursor:pointer';
     btn.onclick = function(){ delChkPhoto(id,i); };
-    const legInput = document.createElement('input');
-    legInput.type = 'text';
-    legInput.placeholder = 'Legenda…';
-    legInput.value = legenda;
-    legInput.style.cssText = 'width:90px;font-size:.66rem;margin-top:3px;padding:3px 4px;border:1px solid var(--br);border-radius:4px;font-family:inherit';
-    legInput.onchange = function(){ setChkFotoLegenda(id, i, this.value); };
     div.appendChild(img);
     div.appendChild(btn);
-    div.appendChild(legInput);
     prev.appendChild(div);
   });
-}
-function setChkFotoLegenda(id, idx, val){
-  if(!vChecklist[id]||!vChecklist[id].fotos||!vChecklist[id].fotos[idx]) return;
-  const f = vChecklist[id].fotos[idx];
-  if(typeof f==='string') vChecklist[id].fotos[idx] = {src:f, legenda:val};
-  else f.legenda = val;
-  if(vPhotos[id] && vPhotos[id][idx]) vPhotos[id][idx].legenda = val;
-  scheduleAutoSave();
 }
 function delChkPhoto(id, idx){
   if(!vChecklist[id]||!vChecklist[id].fotos) return;
@@ -3574,13 +3589,37 @@ async function rHistorico(){
         '</div></div>';
     };
 
-    let html = '<div style="font-size:.78rem;color:var(--t2);margin-bottom:10px">📁 <strong>'+(CU&&CU.role==='crop'?cropVisits.length:histAll.length)+'</strong> relatório(s) guardado(s)</div>';
+    let html = '<div style="font-size:.78rem;color:var(--t2);margin-bottom:10px">📁 <strong>'+histAll.length+'</strong> relatório(s) guardado(s)</div>';
 
     if(CU && CU.role==='crop'){
-      // Histórico da CROP mostra SÓ as visitas feitas pela própria CROP
+      // Bloco próprio com as auditorias feitas pela CROP — separado dos GOPs
       const lojasComVisitaCrop = Object.keys(byLojaCrop);
-      html += (lojasComVisitaCrop.length ? lojasComVisitaCrop.map(l=>storeFolderHtml(l, byLojaCrop)).join('') :
-        '<div class="card" style="text-align:center;color:var(--t2);padding:24px">Ainda sem visitas auditadas pela CROP.</div>');
+      html += '<div style="border:1.5px solid var(--vio,#7c3aed);border-radius:var(--rb);margin-bottom:14px;overflow:hidden">' +
+        '<div style="background:#f5f3ff;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleHistFolder(\'hist-crop-own\')">' +
+        '<div style="font-weight:700;font-size:.85rem;color:#7c3aed">🟣 Auditorias feitas pela CROP</div>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span style="font-size:.72rem;color:#7c3aed;background:#fff;border-radius:99px;padding:2px 9px">'+cropVisits.length+'</span>' +
+        '<span style="color:#7c3aed">▾</span></div></div>' +
+        '<div id="hist-crop-own" style="display:none;padding:10px 12px;background:var(--bg)">' +
+        (lojasComVisitaCrop.length ? lojasComVisitaCrop.map(l=>storeFolderHtml(l, byLojaCrop)).join('') :
+          '<div style="color:var(--t2);font-size:.78rem;padding:6px">Ainda sem visitas auditadas pela CROP.</div>') +
+        '</div></div>';
+
+      // Agrupar por GOP, depois por loja dentro de cada GOP (sem incluir visitas da CROP)
+      Object.keys(GOP_STORES).forEach(gopId=>{
+        const lojasDoGop = GOP_STORES[gopId];
+        const totalGop = lojasDoGop.reduce((a,l)=>a+(byLoja[l]?byLoja[l].length:0),0);
+        const groupId = 'hist-gop-'+gopId;
+        html += '<div style="border:1.5px solid var(--ac);border-radius:var(--rb);margin-bottom:10px;overflow:hidden">' +
+          '<div style="background:var(--acl);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleHistFolder(\''+groupId+'\')">' +
+          '<div style="font-weight:700;font-size:.85rem;color:var(--ac)">👤 '+(GOP_NAMES[gopId]||gopId)+'</div>' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+          '<span style="font-size:.72rem;color:var(--ac);background:#fff;border-radius:99px;padding:2px 9px">'+totalGop+'</span>' +
+          '<span style="color:var(--ac)">▾</span></div></div>' +
+          '<div id="'+groupId+'" style="display:none;padding:10px 12px;background:var(--bg)">' +
+          lojasDoGop.map(l=>storeFolderHtml(l)).join('') +
+          '</div></div>';
+      });
     } else {
       lojasParaMostrar.forEach(loja=>{ html += storeFolderHtml(loja); });
     }
