@@ -4507,10 +4507,29 @@ async function rDashboard(){
     const atrasados = rows.filter(r=>r.prazo && r.prazo < today);
     const hoje = rows.filter(r=>r.prazo === today);
 
-    resumoEl.innerHTML =
-      '<div class="sc" style="flex:1;min-width:90px"><div class="slb">Total</div><div class="svl">'+rows.length+'</div></div>' +
-      '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🔴 Atrasados</div><div class="svl cr">'+atrasados.length+'</div></div>' +
-      '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🟡 Hoje</div><div class="svl co">'+hoje.length+'</div></div>';
+    const rowsCropOwn = rows.filter(r=>r.criado_por==='CROP');
+    const rowsOutros = rows.filter(r=>r.criado_por!=='CROP');
+
+    if(CU && CU.role==='crop'){
+      const atrasadosCrop = rowsCropOwn.filter(r=>r.prazo && r.prazo<today).length;
+      const hojeCrop = rowsCropOwn.filter(r=>r.prazo===today).length;
+      const atrasadosGop = rowsOutros.filter(r=>r.prazo && r.prazo<today).length;
+      const hojeGop = rowsOutros.filter(r=>r.prazo===today).length;
+      resumoEl.innerHTML =
+        '<div style="flex:1 1 100%;font-size:.7rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">🟣 Alertas CROP</div>' +
+        '<div class="sc" style="flex:1;min-width:90px"><div class="slb">Total</div><div class="svl">'+rowsCropOwn.length+'</div></div>' +
+        '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🔴 Atrasados</div><div class="svl cr">'+atrasadosCrop+'</div></div>' +
+        '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🟡 Hoje</div><div class="svl co">'+hojeCrop+'</div></div>' +
+        '<div style="flex:1 1 100%;font-size:.7rem;font-weight:700;color:var(--ac);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 2px">👤 Alertas GOP</div>' +
+        '<div class="sc" style="flex:1;min-width:90px"><div class="slb">Total</div><div class="svl">'+rowsOutros.length+'</div></div>' +
+        '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🔴 Atrasados</div><div class="svl cr">'+atrasadosGop+'</div></div>' +
+        '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🟡 Hoje</div><div class="svl co">'+hojeGop+'</div></div>';
+    } else {
+      resumoEl.innerHTML =
+        '<div class="sc" style="flex:1;min-width:90px"><div class="slb">Total</div><div class="svl">'+rows.length+'</div></div>' +
+        '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🔴 Atrasados</div><div class="svl cr">'+atrasados.length+'</div></div>' +
+        '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🟡 Hoje</div><div class="svl co">'+hoje.length+'</div></div>';
+    }
 
     if(!rows.length && CU && CU.role==='crop'){
       listEl.innerHTML = '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:24px">✅ Sem pendentes em aberto!</div>';
@@ -4521,9 +4540,6 @@ async function rDashboard(){
 
     if(CU && CU.role==='crop'){
       // Alertas que a própria CROP identificou — secção própria, sempre visível, nunca misturada
-      const rowsCropOwn = rows.filter(r=>r.criado_por==='CROP');
-      const rowsOutros = rows.filter(r=>r.criado_por!=='CROP');
-
       html += '<div style="font-size:.72rem;font-weight:700;color:#7c3aed;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">🟣 Alertas que identifiquei</div>';
       if(!rowsCropOwn.length){
         html += '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:20px;margin-bottom:16px">✅ Sem alertas meus em aberto!</div>';
@@ -4614,7 +4630,7 @@ async function rDashboard(){
         html += '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:20px">✅ Sem pendentes dos GOPs!</div>';
       }
     } else {
-      // GOP normal — agrupar por loja, com os alertas da CROP numa secção própria, sempre visível
+      // GOP normal — agrupar por loja (colapsável), com os alertas da CROP numa secção própria
       const rowsProprios = rows.filter(r=>r.criado_por!=='CROP');
       const rowsCrop = rows.filter(r=>r.criado_por==='CROP');
 
@@ -4625,10 +4641,18 @@ async function rDashboard(){
         rowsProprios.forEach(r=>{ if(!byLoja[r.loja]) byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
         Object.keys(byLoja).sort((a,b)=>sn(a).localeCompare(sn(b))).forEach(loja=>{
           const items = byLoja[loja];
-          html += '<div class="card" style="margin-bottom:10px">' +
-            '<div class="ch"><div class="ct">📍 '+sn(loja)+'</div><span class="bk bk-n">'+items.length+'</span></div>' +
+          const folderId = 'dash-own-loja-'+loja;
+          const atrasadosLoja = items.filter(r=>r.prazo && r.prazo<today).length;
+          html += '<div class="card" style="margin-bottom:10px;padding:0;overflow:hidden">' +
+            '<div style="padding:13px 15px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleDashFolder(\''+folderId+'\')">' +
+            '<div style="font-weight:700;font-size:.88rem">📍 '+sn(loja)+'</div>' +
+            '<div style="display:flex;align-items:center;gap:8px">' +
+            (atrasadosLoja>0 ? '<span class="bk bk-d">🔴 '+atrasadosLoja+'</span>' : '') +
+            '<span class="bk bk-n">'+items.length+'</span>' +
+            '<span style="color:var(--t2)">▾</span></div></div>' +
+            '<div id="'+folderId+'" style="display:none;padding:0 15px 13px">' +
             items.map(r=>renderPendenteItem(r, today)).join('') +
-            '</div>';
+            '</div></div>';
         });
       }
 
@@ -4640,10 +4664,18 @@ async function rDashboard(){
         rowsCrop.forEach(r=>{ if(!byLojaCrop[r.loja]) byLojaCrop[r.loja]=[]; byLojaCrop[r.loja].push(r); });
         Object.keys(byLojaCrop).sort((a,b)=>sn(a).localeCompare(sn(b))).forEach(loja=>{
           const items = byLojaCrop[loja];
-          html += '<div class="card" style="margin-bottom:10px;border-left:3px solid #7c3aed">' +
-            '<div class="ch"><div class="ct">📍 '+sn(loja)+'</div><span class="bk bk-n">'+items.length+'</span></div>' +
+          const folderId = 'dash-croppart-loja-'+loja;
+          const atrasadosLoja = items.filter(r=>r.prazo && r.prazo<today).length;
+          html += '<div class="card" style="margin-bottom:10px;padding:0;overflow:hidden;border-left:3px solid #7c3aed">' +
+            '<div style="padding:13px 15px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleDashFolder(\''+folderId+'\')">' +
+            '<div style="font-weight:700;font-size:.88rem">📍 '+sn(loja)+'</div>' +
+            '<div style="display:flex;align-items:center;gap:8px">' +
+            (atrasadosLoja>0 ? '<span class="bk bk-d">🔴 '+atrasadosLoja+'</span>' : '') +
+            '<span class="bk bk-n">'+items.length+'</span>' +
+            '<span style="color:var(--t2)">▾</span></div></div>' +
+            '<div id="'+folderId+'" style="display:none;padding:0 15px 13px">' +
             items.map(r=>renderPendenteItem(r, today)).join('') +
-            '</div>';
+            '</div></div>';
         });
       }
     }
