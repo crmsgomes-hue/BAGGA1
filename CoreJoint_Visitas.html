@@ -4528,14 +4528,43 @@ async function rDashboard(){
       if(!rowsCropOwn.length){
         html += '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:20px;margin-bottom:16px">✅ Sem alertas meus em aberto!</div>';
       } else {
-        const byLojaCropOwn = {};
-        rowsCropOwn.forEach(r=>{ if(!byLojaCropOwn[r.loja]) byLojaCropOwn[r.loja]=[]; byLojaCropOwn[r.loja].push(r); });
-        Object.keys(byLojaCropOwn).sort((a,b)=>sn(a).localeCompare(sn(b))).forEach(loja=>{
-          const items = byLojaCropOwn[loja];
-          html += '<div class="card" style="margin-bottom:10px;border-left:3px solid #7c3aed">' +
-            '<div class="ch"><div class="ct">📍 '+sn(loja)+'</div><span class="bk bk-n">'+items.length+'</span></div>' +
-            items.map(r=>renderPendenteItem(r, today)).join('') +
-            '</div>';
+        const byGopCropOwn = {};
+        rowsCropOwn.forEach(r=>{
+          const gopId = getGopByLoja(r.loja) || 'outras';
+          if(!byGopCropOwn[gopId]) byGopCropOwn[gopId]=[];
+          byGopCropOwn[gopId].push(r);
+        });
+        Object.keys(byGopCropOwn).sort((a,b)=>(GOP_NAMES[a]||a).localeCompare(GOP_NAMES[b]||b)).forEach(gopId=>{
+          const gopItems = byGopCropOwn[gopId];
+          const gopFolderId = 'dash-crop-gop-'+gopId;
+          const atrasadosGopCrop = gopItems.filter(r=>r.prazo && r.prazo<today).length;
+          const byLojaCropOwn = {};
+          gopItems.forEach(r=>{ if(!byLojaCropOwn[r.loja]) byLojaCropOwn[r.loja]=[]; byLojaCropOwn[r.loja].push(r); });
+          const lojasHtml = Object.keys(byLojaCropOwn).sort((a,b)=>sn(a).localeCompare(sn(b))).map(loja=>{
+            const items = byLojaCropOwn[loja];
+            const lojaFolderId = 'dash-crop-loja-'+gopId+'-'+loja;
+            const atrasadosLoja = items.filter(r=>r.prazo && r.prazo<today).length;
+            return '<div style="border:1px solid var(--br);border-radius:var(--rb);margin-bottom:8px;overflow:hidden">' +
+              '<div style="background:var(--sf2);padding:9px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleDashFolder(\''+lojaFolderId+'\')">' +
+              '<div style="font-weight:600;font-size:.82rem">📍 '+sn(loja)+'</div>' +
+              '<div style="display:flex;align-items:center;gap:7px">' +
+              (atrasadosLoja>0 ? '<span class="bk bk-d">🔴 '+atrasadosLoja+'</span>' : '') +
+              '<span class="bk bk-n">'+items.length+'</span>' +
+              '<span style="color:var(--t2);font-size:.8rem">▾</span></div></div>' +
+              '<div id="'+lojaFolderId+'" style="display:none;padding:9px 12px">' +
+              items.map(r=>renderPendenteItem(r, today)).join('') +
+              '</div></div>';
+          }).join('');
+          html += '<div class="card" style="margin-bottom:10px;padding:0;overflow:hidden;border-left:3px solid #7c3aed">' +
+            '<div style="padding:13px 15px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleDashFolder(\''+gopFolderId+'\')">' +
+            '<div style="font-weight:700;font-size:.92rem">👤 '+(GOP_NAMES[gopId]||'Outras lojas')+'</div>' +
+            '<div style="display:flex;align-items:center;gap:8px">' +
+            (atrasadosGopCrop>0 ? '<span class="bk bk-d">🔴 '+atrasadosGopCrop+'</span>' : '') +
+            '<span class="bk bk-n">'+gopItems.length+'</span>' +
+            '<span style="color:var(--t2)">▾</span></div></div>' +
+            '<div id="'+gopFolderId+'" style="display:none;padding:0 15px 13px">' +
+            lojasHtml +
+            '</div></div>';
         });
         html += '<div style="margin-bottom:16px"></div>';
       }
