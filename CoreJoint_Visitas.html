@@ -182,7 +182,7 @@
 </div>
 
 <div class="sec" id="s-visitas">
-  <div class="pt">Visitas GOP</div><div class="ps">Auditoria de loja com câmara e tarefas</div>
+  <div class="pt" id="v-page-title">Visitas GOP</div><div class="ps">Auditoria de loja com câmara e tarefas</div>
   <div id="v-stores"><div class="card"><div class="ch"><div class="ct">Selecionar Loja</div></div>
     <div class="sg" id="v-stores-grid"></div>
   </div>
@@ -1293,6 +1293,8 @@ async function doLogin(){
   // A CROP já tem o seu próprio separador "Histórico" — não precisa deste, embutido na página de Visitas
   const histCard = document.getElementById('v-hist-card');
   if(histCard) histCard.style.display = (CU&&CU.role==='crop') ? 'none' : 'block';
+  const pageTitle = document.getElementById('v-page-title');
+  if(pageTitle) pageTitle.textContent = (CU&&CU.role==='crop') ? 'Visitas CROP' : 'Visitas GOP';
 
   safeShow('n-vis', adm()?'inline-flex':'none');
   renderStoreGrids();
@@ -2031,8 +2033,8 @@ async function startV(store, skipReset=false){
     // Limpar UI — ruturas
     document.querySelectorAll('.cli .ck').forEach(b=>b.classList.remove('ok','fail'));
   }
-  const roleFilter = CU&&CU.role==='crop' ? '&saved_by_role=eq.crop' : '&saved_by_role=neq.crop';
-  const ex=await dbGet('cj_visitas','loja=eq.'+store+roleFilter+'&order=created_at.desc&limit=1');
+  // A CROP nunca herda valores de visitas anteriores (nem dela própria) — começa sempre em branco
+  const ex = (CU&&CU.role==='crop') ? [] : await dbGet('cj_visitas','loja=eq.'+store+'&saved_by_role=neq.crop&order=created_at.desc&limit=1');
   el('v-stores').style.display='none';el('v-form').style.display='block';
   el('v-name').textContent='📍 '+sn(store);el('v-dt').textContent='Data: '+now();
   if(!skipReset) setHoraAgora(); // só fixa hora em visita nova
