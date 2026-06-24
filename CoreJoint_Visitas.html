@@ -653,6 +653,12 @@
               <div id="proc-prog-bar" style="background:var(--grn);border-radius:99px;height:5px;width:0%;transition:width .3s"></div>
             </div>
           </div>
+          <!-- Foto + comentário geral dos Procedimentos (fora dos dossiês) -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px"><label for="pf-chk-procedimentos" class="cam-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">📷 <span>Câmara</span></label><label for="pf-chk-procedimentos-gal" class="cam-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:var(--sf2);border-color:var(--br);color:var(--t2)">📁 <span>Galeria</span></label></div>
+          <input type="file" accept="image/*" capture="environment" id="pf-chk-procedimentos" onchange="handleChkPhoto('procedimentos',this)" multiple style="display:none"><input type="file" accept="image/*" id="pf-chk-procedimentos-gal" onchange="handleChkPhoto('procedimentos',this)" multiple style="display:none">
+          <span id="chk-count-procedimentos" style="font-size:.69rem;color:var(--t2);margin-left:6px"></span>
+          <div id="chk-photo-prev-procedimentos" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:7px"></div>
+          <textarea class="jta" id="chk-nota-procedimentos" placeholder="Comentário / Observação geral sobre os procedimentos…" style="min-height:55px;margin-top:8px;margin-bottom:12px" onblur="saveChkNota('procedimentos')"></textarea>
           <!-- Seletor: qual(is) dossiê(s) vou auditar nesta visita -->
           <div style="margin-bottom:12px">
             <div style="font-size:.72rem;color:var(--t2);font-weight:600;margin-bottom:6px">📌 Seleciona os dossiês a auditar nesta visita:</div>
@@ -1995,7 +2001,7 @@ async function startV(store, skipReset=false){
   vStore=store;
   if(!skipReset){
     // ── LIMPAR TUDO — nova visita numa loja ──
-    vPhotos={cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],rh_horarios:[],rh_ferias:[],raid:[]};
+    vPhotos={cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],rh_horarios:[],rh_ferias:[],raid:[],procedimentos:[]};
     vRut={};vRutNotas={};vRutObs={};
     vChecklist={};
     vHaccp={};
@@ -2745,7 +2751,6 @@ async function genRel(){
     const confLabel = st.conforme===true ? '<span style="color:#057a55;font-weight:700">✅ Conforme</span>' : st.conforme===false ? '<span style="color:#e02424;font-weight:700">❌ Não Conforme</span>' : '';
     const border = st.conforme===false ? '#e02424' : st.conforme===true ? '#057a55' : '#ddd';
     const bodyContent = item.id==='fte' ? fteNumerosHtml :
-      item.id==='procedimentos' ? '' :
       (item.id==='limpeza' ? haccpTableHtml : '')+
       (st.fotos&&st.fotos.length ? st.fotos.map(f=>'<img src="'+f+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:3px">').join('') : st.foto ? '<img src="'+st.foto+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:3px">' : '<div style="font-size:11px;color:#999;margin-bottom:7px;font-style:italic">Sem foto</div>')+
       '<div style="font-size:12px;color:#555;background:#f9f9f9;padding:7px;border-radius:4px">'+(st.nota||'<em style="color:#aaa">Sem comentário</em>')+'</div>';
@@ -4198,7 +4203,7 @@ async function restoreAutoSave(store){
     vChegadaPhoto = null;
     vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],
                rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],
-               rh_horarios:[],rh_ferias:[],raid:[]};
+               rh_horarios:[],rh_ferias:[],raid:[],procedimentos:[]};
     // Limpar visual residual das ruturas (IDs fixos, fundo pintado por JS direto)
     document.querySelectorAll('[id^="rut-row-"]').forEach(r=>{ r.style.background=''; });
     document.querySelectorAll('[id^="rut-ok-"],[id^="rut-fail-"]').forEach(b=>{ b.classList.remove('ok','fail'); });
@@ -4635,7 +4640,7 @@ async function confirmarFinalizar(){
   _reportHtmlFinal = null;
   vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],
              rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],
-             rh_horarios:[],rh_ferias:[],raid:[]};
+             rh_horarios:[],rh_ferias:[],raid:[],procedimentos:[]};
   el('v-form').style.display = 'none';
   el('v-stores').style.display = 'block';
   const ind = document.getElementById('autosave-indicator');
