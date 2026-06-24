@@ -2031,7 +2031,8 @@ async function startV(store, skipReset=false){
     // Limpar UI — ruturas
     document.querySelectorAll('.cli .ck').forEach(b=>b.classList.remove('ok','fail'));
   }
-  const ex=await dbGet('cj_visitas','loja=eq.'+store+'&order=created_at.desc&limit=1');
+  const roleFilter = CU&&CU.role==='crop' ? '&saved_by_role=eq.crop' : '&saved_by_role=neq.crop';
+  const ex=await dbGet('cj_visitas','loja=eq.'+store+roleFilter+'&order=created_at.desc&limit=1');
   el('v-stores').style.display='none';el('v-form').style.display='block';
   el('v-name').textContent='📍 '+sn(store);el('v-dt').textContent='Data: '+now();
   if(!skipReset) setHoraAgora(); // só fixa hora em visita nova
@@ -4496,7 +4497,7 @@ async function rDashboard(){
   if(!resumoEl || !listEl) return;
   listEl.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:10px">A carregar...</div>';
   try{
-    const q = 'select=id,loja,codigo,descricao,notas,prazo,estado,justificacao&estado=eq.pendente&order=prazo.asc.nullslast';
+    const q = 'select=id,loja,codigo,descricao,notas,prazo,estado,justificacao,criado_por&estado=eq.pendente&order=prazo.asc.nullslast';
     const allRows = await dbGet('cj_tarefas', q) || [];
     const rows = allRows.filter(r => STORES.includes(r.loja));
     const today = new Date().toISOString().slice(0,10);
@@ -4517,9 +4518,30 @@ async function rDashboard(){
     let html = '';
 
     if(CU && CU.role==='crop'){
-      // Agrupar por GOP (cada GOP é uma pasta colapsável)
+      // Alertas que a própria CROP identificou — secção própria, sempre visível, nunca misturada
+      const rowsCropOwn = rows.filter(r=>r.criado_por==='CROP');
+      const rowsOutros = rows.filter(r=>r.criado_por!=='CROP');
+
+      html += '<div style="font-size:.72rem;font-weight:700;color:#7c3aed;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">🟣 Alertas que identifiquei</div>';
+      if(!rowsCropOwn.length){
+        html += '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:20px;margin-bottom:16px">✅ Sem alertas meus em aberto!</div>';
+      } else {
+        const byLojaCropOwn = {};
+        rowsCropOwn.forEach(r=>{ if(!byLojaCropOwn[r.loja]) byLojaCropOwn[r.loja]=[]; byLojaCropOwn[r.loja].push(r); });
+        Object.keys(byLojaCropOwn).sort((a,b)=>sn(a).localeCompare(sn(b))).forEach(loja=>{
+          const items = byLojaCropOwn[loja];
+          html += '<div class="card" style="margin-bottom:10px;border-left:3px solid #7c3aed">' +
+            '<div class="ch"><div class="ct">📍 '+sn(loja)+'</div><span class="bk bk-n">'+items.length+'</span></div>' +
+            items.map(r=>renderPendenteItem(r, today)).join('') +
+            '</div>';
+        });
+        html += '<div style="margin-bottom:16px"></div>';
+      }
+
+      // Agrupar por GOP (cada GOP é uma pasta colapsável) — sem incluir os alertas da própria CROP
+      html += '<div style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">👤 Alertas por GOP</div>';
       const byGop = {};
-      rows.forEach(r=>{
+      rowsOutros.forEach(r=>{
         const gopId = getGopByLoja(r.loja) || 'outras';
         if(!byGop[gopId]) byGop[gopId]=[];
         byGop[gopId].push(r);
@@ -4539,6 +4561,9 @@ async function rDashboard(){
           items.map(r=>renderPendenteItem(r, today)).join('') +
           '</div></div>';
       });
+      if(!Object.keys(byGop).length){
+        html += '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:20px">✅ Sem pendentes dos GOPs!</div>';
+      }
     } else {
       // GOP normal — agrupar por loja, com os alertas da CROP numa secção própria, sempre visível
       const rowsProprios = rows.filter(r=>r.criado_por!=='CROP');
