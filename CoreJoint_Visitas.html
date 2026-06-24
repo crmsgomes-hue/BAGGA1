@@ -3574,37 +3574,13 @@ async function rHistorico(){
         '</div></div>';
     };
 
-    let html = '<div style="font-size:.78rem;color:var(--t2);margin-bottom:10px">📁 <strong>'+histAll.length+'</strong> relatório(s) guardado(s)</div>';
+    let html = '<div style="font-size:.78rem;color:var(--t2);margin-bottom:10px">📁 <strong>'+(CU&&CU.role==='crop'?cropVisits.length:histAll.length)+'</strong> relatório(s) guardado(s)</div>';
 
     if(CU && CU.role==='crop'){
-      // Bloco próprio com as auditorias feitas pela CROP — separado dos GOPs
+      // Histórico da CROP mostra SÓ as visitas feitas pela própria CROP
       const lojasComVisitaCrop = Object.keys(byLojaCrop);
-      html += '<div style="border:1.5px solid var(--vio,#7c3aed);border-radius:var(--rb);margin-bottom:14px;overflow:hidden">' +
-        '<div style="background:#f5f3ff;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleHistFolder(\'hist-crop-own\')">' +
-        '<div style="font-weight:700;font-size:.85rem;color:#7c3aed">🟣 Auditorias feitas pela CROP</div>' +
-        '<div style="display:flex;align-items:center;gap:8px">' +
-        '<span style="font-size:.72rem;color:#7c3aed;background:#fff;border-radius:99px;padding:2px 9px">'+cropVisits.length+'</span>' +
-        '<span style="color:#7c3aed">▾</span></div></div>' +
-        '<div id="hist-crop-own" style="display:none;padding:10px 12px;background:var(--bg)">' +
-        (lojasComVisitaCrop.length ? lojasComVisitaCrop.map(l=>storeFolderHtml(l, byLojaCrop)).join('') :
-          '<div style="color:var(--t2);font-size:.78rem;padding:6px">Ainda sem visitas auditadas pela CROP.</div>') +
-        '</div></div>';
-
-      // Agrupar por GOP, depois por loja dentro de cada GOP (sem incluir visitas da CROP)
-      Object.keys(GOP_STORES).forEach(gopId=>{
-        const lojasDoGop = GOP_STORES[gopId];
-        const totalGop = lojasDoGop.reduce((a,l)=>a+(byLoja[l]?byLoja[l].length:0),0);
-        const groupId = 'hist-gop-'+gopId;
-        html += '<div style="border:1.5px solid var(--ac);border-radius:var(--rb);margin-bottom:10px;overflow:hidden">' +
-          '<div style="background:var(--acl);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleHistFolder(\''+groupId+'\')">' +
-          '<div style="font-weight:700;font-size:.85rem;color:var(--ac)">👤 '+(GOP_NAMES[gopId]||gopId)+'</div>' +
-          '<div style="display:flex;align-items:center;gap:8px">' +
-          '<span style="font-size:.72rem;color:var(--ac);background:#fff;border-radius:99px;padding:2px 9px">'+totalGop+'</span>' +
-          '<span style="color:var(--ac)">▾</span></div></div>' +
-          '<div id="'+groupId+'" style="display:none;padding:10px 12px;background:var(--bg)">' +
-          lojasDoGop.map(l=>storeFolderHtml(l)).join('') +
-          '</div></div>';
-      });
+      html += (lojasComVisitaCrop.length ? lojasComVisitaCrop.map(l=>storeFolderHtml(l, byLojaCrop)).join('') :
+        '<div class="card" style="text-align:center;color:var(--t2);padding:24px">Ainda sem visitas auditadas pela CROP.</div>');
     } else {
       lojasParaMostrar.forEach(loja=>{ html += storeFolderHtml(loja); });
     }
