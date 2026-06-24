@@ -2823,12 +2823,11 @@ async function genRel(){
 
   const perfHtml = S('Performance',
     `<table class="rep-table">
-      <tr><td class="lbl">Food / Mês</td><td class="val">${val('v-cr-food-mes')?val('v-cr-food-mes')+'%':'—'}</td><td class="lbl">Food / Ano</td><td class="val">${val('v-cr-food-ano')?val('v-cr-food-ano')+'%':'—'}</td></tr>
-      <tr><td class="lbl">Dif. Food (Ano-Mês)</td><td class="val">${val('v-cr-food-dif')||'—'}</td><td class="lbl">Total / Mês</td><td class="val">${val('v-cr-total-mes')?val('v-cr-total-mes')+'%':'—'}</td></tr>
-      <tr><td class="lbl">Total / Ano</td><td class="val">${val('v-cr-total-ano')?val('v-cr-total-ano')+'%':'—'}</td><td class="lbl">Dif. Total (Ano-Mês)</td><td class="val">${val('v-cr-total-dif')||'—'}</td></tr>
-      <tr><td class="lbl">Quebra Total</td><td class="val">${val('v-quebra-total')||'—'}</td><td class="lbl">Quebra Food</td><td class="val">${val('v-quebra-food')||'—'}</td></tr>
-      <tr><td class="lbl">EBITA</td><td class="val">${val('v-ebita')||'—'}</td><td class="lbl">Staffcos</td><td class="val">${val('v-staffcos')||'—'}</td></tr>
-      <tr><td class="lbl">Margem</td><td class="val">${val('v-margem')||'—'}</td><td class="lbl">Notas</td><td class="val" style="font-weight:400">${val('v-nt')||'—'}</td></tr>
+      <tr><td class="lbl">Food / Mês</td><td class="val">${val('v-cr-food-mes')?val('v-cr-food-mes')+'%':'—'}</td><td class="lbl">Food / Ano</td><td class="val">${val('v-cr-food-ano')?val('v-cr-food-ano')+'%':'—'}</td><td class="lbl">Dif. (Ano-Mês)</td><td class="val">${val('v-cr-food-dif')||'—'}</td></tr>
+      <tr><td class="lbl">Total / Mês</td><td class="val">${val('v-cr-total-mes')?val('v-cr-total-mes')+'%':'—'}</td><td class="lbl">Total / Ano</td><td class="val">${val('v-cr-total-ano')?val('v-cr-total-ano')+'%':'—'}</td><td class="lbl">Dif. (Ano-Mês)</td><td class="val">${val('v-cr-total-dif')||'—'}</td></tr>
+      <tr><td class="lbl">Quebra Total</td><td class="val">${val('v-quebra-total')||'—'}</td><td class="lbl">Quebra Food</td><td class="val">${val('v-quebra-food')||'—'}</td><td class="lbl">EBITA</td><td class="val">${val('v-ebita')||'—'}</td></tr>
+      <tr><td class="lbl">Staffcos</td><td class="val">${val('v-staffcos')||'—'}</td><td class="lbl">Margem</td><td class="val">${val('v-margem')||'—'}</td><td class="lbl"></td><td class="val"></td></tr>
+      <tr><td class="lbl" style="vertical-align:top">Notas</td><td class="val" colspan="5" style="font-weight:400">${val('v-nt')||'—'}</td></tr>
     </table>`
   );
 
@@ -2846,7 +2845,7 @@ async function genRel(){
     table.rep-table{width:100%;border-collapse:collapse;font-size:12px}
     table.rep-table td{padding:6px 6px}
     table.rep-table tr:nth-child(odd){background:#f3eee2}
-    table.rep-table td.lbl{color:#6b5d4f;width:25%}
+    table.rep-table td.lbl{color:#6b5d4f;white-space:nowrap}
     table.rep-table td.val{font-weight:700;color:#2b2118}
     .rep-card{background:#fff;border:1px solid #e8ddc9;border-radius:3px;padding:14px 16px;margin-bottom:11px;break-inside:avoid}
     .rep-card-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
@@ -3356,7 +3355,7 @@ function handleChkPhoto(id, input){ scheduleAutoSave();
     r.onload = function(e){
       compressPhoto(e.target.result, 800, 0.6, function(compressed){
         if(vStore !== _storeAtCapture) return; // discard if store changed
-        vChecklist[id].fotos.push(compressed);
+        vChecklist[id].fotos.push({src:compressed, legenda:''});
         vPhotos[id].push({src:compressed, legenda:''});
         vChecklist[id].foto = compressed;
         loaded++;
@@ -3378,9 +3377,11 @@ function renderChkPhotos(id){
   if(count) count.textContent = fotos.length>0 ? fotos.length+' foto(s)' : '';
   if(!prev) return;
   prev.innerHTML = '';
-  fotos.forEach(function(src,i){
+  fotos.forEach(function(f,i){
+    const src = (typeof f==='string') ? f : f.src;
+    const legenda = (typeof f==='string') ? '' : (f.legenda||'');
     const div = document.createElement('div');
-    div.style.cssText = 'display:inline-block;margin:4px;position:relative;vertical-align:top';
+    div.style.cssText = 'display:inline-block;margin:4px;position:relative;vertical-align:top;text-align:center';
     const img = document.createElement('img');
     img.src = src;
     img.style.cssText = 'width:90px;height:70px;object-fit:cover;border-radius:5px;border:1.5px solid var(--br);cursor:pointer;display:block';
@@ -3389,10 +3390,25 @@ function renderChkPhotos(id){
     btn.textContent = '✕';
     btn.style.cssText = 'position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:.7rem;cursor:pointer';
     btn.onclick = function(){ delChkPhoto(id,i); };
+    const legInput = document.createElement('input');
+    legInput.type = 'text';
+    legInput.placeholder = 'Legenda…';
+    legInput.value = legenda;
+    legInput.style.cssText = 'width:90px;font-size:.66rem;margin-top:3px;padding:3px 4px;border:1px solid var(--br);border-radius:4px;font-family:inherit';
+    legInput.onchange = function(){ setChkFotoLegenda(id, i, this.value); };
     div.appendChild(img);
     div.appendChild(btn);
+    div.appendChild(legInput);
     prev.appendChild(div);
   });
+}
+function setChkFotoLegenda(id, idx, val){
+  if(!vChecklist[id]||!vChecklist[id].fotos||!vChecklist[id].fotos[idx]) return;
+  const f = vChecklist[id].fotos[idx];
+  if(typeof f==='string') vChecklist[id].fotos[idx] = {src:f, legenda:val};
+  else f.legenda = val;
+  if(vPhotos[id] && vPhotos[id][idx]) vPhotos[id][idx].legenda = val;
+  scheduleAutoSave();
 }
 function delChkPhoto(id, idx){
   if(!vChecklist[id]||!vChecklist[id].fotos) return;
