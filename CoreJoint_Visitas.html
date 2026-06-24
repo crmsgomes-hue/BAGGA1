@@ -2699,9 +2699,9 @@ async function genRel(){
   const fail=staticRutItems.filter(item=>vRut[mkId(item)]==='fail');
   const ok=staticRutItems.filter(item=>vRut[mkId(item)]==='ok');
   const cafePhotosHtml = (vPhotos.cafe||[]).map(p=>
-    '<div style="display:inline-block;margin:5px;text-align:center;vertical-align:top">'+
-    '<img src="'+p.src+'" style="width:130px;height:100px;object-fit:cover;border-radius:5px;border:1px solid #ddd;display:block">'+
-    '<div style="font-size:10px;color:#555;margin-top:3px;max-width:130px">'+(p.legenda||'Sem legenda')+'</div></div>'
+    '<span style="display:inline-block;text-align:center;vertical-align:top">'+
+    '<img src="'+p.src+'" class="rep-photo">'+
+    '<span class="rep-photo-cap">'+(p.legenda||'Sem legenda')+'</span></span>'
   ).join('');
 
   // Ordem do PDF = ordem da visita
@@ -2715,53 +2715,52 @@ async function genRel(){
     {id:'dlus',label:'DLUS'},{id:'iogurte',label:'Iogurte'},
     {id:'laranjas',label:'Laranjas'},{id:'manteiga',label:'Manteiga'}
   ];
-  const haccpTableHtml = '<div style="margin-top:8px;margin-bottom:8px"><table style="width:100%;font-size:11px;border-collapse:collapse">'+
-    '<thead><tr style="background:#f3f4f6"><th style="padding:4px 8px;text-align:left">Registo</th><th style="padding:4px 8px;text-align:center">Estado</th></tr></thead><tbody>'+
+  const haccpTableHtml = '<table class="rep-table" style="margin:8px 0">'+
+    '<tr style="background:none;border-bottom:1px solid #e8ddc9"><td class="lbl" style="font-weight:600">Registo</td><td class="lbl" style="font-weight:600;text-align:center">Estado</td></tr>'+
     HACCP_ITEMS_RPT.map(h=>{
       const v = vHaccp[h.id];
-      const st = v===true ? '<span style="color:#057a55">✅</span>' : v===false ? '<span style="color:#e02424">❌</span>' : '<span style="color:#999">—</span>';
-      return '<tr style="border-bottom:1px solid #f3f4f6"><td style="padding:4px 8px">'+h.label+'</td><td style="padding:4px 8px;text-align:center">'+st+'</td></tr>';
+      const st = v===true ? '<span style="color:#5C7A5C;font-weight:700">✓</span>' : v===false ? '<span style="color:#B0432F;font-weight:700">✕</span>' : '<span style="color:#a8987f">—</span>';
+      return '<tr><td>'+h.label+'</td><td style="text-align:center">'+st+'</td></tr>';
     }).join('')+
-    '</tbody></table></div>';
+    '</table>';
 
   const ncItems = allChkItems.filter(item => vChecklist[item.id]&&vChecklist[item.id].conforme===false);
   const okItems = allChkItems.filter(item => vChecklist[item.id]&&vChecklist[item.id].conforme===true);
   const pendItems = allChkItems.filter(item => !vChecklist[item.id]||vChecklist[item.id].conforme===null);
-  const cafeSection = '<div style="border:1.5px solid #ddd;border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
-    '<div style="font-size:13px;font-weight:700">☕ Pesagem de Café</div></div>'+
-    '<table style="width:100%;font-size:12px;border-collapse:collapse">'+
-    '<tr><td style="padding:4px 8px;color:#555">Dose Simples</td><td style="padding:4px 8px;font-weight:600">'+(val('v-cs')||'—')+'g</td>'+
-    '<td style="padding:4px 8px;color:#555">Dose Dupla</td><td style="padding:4px 8px;font-weight:600">'+(val('v-cd')||'—')+'g</td></tr></table>'+
+  const cafeSection = '<div class="rep-card">'+
+    '<div class="rep-card-hd"><div class="rep-card-title">Pesagem de Café</div></div>'+
+    '<table class="rep-table">'+
+    '<tr><td class="lbl">Dose Simples</td><td class="val">'+(val('v-cs')||'—')+'g</td>'+
+    '<td class="lbl">Dose Dupla</td><td class="val">'+(val('v-cd')||'—')+'g</td></tr></table>'+
     (cafePhotosHtml ? '<div style="margin-top:8px">'+cafePhotosHtml+'</div>' : '')+
-    (val('v-cafe-comentario') ? '<div style="font-size:12px;color:#555;background:#f9f9f9;padding:7px;border-radius:4px;margin-top:8px">'+val('v-cafe-comentario')+'</div>' : '')+
+    (val('v-cafe-comentario') ? '<div class="rep-comment filled" style="margin-top:8px">'+val('v-cafe-comentario')+'</div>' : '')+
     '</div>';
 
   const rutSection = fail.length>0
-    ? '<div style="border:1.5px solid #e02424;border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
-      '<div style="font-size:13px;font-weight:700;color:#e02424;margin-bottom:8px">⚠ Ruturas de Rede ('+fail.length+')</div>'+
-      '<ul style="font-size:12px;padding-left:18px;margin:0;columns:2">'+fail.map(f=>'<li style="color:#e02424;margin-bottom:3px">'+f+'</li>').join('')+'</ul>'+
+    ? '<div class="rep-card" style="border-color:#B0432F">'+
+      '<div class="rep-card-title" style="color:#B0432F;margin-bottom:8px">⚠ Ruturas de Rede ('+fail.length+')</div>'+
+      '<ul style="font-size:12px;padding-left:18px;margin:0;columns:2">'+fail.map(f=>'<li style="color:#B0432F;margin-bottom:3px">'+f+'</li>').join('')+'</ul>'+
       '</div>'
-    : '<div style="border:1.5px solid #057a55;border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
-      '<div style="font-size:13px;font-weight:700;color:#057a55">✅ Ruturas de Rede — Sem ruturas registadas</div>'+
+    : '<div class="rep-card" style="border-color:#5C7A5C">'+
+      '<div class="rep-card-title" style="color:#5C7A5C">✓ Ruturas de Rede — Sem ruturas registadas</div>'+
       '</div>';
 
   const dossiersSelecionados = procDossiers.filter(d=>procSelected.includes(d.id));
-  const dossiersSection = dossiersSelecionados.length ? '<div style="border:1.5px solid #ddd;border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
-    '<div style="font-size:13px;font-weight:700;margin-bottom:8px">📂 Dossiês de Procedimentos</div>'+
+  const dossiersSection = dossiersSelecionados.length ? '<div class="rep-card">'+
+    '<div class="rep-card-title" style="margin-bottom:8px">📂 Dossiês de Procedimentos</div>'+
     dossiersSelecionados.map(d=>{
       const sepsHtml = d.seps.map(s=>{
         const ans = procAnswers[s.id]||{};
         const st = ans.state;
-        const icon = st==='ok' ? '<span style="color:#057a55;font-weight:700">✅ Conforme</span>' : st==='nok' ? '<span style="color:#e02424;font-weight:700">❌ Não Conforme</span>' : st==='na' ? '<span style="color:#999;font-weight:700">➖ N/A</span>' : '<span style="color:#999">—</span>';
-        return '<div style="padding:6px 0;border-bottom:1px solid #f3f4f6">'+
+        const icon = st==='ok' ? '<span class="rep-badge ok">✓ Conforme</span>' : st==='nok' ? '<span class="rep-badge fail">✕ Não Conforme</span>' : st==='na' ? '<span style="color:#a8987f;font-weight:700;font-size:11px">➖ N/A</span>' : '<span style="color:#a8987f;font-size:11px">—</span>';
+        return '<div style="padding:6px 0;border-bottom:1px solid #f1ece0">'+
           '<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;font-weight:600">'+s.name+'</span>'+icon+'</div>'+
-          (ans.obs ? '<div style="font-size:11px;color:#555;background:#f9f9f9;padding:5px 8px;border-radius:4px;margin-top:4px">'+ans.obs+'</div>' : '')+
+          (ans.obs ? '<div class="rep-comment filled" style="margin-top:4px;font-size:11px">'+ans.obs+'</div>' : '')+
           '</div>';
       }).join('');
       return '<div style="margin-bottom:10px">'+
-        '<div style="font-size:12px;font-weight:700;color:#1a56db;margin-bottom:4px">📁 '+d.name+'</div>'+
-        (d.seps.length ? sepsHtml : '<div style="font-size:11px;color:#999;font-style:italic">Sem separadores</div>')+
+        '<div style="font-size:12px;font-weight:700;color:#C1622D;margin-bottom:4px">📁 '+d.name+'</div>'+
+        (d.seps.length ? sepsHtml : '<div class="rep-comment">Sem separadores</div>')+
         '</div>';
     }).join('')+
     '</div>' : '';
@@ -2772,19 +2771,22 @@ async function genRel(){
   const fteReal = fteData.ftes_real||'—';
   const fteDiff = (parseFloat(fteData.ftes_real)||0)-(parseFloat(fteData.ftes_definido)||0);
   const fteDesvio = fteData.ftes_definido&&fteData.ftes_real?(fteDiff>=0?'+':'')+fteDiff.toFixed(1):'—';
-  const fteNumerosHtml = '<table style="font-size:12px;margin-top:4px"><tr><td style="padding:3px 10px 3px 0;color:#555">FTEs Definido</td><td style="font-weight:700">'+fteDef+'</td><td style="padding:3px 10px;color:#555">FTEs Real</td><td style="font-weight:700">'+fteReal+'</td><td style="padding:3px 10px;color:#555">Desvio</td><td style="font-weight:700;color:'+(fteDiff<0?'#e02424':fteDiff>0?'#d97706':'#057a55')+'">'+fteDesvio+'</td></tr></table>'+(fteData.comentario?'<div style="font-size:12px;color:#555;background:#f9f9f9;padding:7px;border-radius:4px;margin-top:6px">'+fteData.comentario+'</div>':'');
+  const fteNumerosHtml = '<table class="rep-table"><tr><td class="lbl">FTEs Definido</td><td class="val">'+fteDef+'</td><td class="lbl">FTEs Real</td><td class="val">'+fteReal+'</td><td class="lbl">Desvio</td><td class="val" style="color:'+(fteDiff<0?'#B0432F':fteDiff>0?'#C1622D':'#5C7A5C')+'">'+fteDesvio+'</td></tr></table>'+(fteData.comentario?'<div class="rep-comment filled" style="margin-top:6px">'+fteData.comentario+'</div>':'');
 
   const chkHtml = allChkItems.map(item => {
     const st = vChecklist[item.id]||{};
-    const confLabel = st.conforme===true ? '<span style="color:#057a55;font-weight:700">✅ Conforme</span>' : st.conforme===false ? '<span style="color:#e02424;font-weight:700">❌ Não Conforme</span>' : '';
-    const border = st.conforme===false ? '#e02424' : st.conforme===true ? '#057a55' : '#ddd';
+    const confLabel = st.conforme===true ? '<span class="rep-badge ok">✓ Conforme</span>' : st.conforme===false ? '<span class="rep-badge fail">✕ Não Conforme</span>' : '';
     const bodyContent = item.id==='fte' ? fteNumerosHtml :
       (item.id==='limpeza' ? haccpTableHtml : '')+
-      (st.fotos&&st.fotos.length ? st.fotos.map(f=>'<img src="'+f+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:3px">').join('') : st.foto ? '<img src="'+st.foto+'" style="width:120px;height:90px;object-fit:cover;border-radius:5px;border:1px solid #eee;display:inline-block;margin:3px">' : '<div style="font-size:11px;color:#999;margin-bottom:7px;font-style:italic">Sem foto</div>')+
-      '<div style="font-size:12px;color:#555;background:#f9f9f9;padding:7px;border-radius:4px">'+(st.nota||'<em style="color:#aaa">Sem comentário</em>')+'</div>';
-    const block = '<div style="border:1.5px solid '+border+';border-radius:7px;padding:12px;margin-bottom:10px;break-inside:avoid">'+
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
-      '<div style="font-size:13px;font-weight:700">'+item.label+'</div>'+
+      (st.fotos&&st.fotos.length ? st.fotos.map(f=>{
+        const fsrc = (typeof f==='string') ? f : f.src;
+        const fleg = (typeof f==='string') ? '' : (f.legenda||'');
+        return '<span style="display:inline-block;text-align:center;vertical-align:top"><img src="'+fsrc+'" class="rep-photo"><span class="rep-photo-cap">'+(fleg||'Sem legenda')+'</span></span>';
+      }).join('') : st.foto ? '<img src="'+st.foto+'" class="rep-photo">' : '<div class="rep-comment">Sem foto</div>')+
+      '<div class="rep-comment'+(st.nota?' filled':'')+'">'+(st.nota||'Sem comentário')+'</div>';
+    const block = '<div class="rep-card">'+
+      '<div class="rep-card-hd">'+
+      '<div class="rep-card-title">'+item.label.replace(/^[^\s]+\s/,'')+'</div>'+
       '<div>'+confLabel+'</div></div>'+
       bodyContent+
       '</div>';
@@ -2797,51 +2799,16 @@ async function genRel(){
 
   const chegadaHtml = vChegadaPhoto ?
     '<div style="margin-bottom:16px;break-inside:avoid">'+
-    '<div style="font-size:12px;font-weight:700;color:#1a56db;border-bottom:1px solid #eee;padding-bottom:5px;margin-bottom:8px">📷 Foto de Chegada</div>'+
-    '<img src="'+vChegadaPhoto+'" style="width:200px;height:150px;object-fit:cover;border-radius:6px;border:2px solid #93c5fd">'+
+    '<div class="rep-sec" style="margin-bottom:8px">Foto de Chegada</div>'+
+    '<img src="'+vChegadaPhoto+'" style="width:200px;height:150px;object-fit:cover;border-radius:4px;border:2px solid #e8ddc9">'+
     '</div>' : '';
 
 
   const ncPhotosHtml = (vPhotos.nc||[]).map(p=>
-    '<div style="display:inline-block;margin:5px;text-align:center;vertical-align:top">'+
-    '<img src="'+p.src+'" style="width:130px;height:100px;object-fit:cover;border-radius:5px;border:2px solid #e02424;display:block">'+
-    '<div style="font-size:10px;color:#e02424;margin-top:3px;max-width:130px">'+(p.legenda||'Sem legenda')+'</div></div>'
+    '<span style="display:inline-block;text-align:center;vertical-align:top">'+
+    '<img src="'+p.src+'" class="rep-photo" style="border-color:#B0432F">'+
+    '<span class="rep-photo-cap" style="color:#B0432F">'+(p.legenda||'Sem legenda')+'</span></span>'
   ).join('');
-
-  // ── Fotos de todas as secções para o PDF ──────────────
-  const SECTION_PHOTOS = [
-    { key:'vitrine',      label:'Vitrine',         icon:'🪟' },
-    { key:'tabaco',       label:'Tabaco',           icon:'🚬' },
-    { key:'equipamentos', label:'Equipamentos',     icon:'🔧' },
-    { key:'limpeza',      label:'Limpeza / HACCP',  icon:'🧹' },
-    { key:'jsc',          label:'JSC',              icon:'☕' },
-    { key:'marketing',    label:'Marketing',        icon:'📣' },
-    { key:'rh_formacoes', label:'RH — Formações',   icon:'📚' },
-    { key:'rh_trocas',    label:'RH — Trocas',      icon:'🔄' },
-    { key:'rh_folgas',    label:'RH — Folgas',      icon:'📅' },
-    { key:'rh_bh',        label:'RH — Banco Horas', icon:'⏱' },
-    { key:'rh_ts',        label:'RH — Suplementar', icon:'⚠' },
-    { key:'rh_horarios',  label:'RH — Horários',    icon:'📋' },
-    { key:'rh_ferias',    label:'RH — Férias',      icon:'🏖' },
-    { key:'raid',         label:'RAID',             icon:'🚨' },
-  ];
-
-  const sectionPhotosHtml = SECTION_PHOTOS.map(s => {
-    const chkFotos = (vChecklist[s.key]&&vChecklist[s.key].fotos)||[];
-    const vPhotoFotos = (vPhotos[s.key]||[]).map(p=>({src:p.src||p,legenda:p.legenda||''}));
-    const photos = chkFotos.length ? chkFotos.map(src=>({src,legenda:''})) : vPhotoFotos;
-    if(!photos.length) return '';
-    const imgs = photos.map(p =>
-      '<div style="display:inline-block;margin:4px;text-align:center;vertical-align:top">' +
-      '<img src="'+p.src+'" style="width:130px;height:100px;object-fit:cover;border-radius:5px;border:1px solid #ddd;display:block">' +
-      '<div style="font-size:10px;color:#555;margin-top:3px;max-width:130px">'+(p.legenda||'Sem legenda')+'</div>' +
-      '</div>'
-    ).join('');
-    return '<div style="margin-bottom:14px;break-inside:avoid">' +
-      '<div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px">'+s.icon+' '+s.label+'</div>' +
-      '<div>'+imgs+'</div>' +
-      '</div>';
-  }).join('');
 
   const resumo = `${ncItems.length} NC · ${okItems.length} OK · ${fail.length} ruturas`;
 
@@ -2849,47 +2816,66 @@ async function genRel(){
   const loicaReportSection='';
 
   const S = (label, content) =>
-    `<div style="margin-bottom:20px;break-inside:avoid">
-      <div style="font-size:13px;font-weight:700;text-transform:uppercase;color:#1a56db;border-bottom:2px solid #1a56db;padding-bottom:5px;margin-bottom:10px">${label}</div>
+    `<div style="margin-bottom:18px;break-inside:avoid">
+      <div class="rep-sec">${label}</div>
       ${content}
     </div>`;
 
-  const perfHtml = S('📈 Performance',
-    `<table style="width:100%;font-size:12px;border-collapse:collapse">
-      <tr><td style="padding:4px 8px;color:#555;width:25%">Food / Mês</td><td style="padding:4px 8px;font-weight:600">${val('v-cr-food-mes')?val('v-cr-food-mes')+'%':'—'}</td><td style="padding:4px 8px;color:#555;width:25%">Food / Ano</td><td style="padding:4px 8px;font-weight:600">${val('v-cr-food-ano')?val('v-cr-food-ano')+'%':'—'}</td></tr>
-      <tr style="background:#f8f8f8"><td style="padding:4px 8px;color:#555">Dif. Food (Ano-Mês)</td><td style="padding:4px 8px;font-weight:600">${val('v-cr-food-dif')||'—'}</td><td style="padding:4px 8px;color:#555">Total / Mês</td><td style="padding:4px 8px;font-weight:600">${val('v-cr-total-mes')?val('v-cr-total-mes')+'%':'—'}</td></tr>
-      <tr><td style="padding:4px 8px;color:#555">Total / Ano</td><td style="padding:4px 8px;font-weight:600">${val('v-cr-total-ano')?val('v-cr-total-ano')+'%':'—'}</td><td style="padding:4px 8px;color:#555">Dif. Total (Ano-Mês)</td><td style="padding:4px 8px;font-weight:600">${val('v-cr-total-dif')||'—'}</td></tr>
-      <tr style="background:#f8f8f8"><td style="padding:4px 8px;color:#555">Quebra Total</td><td style="padding:4px 8px;font-weight:600">${val('v-quebra-total')||'—'}</td><td style="padding:4px 8px;color:#555">Quebra Food</td><td style="padding:4px 8px;font-weight:600">${val('v-quebra-food')||'—'}</td></tr>
-      <tr style="background:#f8f8f8"><td style="padding:4px 8px;color:#555">EBITA</td><td style="padding:4px 8px;font-weight:600">${val('v-ebita')||'—'}</td><td style="padding:4px 8px;color:#555">Staffcos</td><td style="padding:4px 8px;font-weight:600">${val('v-staffcos')||'—'}</td></tr>
-      <tr><td style="padding:4px 8px;color:#555">Margem</td><td style="padding:4px 8px;font-weight:600">${val('v-margem')||'—'}</td><td style="padding:4px 8px;color:#555">Notas</td><td style="padding:4px 8px">${val('v-nt')||'—'}</td></tr>
+  const perfHtml = S('Performance',
+    `<table class="rep-table">
+      <tr><td class="lbl">Food / Mês</td><td class="val">${val('v-cr-food-mes')?val('v-cr-food-mes')+'%':'—'}</td><td class="lbl">Food / Ano</td><td class="val">${val('v-cr-food-ano')?val('v-cr-food-ano')+'%':'—'}</td></tr>
+      <tr><td class="lbl">Dif. Food (Ano-Mês)</td><td class="val">${val('v-cr-food-dif')||'—'}</td><td class="lbl">Total / Mês</td><td class="val">${val('v-cr-total-mes')?val('v-cr-total-mes')+'%':'—'}</td></tr>
+      <tr><td class="lbl">Total / Ano</td><td class="val">${val('v-cr-total-ano')?val('v-cr-total-ano')+'%':'—'}</td><td class="lbl">Dif. Total (Ano-Mês)</td><td class="val">${val('v-cr-total-dif')||'—'}</td></tr>
+      <tr><td class="lbl">Quebra Total</td><td class="val">${val('v-quebra-total')||'—'}</td><td class="lbl">Quebra Food</td><td class="val">${val('v-quebra-food')||'—'}</td></tr>
+      <tr><td class="lbl">EBITA</td><td class="val">${val('v-ebita')||'—'}</td><td class="lbl">Staffcos</td><td class="val">${val('v-staffcos')||'—'}</td></tr>
+      <tr><td class="lbl">Margem</td><td class="val">${val('v-margem')||'—'}</td><td class="lbl">Notas</td><td class="val" style="font-weight:400">${val('v-nt')||'—'}</td></tr>
     </table>`
   );
 
   const reportHtml = `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>Relatório Visita — ${sn(vStore)}</title>
-  <style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#111}@media print{body{margin:0;padding:15px}.no-print{display:none!important}}</style></head><body>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body{font-family:'Source Sans 3',Arial,sans-serif;max-width:800px;margin:0 auto;padding:28px;color:#2b2118;background:#FAF7F2}
+    .rep-brand{font-family:'Fraunces',Georgia,serif;font-weight:700;font-size:22px;color:#C1622D}
+    .rep-doctitle{font-family:'Fraunces',Georgia,serif;font-weight:600;font-style:italic;font-size:15px;color:#2b2118;margin-top:2px}
+    .rep-meta{font-size:12px;color:#6b5d4f;margin-top:10px;line-height:1.7}
+    .rep-meta b{color:#2b2118}
+    .rep-resumo{font-size:12px;color:#5C7A5C;font-weight:600;margin:12px 0 4px;padding-left:11px;border-left:3px solid #5C7A5C}
+    .rep-sec{font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:15px;color:#C1622D;margin:22px 0 10px;padding-bottom:5px;border-bottom:2px solid #e8ddc9;break-inside:avoid}
+    table.rep-table{width:100%;border-collapse:collapse;font-size:12px}
+    table.rep-table td{padding:6px 6px}
+    table.rep-table tr:nth-child(odd){background:#f3eee2}
+    table.rep-table td.lbl{color:#6b5d4f;width:25%}
+    table.rep-table td.val{font-weight:700;color:#2b2118}
+    .rep-card{background:#fff;border:1px solid #e8ddc9;border-radius:3px;padding:14px 16px;margin-bottom:11px;break-inside:avoid}
+    .rep-card-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+    .rep-card-title{font-weight:600;font-size:14px;color:#2b2118}
+    .rep-badge{font-size:11px;font-weight:700}
+    .rep-badge.ok{color:#5C7A5C}
+    .rep-badge.fail{color:#B0432F}
+    .rep-comment{font-size:11px;color:#6b5d4f;font-style:italic}
+    .rep-comment.filled{color:#3f362b;font-style:normal;background:#f7f3ea;padding:7px 9px;border-radius:3px}
+    .rep-photo{width:118px;height:88px;object-fit:cover;border-radius:3px;border:1px solid #e8ddc9;display:inline-block;margin:0 6px 6px 0;vertical-align:top}
+    .rep-photo-cap{font-size:9px;color:#6b5d4f;max-width:118px;display:block;margin:2px 6px 6px 0}
+    @media print{body{margin:0;padding:18px}.no-print{display:none!important}}
+  </style></head><body>
   <div id="pdf-report">
-  <div style="border-bottom:3px solid #1a56db;padding-bottom:12px;margin-bottom:20px">
-    <div style="font-size:22px;font-weight:800;color:#1a56db">CoreJoint · Bagga</div>
-    <div style="font-size:16px;font-weight:700;margin-top:4px">Relatório de Visita GOP</div>
-    <table style="margin-top:8px;font-size:12px;color:#555;border-collapse:collapse"><tr>
-      <td style="padding-right:20px;padding-top:4px"><strong>Loja:</strong> ${sn(vStore)}</td>
-      <td style="padding-right:20px;padding-top:4px"><strong>Data:</strong> ${now()}</td>
-      <td style="padding-right:20px;padding-top:4px"><strong>Hora chegada:</strong> ${hinicio}</td>
-      <td style="padding-top:4px"><strong>Por:</strong> ${who()}</td>
-    </tr></table>
-    <div style="margin-top:8px;font-size:12px;padding:6px 10px;background:#f0f4ff;border-radius:5px;display:inline-block">
-      📊 Resumo: <strong>${ncItems.length} não conformidades</strong> · <strong>${okItems.length} conforme</strong> · <strong>${fail.length} ruturas</strong>
-    </div>
+  <div style="margin-bottom:18px">
+    <div class="rep-brand">CoreJoint</div>
+    <div class="rep-doctitle">Relatório de Visita — Bagga</div>
+    <div class="rep-meta">Loja <b>${sn(vStore)}</b> &nbsp;·&nbsp; Data <b>${now()}</b> &nbsp;·&nbsp; Chegada <b>${hinicio}</b> &nbsp;·&nbsp; Auditor <b>${who()}</b></div>
+    <div class="rep-resumo">${ncItems.length} não conformidades · ${okItems.length} conforme · ${fail.length} ruturas</div>
   </div>
   ${chegadaHtml}
   ${perfHtml}
   ${chkHtml}
-  <div style="margin-top:40px;border-top:1px solid #eee;padding-top:14px;display:flex;justify-content:space-between;font-size:11px;color:#aaa">
+  <div style="margin-top:36px;border-top:1px solid #e8ddc9;padding-top:13px;display:flex;justify-content:space-between;font-size:10px;color:#a8987f">
     <div>CoreJoint · Bagga · ${now()}</div><div>${who()}</div>
   </div>
   </div>
   <div class="no-print" style="margin-top:20px;text-align:center">
-    <button onclick="window.print()" style="padding:10px 24px;background:#1a56db;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;font-family:Arial">🖨️ Imprimir / Guardar PDF</button>
+    <button onclick="window.print()" style="padding:10px 24px;background:#C1622D;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;font-family:'Source Sans 3',Arial">🖨️ Imprimir / Guardar PDF</button>
   </div>
   </body></html>`;
 
