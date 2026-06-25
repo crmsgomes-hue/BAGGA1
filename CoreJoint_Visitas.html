@@ -223,13 +223,13 @@
           <div class="fr">
             <div class="fg"><label>Food / Mês (%)</label><input type="number" class="fc" id="v-cr-food-mes" step="0.1" placeholder="3.2" oninput="calcCrescimento()"></div>
             <div class="fg"><label>Food / Ano (%)</label><input type="number" class="fc" id="v-cr-food-ano" step="0.1" placeholder="4.5" oninput="calcCrescimento()"></div>
-            <div class="fg"><label>Diferença (Ano-Mês)</label><input type="text" class="fc" id="v-cr-food-dif" readonly style="background:var(--sf2);font-weight:700"></div>
+            <div class="fg"><label>Diferença (Mês-Ano)</label><input type="text" class="fc" id="v-cr-food-dif" readonly style="background:var(--sf2);font-weight:700"></div>
           </div>
           <div style="font-size:.71rem;font-weight:700;color:var(--t2);margin:10px 0 6px">📊 Crescimento — Total</div>
           <div class="fr">
             <div class="fg"><label>Total / Mês (%)</label><input type="number" class="fc" id="v-cr-total-mes" step="0.1" placeholder="2.8" oninput="calcCrescimento()"></div>
             <div class="fg"><label>Total / Ano (%)</label><input type="number" class="fc" id="v-cr-total-ano" step="0.1" placeholder="3.9" oninput="calcCrescimento()"></div>
-            <div class="fg"><label>Diferença (Ano-Mês)</label><input type="text" class="fc" id="v-cr-total-dif" readonly style="background:var(--sf2);font-weight:700"></div>
+            <div class="fg"><label>Diferença (Mês-Ano)</label><input type="text" class="fc" id="v-cr-total-dif" readonly style="background:var(--sf2);font-weight:700"></div>
           </div>
           <div style="font-size:.71rem;font-weight:700;color:var(--t2);margin:10px 0 6px">📉 Quebra</div>
           <div class="fr">
@@ -2831,8 +2831,8 @@ async function genRel(){
 
   const perfHtml = S('Performance',
     `<table class="rep-table">
-      <tr><td class="lbl">Food / Mês</td><td class="val">${val('v-cr-food-mes')?val('v-cr-food-mes')+'%':'—'}</td><td class="lbl">Food / Ano</td><td class="val">${val('v-cr-food-ano')?val('v-cr-food-ano')+'%':'—'}</td><td class="lbl">Dif. (Ano-Mês)</td><td class="val">${val('v-cr-food-dif')||'—'}</td></tr>
-      <tr><td class="lbl">Total / Mês</td><td class="val">${val('v-cr-total-mes')?val('v-cr-total-mes')+'%':'—'}</td><td class="lbl">Total / Ano</td><td class="val">${val('v-cr-total-ano')?val('v-cr-total-ano')+'%':'—'}</td><td class="lbl">Dif. (Ano-Mês)</td><td class="val">${val('v-cr-total-dif')||'—'}</td></tr>
+      <tr><td class="lbl">Food / Mês</td><td class="val">${val('v-cr-food-mes')?val('v-cr-food-mes')+'%':'—'}</td><td class="lbl">Food / Ano</td><td class="val">${val('v-cr-food-ano')?val('v-cr-food-ano')+'%':'—'}</td><td class="lbl">Dif. (Mês-Ano)</td><td class="val">${val('v-cr-food-dif')||'—'}</td></tr>
+      <tr><td class="lbl">Total / Mês</td><td class="val">${val('v-cr-total-mes')?val('v-cr-total-mes')+'%':'—'}</td><td class="lbl">Total / Ano</td><td class="val">${val('v-cr-total-ano')?val('v-cr-total-ano')+'%':'—'}</td><td class="lbl">Dif. (Mês-Ano)</td><td class="val">${val('v-cr-total-dif')||'—'}</td></tr>
       <tr><td class="lbl">Quebra Total</td><td class="val">${val('v-quebra-total')||'—'}</td><td class="lbl">Quebra Food</td><td class="val">${val('v-quebra-food')||'—'}</td><td class="lbl">EBITA</td><td class="val">${val('v-ebita')||'—'}</td></tr>
       <tr><td class="lbl">Staffcos</td><td class="val">${val('v-staffcos')||'—'}</td><td class="lbl">Margem</td><td class="val">${val('v-margem')||'—'}</td><td class="lbl"></td><td class="val"></td></tr>
       <tr><td class="lbl" style="vertical-align:top">Notas</td><td class="val" colspan="5" style="font-weight:400">${val('v-nt')||'—'}</td></tr>
@@ -3313,7 +3313,7 @@ function calcCrescimento(){
     if(!mesEl || !anoEl || !difEl) return;
     const mes = parseFloat(mesEl.value), ano = parseFloat(anoEl.value);
     if(isNaN(mes) || isNaN(ano)){ difEl.value=''; difEl.style.color=''; return; }
-    const dif = ano - mes;
+    const dif = mes - ano;
     difEl.value = (dif>=0?'+':'')+dif.toFixed(1)+'%';
     difEl.style.color = dif>0?'var(--grn)':dif<0?'var(--red)':'var(--t2)';
   };
@@ -4159,11 +4159,26 @@ async function doAutoSave(){
       fotos_cafe: JSON.stringify(vPhotos.cafe||[]),
     };
 
-    // Guardar APENAS na chave desta loja
+    // Guardar localmente (cache rápida no mesmo dispositivo) — NUNCA deve bloquear o Supabase,
+    // mesmo que o limite de armazenamento do browser seja atingido (acontece com muitas fotos).
     const key = getAutoSaveKey(saveStore);
-    localStorage.setItem(key, JSON.stringify(snapshot));
+    try{
+      localStorage.setItem(key, JSON.stringify(snapshot));
+    }catch(quotaErr){
+      console.warn('AutoSave localStorage cheio, a limpar rascunhos de outras lojas e a tentar novamente:', quotaErr);
+      try{
+        // Limpar cópias locais de OUTRAS lojas (já estão a salvo no Supabase) para libertar espaço
+        Object.keys(localStorage).forEach(k=>{
+          if(k.startsWith('cj_as_') && k!==key) localStorage.removeItem(k);
+        });
+        localStorage.setItem(key, JSON.stringify(snapshot));
+      }catch(quotaErr2){
+        console.warn('AutoSave: armazenamento local indisponível mesmo após limpeza — a continuar só com Supabase.', quotaErr2);
+      }
+    }
 
-    // Guardar também no Supabase (fonte de verdade, sobrevive a limpeza de cache)
+    // Guardar também no Supabase (fonte de verdade, sobrevive a limpeza de cache) — corre SEMPRE,
+    // independentemente do resultado do localStorage acima.
     try{
       const sbId = getAutoSaveId(saveStore);
       const dbRow = {
