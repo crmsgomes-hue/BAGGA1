@@ -3297,7 +3297,7 @@ function initChecklist(){
   } // end else
 }
 
-function setHaccp(id, val){ scheduleAutoSave();
+function setHaccp(id, val){ forceImmediateSave();
   if(vHaccp[id]===val){ vHaccp[id]=null; }
   else { vHaccp[id]=val; }
   const okBtn  = document.getElementById('hck-ok-'+id);
@@ -4098,8 +4098,22 @@ function getAutoSaveId(store){ return 'as_' + (store||vStore) + (CU&&CU.role==='
 function scheduleAutoSave(){
   if(!vStore) return;
   if(_autoSaveTimer) clearTimeout(_autoSaveTimer);
-  _autoSaveTimer = setTimeout(doAutoSave, 5000); // 5 segundos
+  _autoSaveTimer = setTimeout(doAutoSave, 1200); // 1.2 segundos — reduzido para diminuir a janela de risco de perda de dados ao fechar a app rapidamente
 }
+
+// Rede de segurança: se o utilizador sair da app (fechar, trocar de app, bloquear o
+// telemóvel) antes do debounce disparar, grava imediatamente para não perder
+// as últimas marcações (ex: HACCP, ruturas) feitas mesmo antes de saír.
+function forceImmediateSave(){
+  if(!vStore) return;
+  if(_autoSaveTimer){ clearTimeout(_autoSaveTimer); _autoSaveTimer=null; }
+  try{ doAutoSave(); }catch(e){}
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') forceImmediateSave(); });
+window.addEventListener('pagehide', forceImmediateSave);
+// 'freeze' é o sinal mais fiável em Android/Chrome para apps PWA suspensas pelo sistema
+// (troca de app, gesto de fechar) — chega antes do processo poder ser terminado.
+document.addEventListener('freeze', forceImmediateSave);
 
 async function doAutoSave(){
   if(!vStore) return;
