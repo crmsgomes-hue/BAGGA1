@@ -2020,6 +2020,10 @@ function switchVTab(t){
   if(t==='tasks')rVTasks();
 }
 async function startV(store, skipReset=false){
+  // Antes de trocar de loja, garantir que qualquer gravação ainda a caminho da loja
+  // anterior termina primeiro — caso contrário, ao limpar o estado global a seguir,
+  // essa gravação podia acabar a usar os dados da loja NOVA por engano.
+  if(vStore && vStore!==store){ try{ await runAutoSave(); }catch(e){} }
   vStore=store;
   if(!skipReset){
     // ── LIMPAR TUDO — nova visita numa loja ──
@@ -4323,48 +4327,61 @@ async function clearAutoSave(store){
 
 async function restoreAutoSave(store){
   try{
+    // Mesma proteção do startV: terminar primeiro qualquer gravação pendente da loja anterior.
+    if(vStore && vStore!==store){ try{ await runAutoSave(); }catch(e){} }
     const key = getAutoSaveKey(store);
-    let d = JSON.parse(localStorage.getItem(key)||'null');
+    let d = null;
+    let dLocal = null;
+    try{ dLocal = JSON.parse(localStorage.getItem(key)||'null'); }catch(e){ dLocal = null; }
+    if(dLocal && dLocal.loja !== store) dLocal = null;
 
-    // Se não há cópia local (ex: cache/cookies limpos), buscar do Supabase
-    if(!d || d.loja !== store){
-      try{
-        const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+getAutoSaveId(store));
-        if(rows && rows.length){
-          const row = rows[0];
-          d = {
-            loja: row.loja,
-            ts: row.data,
-            hora_inicio: row.hora_inicio,
-            cafe_simples: row.cafe_simples,
-            cafe_duplo: row.cafe_duplo,
-            cafe_comentario: row.cafe_comentario,
-            crescimento_food_mes: row.crescimento_food_mes,
-            crescimento_food_ano: row.crescimento_food_ano,
-            crescimento_total_mes: row.crescimento_total_mes,
-            crescimento_total_ano: row.crescimento_total_ano,
-            quebra_total: row.quebra_total,
-            quebra_food: row.quebra_food,
-            ebita: row.ebita,
-            staffcos: row.staffcos,
-            margem: row.margem,
-            notas: row.notas,
-            rut_check: row.rut_check,
-            checklist: row.checklist,
-            haccp: row.haccp,
-            proc_answers: row.proc_answers,
-            proc_selected: row.proc_selected,
-            rh_comentario: row.rh_comentario,
-            rh_ftes_definido: row.rh_ftes_definido,
-            rh_ftes_real: row.rh_ftes_real,
-            fotos_chegada: row.fotos_chegada,
-            fotos_cafe: row.fotos_cafe
-          };
-          // Repor cópia local para acelerar próximas leituras
-          try{ localStorage.setItem(key, JSON.stringify(d)); }catch(e){}
-        }
-      }catch(e){ console.warn('restoreAutoSave Supabase fallback:', e); }
+    // Vai sempre confirmar com o Supabase qual das duas cópias é mais recente — nunca confia
+    // às escuras na cópia local. Isto evita que uma cópia local antiga (por exemplo, se uma
+    // gravação anterior não tiver chegado a atualizá-la) "reviva" dados antigos e, ao gravar
+    // de novo, apague por cima algo mais recente que já estava a salvo no servidor.
+    let dRemote = null;
+    try{
+      const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+getAutoSaveId(store));
+      if(rows && rows.length){
+        const row = rows[0];
+        dRemote = {
+          loja: row.loja,
+          ts: row.data,
+          hora_inicio: row.hora_inicio,
+          cafe_simples: row.cafe_simples,
+          cafe_duplo: row.cafe_duplo,
+          cafe_comentario: row.cafe_comentario,
+          crescimento_food_mes: row.crescimento_food_mes,
+          crescimento_food_ano: row.crescimento_food_ano,
+          crescimento_total_mes: row.crescimento_total_mes,
+          crescimento_total_ano: row.crescimento_total_ano,
+          quebra_total: row.quebra_total,
+          quebra_food: row.quebra_food,
+          ebita: row.ebita,
+          staffcos: row.staffcos,
+          margem: row.margem,
+          notas: row.notas,
+          rut_check: row.rut_check,
+          checklist: row.checklist,
+          haccp: row.haccp,
+          proc_answers: row.proc_answers,
+          proc_selected: row.proc_selected,
+          rh_comentario: row.rh_comentario,
+          rh_ftes_definido: row.rh_ftes_definido,
+          rh_ftes_real: row.rh_ftes_real,
+          fotos_chegada: row.fotos_chegada,
+          fotos_cafe: row.fotos_cafe
+        };
+      }
+    }catch(e){ console.warn('restoreAutoSave Supabase fallback:', e); }
+
+    // Escolher a cópia mais recente entre a local e a do servidor (nunca a local "por defeito")
+    if(dLocal && dRemote){
+      d = (new Date(dLocal.ts).getTime() >= new Date(dRemote.ts).getTime()) ? dLocal : dRemote;
+    } else {
+      d = dLocal || dRemote;
     }
+    if(d){ try{ localStorage.setItem(key, JSON.stringify(d)); }catch(e){} } // manter a local sincronizada com a escolhida
 
     if(!d || d.loja !== store) return; // segurança: só restaura se for desta loja
 
