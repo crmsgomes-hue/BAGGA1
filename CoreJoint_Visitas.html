@@ -1994,6 +1994,7 @@ function handleCamPhoto(type,input){
       vPhotos[type]=vPhotos[type]||[];
       vPhotos[type].push({src:compressed,legenda:''});
       renderPhotos(type);
+      forceImmediateSave();
     });
   };
   r.readAsDataURL(input.files[0]);input.value='';
@@ -2004,10 +2005,13 @@ function renderPhotos(type){
     <div class="photo-item">
       <img src="${p.src}" onclick="bigPhoto('${p.src}')">
       <button class="photo-del" onclick="delPhoto('${type}',${i})">✕</button>
-      <input class="photo-legend" type="text" placeholder="Legenda…" value="${p.legenda||''}" onchange="vPhotos['${type}'][${i}].legenda=this.value">
+      <input class="photo-legend" type="text" placeholder="Legenda…" value="${p.legenda||''}" onchange="setCamFotoLegenda('${type}',${i},this.value)">
     </div>`).join('');
 }
-function delPhoto(type,idx){vPhotos[type].splice(idx,1);renderPhotos(type);}
+function setCamFotoLegenda(type,idx,val){
+  if(vPhotos[type] && vPhotos[type][idx]){ vPhotos[type][idx].legenda = val; scheduleAutoSave(); }
+}
+function delPhoto(type,idx){vPhotos[type].splice(idx,1);renderPhotos(type);scheduleAutoSave();}
 
 function switchVTab(t){
   document.querySelectorAll('#v-form .stab').forEach((e,i)=>e.classList.toggle('on',(i===0&&t==='audit')||(i===1&&t==='tasks')));
@@ -2693,9 +2697,10 @@ function delChegadaPhoto(){
   const img = document.getElementById('chegada-img');
   if(img) img.src = '#';
   toast('Foto removida.');
+  scheduleAutoSave();
 }
 
-function handleChegadaPhoto(input){ scheduleAutoSave();
+function handleChegadaPhoto(input){
   if(!input.files||!input.files[0]) return;
   const _storeAtCapture = vStore;
   const r = new FileReader();
@@ -2706,6 +2711,7 @@ function handleChegadaPhoto(input){ scheduleAutoSave();
       const preview = document.getElementById('chegada-preview');
       const img = document.getElementById('chegada-img');
       if(preview && img){ img.src = vChegadaPhoto; preview.style.display = 'block'; }
+      forceImmediateSave();
     });
   };
   r.readAsDataURL(input.files[0]);
@@ -3369,7 +3375,7 @@ function compressPhoto(dataUrl, maxWidth, quality, callback){
   img.src = dataUrl;
 }
 
-function handleChkPhoto(id, input){ scheduleAutoSave();
+function handleChkPhoto(id, input){
   if(!input.files||!input.files.length) return;
   if(!vChecklist[id]) vChecklist[id]={fotos:[],nota:'',conforme:null};
   if(!vChecklist[id].fotos) vChecklist[id].fotos=[];
@@ -3389,6 +3395,10 @@ function handleChkPhoto(id, input){ scheduleAutoSave();
         if(loaded===files.length){
           renderChkPhotos(id);
           toast(files.length>1 ? files.length+' fotos adicionadas!' : 'Foto adicionada!');
+          // Só aqui, com a(s) foto(s) já em memória, é que faz sentido agendar a gravação.
+          // Agendar antes (como acontecia) podia disparar o autosave a meio da compressão,
+          // gravando uma versão sem a foto ainda.
+          forceImmediateSave();
         }
       });
     };
@@ -3442,6 +3452,7 @@ function delChkPhoto(id, idx){
   vChecklist[id].fotos.splice(idx,1);
   if(vPhotos[id]) vPhotos[id].splice(idx,1);
   renderChkPhotos(id);
+  scheduleAutoSave();
 }
 
 function saveChkNota(id){
