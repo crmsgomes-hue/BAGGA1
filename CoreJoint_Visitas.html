@@ -2343,6 +2343,7 @@ function renderProcVisita(){
       return '<div style="border-bottom:1px solid var(--br);padding:8px 0;display:flex;flex-direction:column;gap:4px">' +
         '<div style="display:flex;align-items:center;gap:6px">' +
         '<span style="flex:1;font-size:.82rem">'+escH(s.name)+'</span>' +
+        '<button onclick="editarSeparador(\''+d.id+'\',\''+s.id+'\')" title="Editar nome" style="background:none;border:none;color:var(--t2);cursor:pointer;font-size:.85rem;padding:2px 4px">✏️</button>' +
         '<button class="ck'+(ans.state==='ok'?' ok':'')+'" onclick="setProcAns(\''+s.id+'\',\'ok\',this)" title="Conforme">✓</button>' +
         '<button class="ck'+(ans.state==='nok'?' fail':'')+'" onclick="setProcAns(\''+s.id+'\',\'nok\',this)" title="Não conforme">✗</button>' +
         '<button class="ck'+(ans.state==='na'?' na':'')+'" onclick="setProcAns(\''+s.id+'\',\'na\',this)" title="N/A" style="font-size:.65rem;font-weight:700">N/A</button>' +
@@ -2398,6 +2399,22 @@ async function apagarDossieDireto(dossierId){
   toast('Dossiê apagado.');
 }
 
+async function editarSeparador(dossierId, sepId){
+  const d = procDossiers.find(x=>x.id===dossierId);
+  if(!d) return;
+  const sep = d.seps.find(s=>s.id===sepId);
+  if(!sep) return;
+  const novoNome = prompt('Novo nome do separador:', sep.name);
+  if(novoNome===null) return; // cancelado
+  const nome = novoNome.trim();
+  if(!nome){ toast('O nome não pode ficar vazio.','e'); return; }
+  sep.name = nome;
+  renderProcVisita();
+  await saveProcDossiers();
+  scheduleAutoSave();
+  toast('✅ Separador renomeado!');
+}
+
 async function adicionarSeparadorDireto(dossierId){
   const input = document.getElementById('novo-sep-'+dossierId);
   if(!input) return;
@@ -2417,6 +2434,7 @@ async function adicionarSeparadorDireto(dossierId){
 }
 
 function setProcAns(sepId, state, btn){
+  scheduleAutoSave();
   if(!procAnswers[sepId]) procAnswers[sepId]={state:null,obs:''};
   procAnswers[sepId].state = state;
   const btns = btn.closest('div').querySelectorAll('.ck');
@@ -2428,6 +2446,7 @@ function setProcAns(sepId, state, btn){
 }
 
 function setProcObs(sepId, val){
+  scheduleAutoSave();
   if(procAnswers[sepId]) procAnswers[sepId].obs = val;
 }
 
