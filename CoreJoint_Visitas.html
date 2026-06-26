@@ -3364,13 +3364,24 @@ function setConf(id, val){ scheduleAutoSave();
 function compressPhoto(dataUrl, maxWidth, quality, callback){
   const img = new Image();
   img.onload = function(){
-    const canvas = document.createElement('canvas');
-    let w = img.width, h = img.height;
-    if(w > maxWidth){ h = Math.round(h * maxWidth / w); w = maxWidth; }
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0, w, h);
-    callback(canvas.toDataURL('image/jpeg', quality));
+    try{
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if(w > maxWidth){ h = Math.round(h * maxWidth / w); w = maxWidth; }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const result = canvas.toDataURL('image/jpeg', quality);
+      canvas.width = 0; canvas.height = 0; // libertar memória do canvas o mais rápido possível
+      callback(result);
+    }catch(e){
+      console.warn('compressPhoto: falha ao comprimir, a usar a foto original.', e);
+      callback(dataUrl); // nunca deixar a foto desaparecer silenciosamente — pior caso, fica sem compressão
+    }
+  };
+  img.onerror = function(e){
+    console.warn('compressPhoto: imagem não carregou.', e);
+    callback(null); // sinaliza falha em vez de nunca chamar o callback (o que encravava o resto)
   };
   img.src = dataUrl;
 }
@@ -3382,24 +3393,22 @@ function handleChkPhoto(id, input){
   if(!vPhotos[id]) vPhotos[id]=[];
   const _storeAtCapture = vStore; // stamp store at time of capture
   const files = Array.from(input.files);
-  let loaded = 0;
+  let okCount = 0, failCount = 0;
   files.forEach(function(file){
     const r = new FileReader();
     r.onload = function(e){
       compressPhoto(e.target.result, 800, 0.6, function(compressed){
         if(vStore !== _storeAtCapture) return; // discard if store changed
+        if(!compressed){ failCount++; if(failCount===1) toast('Não foi possível carregar uma foto. Tenta outra vez.','e'); return; }
         vChecklist[id].fotos.push({src:compressed, legenda:''});
         vPhotos[id].push({src:compressed, legenda:''});
         vChecklist[id].foto = compressed;
-        loaded++;
-        if(loaded===files.length){
-          renderChkPhotos(id);
-          toast(files.length>1 ? files.length+' fotos adicionadas!' : 'Foto adicionada!');
-          // Só aqui, com a(s) foto(s) já em memória, é que faz sentido agendar a gravação.
-          // Agendar antes (como acontecia) podia disparar o autosave a meio da compressão,
-          // gravando uma versão sem a foto ainda.
-          forceImmediateSave();
-        }
+        okCount++;
+        // Cada foto grava-se logo que está pronta — não espera pelas outras do mesmo lote.
+        // Assim, se uma foto falhar, as restantes já estão a salvo de qualquer forma.
+        renderChkPhotos(id);
+        toast(okCount===1 && files.length===1 ? 'Foto adicionada!' : okCount+'/'+files.length+' foto(s) adicionada(s)');
+        forceImmediateSave();
       });
     };
     r.readAsDataURL(file);
