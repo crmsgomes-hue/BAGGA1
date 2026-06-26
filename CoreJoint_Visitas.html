@@ -4121,6 +4121,37 @@ function rOperacional(){
 
 let _autoSaveTimer = null;
 let _autoSaveStore = null; // loja activa no momento do save
+let _saveAgainNeeded = false; // se chegou um pedido novo enquanto a anterior corria, repete no fim
+let _saveInFlight = false;
+let _currentSaveChain = Promise.resolve();
+
+// Nunca deixa duas gravações correr ao mesmo tempo (isso causava uma "corrida":
+// se a mais antiga chegasse ao servidor depois da mais recente, sobrescrevia-a
+// e apagava o que tinha sido acrescentado por último — ex: uma foto nova).
+// Se chegar um pedido de gravação enquanto outra já está em curso, fica em espera
+// e corre automaticamente assim que a atual terminar, sempre com o estado mais recente.
+// Devolve uma promise que só termina quando TODAS as gravações encadeadas acabarem,
+// para quem precisar de saber com certeza que já está tudo gravado (ex: botão "Gravar").
+function runAutoSave(){
+  if(_saveInFlight){
+    _saveAgainNeeded = true;
+    return _currentSaveChain;
+  }
+  _saveInFlight = true;
+  _saveAgainNeeded = false;
+  _currentSaveChain = (async () => {
+    try{
+      await doAutoSave();
+    } finally {
+      _saveInFlight = false;
+      if(_saveAgainNeeded){
+        _saveAgainNeeded = false;
+        await runAutoSave();
+      }
+    }
+  })();
+  return _currentSaveChain;
+}
 
 function getAutoSaveKey(store){ return 'cj_as_' + (store||vStore) + (CU&&CU.role==='crop'?'_crop':''); }
 function getAutoSaveId(store){ return 'as_' + (store||vStore) + (CU&&CU.role==='crop'?'_crop':''); }
@@ -4128,16 +4159,16 @@ function getAutoSaveId(store){ return 'as_' + (store||vStore) + (CU&&CU.role==='
 function scheduleAutoSave(){
   if(!vStore) return;
   if(_autoSaveTimer) clearTimeout(_autoSaveTimer);
-  _autoSaveTimer = setTimeout(doAutoSave, 1200); // 1.2 segundos — reduzido para diminuir a janela de risco de perda de dados ao fechar a app rapidamente
+  _autoSaveTimer = setTimeout(runAutoSave, 1200); // 1.2 segundos — reduzido para diminuir a janela de risco de perda de dados ao fechar a app rapidamente
 }
 
 // Rede de segurança: se o utilizador sair da app (fechar, trocar de app, bloquear o
 // telemóvel) antes do debounce disparar, grava imediatamente para não perder
-// as últimas marcações (ex: HACCP, ruturas) feitas mesmo antes de saír.
+// as últimas marcações (ex: HACCP, ruturas, fotos) feitas mesmo antes de saír.
 function forceImmediateSave(){
   if(!vStore) return;
   if(_autoSaveTimer){ clearTimeout(_autoSaveTimer); _autoSaveTimer=null; }
-  try{ doAutoSave(); }catch(e){}
+  runAutoSave();
 }
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') forceImmediateSave(); });
 window.addEventListener('pagehide', forceImmediateSave);
@@ -4209,6 +4240,9 @@ async function doAutoSave(){
 
     // Guardar também no Supabase (fonte de verdade, sobrevive a limpeza de cache) — corre SEMPRE,
     // independentemente do resultado do localStorage acima.
+    // Upsert atómico numa só chamada (em vez de "verificar se existe, depois decidir
+    // inserir ou atualizar") — isso evitava uma janela onde duas gravações próximas
+    // no tempo podiam "pisar-se" uma à outra.
     try{
       const sbId = getAutoSaveId(saveStore);
       const dbRow = {
@@ -4241,9 +4275,15 @@ async function doAutoSave(){
         fotos_cafe: snapshot.fotos_cafe,
         saved_by: who()
       };
-      const ex = await dbGet('cj_visitas_rascunhos','id=eq.'+sbId);
-      if(ex && ex.length) await dbUpd('cj_visitas_rascunhos', sbId, dbRow);
-      else await dbIns('cj_visitas_rascunhos',[dbRow]);
+      const r = await fetch(SB+'/rest/v1/cj_visitas_rascunhos?on_conflict=id', {
+        method: 'POST',
+        headers: {
+          'apikey': SK, 'Authorization': 'Bearer '+SK, 'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=minimal'
+        },
+        body: JSON.stringify(dbRow)
+      });
+      if(!r.ok){ console.warn('AutoSave Supabase upsert falhou:', await r.text()); }
     }catch(e){ console.warn('AutoSave Supabase error:', e); }
 
     // Indicador visual
@@ -4532,7 +4572,7 @@ let _reportHtmlFinal = null; // guarda o HTML do relatório para enviar
 
 async function gravarManual(){
   if(!vStore){ toast('Sem loja selecionada.','e'); return; }
-  await doAutoSave();
+  await runAutoSave();
   toast('💾 Guardado!');
 }
 
