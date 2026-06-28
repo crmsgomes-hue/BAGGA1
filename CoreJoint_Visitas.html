@@ -2045,7 +2045,10 @@ async function startV(store, skipReset=false){
   // Antes de trocar de loja, garantir que qualquer gravação ainda a caminho da loja
   // anterior termina primeiro — caso contrário, ao limpar o estado global a seguir,
   // essa gravação podia acabar a usar os dados da loja NOVA por engano.
-  if(vStore && vStore!==store){ try{ await runAutoSave(); }catch(e){} }
+  // Só grava se algo foi mesmo alterado (evita criar rascunhos vazios só por entrar
+  // e sair de uma loja sem fazer nada).
+  if(vStore && vStore!==store && _formDirty){ try{ await runAutoSave(); }catch(e){} }
+  _formDirty = false;
   vStore=store;
   if(!skipReset){
     // ── LIMPAR TUDO — nova visita numa loja ──
@@ -4253,8 +4256,11 @@ function runAutoSave(){
 function getAutoSaveKey(store){ return 'cj_as_' + (store||vStore) + (isIsolatedUser()?'_'+(CU.role==='crop'?'crop':CU.gopId):''); }
 function getAutoSaveId(store){ return 'as_' + (store||vStore) + (isIsolatedUser()?'_'+(CU.role==='crop'?'crop':CU.gopId):''); }
 
+let _formDirty = false; // só true depois de uma interação real do utilizador nesta loja
+
 function scheduleAutoSave(){
   if(!vStore) return;
+  _formDirty = true;
   if(_autoSaveTimer) clearTimeout(_autoSaveTimer);
   _autoSaveTimer = setTimeout(runAutoSave, 1200); // 1.2 segundos — reduzido para diminuir a janela de risco de perda de dados ao fechar a app rapidamente
 }
@@ -4264,6 +4270,7 @@ function scheduleAutoSave(){
 // as últimas marcações (ex: HACCP, ruturas, fotos) feitas mesmo antes de saír.
 function forceImmediateSave(){
   if(!vStore) return;
+  _formDirty = true;
   if(_autoSaveTimer){ clearTimeout(_autoSaveTimer); _autoSaveTimer=null; }
   runAutoSave();
 }
@@ -4411,8 +4418,10 @@ async function clearAutoSave(store){
 
 async function restoreAutoSave(store){
   try{
-    // Mesma proteção do startV: terminar primeiro qualquer gravação pendente da loja anterior.
-    if(vStore && vStore!==store){ try{ await runAutoSave(); }catch(e){} }
+    // Mesma proteção do startV: terminar primeiro qualquer gravação pendente da loja anterior,
+    // mas só se algo foi mesmo alterado (evita criar rascunhos vazios).
+    if(vStore && vStore!==store && _formDirty){ try{ await runAutoSave(); }catch(e){} }
+    _formDirty = false;
     const key = getAutoSaveKey(store);
     let d = null;
     let dLocal = null;
