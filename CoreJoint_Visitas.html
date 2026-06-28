@@ -504,6 +504,12 @@
             </div>
           </div>
 
+          <div onclick="toggleFormSection('rh-collapse-body')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:var(--sf2);border:1px solid var(--br);border-radius:var(--rb);padding:11px 13px;margin-bottom:10px">
+            <div style="font-weight:700;font-size:.83rem">📁 RH (Folgas, Horários, Formações, Trocas, Banco de Horas, Suplementar, Férias)</div>
+            <span id="rh-collapse-body-arrow" style="color:var(--t2)">▸</span>
+          </div>
+          <div id="rh-collapse-body" style="display:none">
+
           <!-- FORMAÇÕES -->
           <div style="background:var(--bg2);border-radius:var(--rb);padding:10px;margin-bottom:10px">
             <div style="font-size:.75rem;font-weight:700;color:var(--t2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">🎓 Formações</div>
@@ -642,6 +648,7 @@
             <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para o Gerente resolver NC de RH</div>
             <input type="date" class="fc" id="chk-prazo-date-rh" onchange="saveChkPrazo('rh')" style="border-color:#e3b3a8">
           </div>
+          </div>
         </div>
 
         <!-- ⑪ PROCEDIMENTOS — DOSSIERS EDITÁVEIS -->
@@ -657,6 +664,11 @@
             <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
             <input type="date" class="fc" id="chk-prazo-date-procedimentos" onchange="saveChkPrazo('procedimentos')" style="border-color:#e3b3a8">
           </div>
+          <div onclick="toggleFormSection('proc-collapse-body')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:var(--sf2);border:1px solid var(--br);border-radius:var(--rb);padding:11px 13px;margin-bottom:10px">
+            <div style="font-weight:700;font-size:.83rem">📁 Dossiês e detalhe dos Procedimentos</div>
+            <span id="proc-collapse-body-arrow" style="color:var(--t2)">▸</span>
+          </div>
+          <div id="proc-collapse-body" style="display:none">
           <!-- Progresso -->
           <div style="margin-bottom:12px">
             <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--t2);margin-bottom:4px">
@@ -683,6 +695,7 @@
           <div style="display:flex;gap:6px;margin-top:10px">
             <input type="text" class="fc" id="novo-dossie-input" placeholder="Nome do novo dossiê…" style="flex:1;margin:0" onkeydown="if(event.key==='Enter')adicionarDossieDireto()">
             <button class="btn bp bsm" onclick="adicionarDossieDireto()">+ Adicionar</button>
+          </div>
           </div>
         </div>
 
@@ -2385,6 +2398,17 @@ function renderProcVisita(){
       '</div></div>' +
       '</div>';
   }).join('');
+}
+
+// Pastas colapsáveis genéricas no formulário da visita (RH, Procedimentos) — fechadas por
+// defeito, para o formulário ficar mais curto e fácil de navegar.
+function toggleFormSection(bodyId){
+  const body = document.getElementById(bodyId);
+  const arrow = document.getElementById(bodyId+'-arrow');
+  if(!body) return;
+  const abrir = body.style.display==='none';
+  body.style.display = abrir ? 'block' : 'none';
+  if(arrow) arrow.textContent = abrir ? '▾' : '▸';
 }
 
 function toggleProcDossier(id){
