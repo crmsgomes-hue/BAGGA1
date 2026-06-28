@@ -2851,6 +2851,7 @@ async function genRel(){
   const fteNumerosHtml = '<table class="rep-table"><tr><td class="lbl">FTEs Definido</td><td class="val">'+fteDef+'</td><td class="lbl">FTEs Real</td><td class="val">'+fteReal+'</td><td class="lbl">Desvio</td><td class="val" style="color:'+(fteDiff<0?'#B0432F':fteDiff>0?'#C1622D':'#5C7A5C')+'">'+fteDesvio+'</td></tr></table>'+(fteData.comentario?'<div class="rep-comment filled" style="margin-top:6px">'+fteData.comentario+'</div>':'');
 
   const RH_IDS = ['rh_formacoes','rh_trocas','rh_folgas','rh_bh','rh_ts','rh_horarios','rh_ferias'];
+  const RH_LABELS = {rh_formacoes:'🎓 Formações',rh_trocas:'🔄 Trocas',rh_folgas:'🗓️ Folgas',rh_bh:'⏱️ Banco Horas',rh_ts:'🚨 Trab. Suplementar',rh_horarios:'📅 Horários',rh_ferias:'🌴 Férias'};
   const rhNcCount = RH_IDS.filter(id=>vChecklist[id]&&vChecklist[id].conforme===false).length;
   const dossiersSelecionadosNC = procDossiers.filter(d=>procSelected.includes(d.id))
     .reduce((acc,d)=>acc + d.seps.filter(s=>procAnswers[s.id]&&procAnswers[s.id].state==='nok').length, 0);
@@ -2859,26 +2860,59 @@ async function genRel(){
     (vChecklist['raid']&&vChecklist['raid'].conforme===false ? 1 : 0);
   const limpezaNcCount = (vChecklist['limpeza']&&vChecklist['limpeza'].conforme===false ? 1 : 0) +
     HACCP_ITEMS_RPT.filter(h=>vHaccp[h.id]===false).length;
-  const compactCard = (titulo, ncCount) => '<div class="rep-card">'+
-    '<div class="rep-card-hd">'+
-    '<div class="rep-card-title">📁 '+titulo+'</div>'+
-    '<div>'+(ncCount>0 ? '<span class="rep-badge fail">⚠ '+ncCount+' não conformidade'+(ncCount>1?'s':'')+'</span>' : '<span class="rep-badge ok">✓ Tudo conforme</span>')+'</div>'+
-    '</div></div>';
+
+  // Mini-bloco de detalhe (foto+comentário+estado) reutilizado dentro dos cartões fechados,
+  // para a CROP poder abrir e ver tudo, mesmo sendo um resumo no PDF impresso.
+  const itemDetailHtml = (id, label) => {
+    const st = vChecklist[id]||{};
+    const confLabel = st.conforme===true ? '<span class="rep-badge ok">✓ Conforme</span>' : st.conforme===false ? '<span class="rep-badge fail">✕ Não Conforme</span>' : '';
+    const fotosHtml = (st.fotos&&st.fotos.length ? st.fotos.map(f=>{
+      const fsrc = (typeof f==='string') ? f : f.src;
+      const fleg = (typeof f==='string') ? '' : (f.legenda||'');
+      return '<span style="display:inline-block;text-align:center;vertical-align:top"><img src="'+fsrc+'" class="rep-photo">'+(fleg?'<span class="rep-photo-cap">'+fleg+'</span>':'')+'</span>';
+    }).join('') : st.foto ? '<img src="'+st.foto+'" class="rep-photo">' : '<div class="rep-comment">Sem foto</div>');
+    return '<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--br)">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div style="font-weight:600;font-size:13px">'+label+'</div><div>'+confLabel+'</div></div>'+
+      fotosHtml+
+      '<div class="rep-comment'+(st.nota?' filled':'')+'">'+(st.nota||'Sem comentário')+'</div>'+
+      '</div>';
+  };
+
+  const rhDetailHtml = RH_IDS.map(id=>itemDetailHtml(id, RH_LABELS[id])).join('');
+  const procDetailHtml = itemDetailHtml('procedimentos','Procedimentos — geral') + dossiersSection +
+    itemDetailHtml('quebra_caixa','💰 Quebra de Caixa') + itemDetailHtml('raid','🚨 RAID');
+  const limpezaDetailHtml = haccpTableHtml + itemDetailHtml('limpeza','Limpeza — geral');
+
+  // Cartão fechado (resumo) no PDF impresso — mas com um "Ver detalhe" que abre o conteúdo completo
+  // quando visto na app/ecrã (a CROP precisa de ver tudo; o PDF impresso fica sempre fechado, em
+  // 2 páginas, porque cliques não funcionam numa folha impressa).
+  let _toggleSeq = 0;
+  const compactCard = (titulo, ncCount, detalheHtml) => {
+    _toggleSeq++;
+    const toggleId = 'rep-detail-'+_toggleSeq;
+    return '<div class="rep-card">'+
+      '<div class="rep-card-hd" style="cursor:pointer" onclick="toggleRepDetail(\''+toggleId+'\')">'+
+      '<div class="rep-card-title">📁 '+titulo+' <span id="'+toggleId+'-arrow" style="color:var(--ac);font-size:11px">▸ ver detalhe</span></div>'+
+      '<div>'+(ncCount>0 ? '<span class="rep-badge fail">⚠ '+ncCount+' não conformidade'+(ncCount>1?'s':'')+'</span>' : '<span class="rep-badge ok">✓ Tudo conforme</span>')+'</div>'+
+      '</div>'+
+      '<div id="'+toggleId+'" class="rep-detail-toggle" style="display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--br)">'+detalheHtml+'</div>'+
+      '</div>';
+  };
 
   const chkHtml = allChkItems.map(item => {
     // RH: só o primeiro item do grupo gera um cartão único e fechado (resumo), os restantes ficam vazios
     // — assim a posição no relatório mantém-se a mesma de antes, sem secções soltas a mais.
     if(RH_IDS.includes(item.id)){
-      return item.id==='rh_formacoes' ? compactCard('RH (Folgas, Horários, Formações, Trocas, Banco de Horas, Suplementar, Férias)', rhNcCount) : '';
+      return item.id==='rh_formacoes' ? compactCard('RH (Folgas, Horários, Formações, Trocas, Banco de Horas, Suplementar, Férias)', rhNcCount, rhDetailHtml) : '';
     }
     if(item.id==='procedimentos'){
-      return compactCard('Procedimentos, Quebra de Caixa e RAID', procNcCount);
+      return compactCard('Procedimentos, Quebra de Caixa e RAID', procNcCount, procDetailHtml);
     }
     if(item.id==='quebra_caixa' || item.id==='raid'){
       return ''; // já incluídos no cartão "Procedimentos, Quebra de Caixa e RAID"
     }
     if(item.id==='limpeza'){
-      return compactCard('Limpeza / HACCP', limpezaNcCount);
+      return compactCard('Limpeza / HACCP', limpezaNcCount, limpezaDetailHtml);
     }
     const st = vChecklist[item.id]||{};
     const confLabel = st.conforme===true ? '<span class="rep-badge ok">✓ Conforme</span>' : st.conforme===false ? '<span class="rep-badge fail">✕ Não Conforme</span>' : '';
@@ -2962,7 +2996,7 @@ async function genRel(){
     .rep-comment.filled{color:#3f362b;font-style:normal;background:#f7f3ea;padding:7px 9px;border-radius:3px}
     .rep-photo{width:118px;height:88px;object-fit:cover;border-radius:3px;border:1px solid #e8ddc9;display:inline-block;margin:0 6px 6px 0;vertical-align:top}
     .rep-photo-cap{font-size:9px;color:#6b5d4f;max-width:118px;display:block;margin:2px 6px 6px 0}
-    @media print{body{margin:0;padding:18px}.no-print{display:none!important}}
+    @media print{body{margin:0;padding:18px}.no-print{display:none!important}.rep-detail-toggle{display:none!important}}
   </style></head><body>
   <div id="pdf-report">
   <div style="margin-bottom:18px">
@@ -2981,6 +3015,16 @@ async function genRel(){
   <div class="no-print" style="margin-top:20px;text-align:center">
     <button onclick="window.print()" style="padding:10px 24px;background:#C1622D;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;font-family:'Source Sans 3',Arial">🖨️ Imprimir / Guardar PDF</button>
   </div>
+  <script>
+    function toggleRepDetail(id){
+      var el = document.getElementById(id);
+      var arrow = document.getElementById(id+'-arrow');
+      if(!el) return;
+      var abrir = el.style.display === 'none';
+      el.style.display = abrir ? 'block' : 'none';
+      if(arrow) arrow.textContent = abrir ? '▾ esconder detalhe' : '▸ ver detalhe';
+    }
+  <\/script>
   </body></html>`;
 
   toast('📄 Relatório gerado!');
