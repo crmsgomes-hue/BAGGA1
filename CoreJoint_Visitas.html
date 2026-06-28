@@ -2852,6 +2852,8 @@ async function genRel(){
   const dossiersSelecionadosNC = procDossiers.filter(d=>procSelected.includes(d.id))
     .reduce((acc,d)=>acc + d.seps.filter(s=>procAnswers[s.id]&&procAnswers[s.id].state==='nok').length, 0);
   const procNcCount = (vChecklist['procedimentos']&&vChecklist['procedimentos'].conforme===false ? 1 : 0) + dossiersSelecionadosNC;
+  const limpezaNcCount = (vChecklist['limpeza']&&vChecklist['limpeza'].conforme===false ? 1 : 0) +
+    HACCP_ITEMS_RPT.filter(h=>vHaccp[h.id]===false).length;
   const compactCard = (titulo, ncCount) => '<div class="rep-card">'+
     '<div class="rep-card-hd">'+
     '<div class="rep-card-title">📁 '+titulo+'</div>'+
@@ -2866,6 +2868,9 @@ async function genRel(){
     }
     if(item.id==='procedimentos'){
       return compactCard('Procedimentos', procNcCount);
+    }
+    if(item.id==='limpeza'){
+      return compactCard('Limpeza / HACCP', limpezaNcCount);
     }
     const st = vChecklist[item.id]||{};
     const confLabel = st.conforme===true ? '<span class="rep-badge ok">✓ Conforme</span>' : st.conforme===false ? '<span class="rep-badge fail">✕ Não Conforme</span>' : '';
