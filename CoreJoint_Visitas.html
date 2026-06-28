@@ -696,9 +696,6 @@
             <input type="text" class="fc" id="novo-dossie-input" placeholder="Nome do novo dossiê…" style="flex:1;margin:0" onkeydown="if(event.key==='Enter')adicionarDossieDireto()">
             <button class="btn bp bsm" onclick="adicionarDossieDireto()">+ Adicionar</button>
           </div>
-          </div>
-        </div>
-
         <!-- ⑫ QUEBRA DE CAIXA -->
         <div class="ic" id="chk-quebra_caixa" style="margin-bottom:10px;border-left-color:var(--br)">
           <div style="font-size:.9rem;font-weight:700;margin-bottom:6px">💰 Quebra de Caixa</div>
@@ -742,6 +739,9 @@
           <div id="chk-photo-prev-raid" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:7px"></div>
           <textarea class="jta" id="chk-nota-raid" placeholder="Comentário / Observação…" style="min-height:55px;margin-top:8px" onblur="saveChkNota('raid')"></textarea>
         </div>
+          </div>
+        </div>
+
 
 
         <!-- campos ocultos para compatibilidade -->
@@ -2854,7 +2854,9 @@ async function genRel(){
   const rhNcCount = RH_IDS.filter(id=>vChecklist[id]&&vChecklist[id].conforme===false).length;
   const dossiersSelecionadosNC = procDossiers.filter(d=>procSelected.includes(d.id))
     .reduce((acc,d)=>acc + d.seps.filter(s=>procAnswers[s.id]&&procAnswers[s.id].state==='nok').length, 0);
-  const procNcCount = (vChecklist['procedimentos']&&vChecklist['procedimentos'].conforme===false ? 1 : 0) + dossiersSelecionadosNC;
+  const procNcCount = (vChecklist['procedimentos']&&vChecklist['procedimentos'].conforme===false ? 1 : 0) + dossiersSelecionadosNC +
+    (vChecklist['quebra_caixa']&&vChecklist['quebra_caixa'].conforme===false ? 1 : 0) +
+    (vChecklist['raid']&&vChecklist['raid'].conforme===false ? 1 : 0);
   const limpezaNcCount = (vChecklist['limpeza']&&vChecklist['limpeza'].conforme===false ? 1 : 0) +
     HACCP_ITEMS_RPT.filter(h=>vHaccp[h.id]===false).length;
   const compactCard = (titulo, ncCount) => '<div class="rep-card">'+
@@ -2870,7 +2872,10 @@ async function genRel(){
       return item.id==='rh_formacoes' ? compactCard('RH (Folgas, Horários, Formações, Trocas, Banco de Horas, Suplementar, Férias)', rhNcCount) : '';
     }
     if(item.id==='procedimentos'){
-      return compactCard('Procedimentos', procNcCount);
+      return compactCard('Procedimentos, Quebra de Caixa e RAID', procNcCount);
+    }
+    if(item.id==='quebra_caixa' || item.id==='raid'){
+      return ''; // já incluídos no cartão "Procedimentos, Quebra de Caixa e RAID"
     }
     if(item.id==='limpeza'){
       return compactCard('Limpeza / HACCP', limpezaNcCount);
