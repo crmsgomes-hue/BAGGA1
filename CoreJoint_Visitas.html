@@ -2104,7 +2104,9 @@ async function startV(store, skipReset=false){
     const ve=el('v-ebita');if(ve)ve.value=e.ebita||'';const vs=el('v-staffcos');if(vs)vs.value=e.staffcos||'';const vm=el('v-margem');if(vm)vm.value=e.margem||'';el('v-nt').value=e.notas||'';
     try{vPhotos.cafe=JSON.parse(e.fotos_cafe||'[]');}catch(err){vPhotos.cafe=[];}
     try{vPhotos.nc=JSON.parse(e.fotos_nc||'[]');}catch(err){vPhotos.nc=[];}
-    try{vRut=JSON.parse(e.rut_check||'{}');}catch(err){vRut={};}
+    // Ruturas NUNCA herdam da visita anterior — um produto que faltava ontem pode já ter
+    // chegado hoje, por isso tem de ser sempre avaliado de novo, em branco.
+    vRut={};
   }else if(!skipReset){
     ['v-cs','v-cd','v-nt','v-cr-food-mes','v-cr-food-ano','v-cr-food-dif','v-cr-total-mes','v-cr-total-ano','v-cr-total-dif','v-quebra-total','v-quebra-food'].forEach(i=>{const e=el(i);if(e)e.value='';});
   }
