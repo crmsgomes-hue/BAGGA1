@@ -1116,9 +1116,13 @@
 <script>
 const SB='https://isdaegejkxgtzjcpzstr.supabase.co';
 const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k';
-const GOP_NAMES={joao_martinho:'João Martinho',carla_costa:'Carla Costa',luis_serrano:'Luís Serrano',carina_paixao:'Carina Paixão',tiago_campos:'Tiago Campos',catia_peleve:'Cátia Pé-Leve'};
-const GOP_PINS={joao_martinho:'3028',carla_costa:'4817',luis_serrano:'6293',carina_paixao:'5071',tiago_campos:'1005',catia_peleve:'8456',crop:'9000'};
-const GOP_STORES={joao_martinho:['bombarral','peniche','rio_maior','caldas','carregado','torres_novas_mch','ponte_sor','torres_novas','santarem','almeirim'],carla_costa:['malveira','mafra_mh','mafra_mch','vf_xira','alverca','montelavar','torres_vedras','estoril','porto_alto_i','s_magos'],luis_serrano:['vasco_da_gama','loures','marechal_g_cos','colombo','s_joao_talha','arroja','alto_lumiar','alta_lisboa','belas','defens_chaves'],carina_paixao:['sesimbra','barreiro_mch','setubal','moita','palmela','alhos_vedros','quinta_conde','pinhal_novo','mdl_seixal','sines','grandola'],tiago_campos:['beja_retail_mh','evora','beja_mch','estremoz','reguengos','sintra','tapada_merces','carcavelos','mem_martins','tires','cacem'],catia_peleve:['loule_mh','silves','lagos','quarteira','vrs_antonio','olhao','faro','odiaxere','loule_mch','portimao_ii']};
+const GOP_NAMES={joao_martinho:'João Martinho',carla_costa:'Carla Costa',luis_serrano:'Luís Serrano',carina_paixao:'Carina Paixão',tiago_campos:'Tiago Campos',catia_peleve:'Cátia Pé-Leve',ines_cruz:'Inês Cruz'};
+const GOP_PINS={joao_martinho:'3028',carla_costa:'4817',luis_serrano:'6293',carina_paixao:'5071',tiago_campos:'1005',catia_peleve:'8456',ines_cruz:'2649',crop:'9000'};
+const GOP_STORES={joao_martinho:['bombarral','peniche','rio_maior','caldas','carregado','torres_novas_mch','ponte_sor','torres_novas','santarem','almeirim'],carla_costa:['malveira','mafra_mh','mafra_mch','vf_xira','alverca','montelavar','torres_vedras','estoril','porto_alto_i','s_magos'],luis_serrano:['vasco_da_gama','loures','marechal_g_cos','colombo','s_joao_talha','arroja','alto_lumiar','alta_lisboa','belas','defens_chaves'],carina_paixao:['sesimbra','barreiro_mch','setubal','moita','palmela','alhos_vedros','quinta_conde','pinhal_novo','mdl_seixal','sines','grandola'],tiago_campos:['beja_retail_mh','evora','beja_mch','estremoz','reguengos','sintra','tapada_merces','carcavelos','mem_martins','tires','cacem'],catia_peleve:['loule_mh','silves','lagos','quarteira','vrs_antonio','olhao','faro','odiaxere','loule_mch','portimao_ii'],ines_cruz:['beja_retail_mh','evora','beja_mch','estremoz','reguengos','sintra','tapada_merces','carcavelos','mem_martins','tires','cacem','vasco_da_gama','loures','marechal_g_cos','colombo','s_joao_talha','arroja','alto_lumiar','alta_lisboa','belas','defens_chaves']};
+// Identidades "isoladas": as visitas/alertas destas pessoas nunca se misturam com as dos GOPs
+// cujas lojas partilham — tal como já acontecia com a CROP, agora também com estagiários/exceções.
+const ISOLATED_IDENTITIES = ['CROP', 'GOP — Inês Cruz'];
+function isIsolatedUser(){ return CU && (CU.role==='crop' || CU.gopId==='ines_cruz'); }
 const SN={bombarral:'Bombarral',peniche:'Peniche',rio_maior:'Rio Maior',caldas:'Caldas da Rainha',carregado:'Carregado',torres_novas_mch:'T. Novas MCH',ponte_sor:'Ponte de Sor',torres_novas:'Torres Novas',santarem:'Santarém',almeirim:'Almeirim',malveira:'Malveira',mafra_mh:'Mafra MH',mafra_mch:'Mafra MCH',vf_xira:'V F Xira',alverca:'Alverca',montelavar:'Montelavar',torres_vedras:'Torres Vedras',estoril:'Estoril',porto_alto_i:'Porto Alto I',s_magos:'S Magos',vasco_da_gama:'Vasco da Gama',loures:'Loures',marechal_g_cos:'Marechal G Cos',colombo:'Colombo',s_joao_talha:'S João Talha',arroja:'Arroja',alto_lumiar:'Alto do Lumiar',alta_lisboa:'Alta Lisboa',belas:'Belas',defens_chaves:'Defens Chaves',sesimbra:'Sesimbra',barreiro_mch:'Barreiro MCH',setubal:'Setúbal',moita:'Moita',palmela:'Palmela',alhos_vedros:'Alhos Vedros',quinta_conde:'Quinta Conde',pinhal_novo:'Pinhal Novo',mdl_seixal:'MDL Seixal',sines:'Sines',grandola:'Grândola',beja_retail_mh:'Beja Retail MH',evora:'Évora',beja_mch:'Beja MCH',estremoz:'Estremoz',reguengos:'Reguengos',sintra:'Sintra',tapada_merces:'Tapada Merces',carcavelos:'Carcavelos',mem_martins:'Mem Martins',tires:'Tires',cacem:'Cacém',loule_mh:'Loulé MH',silves:'Silves',lagos:'Lagos',quarteira:'Quarteira',vrs_antonio:'VRS António',olhao:'Olhão',faro:'Faro',odiaxere:'Odiaxere',loule_mch:'Loulé MCH',portimao_ii:'Portimão II',rede:'Toda a Rede'};
 let STORES=GOP_STORES.joao_martinho; // será redefinido dinamicamente após login conforme o GOP
 const CRIT={baixa:{l:'🟢 Baixa',c:'bk-g',w:7},media:{l:'🟡 Média',c:'bk-i',w:3},alta:{l:'🟠 Alta',c:'bk-o',w:2},critica:{l:'🔴 Crítica',c:'bk-d',w:1}};
@@ -1270,7 +1274,7 @@ async function doLogin(){
       err.style.display='block'; kpClear(); return;
     }
     CU={role:'crop', gopId:null, store:null};
-    STORES = Object.values(GOP_STORES).flat();
+    STORES = [...new Set(Object.keys(GOP_STORES).filter(g=>g!=='ines_cruz').flatMap(g=>GOP_STORES[g]))];
   } else if(_loginGopId && GOP_NAMES[_loginGopId]){
     // A palavra-mestre da CROP também desbloqueia/entra como qualquer GOP
     if(pin===GOP_PINS.crop){
@@ -1303,11 +1307,12 @@ async function doLogin(){
   // CROP também pode auditar lojas — separador Visitas disponível para todos
   const visitasTab = document.querySelector('.ni[data-s="visitas"]');
   if(visitasTab) visitasTab.style.display = 'inline-flex';
-  // A CROP já tem o seu próprio separador "Histórico" — não precisa deste, embutido na página de Visitas
+  // Identidades isoladas (CROP, Inês) já têm o seu próprio separador "Histórico" — não precisam
+  // deste, embutido na página de Visitas, que mistura por GOP.
   const histCard = document.getElementById('v-hist-card');
-  if(histCard) histCard.style.display = (CU&&CU.role==='crop') ? 'none' : 'block';
+  if(histCard) histCard.style.display = isIsolatedUser() ? 'none' : 'block';
   const pageTitle = document.getElementById('v-page-title');
-  if(pageTitle) pageTitle.textContent = (CU&&CU.role==='crop') ? 'Visitas CROP' : 'Visitas GOP';
+  if(pageTitle) pageTitle.textContent = CU&&CU.role==='crop' ? 'Visitas CROP' : (CU&&CU.gopId==='ines_cruz' ? 'Visitas Inês Cruz' : 'Visitas GOP');
 
   safeShow('n-vis', adm()?'inline-flex':'none');
   renderStoreGrids();
@@ -1318,9 +1323,13 @@ async function doLogin(){
 function renderStoreGrids(){
   const gridV = document.getElementById('v-stores-grid');
   const gridH = document.getElementById('v-hist-grid');
-  if(CU && CU.role==='crop'){
-    // CROP: agrupar lojas por GOP, para ser mais fácil encontrar
-    const buildGrouped = (prefix, onClickFn) => Object.keys(GOP_STORES).map(gopId=>{
+  if(isIsolatedUser()){
+    // CROP: agrupar por todos os GOPs reais (excluindo a Inês, que cobre lojas mas não é "dona" de nenhuma).
+    // Inês: agrupar só pelos GOPs cujas lojas ela realmente cobre (Tiago e Luís).
+    const gopIdsParaAgrupar = CU.role==='crop'
+      ? Object.keys(GOP_STORES).filter(g=>g!=='ines_cruz')
+      : [...new Set(STORES.map(s=>getGopByLoja(s)).filter(Boolean))];
+    const buildGrouped = (prefix, onClickFn) => gopIdsParaAgrupar.map(gopId=>{
       const lojas = GOP_STORES[gopId];
       const groupId = prefix+'-'+gopId;
       return '<div style="margin-bottom:8px;border:1px solid var(--br);border-radius:var(--rb);overflow:hidden">' +
@@ -2054,8 +2063,10 @@ async function startV(store, skipReset=false){
     // Limpar UI — ruturas
     document.querySelectorAll('.cli .ck').forEach(b=>b.classList.remove('ok','fail'));
   }
-  // A CROP nunca herda valores de visitas anteriores (nem dela própria) — começa sempre em branco
-  const ex = (CU&&CU.role==='crop') ? [] : await dbGet('cj_visitas','loja=eq.'+store+'&saved_by_role=neq.crop&order=created_at.desc&limit=1');
+  // A CROP nunca herda valores de visitas anteriores (nem dela própria) — começa sempre em branco.
+  // Todos os outros só herdam dos SEUS PRÓPRIOS valores anteriores nesta loja — nunca dos de
+  // outra pessoa, mesmo que partilhem a mesma loja (ex: Inês Cruz com o Tiago/Luís).
+  const ex = (CU&&CU.role==='crop') ? [] : await dbGet('cj_visitas','loja=eq.'+store+'&saved_by=eq.'+encodeURIComponent(who())+'&order=created_at.desc&limit=1');
   el('v-stores').style.display='none';el('v-form').style.display='block';
   el('v-name').textContent='📍 '+sn(store);el('v-dt').textContent='Data: '+now();
   if(!skipReset) setHoraAgora(); // só fixa hora em visita nova
@@ -3648,21 +3659,9 @@ async function rHistorico(){
     const q = 'select=id,loja,data,hora,resumo,saved_by&order=created_at.desc'+lf;
     const histAll = await dbGet('cj_historico', q) || [];
 
-    // Separar visitas feitas pela própria CROP — nunca se misturam com o arquivo de um GOP
-    const hist = CU&&CU.role==='crop' ? histAll.filter(r=>r.saved_by!=='CROP') : histAll;
-    const cropVisits = CU&&CU.role==='crop' ? histAll.filter(r=>r.saved_by==='CROP') : [];
-
-    const byLoja = {};
-    hist.forEach(r=>{ if(!byLoja[r.loja])byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
-    const byLojaCrop = {};
-    cropVisits.forEach(r=>{ if(!byLojaCrop[r.loja])byLojaCrop[r.loja]=[]; byLojaCrop[r.loja].push(r); });
-
-    const lojasParaMostrar = CU&&CU.role==='mgr' ? [CU.store] : STORES;
-
     const storeFolderHtml = (loja, src) => {
-      const map = src || byLoja;
-      const reports = map[loja] || [];
-      const folderId = 'hist-folder-'+(src?'crop-':'')+loja;
+      const reports = src[loja] || [];
+      const folderId = 'hist-folder-'+loja;
       return '<div style="border:1.5px solid var(--br);border-radius:var(--rb);margin-bottom:8px;overflow:hidden">' +
         '<div style="background:var(--sf2);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleHistFolder(\''+folderId+'\')">' +
         '<div style="font-weight:700;font-size:.85rem">📍 '+sn(loja)+'</div>' +
@@ -3685,42 +3684,25 @@ async function rHistorico(){
         '</div></div>';
     };
 
-    let html = '<div style="font-size:.78rem;color:var(--t2);margin-bottom:10px">📁 <strong>'+histAll.length+'</strong> relatório(s) guardado(s)</div>';
-
-    if(CU && CU.role==='crop'){
-      // Bloco próprio com as auditorias feitas pela CROP — separado dos GOPs
-      const lojasComVisitaCrop = Object.keys(byLojaCrop);
-      html += '<div style="border:1.5px solid var(--vio,#7c3aed);border-radius:var(--rb);margin-bottom:14px;overflow:hidden">' +
-        '<div style="background:#f5f3ff;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleHistFolder(\'hist-crop-own\')">' +
-        '<div style="font-weight:700;font-size:.85rem;color:#7c3aed">🟣 Auditorias feitas pela CROP</div>' +
-        '<div style="display:flex;align-items:center;gap:8px">' +
-        '<span style="font-size:.72rem;color:#7c3aed;background:#fff;border-radius:99px;padding:2px 9px">'+cropVisits.length+'</span>' +
-        '<span style="color:#7c3aed">▾</span></div></div>' +
-        '<div id="hist-crop-own" style="display:none;padding:10px 12px;background:var(--bg)">' +
-        (lojasComVisitaCrop.length ? lojasComVisitaCrop.map(l=>storeFolderHtml(l, byLojaCrop)).join('') :
-          '<div style="color:var(--t2);font-size:.78rem;padding:6px">Ainda sem visitas auditadas pela CROP.</div>') +
-        '</div></div>';
-
-      // Agrupar por GOP, depois por loja dentro de cada GOP (sem incluir visitas da CROP)
-      Object.keys(GOP_STORES).forEach(gopId=>{
-        const lojasDoGop = GOP_STORES[gopId];
-        const totalGop = lojasDoGop.reduce((a,l)=>a+(byLoja[l]?byLoja[l].length:0),0);
-        const groupId = 'hist-gop-'+gopId;
-        html += '<div style="border:1.5px solid var(--ac);border-radius:var(--rb);margin-bottom:10px;overflow:hidden">' +
-          '<div style="background:var(--acl);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleHistFolder(\''+groupId+'\')">' +
-          '<div style="font-weight:700;font-size:.85rem;color:var(--ac)">👤 '+(GOP_NAMES[gopId]||gopId)+'</div>' +
-          '<div style="display:flex;align-items:center;gap:8px">' +
-          '<span style="font-size:.72rem;color:var(--ac);background:#fff;border-radius:99px;padding:2px 9px">'+totalGop+'</span>' +
-          '<span style="color:var(--ac)">▾</span></div></div>' +
-          '<div id="'+groupId+'" style="display:none;padding:10px 12px;background:var(--bg)">' +
-          lojasDoGop.map(l=>storeFolderHtml(l)).join('') +
-          '</div></div>';
-      });
+    if(isIsolatedUser()){
+      // CROP / Inês (ou qualquer identidade isolada): mostra só as visitas feitas pela própria pessoa
+      const minhas = histAll.filter(r=>r.saved_by===who());
+      const byLoja = {};
+      minhas.forEach(r=>{ if(!byLoja[r.loja])byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
+      const lojasComVisita = Object.keys(byLoja);
+      container.innerHTML = '<div style="font-size:.78rem;color:var(--t2);margin-bottom:10px">📁 <strong>'+minhas.length+'</strong> relatório(s) guardado(s)</div>' +
+        (lojasComVisita.length ? lojasComVisita.map(l=>storeFolderHtml(l, byLoja)).join('') :
+          '<div class="card" style="text-align:center;color:var(--t2);padding:24px">Ainda sem visitas guardadas.</div>');
     } else {
-      lojasParaMostrar.forEach(loja=>{ html += storeFolderHtml(loja); });
+      // GOP / Gerente normal: mostra as lojas, mas nunca visitas de identidades isoladas (CROP, Inês)
+      const hist = histAll.filter(r=>!ISOLATED_IDENTITIES.includes(r.saved_by));
+      const byLoja = {};
+      hist.forEach(r=>{ if(!byLoja[r.loja])byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
+      const lojasParaMostrar = CU&&CU.role==='mgr' ? [CU.store] : STORES;
+      let html = '<div style="font-size:.78rem;color:var(--t2);margin-bottom:10px">📁 <strong>'+hist.length+'</strong> relatório(s) guardado(s)</div>';
+      lojasParaMostrar.forEach(loja=>{ html += storeFolderHtml(loja, byLoja); });
+      container.innerHTML = html;
     }
-
-    container.innerHTML = html;
   }catch(e){
     container.innerHTML = '<div style="color:var(--red);font-size:.81rem;padding:10px">Erro ao carregar histórico: '+e.message+'</div>';
   }
@@ -4166,8 +4148,8 @@ function runAutoSave(){
   return _currentSaveChain;
 }
 
-function getAutoSaveKey(store){ return 'cj_as_' + (store||vStore) + (CU&&CU.role==='crop'?'_crop':''); }
-function getAutoSaveId(store){ return 'as_' + (store||vStore) + (CU&&CU.role==='crop'?'_crop':''); }
+function getAutoSaveKey(store){ return 'cj_as_' + (store||vStore) + (isIsolatedUser()?'_'+(CU.role==='crop'?'crop':CU.gopId):''); }
+function getAutoSaveId(store){ return 'as_' + (store||vStore) + (isIsolatedUser()?'_'+(CU.role==='crop'?'crop':CU.gopId):''); }
 
 function scheduleAutoSave(){
   if(!vStore) return;
@@ -4659,6 +4641,7 @@ async function arquivarRelatorio(){
 
 function getGopByLoja(loja){
   for(const gopId of Object.keys(GOP_STORES)){
+    if(gopId==='ines_cruz') continue; // ela cobre lojas de outros GOPs, não é "dona" de nenhuma
     if(GOP_STORES[gopId].includes(loja)) return gopId;
   }
   return null;
@@ -4702,19 +4685,22 @@ async function rDashboard(){
     const atrasados = rows.filter(r=>r.prazo && r.prazo < today);
     const hoje = rows.filter(r=>r.prazo === today);
 
-    const rowsCropOwn = rows.filter(r=>r.criado_por==='CROP');
-    const rowsOutros = rows.filter(r=>r.criado_por!=='CROP');
+    const minhaIdentidade = who(); // 'CROP' ou 'GOP — <nome>'
+    const rowsMine = rows.filter(r=>r.criado_por===minhaIdentidade);
+    const rowsOutros = rows.filter(r=>!ISOLATED_IDENTITIES.includes(r.criado_por)); // nunca inclui CROP/Inês
 
-    if(CU && CU.role==='crop'){
-      const atrasadosCrop = rowsCropOwn.filter(r=>r.prazo && r.prazo<today).length;
-      const hojeCrop = rowsCropOwn.filter(r=>r.prazo===today).length;
+    if(isIsolatedUser()){
+      const meuIcone = CU.role==='crop' ? '🟣' : '🎓';
+      const meuRotulo = CU.role==='crop' ? 'CROP' : GOP_NAMES[CU.gopId];
+      const atrasadosMine = rowsMine.filter(r=>r.prazo && r.prazo<today).length;
+      const hojeMine = rowsMine.filter(r=>r.prazo===today).length;
       const atrasadosGop = rowsOutros.filter(r=>r.prazo && r.prazo<today).length;
       const hojeGop = rowsOutros.filter(r=>r.prazo===today).length;
       resumoEl.innerHTML =
-        '<div style="flex:1 1 100%;font-size:.7rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">🟣 Alertas CROP</div>' +
-        '<div class="sc" style="flex:1;min-width:90px"><div class="slb">Total</div><div class="svl">'+rowsCropOwn.length+'</div></div>' +
-        '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🔴 Atrasados</div><div class="svl cr">'+atrasadosCrop+'</div></div>' +
-        '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🟡 Hoje</div><div class="svl co">'+hojeCrop+'</div></div>' +
+        '<div style="flex:1 1 100%;font-size:.7rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">'+meuIcone+' Alertas '+meuRotulo+'</div>' +
+        '<div class="sc" style="flex:1;min-width:90px"><div class="slb">Total</div><div class="svl">'+rowsMine.length+'</div></div>' +
+        '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🔴 Atrasados</div><div class="svl cr">'+atrasadosMine+'</div></div>' +
+        '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🟡 Hoje</div><div class="svl co">'+hojeMine+'</div></div>' +
         '<div style="flex:1 1 100%;font-size:.7rem;font-weight:700;color:var(--ac);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 2px">👤 Alertas GOP</div>' +
         '<div class="sc" style="flex:1;min-width:90px"><div class="slb">Total</div><div class="svl">'+rowsOutros.length+'</div></div>' +
         '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🔴 Atrasados</div><div class="svl cr">'+atrasadosGop+'</div></div>' +
@@ -4726,34 +4712,34 @@ async function rDashboard(){
         '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🟡 Hoje</div><div class="svl co">'+hoje.length+'</div></div>';
     }
 
-    if(!rows.length && CU && CU.role==='crop'){
+    if(!rows.length && isIsolatedUser()){
       listEl.innerHTML = '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:24px">✅ Sem pendentes em aberto!</div>';
       return;
     }
 
     let html = '';
 
-    if(CU && CU.role==='crop'){
-      // Alertas que a própria CROP identificou — secção própria, sempre visível, nunca misturada
-      html += '<div style="font-size:.72rem;font-weight:700;color:#7c3aed;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">🟣 Alertas que identifiquei</div>';
-      if(!rowsCropOwn.length){
+    if(isIsolatedUser()){
+      const meuIcone = CU.role==='crop' ? '🟣' : '🎓';
+      html += '<div style="font-size:.72rem;font-weight:700;color:#7c3aed;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">'+meuIcone+' Alertas que identifiquei</div>';
+      if(!rowsMine.length){
         html += '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:20px;margin-bottom:16px">✅ Sem alertas meus em aberto!</div>';
       } else {
-        const byGopCropOwn = {};
-        rowsCropOwn.forEach(r=>{
+        const byGopMine = {};
+        rowsMine.forEach(r=>{
           const gopId = getGopByLoja(r.loja) || 'outras';
-          if(!byGopCropOwn[gopId]) byGopCropOwn[gopId]=[];
-          byGopCropOwn[gopId].push(r);
+          if(!byGopMine[gopId]) byGopMine[gopId]=[];
+          byGopMine[gopId].push(r);
         });
-        Object.keys(byGopCropOwn).sort((a,b)=>(GOP_NAMES[a]||a).localeCompare(GOP_NAMES[b]||b)).forEach(gopId=>{
-          const gopItems = byGopCropOwn[gopId];
-          const gopFolderId = 'dash-crop-gop-'+gopId;
-          const atrasadosGopCrop = gopItems.filter(r=>r.prazo && r.prazo<today).length;
-          const byLojaCropOwn = {};
-          gopItems.forEach(r=>{ if(!byLojaCropOwn[r.loja]) byLojaCropOwn[r.loja]=[]; byLojaCropOwn[r.loja].push(r); });
-          const lojasHtml = Object.keys(byLojaCropOwn).sort((a,b)=>sn(a).localeCompare(sn(b))).map(loja=>{
-            const items = byLojaCropOwn[loja];
-            const lojaFolderId = 'dash-crop-loja-'+gopId+'-'+loja;
+        Object.keys(byGopMine).sort((a,b)=>(GOP_NAMES[a]||a).localeCompare(GOP_NAMES[b]||b)).forEach(gopId=>{
+          const gopItems = byGopMine[gopId];
+          const gopFolderId = 'dash-mine-gop-'+gopId;
+          const atrasadosGopMine = gopItems.filter(r=>r.prazo && r.prazo<today).length;
+          const byLojaMine = {};
+          gopItems.forEach(r=>{ if(!byLojaMine[r.loja]) byLojaMine[r.loja]=[]; byLojaMine[r.loja].push(r); });
+          const lojasHtml = Object.keys(byLojaMine).sort((a,b)=>sn(a).localeCompare(sn(b))).map(loja=>{
+            const items = byLojaMine[loja];
+            const lojaFolderId = 'dash-mine-loja-'+gopId+'-'+loja;
             const atrasadosLoja = items.filter(r=>r.prazo && r.prazo<today).length;
             return '<div style="border:1px solid var(--br);border-radius:var(--rb);margin-bottom:8px;overflow:hidden">' +
               '<div style="background:var(--sf2);padding:9px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleDashFolder(\''+lojaFolderId+'\')">' +
@@ -4770,7 +4756,7 @@ async function rDashboard(){
             '<div style="padding:13px 15px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleDashFolder(\''+gopFolderId+'\')">' +
             '<div style="font-weight:700;font-size:.92rem">👤 '+(GOP_NAMES[gopId]||'Outras lojas')+'</div>' +
             '<div style="display:flex;align-items:center;gap:8px">' +
-            (atrasadosGopCrop>0 ? '<span class="bk bk-d">🔴 '+atrasadosGopCrop+'</span>' : '') +
+            (atrasadosGopMine>0 ? '<span class="bk bk-d">🔴 '+atrasadosGopMine+'</span>' : '') +
             '<span class="bk bk-n">'+gopItems.length+'</span>' +
             '<span style="color:var(--t2)">▾</span></div></div>' +
             '<div id="'+gopFolderId+'" style="display:none;padding:0 15px 13px">' +
@@ -4780,7 +4766,6 @@ async function rDashboard(){
         html += '<div style="margin-bottom:16px"></div>';
       }
 
-      // Agrupar por GOP (cada GOP é uma pasta colapsável) — sem incluir os alertas da própria CROP
       html += '<div style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">👤 Alertas por GOP</div>';
       const byGop = {};
       rowsOutros.forEach(r=>{
@@ -4792,7 +4777,6 @@ async function rDashboard(){
         const items = byGop[gopId];
         const folderId = 'dash-folder-'+gopId;
         const atrasadosGop = items.filter(r=>r.prazo && r.prazo<today).length;
-        // Sub-agrupar por loja dentro do GOP, para reduzir ruído visual
         const byLojaGop = {};
         items.forEach(r=>{ if(!byLojaGop[r.loja]) byLojaGop[r.loja]=[]; byLojaGop[r.loja].push(r); });
         const lojasHtml = Object.keys(byLojaGop).sort((a,b)=>sn(a).localeCompare(sn(b))).map(loja=>{
@@ -4825,9 +4809,10 @@ async function rDashboard(){
         html += '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:20px">✅ Sem pendentes dos GOPs!</div>';
       }
     } else {
-      // GOP normal — agrupar por loja (colapsável), com os alertas da CROP numa secção própria
-      const rowsProprios = rows.filter(r=>r.criado_por!=='CROP');
+      const rowsProprios = rows.filter(r=>!ISOLATED_IDENTITIES.includes(r.criado_por));
       const rowsCrop = rows.filter(r=>r.criado_por==='CROP');
+      const rowsInes = rows.filter(r=>r.criado_por==='GOP — Inês Cruz');
+      const partilhaComInes = CU && (CU.gopId==='tiago_campos' || CU.gopId==='luis_serrano');
 
       if(!rowsProprios.length){
         html += '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:20px;margin-bottom:14px">✅ Sem pendentes em aberto nas tuas lojas!</div>';
@@ -4851,17 +4836,19 @@ async function rDashboard(){
         });
       }
 
-      html += '<div style="font-size:.72rem;font-weight:700;color:#7c3aed;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.5px">🟣 Alertas identificados pela CROP</div>';
-      if(!rowsCrop.length){
-        html += '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:20px">✅ Sem pendentes deixados pela CROP!</div>';
-      } else {
-        const byLojaCrop = {};
-        rowsCrop.forEach(r=>{ if(!byLojaCrop[r.loja]) byLojaCrop[r.loja]=[]; byLojaCrop[r.loja].push(r); });
-        Object.keys(byLojaCrop).sort((a,b)=>sn(a).localeCompare(sn(b))).forEach(loja=>{
-          const items = byLojaCrop[loja];
-          const folderId = 'dash-croppart-loja-'+loja;
+      const renderSecaoIsolada = (titulo, lista, corBorda) => {
+        let h = '<div style="font-size:.72rem;font-weight:700;color:'+corBorda+';margin:16px 0 8px;text-transform:uppercase;letter-spacing:.5px">'+titulo+'</div>';
+        if(!lista.length){
+          h += '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:20px">✅ Sem pendentes em aberto!</div>';
+          return h;
+        }
+        const byLojaX = {};
+        lista.forEach(r=>{ if(!byLojaX[r.loja]) byLojaX[r.loja]=[]; byLojaX[r.loja].push(r); });
+        Object.keys(byLojaX).sort((a,b)=>sn(a).localeCompare(sn(b))).forEach(loja=>{
+          const items = byLojaX[loja];
+          const folderId = 'dash-iso-loja-'+titulo.replace(/[^a-z0-9]/gi,'')+'-'+loja;
           const atrasadosLoja = items.filter(r=>r.prazo && r.prazo<today).length;
-          html += '<div class="card" style="margin-bottom:10px;padding:0;overflow:hidden;border-left:3px solid #7c3aed">' +
+          h += '<div class="card" style="margin-bottom:10px;padding:0;overflow:hidden;border-left:3px solid '+corBorda+'">' +
             '<div style="padding:13px 15px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleDashFolder(\''+folderId+'\')">' +
             '<div style="font-weight:700;font-size:.88rem">📍 '+sn(loja)+'</div>' +
             '<div style="display:flex;align-items:center;gap:8px">' +
@@ -4872,7 +4859,11 @@ async function rDashboard(){
             items.map(r=>renderPendenteItem(r, today)).join('') +
             '</div></div>';
         });
-      }
+        return h;
+      };
+
+      html += renderSecaoIsolada('🟣 Alertas identificados pela CROP', rowsCrop, '#7c3aed');
+      if(partilhaComInes) html += renderSecaoIsolada('🎓 Alertas identificados pela Inês Cruz', rowsInes, '#0e7490');
     }
 
     listEl.innerHTML = html;
