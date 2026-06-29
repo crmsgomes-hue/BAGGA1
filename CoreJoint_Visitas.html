@@ -5095,6 +5095,7 @@ async function salvarPendentes(){
 }
 
 async function confirmarFinalizar(){
+  if(!confirm('Tens a certeza? Já fizeste o arquivo da visita?')) return;
   closeM('m-pdf-preview');
   // Pendentes já foram guardados em finalizarVisita()
   // Limpar tudo (o arquivo já foi feito pelo botão "Arquivar", se o utilizador clicou nele)
