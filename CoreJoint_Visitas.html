@@ -2076,6 +2076,10 @@ async function startV(store, skipReset=false){
     document.querySelectorAll('[id^="chk-prazo-"]').forEach(p=>{
       if(p.style && !p.id.includes('date')) p.style.display='none';
     });
+    // Limpar também o VALOR das datas de prazo (não só esconder o campo) — senão a data
+    // de uma não-conformidade da loja anterior podia reaparecer se o utilizador marcasse
+    // outro item como não-conforme nesta loja nova.
+    document.querySelectorAll('[id^="chk-prazo-date-"]').forEach(d=>{ d.value=''; });
     document.querySelectorAll('[id^="chk-nota-"]').forEach(n=>{ if(n.value!==undefined) n.value=''; });
     document.querySelectorAll('[id^="chk-photo-prev-"]').forEach(p=>{ p.innerHTML=''; });
     document.querySelectorAll('[id^="chk-count-"]').forEach(c=>{ c.textContent=''; });
@@ -2083,6 +2087,15 @@ async function startV(store, skipReset=false){
     document.querySelectorAll('[id^="hck-"]').forEach(b=>b.classList.remove('ok','fail'));
     // Limpar UI — ruturas
     document.querySelectorAll('.cli .ck').forEach(b=>b.classList.remove('ok','fail'));
+    // Limpar FTEs — estes campos nunca herdam de visita anterior (a equipa muda de visita
+    // para visita), mas também nunca estavam a ser limpos ao trocar de loja, por isso ficavam
+    // com os valores da loja anterior visitada na mesma sessão (sem recarregar a página).
+    const fteDef=el('rh-ftes-definido'); if(fteDef) fteDef.value='';
+    const fteReal=el('rh-ftes-real'); if(fteReal) fteReal.value='';
+    const fteDesvio=el('rh-ftes-desvio'); if(fteDesvio) fteDesvio.textContent='—';
+    const rhCom=el('rh-comentario'); if(rhCom) rhCom.value='';
+    // Limpar comentário da Pesagem de Café — mesmo motivo (nunca era limpo).
+    const cafeCom=el('v-cafe-comentario'); if(cafeCom) cafeCom.value='';
   }
   // A CROP nunca herda valores de visitas anteriores (nem dela própria) — começa sempre em branco.
   // Todos os outros só herdam dos SEUS PRÓPRIOS valores anteriores nesta loja — nunca dos de
@@ -2130,7 +2143,7 @@ async function startV(store, skipReset=false){
     // chegado hoje, por isso tem de ser sempre avaliado de novo, em branco.
     vRut={};
   }else if(!skipReset){
-    ['v-cs','v-cd','v-nt','v-cr-food-mes','v-cr-food-ano','v-cr-food-dif','v-cr-total-mes','v-cr-total-ano','v-cr-total-dif','v-quebra-total','v-quebra-food','v-quebra-jsc','v-quebra-tabaco'].forEach(i=>{const e=el(i);if(e)e.value='';});
+    ['v-cs','v-cd','v-nt','v-cr-food-mes','v-cr-food-ano','v-cr-food-dif','v-cr-total-mes','v-cr-total-ano','v-cr-total-dif','v-quebra-total','v-quebra-food','v-quebra-jsc','v-quebra-tabaco','v-ebita','v-staffcos','v-margem'].forEach(i=>{const e=el(i);if(e)e.value='';});
   }
   try{ renderPhotos('cafe');renderPhotos('nc'); }catch(e){}
   try{ await rVRut(); }catch(e){}
