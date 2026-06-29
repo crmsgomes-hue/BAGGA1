@@ -236,6 +236,11 @@
             <div class="fg"><label>Quebra Total</label><input type="text" class="fc" id="v-quebra-total" placeholder="Ex: 1.250€ ou 2.1%"></div>
             <div class="fg"><label>Quebra Food</label><input type="text" class="fc" id="v-quebra-food" placeholder="Ex: 850€ ou 1.4%"></div>
           </div>
+          <div style="font-size:.71rem;font-weight:700;color:var(--t2);margin:10px 0 6px">📉 Quebra Nonfood</div>
+          <div class="fr">
+            <div class="fg"><label>Quebra JSC</label><input type="text" class="fc" id="v-quebra-jsc" placeholder="Ex: 120€ ou 0.8%"></div>
+            <div class="fg"><label>Quebra Tabaco</label><input type="text" class="fc" id="v-quebra-tabaco" placeholder="Ex: 60€ ou 0.3%"></div>
+          </div>
           <div class="fr">
             <div class="fg"><label>EBITA</label><input type="text" class="fc" id="v-ebita" placeholder="Ex: 12.5%"></div>
             <div class="fg"><label>Staffcos</label><input type="text" class="fc" id="v-staffcos" placeholder="Ex: 8.2%"></div>
@@ -2116,6 +2121,7 @@ async function startV(store, skipReset=false){
     setIf('v-cr-food-mes',e.crescimento_food_mes);setIf('v-cr-food-ano',e.crescimento_food_ano);
     setIf('v-cr-total-mes',e.crescimento_total_mes);setIf('v-cr-total-ano',e.crescimento_total_ano);
     setIf('v-quebra-total',e.quebra_total);setIf('v-quebra-food',e.quebra_food);
+    setIf('v-quebra-jsc',e.quebra_jsc);setIf('v-quebra-tabaco',e.quebra_tabaco);
     calcCrescimento();
     const ve=el('v-ebita');if(ve)ve.value=e.ebita||'';const vs=el('v-staffcos');if(vs)vs.value=e.staffcos||'';const vm=el('v-margem');if(vm)vm.value=e.margem||'';el('v-nt').value=e.notas||'';
     try{vPhotos.cafe=JSON.parse(e.fotos_cafe||'[]');}catch(err){vPhotos.cafe=[];}
@@ -2124,7 +2130,7 @@ async function startV(store, skipReset=false){
     // chegado hoje, por isso tem de ser sempre avaliado de novo, em branco.
     vRut={};
   }else if(!skipReset){
-    ['v-cs','v-cd','v-nt','v-cr-food-mes','v-cr-food-ano','v-cr-food-dif','v-cr-total-mes','v-cr-total-ano','v-cr-total-dif','v-quebra-total','v-quebra-food'].forEach(i=>{const e=el(i);if(e)e.value='';});
+    ['v-cs','v-cd','v-nt','v-cr-food-mes','v-cr-food-ano','v-cr-food-dif','v-cr-total-mes','v-cr-total-ano','v-cr-total-dif','v-quebra-total','v-quebra-food','v-quebra-jsc','v-quebra-tabaco'].forEach(i=>{const e=el(i);if(e)e.value='';});
   }
   try{ renderPhotos('cafe');renderPhotos('nc'); }catch(e){}
   try{ await rVRut(); }catch(e){}
@@ -2556,6 +2562,7 @@ async function saveV(){
       crescimento_food_mes:val('v-cr-food-mes'), crescimento_food_ano:val('v-cr-food-ano'),
       crescimento_total_mes:val('v-cr-total-mes'), crescimento_total_ano:val('v-cr-total-ano'),
       quebra_total:val('v-quebra-total'), quebra_food:val('v-quebra-food'),
+      quebra_jsc:val('v-quebra-jsc'), quebra_tabaco:val('v-quebra-tabaco'),
       ebita:val('v-ebita'), staffcos:val('v-staffcos'), margem:val('v-margem'), notas:val('v-nt'),
       rut_check:JSON.stringify(vRut),
       checklist:JSON.stringify(chkMeta),
@@ -2965,6 +2972,7 @@ async function genRel(){
       <tr><td class="lbl">Food / Mês</td><td class="val">${val('v-cr-food-mes')?val('v-cr-food-mes')+'%':'—'}</td><td class="lbl">Food / Ano</td><td class="val">${val('v-cr-food-ano')?val('v-cr-food-ano')+'%':'—'}</td><td class="lbl">Dif. (Mês-Ano)</td><td class="val">${val('v-cr-food-dif')||'—'}</td></tr>
       <tr><td class="lbl">Total / Mês</td><td class="val">${val('v-cr-total-mes')?val('v-cr-total-mes')+'%':'—'}</td><td class="lbl">Total / Ano</td><td class="val">${val('v-cr-total-ano')?val('v-cr-total-ano')+'%':'—'}</td><td class="lbl">Dif. (Mês-Ano)</td><td class="val">${val('v-cr-total-dif')||'—'}</td></tr>
       <tr><td class="lbl">Quebra Total</td><td class="val">${val('v-quebra-total')||'—'}</td><td class="lbl">Quebra Food</td><td class="val">${val('v-quebra-food')||'—'}</td><td class="lbl">EBITA</td><td class="val">${val('v-ebita')||'—'}</td></tr>
+      <tr><td class="lbl">Quebra JSC</td><td class="val">${val('v-quebra-jsc')||'—'}</td><td class="lbl">Quebra Tabaco</td><td class="val">${val('v-quebra-tabaco')||'—'}</td><td class="lbl"></td><td class="val"></td></tr>
       <tr><td class="lbl">Staffcos</td><td class="val">${val('v-staffcos')||'—'}</td><td class="lbl">Margem</td><td class="val">${val('v-margem')||'—'}</td><td class="lbl"></td><td class="val"></td></tr>
       <tr><td class="lbl" style="vertical-align:top">Notas</td><td class="val" colspan="5" style="font-weight:400">${val('v-nt')||'—'}</td></tr>
     </table>`
@@ -4357,6 +4365,8 @@ async function doAutoSave(){
       crescimento_total_ano: val('v-cr-total-ano'),
       quebra_total: val('v-quebra-total'),
       quebra_food: val('v-quebra-food'),
+      quebra_jsc: val('v-quebra-jsc'),
+      quebra_tabaco: val('v-quebra-tabaco'),
       ebita: val('v-ebita'),
       staffcos: val('v-staffcos'),
       margem: val('v-margem'),
@@ -4412,6 +4422,8 @@ async function doAutoSave(){
         crescimento_total_ano: snapshot.crescimento_total_ano,
         quebra_total: snapshot.quebra_total,
         quebra_food: snapshot.quebra_food,
+        quebra_jsc: snapshot.quebra_jsc,
+        quebra_tabaco: snapshot.quebra_tabaco,
         ebita: snapshot.ebita,
         staffcos: snapshot.staffcos,
         margem: snapshot.margem,
@@ -4499,6 +4511,8 @@ async function restoreAutoSave(store){
           crescimento_total_ano: row.crescimento_total_ano,
           quebra_total: row.quebra_total,
           quebra_food: row.quebra_food,
+          quebra_jsc: row.quebra_jsc,
+          quebra_tabaco: row.quebra_tabaco,
           ebita: row.ebita,
           staffcos: row.staffcos,
           margem: row.margem,
