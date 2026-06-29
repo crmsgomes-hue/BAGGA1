@@ -1372,6 +1372,27 @@ function doLogout(){
   CU=null; _loginGopId=null;
   el('LS').style.display='flex'; el('HD').style.display='none'; el('NV').style.display='none'; el('MN').style.display='none';
   el('l-pin').value='';
+  // ── Limpeza defensiva: este dispositivo é partilhado entre vários GOPs durante os
+  // testes. Mesmo já corrigido o reset ao trocar de loja, este logout garante que NENHUM
+  // dado de uma visita (própria ou de outra pessoa) fica "pendurado" em memória à espera
+  // do próximo login — independentemente do que essa pessoa fizer a seguir.
+  vStore = null;
+  const vform = el('v-form'); if(vform) vform.style.display = 'none';
+  const vstores = el('v-stores'); if(vstores) vstores.style.display = 'block';
+  vChecklist = {}; vHaccp = {}; vRut = {}; vRutNotas = {}; vRutObs = {};
+  procAnswers = {}; procSelected = []; vChegadaPhoto = null;
+  vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],
+             rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],
+             rh_horarios:[],rh_ferias:[],raid:[],procedimentos:[]};
+  ['v-cs','v-cd','v-nt','v-cafe-comentario','v-cr-food-mes','v-cr-food-ano','v-cr-food-dif',
+   'v-cr-total-mes','v-cr-total-ano','v-cr-total-dif','v-quebra-total','v-quebra-food',
+   'v-quebra-jsc','v-quebra-tabaco','v-ebita','v-staffcos','v-margem',
+   'rh-ftes-definido','rh-ftes-real','rh-comentario'].forEach(i=>{const e=el(i);if(e)e.value='';});
+  const fteDesvio = el('rh-ftes-desvio'); if(fteDesvio) fteDesvio.textContent = '—';
+  document.querySelectorAll('.ck').forEach(b=>b.classList.remove('ok','fail','na'));
+  document.querySelectorAll('[id^="chk-nota-"]').forEach(n=>{ if(n.value!==undefined) n.value=''; });
+  document.querySelectorAll('[id^="chk-prazo-date-"]').forEach(d=>{ d.value=''; });
+  document.querySelectorAll('[id^="chk-photo-prev-"]').forEach(p=>{ p.innerHTML=''; });
   showFaseRole();
 }
 
