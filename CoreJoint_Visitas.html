@@ -1474,26 +1474,29 @@ async function dismissAlerta(tipo, itemId, ocorrencias, btn){
   btn.disabled = true;
   btn.textContent = '…';
   try{
-    // Para cada rascunho afetado, limpar o item específico no campo correto
     for(const oc of ocorrencias){
+      // Pesquisar por loja + saved_by (mais robusto que reconstruir o ID)
       const rows = await dbGet('cj_visitas_rascunhos',
-        'id=eq.'+encodeURIComponent('as_'+oc.loja+(oc.who==='CROP'?'_crop':oc.who.includes('ines_cruz')?'_ines_cruz':'')));
+        'loja=eq.'+encodeURIComponent(oc.loja)+'&saved_by=eq.'+encodeURIComponent(oc.who));
       if(!rows || !rows.length) continue;
       const row = rows[0];
 
       if(tipo === 'chk'){
+        // checklist é coluna jsonb — passar objeto diretamente
         let chk = row.checklist;
-        if(typeof chk === 'string') chk = JSON.parse(chk);
+        if(typeof chk === 'string') try{ chk = JSON.parse(chk); }catch(e){ chk = {}; }
         if(chk && chk[itemId]) chk[itemId].conforme = null;
         await dbUpd('cj_visitas_rascunhos', row.id, { checklist: chk });
       } else if(tipo === 'rut'){
+        // rut_check é coluna text — guardar como string JSON
         let rut = row.rut_check;
-        if(typeof rut === 'string') rut = JSON.parse(rut);
+        if(typeof rut === 'string') try{ rut = JSON.parse(rut); }catch(e){ rut = {}; }
         if(rut) delete rut[itemId];
         await dbUpd('cj_visitas_rascunhos', row.id, { rut_check: JSON.stringify(rut||{}) });
       } else if(tipo === 'hac'){
+        // haccp é coluna text — guardar como string JSON
         let hac = row.haccp;
-        if(typeof hac === 'string') hac = JSON.parse(hac);
+        if(typeof hac === 'string') try{ hac = JSON.parse(hac); }catch(e){ hac = {}; }
         if(hac) delete hac[itemId];
         await dbUpd('cj_visitas_rascunhos', row.id, { haccp: JSON.stringify(hac||{}) });
       }
@@ -1706,6 +1709,9 @@ function doLogout(){
   document.querySelectorAll('[id^="chk-nota-"]').forEach(n=>{ if(n.value!==undefined) n.value=''; });
   document.querySelectorAll('[id^="chk-prazo-date-"]').forEach(d=>{ d.value=''; });
   document.querySelectorAll('[id^="chk-photo-prev-"]').forEach(p=>{ p.innerHTML=''; });
+  // Limpar card de alertas sistémicos (era da CROP — não deve ficar visível para o próximo utilizador)
+  const alertCard = el('crop-alertas-sistemicos');
+  if(alertCard){ alertCard.style.display='none'; alertCard.innerHTML=''; }
   showFaseRole();
 }
 
