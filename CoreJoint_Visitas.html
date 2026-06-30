@@ -184,6 +184,9 @@
 
 <div class="sec" id="s-visitas">
   <div class="pt" id="v-page-title">Visitas GOP</div><div class="ps">Auditoria de loja com câmara e tarefas</div>
+
+  <!-- ALERTAS SISTÉMICOS — só visível para a CROP quando há ≥3 GOPs com a mesma NC -->
+  <div id="crop-alertas-sistemicos" style="display:none;margin-bottom:14px"></div>
   <div id="v-stores"><div class="card"><div class="ch"><div class="ct">Selecionar Loja</div></div>
     <div class="sg" id="v-stores-grid"></div>
   </div>
@@ -1374,6 +1377,8 @@ async function doLogin(){
   renderStoreGrids();
   await go('dashboard');
   loadProcDossiers();
+  // Alertas sistémicos — só corre para a CROP
+  if(CU && CU.role==='crop') loadAlertasSistemicos();
 }
 
 function renderStoreGrids(){
@@ -1405,6 +1410,80 @@ function renderStoreGrids(){
     if(gridH) gridH.innerHTML = STORES.map(s => '<div class="sb" onclick="abrirHistLoja(\''+s+'\')">🏪 '+sn(s)+'</div>').join('');
   }
 }
+
+// ── Alertas Sistémicos (CROP) ─────────────────────────────────────────────────
+// Agrega os rascunhos ativos de todos os GOPs e deteta não-conformidades que
+// aparecem em ≥ ALERTA_THRESHOLD GOPs diferentes em simultâneo.
+// Serve para a CROP identificar problemas de rede (ex: horários em falta em 4 lojas).
+const ALERTA_THRESHOLD = 3;
+
+async function loadAlertasSistemicos(){
+  const container = el('crop-alertas-sistemicos');
+  if(!container) return;
+  container.style.display = 'none';
+  container.innerHTML = '';
+
+  try{
+    const rows = await dbGet('cj_visitas_rascunhos',
+      'select=loja,saved_by,checklist&checklist=not.is.null') || [];
+
+    // Excluir CROP e Inês Cruz — só GOPs contam para padrões sistémicos
+    const gopRows = rows.filter(r => !ISOLATED_IDENTITIES.includes(r.saved_by));
+
+    // Agregar: para cada item, recolher o conjunto de GOPs com conforme=false
+    const ncPorItem = {};
+    gopRows.forEach(row => {
+      let chk = row.checklist;
+      if(typeof chk === 'string'){ try{ chk = JSON.parse(chk); }catch(e){ return; } }
+      if(!chk || typeof chk !== 'object') return;
+      Object.entries(chk).forEach(([itemId, val]) => {
+        if(val && val.conforme === false){
+          if(!ncPorItem[itemId]) ncPorItem[itemId] = new Set();
+          ncPorItem[itemId].add(row.saved_by);
+        }
+      });
+    });
+
+    // Filtrar apenas os que atingem o limiar
+    const alertas = Object.entries(ncPorItem)
+      .filter(([, gops]) => gops.size >= ALERTA_THRESHOLD)
+      .map(([itemId, gops]) => ({
+        itemId,
+        label: (CHK_ITEM_LABELS.find(i=>i.id===itemId)||{label:itemId}).label,
+        gops: [...gops],
+        count: gops.size
+      }))
+      .sort((a,b) => b.count - a.count);
+
+    if(!alertas.length) return;
+
+    const html = `
+      <div style="background:#fbeeec;border:2px solid var(--red);border-radius:var(--ra);padding:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:1.3rem">🚨</span>
+          <div>
+            <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:.95rem;color:var(--red)">Alerta Sistémico</div>
+            <div style="font-size:.75rem;color:var(--red);opacity:.85">${alertas.length} não-conformidade${alertas.length>1?'s':''} com ≥${ALERTA_THRESHOLD} GOPs em simultâneo</div>
+          </div>
+        </div>
+        ${alertas.map(a=>`
+          <div style="background:#fff;border:1px solid #e3b3a8;border-radius:var(--rb);padding:10px;margin-bottom:7px">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+              <div style="font-weight:700;font-size:.88rem">${a.label}</div>
+              <span style="background:var(--red);color:#fff;border-radius:99px;padding:2px 10px;font-size:.72rem;font-weight:700">${a.count} GOP${a.count>1?'s':''}</span>
+            </div>
+            <div style="font-size:.74rem;color:var(--t2);margin-top:5px">${a.gops.map(g=>g.replace('GOP — ','')).join(' · ')}</div>
+          </div>
+        `).join('')}
+      </div>`;
+
+    container.innerHTML = html;
+    container.style.display = 'block';
+  }catch(e){
+    console.error('loadAlertasSistemicos:', e);
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ── Alterar PIN ──────────────────────────────────────────────────────────────
 // PINs personalizados ficam em localStorage sob a chave 'cj_pin_<gopId>'.
