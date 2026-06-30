@@ -1411,10 +1411,80 @@ function renderStoreGrids(){
 }
 
 // ── Alertas Sistémicos (CROP) ─────────────────────────────────────────────────
-// Conta o total de ocorrências de cada NC em todos os rascunhos ativos
-// (mesmo GOP em várias lojas conta separadamente). Se ≥ ALERTA_THRESHOLD
-// ocorrências da mesma NC, a CROP vê um alerta no dashboard.
+// Conta o total de ocorrências de cada NC/rutura/HACCP em todos os rascunhos
+// ativos. Se ≥ ALERTA_THRESHOLD ocorrências do mesmo item, a CROP vê um alerta
+// no dashboard. Cobre: checklist de visita, ruturas e checklist HACCP.
 const ALERTA_THRESHOLD = 5;
+
+// Mapeamento id -> label legível para ruturas (extraído do HTML)
+const RUT_LABELS = {
+  biscoito_almendrado:'Biscoito Almêndrado', biscoito_hungaro:'Biscoito Húngaro',
+  mini_cookies:'Mini Cookies', mini_cookies_choc:'Mini Cookies Choc',
+  mini_palmier:'Mini Palmier', mini_brigadeiro:'Mini Brigadeiro',
+  bolo_de_maca:'Bolo de Maçã', bolo_red_velvet:'Bolo Red Velvet',
+  bolo_bolacha:'Bolo Bolacha', bolo_brigadeiro:'Bolo Brigadeiro',
+  bolo_chocolate_mousse:'Bolo Chocolate Mousse', palmier_recheado:'Palmier Recheado',
+  pastel_de_nata:'Pastel de Nata', pastel_de_nata_50pct:'Pastel de Nata 50%',
+  queijada_de_laranja:'Queijada de Laranja', queijada_de_leite:'Queijada de Leite',
+  tarte_de_amendoa:'Tarte de Amêndoa', queque:'Queque',
+  muffin_de_chocolate:'Muffin de Chocolate', bolo_de_arroz:'Bolo de Arroz',
+  dot:'Dot', dot_biscoff:'Dot Biscoff', bola_de_berlim:'Bola de Berlim',
+  bretzel:'Bretzel', croissant_chocolate:'Croissant Chocolate',
+  croissant_ovo:'Croissant Ovo', pao_de_deus:'Pão de Deus',
+  baguete_de_trigo:'Baguete de Trigo', bola_de_alfarroba:'Bola de Alfarroba',
+  bola_de_quinoa:'Bola de Quinoa', bola_rustica:'Bola Rústica',
+  croissant_brioche:'Croissant Brioche', croissant_folhado:'Croissant Folhado',
+  nosso_croissant:'Nosso Croissant', coxinha_de_frango:'Coxinha de Frango',
+  croquete_de_carne:'Croquete de Carne', croquete_de_pato:'Croquete de Pato',
+  empada_de_frango:'Empada de Frango', folhado_de_novilho:'Folhado de Novilho',
+  folhado_de_salmao:'Folhado de Salmão', folhado_misto:'Folhado Misto',
+  pao_com_chourico:'Pão com Chouriço', pastel_de_bacalhau:'Pastel de Bacalhau',
+  rissol_de_camarao:'Rissol de Camarão', pao_de_queijo:'Pão de Queijo',
+  sandes_panado:'Sandes Panado', hamburguer_de_frango:'Hambúrguer de Frango',
+  baguete_de_presunto:'Baguete de Presunto', baguete_de_atum:'Baguete de Atum',
+  bola_de_salmao:'Bola de Salmão', bola_de_mozarela:'Bola de Mozarela',
+  laranja:'Laranja'
+};
+
+// Mapeamento id -> label legível para HACCP
+const HACCP_LABELS_MAP = {
+  reg_3:'REG 3', reg_4:'REG 4', reg_8:'REG 8', reg_9:'REG 9',
+  reg_10:'REG 10', reg_14:'REG 14', reg_21:'REG 21', reg_141:'REG 141',
+  dlus:'D.L.U.S', iogurte:'Iogurte', laranjas:'Laranjas', manteiga:'Manteiga'
+};
+
+function _agregaNC(ncMap, itemId, row){
+  if(!ncMap[itemId]) ncMap[itemId] = [];
+  ncMap[itemId].push({ loja: row.loja, who: row.saved_by });
+}
+
+function _filtraAlertas(ncMap, labelMap){
+  return Object.entries(ncMap)
+    .filter(([, ocs]) => ocs.length >= ALERTA_THRESHOLD)
+    .map(([id, ocs]) => ({
+      label: (labelMap[id] || id),
+      ocorrencias: ocs,
+      count: ocs.length
+    }))
+    .sort((a,b) => b.count - a.count);
+}
+
+function _renderSecAlerta(titulo, alertas){
+  if(!alertas.length) return '';
+  return `
+    <div style="font-size:.7rem;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 5px">${titulo}</div>
+    ${alertas.map(a=>`
+      <div style="background:#fff;border:1px solid #e3b3a8;border-radius:var(--rb);padding:10px;margin-bottom:7px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+          <div style="font-weight:700;font-size:.88rem">${a.label}</div>
+          <span style="background:var(--red);color:#fff;border-radius:99px;padding:2px 10px;font-size:.72rem;font-weight:700">${a.count}×</span>
+        </div>
+        <div style="font-size:.74rem;color:var(--t2);margin-top:5px">
+          ${a.ocorrencias.map(o=>`${o.who.replace('GOP — ','')} (${sn(o.loja)})`).join(' · ')}
+        </div>
+      </div>
+    `).join('')}`;
+}
 
 async function loadAlertasSistemicos(){
   const container = el('crop-alertas-sistemicos');
@@ -1424,58 +1494,62 @@ async function loadAlertasSistemicos(){
 
   try{
     const rows = await dbGet('cj_visitas_rascunhos',
-      'select=loja,saved_by,checklist&checklist=not.is.null') || [];
+      'select=loja,saved_by,checklist,rut_check,haccp') || [];
 
-    // Agregar: para cada item, recolher todas as ocorrências (loja + quem) com conforme=false
-    const ncPorItem = {}; // { itemId: [ {loja, saved_by}, ... ] }
+    const ncChecklist = {}, ncRuturas = {}, ncHaccp = {};
+
     rows.forEach(row => {
+      // ── Checklist de visita ──
       let chk = row.checklist;
-      if(typeof chk === 'string'){ try{ chk = JSON.parse(chk); }catch(e){ return; } }
-      if(!chk || typeof chk !== 'object') return;
-      Object.entries(chk).forEach(([itemId, val]) => {
-        if(val && val.conforme === false){
-          if(!ncPorItem[itemId]) ncPorItem[itemId] = [];
-          ncPorItem[itemId].push({ loja: row.loja, who: row.saved_by });
-        }
-      });
+      if(typeof chk === 'string'){ try{ chk = JSON.parse(chk); }catch(e){ chk = null; } }
+      if(chk && typeof chk === 'object'){
+        Object.entries(chk).forEach(([id, val]) => {
+          if(val && val.conforme === false) _agregaNC(ncChecklist, id, row);
+        });
+      }
+
+      // ── Ruturas ──
+      let rut = row.rut_check;
+      if(typeof rut === 'string'){ try{ rut = JSON.parse(rut); }catch(e){ rut = null; } }
+      if(rut && typeof rut === 'object'){
+        Object.entries(rut).forEach(([id, val]) => {
+          if(val === 'fail') _agregaNC(ncRuturas, id, row);
+        });
+      }
+
+      // ── HACCP ──
+      let hac = row.haccp;
+      if(typeof hac === 'string'){ try{ hac = JSON.parse(hac); }catch(e){ hac = null; } }
+      if(hac && typeof hac === 'object'){
+        Object.entries(hac).forEach(([id, val]) => {
+          if(val === false) _agregaNC(ncHaccp, id, row);
+        });
+      }
     });
 
-    // Filtrar os que atingem o limiar
-    const alertas = Object.entries(ncPorItem)
-      .filter(([, ocorrencias]) => ocorrencias.length >= ALERTA_THRESHOLD)
-      .map(([itemId, ocorrencias]) => ({
-        itemId,
-        label: (CHK_ITEM_LABELS.find(i=>i.id===itemId)||{label:itemId}).label,
-        ocorrencias,
-        count: ocorrencias.length
-      }))
-      .sort((a,b) => b.count - a.count);
+    // Label maps
+    const chkLabelMap = Object.fromEntries(CHK_ITEM_LABELS.map(i=>[i.id, i.label]));
 
-    if(!alertas.length) return;
+    const aChecklist = _filtraAlertas(ncChecklist, chkLabelMap);
+    const aRuturas   = _filtraAlertas(ncRuturas,   RUT_LABELS);
+    const aHaccp     = _filtraAlertas(ncHaccp,     HACCP_LABELS_MAP);
 
-    const html = `
+    const total = aChecklist.length + aRuturas.length + aHaccp.length;
+    if(!total) return;
+
+    container.innerHTML = `
       <div style="background:#fbeeec;border:2px solid var(--red);border-radius:var(--ra);padding:14px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
           <span style="font-size:1.3rem">🚨</span>
           <div>
             <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:.95rem;color:var(--red)">Alerta Sistémico</div>
-            <div style="font-size:.75rem;color:var(--red);opacity:.85">${alertas.length} não-conformidade${alertas.length>1?'s':''} com ≥${ALERTA_THRESHOLD} ocorrências nas visitas ativas</div>
+            <div style="font-size:.75rem;color:var(--red);opacity:.85">${total} item${total>1?'s':''} com ≥${ALERTA_THRESHOLD} ocorrências nas visitas ativas</div>
           </div>
         </div>
-        ${alertas.map(a=>`
-          <div style="background:#fff;border:1px solid #e3b3a8;border-radius:var(--rb);padding:10px;margin-bottom:7px">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
-              <div style="font-weight:700;font-size:.88rem">${a.label}</div>
-              <span style="background:var(--red);color:#fff;border-radius:99px;padding:2px 10px;font-size:.72rem;font-weight:700">${a.count}×</span>
-            </div>
-            <div style="font-size:.74rem;color:var(--t2);margin-top:5px">
-              ${a.ocorrencias.map(o=>`${o.who.replace('GOP — ','')} (${sn(o.loja)})`).join(' · ')}
-            </div>
-          </div>
-        `).join('')}
+        ${_renderSecAlerta('📋 Checklist', aChecklist)}
+        ${_renderSecAlerta('🛒 Ruturas', aRuturas)}
+        ${_renderSecAlerta('🧹 HACCP', aHaccp)}
       </div>`;
-
-    container.innerHTML = html;
     container.style.display = 'block';
   }catch(e){
     console.error('loadAlertasSistemicos:', e);
