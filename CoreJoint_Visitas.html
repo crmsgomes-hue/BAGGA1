@@ -1460,7 +1460,7 @@ function _agregaNC(ncMap, itemId, row){
 
 function _filtraAlertas(ncMap, labelMap, tipo){
   return Object.entries(ncMap)
-    .filter(([id, ocs]) => ocs.length >= ALERTA_THRESHOLD && !_isDismissed(tipo, id))
+    .filter(([, ocs]) => ocs.length >= ALERTA_THRESHOLD)
     .map(([id, ocs]) => ({
       _id: id,
       label: (labelMap[id] || id),
@@ -1470,17 +1470,49 @@ function _filtraAlertas(ncMap, labelMap, tipo){
     .sort((a,b) => b.count - a.count);
 }
 
-function _dismissKey(tipo, id){ return 'cj_alerta_ok_'+tipo+'_'+id+'_'+new Date().toISOString().slice(0,10); }
-function _isDismissed(tipo, id){ return !!localStorage.getItem(_dismissKey(tipo,id)); }
-function dismissAlerta(tipo, id, btn){
-  localStorage.setItem(_dismissKey(tipo,id), '1');
-  const card = btn.closest('[data-alerta]');
-  if(card) card.style.display = 'none';
-  // Se todos os cards da secção estiverem escondidos, esconder o separador de secção
-  const container = el('crop-alertas-sistemicos');
-  if(container){
-    const visible = container.querySelectorAll('[data-alerta]:not([style*="display: none"])');
-    if(!visible.length){ container.style.display = 'none'; }
+async function dismissAlerta(tipo, itemId, ocorrencias, btn){
+  btn.disabled = true;
+  btn.textContent = '…';
+  try{
+    // Para cada rascunho afetado, limpar o item específico no campo correto
+    for(const oc of ocorrencias){
+      const rows = await dbGet('cj_visitas_rascunhos',
+        'id=eq.'+encodeURIComponent('as_'+oc.loja+(oc.who==='CROP'?'_crop':oc.who.includes('ines_cruz')?'_ines_cruz':'')));
+      if(!rows || !rows.length) continue;
+      const row = rows[0];
+
+      if(tipo === 'chk'){
+        let chk = row.checklist;
+        if(typeof chk === 'string') chk = JSON.parse(chk);
+        if(chk && chk[itemId]) chk[itemId].conforme = null;
+        await dbUpd('cj_visitas_rascunhos', row.id, { checklist: chk });
+      } else if(tipo === 'rut'){
+        let rut = row.rut_check;
+        if(typeof rut === 'string') rut = JSON.parse(rut);
+        if(rut) delete rut[itemId];
+        await dbUpd('cj_visitas_rascunhos', row.id, { rut_check: JSON.stringify(rut||{}) });
+      } else if(tipo === 'hac'){
+        let hac = row.haccp;
+        if(typeof hac === 'string') hac = JSON.parse(hac);
+        if(hac) delete hac[itemId];
+        await dbUpd('cj_visitas_rascunhos', row.id, { haccp: JSON.stringify(hac||{}) });
+      }
+    }
+    // Esconder o card
+    const card = btn.closest('[data-alerta]');
+    if(card) card.style.display = 'none';
+    // Se não restar nenhum card visível, esconder o container todo
+    const container = el('crop-alertas-sistemicos');
+    if(container){
+      const visible = container.querySelectorAll('[data-alerta]:not([style*="display: none"])');
+      if(!visible.length) container.style.display = 'none';
+    }
+    toast('Resolvido! Pendentes removidos dos GOPs. ✅');
+  }catch(e){
+    console.error('dismissAlerta:', e);
+    btn.disabled = false;
+    btn.textContent = '✓ Resolvido';
+    toast('Erro ao resolver: '+e.message, 'e');
   }
 }
 
@@ -1494,7 +1526,7 @@ function _renderSecAlerta(titulo, alertas, tipo){
           <div style="font-weight:700;font-size:.88rem">${a.label}</div>
           <div style="display:flex;align-items:center;gap:6px">
             <span style="background:var(--red);color:#fff;border-radius:99px;padding:2px 10px;font-size:.72rem;font-weight:700">${a.count}×</span>
-            <button onclick="dismissAlerta('${tipo}','${a._id}',this)" style="background:var(--grn);color:#fff;border:none;border-radius:99px;padding:3px 10px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit">✓ Resolvido</button>
+            <button onclick="dismissAlerta('${tipo}','${a._id}',${JSON.stringify(a.ocorrencias)},this)" style="background:var(--grn);color:#fff;border:none;border-radius:99px;padding:3px 10px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit">✓ Resolvido</button>
           </div>
         </div>
         <div style="font-size:.74rem;color:var(--t2);margin-top:5px">
