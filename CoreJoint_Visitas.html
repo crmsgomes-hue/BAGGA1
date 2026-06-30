@@ -71,6 +71,7 @@
       <button class="btn bp bf" style="margin-top:12px" onclick="doLogin()">Entrar</button>
       <div class="lerr" id="l-err"></div>
       <button class="lrst" onclick="showFaseRole()">← Voltar</button>
+      <button class="lrst" style="margin-top:6px;color:var(--t3)" onclick="openAlterarPin()">🔑 Alterar código</button>
     </div>
 
   </div>
@@ -1015,6 +1016,43 @@
 <input type="date" id="wfm-data" style="display:none">
 </div>
 
+<!-- MODAL: Alterar PIN -->
+<div class="mo" id="m-alterar-pin">
+  <div class="md" style="max-width:340px">
+    <div class="mh">
+      <div class="mtt">🔑 Alterar Código PIN</div>
+      <button class="mx" onclick="closeM('m-alterar-pin')">✕</button>
+    </div>
+    <div id="apin-step-lbl" style="text-align:center;font-size:.8rem;color:var(--t2);margin-bottom:4px;font-weight:600"></div>
+    <div id="apin-step-hint" style="text-align:center;font-size:.74rem;color:var(--t3);margin-bottom:10px"></div>
+    <div class="pin-dots" id="apin-dots" style="margin-bottom:14px">
+      <div class="pin-dot" id="apd0"></div>
+      <div class="pin-dot" id="apd1"></div>
+      <div class="pin-dot" id="apd2"></div>
+      <div class="pin-dot" id="apd3"></div>
+    </div>
+    <div class="keypad">
+      <button class="kbtn" onclick="apKp('1')">1</button>
+      <button class="kbtn" onclick="apKp('2')">2</button>
+      <button class="kbtn" onclick="apKp('3')">3</button>
+      <button class="kbtn" onclick="apKp('4')">4</button>
+      <button class="kbtn" onclick="apKp('5')">5</button>
+      <button class="kbtn" onclick="apKp('6')">6</button>
+      <button class="kbtn" onclick="apKp('7')">7</button>
+      <button class="kbtn" onclick="apKp('8')">8</button>
+      <button class="kbtn" onclick="apKp('9')">9</button>
+      <button class="kbtn kclr" onclick="apClear()">✕</button>
+      <button class="kbtn" onclick="apKp('0')">0</button>
+      <button class="kbtn kdel" onclick="apDel()">⌫</button>
+    </div>
+    <div class="lerr" id="apin-err" style="margin-top:10px"></div>
+    <div class="mf" style="margin-top:14px">
+      <button class="btn bs" onclick="closeM('m-alterar-pin')">Cancelar</button>
+      <button class="btn bp" onclick="apNext()" id="apin-btn-next">Continuar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Nova ou Continuar Visita -->
 <!-- MODAL: PDF Preview + Enviar CROP -->
 <div class="mo" id="m-pdf-preview"><div class="md" style="max-height:92vh;overflow-y:auto;max-width:96vw">
@@ -1287,7 +1325,7 @@ async function doLogin(){
 
   if(_loginGopId==='crop'){
     // CROP nunca bloqueia — tentativas ilimitadas
-    if(pin!==GOP_PINS.crop){
+    if(pin!==getPin('crop')){
       err.textContent='PIN incorreto.';
       err.style.display='block'; kpClear(); return;
     }
@@ -1295,7 +1333,7 @@ async function doLogin(){
     STORES = [...new Set(Object.keys(GOP_STORES).filter(g=>g!=='ines_cruz').flatMap(g=>GOP_STORES[g]))];
   } else if(_loginGopId && GOP_NAMES[_loginGopId]){
     // A palavra-mestre da CROP também desbloqueia/entra como qualquer GOP
-    if(pin===GOP_PINS.crop){
+    if(pin===getPin('crop')){
       resetFails(_loginGopId); // desbloqueia este GOP automaticamente
       CU={role:'gop', gopId:_loginGopId, store:null};
       STORES = GOP_STORES[_loginGopId];
@@ -1303,7 +1341,7 @@ async function doLogin(){
       if(isLocked(_loginGopId)){
         err.textContent='Perfil bloqueado. Peça à CROP para desbloquear.'; err.style.display='block'; kpClear(); return;
       }
-      if(pin!==GOP_PINS[_loginGopId]){
+      if(pin!==getPin(_loginGopId)){
         setFails(_loginGopId, getFails(_loginGopId)+1);
         const restantes = 5-getFails(_loginGopId);
         err.textContent = restantes>0 ? 'PIN incorreto. Tentativas restantes: '+restantes : 'Perfil bloqueado. Peça à CROP para desbloquear.';
@@ -1367,6 +1405,80 @@ function renderStoreGrids(){
     if(gridH) gridH.innerHTML = STORES.map(s => '<div class="sb" onclick="abrirHistLoja(\''+s+'\')">🏪 '+sn(s)+'</div>').join('');
   }
 }
+
+// ── Alterar PIN ──────────────────────────────────────────────────────────────
+// PINs personalizados ficam em localStorage sob a chave 'cj_pin_<gopId>'.
+// Se não existir, usa o PIN padrão de GOP_PINS.
+function getPin(gopId){ return localStorage.getItem('cj_pin_'+gopId) || GOP_PINS[gopId]; }
+
+let _apStep = 0;      // 0=código atual  1=novo código  2=confirmar novo
+let _apPins = ['','',''];
+const _apLabels = ['Código atual','Novo código','Confirmar novo código'];
+const _apHints  = ['Introduz o teu código atual','Escolhe um novo código de 4 dígitos','Repete o novo código para confirmar'];
+
+function openAlterarPin(){
+  // Só disponível para GOPs (não para CROP)
+  if(!_loginGopId || _loginGopId==='crop'){
+    toast('Opção não disponível para a CROP.','e'); return;
+  }
+  _apStep=0; _apPins=['','',''];
+  _apRefresh();
+  const err=el('apin-err'); if(err){err.style.display='none';err.textContent='';}
+  openM('m-alterar-pin');
+}
+
+function _apRefresh(){
+  const lbl=el('apin-step-lbl'); if(lbl) lbl.textContent=_apLabels[_apStep];
+  const hint=el('apin-step-hint'); if(hint) hint.textContent=_apHints[_apStep];
+  const btn=el('apin-btn-next'); if(btn) btn.textContent=_apStep===2?'Confirmar':'Continuar';
+  for(let i=0;i<4;i++){ const d=el('apd'+i); if(d) d.classList.remove('filled'); }
+  _apPins[_apStep]='';
+}
+
+function apKp(d){
+  if(_apPins[_apStep].length>=4) return;
+  _apPins[_apStep]+=d;
+  const dot=el('apd'+(_apPins[_apStep].length-1)); if(dot) dot.classList.add('filled');
+}
+function apDel(){
+  if(!_apPins[_apStep].length) return;
+  const dot=el('apd'+(_apPins[_apStep].length-1)); if(dot) dot.classList.remove('filled');
+  _apPins[_apStep]=_apPins[_apStep].slice(0,-1);
+}
+function apClear(){
+  _apPins[_apStep]='';
+  for(let i=0;i<4;i++){ const d=el('apd'+i); if(d) d.classList.remove('filled'); }
+}
+
+function apNext(){
+  const err=el('apin-err');
+  err.style.display='none'; err.textContent='';
+
+  if(_apPins[_apStep].length<4){
+    err.textContent='Introduz 4 dígitos.'; err.style.display='block'; return;
+  }
+
+  if(_apStep===0){
+    // Verificar código atual
+    if(_apPins[0]!==getPin(_loginGopId)){
+      err.textContent='Código atual incorreto.'; err.style.display='block';
+      apClear(); return;
+    }
+    _apStep=1; _apRefresh();
+  } else if(_apStep===1){
+    _apStep=2; _apRefresh();
+  } else {
+    // Confirmar novo código
+    if(_apPins[1]!==_apPins[2]){
+      err.textContent='Os códigos novos não coincidem. Tenta novamente.';
+      err.style.display='block'; apClear(); return;
+    }
+    localStorage.setItem('cj_pin_'+_loginGopId, _apPins[1]);
+    closeM('m-alterar-pin');
+    toast('Código alterado! ✅');
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function doLogout(){
   CU=null; _loginGopId=null;
