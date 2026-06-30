@@ -1480,12 +1480,20 @@ async function dismissAlerta(chave, btn){
   btn.disabled = true;
   btn.textContent = '…';
   try{
+    // Código de tarefa correspondente ao item
+    // Checklist → NC-<ITEMID_MAIÚSCULAS> | HACCP → HACCP-<label> | Ruturas → sem tarefas
+    let codigoTarefa = null;
+    if(tipo === 'chk') codigoTarefa = 'NC-' + itemId.toUpperCase();
+    else if(tipo === 'hac') codigoTarefa = 'HACCP-' + (HACCP_LABELS_MAP[itemId] || itemId);
+
+    const lojasAfetadas = [...new Set(ocorrencias.map(o => o.loja))];
+
+    // 1. Limpar o campo correspondente nos rascunhos de cada GOP afetado
     for(const oc of ocorrencias){
       const rows = await dbGet('cj_visitas_rascunhos',
         'loja=eq.'+encodeURIComponent(oc.loja)+'&saved_by=eq.'+encodeURIComponent(oc.who));
       if(!rows || !rows.length) continue;
       const row = rows[0];
-
       if(tipo === 'chk'){
         let chk = row.checklist;
         if(typeof chk === 'string') try{ chk = JSON.parse(chk); }catch(e){ chk = {}; }
@@ -1503,6 +1511,26 @@ async function dismissAlerta(chave, btn){
         await dbUpd('cj_visitas_rascunhos', row.id, { haccp: JSON.stringify(hac||{}) });
       }
     }
+
+    // 2. Marcar como resolvidas as tarefas pendentes com este código em cada loja afetada
+    if(codigoTarefa){
+      for(const loja of lojasAfetadas){
+        const tarefas = await dbGet('cj_tarefas',
+          'loja=eq.'+encodeURIComponent(loja)+
+          '&codigo=eq.'+encodeURIComponent(codigoTarefa)+
+          '&estado=eq.pendente');
+        if(tarefas && tarefas.length){
+          for(const t of tarefas){
+            await dbUpd('cj_tarefas', t.id, {
+              estado: 'resolvida',
+              concluido_por: 'CROP',
+              concluido_em: new Date().toLocaleDateString('pt-PT')
+            });
+          }
+        }
+      }
+    }
+
     const card = btn.closest('[data-alerta]');
     if(card) card.style.display = 'none';
     const container = el('crop-alertas-sistemicos');
@@ -1510,7 +1538,7 @@ async function dismissAlerta(chave, btn){
       const visible = container.querySelectorAll('[data-alerta]:not([style*="display: none"])');
       if(!visible.length) container.style.display = 'none';
     }
-    toast('Resolvido! Pendentes removidos dos GOPs. ✅');
+    toast('Resolvido! Rascunhos e pendentes dos GOPs limpos. ✅');
   }catch(e){
     console.error('dismissAlerta:', e);
     btn.disabled = false;
