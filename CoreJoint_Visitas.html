@@ -1522,9 +1522,10 @@ async function dismissAlerta(chave, btn){
         if(tarefas && tarefas.length){
           for(const t of tarefas){
             await dbUpd('cj_tarefas', t.id, {
-              estado: 'resolvida',
+              estado: 'concluida',
               concluido_por: 'CROP',
-              concluido_em: new Date().toLocaleDateString('pt-PT')
+              concluido_em: now(),
+              log: 'Resolvido via Alerta Sistémico pela CROP'
             });
           }
         }
