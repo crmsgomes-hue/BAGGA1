@@ -86,7 +86,6 @@
 
 <div id="NV">
   <span class="ni on" data-s="dashboard" onclick="go('dashboard')">📊 Dashboard</span>
-  <span class="ni" data-s="alertas" onclick="go('alertas')" id="n-alertas" style="display:none">🚨 Alertas</span>
   <span class="ni" data-s="visitas" onclick="go('visitas')">🔍 Visitas</span>
   <span class="ni" data-s="historico" onclick="go('historico')">📁 Histórico</span>
 </div>
@@ -179,14 +178,10 @@
 <div class="sec on" id="s-dashboard">
   <div class="pt">Dashboard</div>
   <div class="ps">Pendentes em aberto nas lojas</div>
+  <!-- ALERTAS SISTÉMICOS — só visível para a CROP quando há ≥5 ocorrências da mesma NC -->
+  <div id="crop-alertas-sistemicos" style="display:none;margin-bottom:14px"></div>
   <div id="dash-resumo" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
   <div id="dash-pendentes-list"></div>
-</div>
-
-<div class="sec" id="s-alertas">
-  <div class="pt">Alertas</div>
-  <div class="ps">Padrões sistémicos detetados nas visitas ativas</div>
-  <div id="crop-alertas-sistemicos" style="margin-top:8px"></div>
 </div>
 
 <div class="sec" id="s-visitas">
@@ -1382,6 +1377,7 @@ async function doLogin(){
   renderStoreGrids();
   await go('dashboard');
   loadProcDossiers();
+  if(CU && CU.role==='crop') loadAlertasSistemicos();
 }
 
 function renderStoreGrids(){
@@ -1747,7 +1743,6 @@ function doLogout(){
   // Limpar card de alertas sistémicos (era da CROP — não deve ficar visível para o próximo utilizador)
   const alertCard = el('crop-alertas-sistemicos');
   if(alertCard){ alertCard.style.display='none'; alertCard.innerHTML=''; }
-  safeShow('n-alertas', 'none');
   showFaseRole();
 }
 
@@ -1756,7 +1751,7 @@ async function go(s){
   document.querySelectorAll('.ni').forEach(x=>x.classList.remove('on'));
   const sec=el('s-'+s);if(sec)sec.classList.add('on');
   const ni=document.querySelector('.ni[data-s="'+s+'"]');if(ni)ni.classList.add('on');
-  const fn={dash:rDash,tarefas:rTarefas,quebras:rQ,trocas:()=>{rT();rF();},avarias:rA,srm:rS,wfm:rWFM,ruturas:rRut,ferias:rFer,historico:rHistorico,operacional:rOperacional,marketing:rMkt,visitas:()=>{},dashboard:rDashboard,alertas:loadAlertasSistemicos};
+  const fn={dash:rDash,tarefas:rTarefas,quebras:rQ,trocas:()=>{rT();rF();},avarias:rA,srm:rS,wfm:rWFM,ruturas:rRut,ferias:rFer,historico:rHistorico,operacional:rOperacional,marketing:rMkt,visitas:()=>{},dashboard:rDashboard};
   if(fn[s])await fn[s]();
 }
 
