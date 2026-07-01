@@ -86,6 +86,7 @@
 
 <div id="NV">
   <span class="ni on" data-s="dashboard" onclick="go('dashboard')">📊 Dashboard</span>
+  <span class="ni" data-s="alertas" onclick="go('alertas')" id="n-alertas" style="display:none">🔔 Alertas</span>
   <span class="ni" data-s="visitas" onclick="go('visitas')">🔍 Visitas</span>
   <span class="ni" data-s="historico" onclick="go('historico')">📁 Histórico</span>
 </div>
@@ -182,6 +183,12 @@
   <div id="crop-alertas-sistemicos" style="display:none;margin-bottom:14px"></div>
   <div id="dash-resumo" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
   <div id="dash-pendentes-list"></div>
+</div>
+
+<div class="sec" id="s-alertas">
+  <div class="pt">Alertas</div>
+  <div class="ps">Pendentes que identifiquei e alertas dos GOPs</div>
+  <div id="alertas-list"><div style="color:var(--t2);font-size:.82rem;padding:10px">A carregar...</div></div>
 </div>
 
 <div class="sec" id="s-visitas">
@@ -1374,6 +1381,7 @@ async function doLogin(){
 
   safeShow('n-vis', adm()?'inline-flex':'none');
   safeShow('n-alertas', CU&&CU.role==='crop'?'inline-flex':'none');
+  safeShow('n-alertas', CU&&CU.role==='crop'?'inline-flex':'none');
   renderStoreGrids();
   await go('dashboard');
   loadProcDossiers();
@@ -1743,6 +1751,7 @@ function doLogout(){
   // Limpar card de alertas sistémicos (era da CROP — não deve ficar visível para o próximo utilizador)
   const alertCard = el('crop-alertas-sistemicos');
   if(alertCard){ alertCard.style.display='none'; alertCard.innerHTML=''; }
+  safeShow('n-alertas','none');
   showFaseRole();
 }
 
@@ -1751,7 +1760,7 @@ async function go(s){
   document.querySelectorAll('.ni').forEach(x=>x.classList.remove('on'));
   const sec=el('s-'+s);if(sec)sec.classList.add('on');
   const ni=document.querySelector('.ni[data-s="'+s+'"]');if(ni)ni.classList.add('on');
-  const fn={dash:rDash,tarefas:rTarefas,quebras:rQ,trocas:()=>{rT();rF();},avarias:rA,srm:rS,wfm:rWFM,ruturas:rRut,ferias:rFer,historico:rHistorico,operacional:rOperacional,marketing:rMkt,visitas:()=>{},dashboard:rDashboard};
+  const fn={dash:rDash,tarefas:rTarefas,quebras:rQ,trocas:()=>{rT();rF();},avarias:rA,srm:rS,wfm:rWFM,ruturas:rRut,ferias:rFer,historico:rHistorico,operacional:rOperacional,marketing:rMkt,visitas:()=>{},dashboard:rDashboard,alertas:rAlertas};
   if(fn[s])await fn[s]();
 }
 
@@ -5264,6 +5273,12 @@ async function rDashboard(){
           '<div class="sc" style="flex:1;min-width:90px"><div class="slb">Total</div><div class="svl">'+rowsOutros.length+'</div></div>' +
           '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🔴 Atrasados</div><div class="svl cr">'+atrasadosGop+'</div></div>' +
           '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🟡 Hoje</div><div class="svl co">'+hojeGop+'</div></div>' : '');
+
+      // Para a CROP, a lista detalhada vai no separador "Alertas" — não aqui
+      listEl.innerHTML = CU.role==='crop'
+        ? '<div style="color:var(--t2);font-size:.82rem;padding:10px 0">Ver detalhes no separador <strong>🔔 Alertas</strong>.</div>'
+        : '';
+      if(CU.role==='crop') return; // lista no separador Alertas
     } else {
       resumoEl.innerHTML =
         '<div class="sc" style="flex:1;min-width:90px"><div class="slb">Total</div><div class="svl">'+rows.length+'</div></div>' +
@@ -5430,6 +5445,107 @@ async function rDashboard(){
     listEl.innerHTML = html;
   }catch(e){
     listEl.innerHTML = '<div style="color:var(--red);font-size:.82rem;padding:10px">Erro ao carregar pendentes: '+e.message+'</div>';
+  }
+}
+
+
+async function rAlertas(){
+  const listEl = document.getElementById('alertas-list');
+  if(!listEl) return;
+  listEl.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:10px">A carregar...</div>';
+  try{
+    const q = 'select=id,loja,codigo,descricao,notas,prazo,estado,justificacao,criado_por&estado=eq.pendente&order=prazo.asc.nullslast';
+    const allRows = await dbGet('cj_tarefas', q) || [];
+    const rows = allRows.filter(r => STORES.includes(r.loja));
+    const today = new Date().toISOString().slice(0,10);
+    const minhaIdentidade = who();
+    const rowsMine = rows.filter(r=>r.criado_por===minhaIdentidade);
+    const rowsOutros = rows.filter(r=>!ISOLATED_IDENTITIES.includes(r.criado_por));
+
+    let html = '';
+
+    // ── Alertas que identifiquei ──────────────────────────────────────────────
+    html += '<div style="font-size:.72rem;font-weight:700;color:#7c3aed;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">🟣 Alertas que identifiquei</div>';
+    if(!rowsMine.length){
+      html += '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:20px;margin-bottom:16px">✅ Sem alertas meus em aberto!</div>';
+    } else {
+      const byGopMine = {};
+      rowsMine.forEach(r=>{ const gopId=getGopByLoja(r.loja)||'outras'; if(!byGopMine[gopId])byGopMine[gopId]=[]; byGopMine[gopId].push(r); });
+      Object.keys(byGopMine).sort((a,b)=>(GOP_NAMES[a]||a).localeCompare(GOP_NAMES[b]||b)).forEach(gopId=>{
+        const gopItems = byGopMine[gopId];
+        const gopFolderId = 'al-mine-gop-'+gopId;
+        const atrasadosGopMine = gopItems.filter(r=>r.prazo && r.prazo<today).length;
+        const byLojaMine = {};
+        gopItems.forEach(r=>{ if(!byLojaMine[r.loja])byLojaMine[r.loja]=[]; byLojaMine[r.loja].push(r); });
+        const lojasHtml = Object.keys(byLojaMine).sort((a,b)=>sn(a).localeCompare(sn(b))).map(loja=>{
+          const items = byLojaMine[loja];
+          const lojaFolderId = 'al-mine-loja-'+gopId+'-'+loja;
+          const atrasadosLoja = items.filter(r=>r.prazo && r.prazo<today).length;
+          return '<div style="border:1px solid var(--br);border-radius:var(--rb);margin-bottom:8px;overflow:hidden">' +
+            '<div style="background:var(--sf2);padding:9px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleDashFolder(\''+lojaFolderId+'\')">' +
+            '<div style="font-weight:600;font-size:.82rem">📍 '+sn(loja)+'</div>' +
+            '<div style="display:flex;align-items:center;gap:7px">' +
+            (atrasadosLoja>0?'<span class="bk bk-d">🔴 '+atrasadosLoja+'</span>':'')+
+            '<span class="bk bk-n">'+items.length+'</span>' +
+            '<span style="color:var(--t2);font-size:.8rem">▾</span></div></div>' +
+            '<div id="'+lojaFolderId+'" style="display:none;padding:9px 12px">'+
+            items.map(r=>renderPendenteItem(r,today)).join('') +
+            '</div></div>';
+        }).join('');
+        html += '<div class="card" style="margin-bottom:10px;padding:0;overflow:hidden;border-left:3px solid #7c3aed">' +
+          '<div style="padding:13px 15px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleDashFolder(\''+gopFolderId+'\')">' +
+          '<div style="font-weight:700;font-size:.92rem">👤 '+(GOP_NAMES[gopId]||'Outras lojas')+'</div>' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+          (atrasadosGopMine>0?'<span class="bk bk-d">🔴 '+atrasadosGopMine+'</span>':'')+
+          '<span class="bk bk-n">'+gopItems.length+'</span>' +
+          '<span style="color:var(--t2)">▾</span></div></div>' +
+          '<div id="'+gopFolderId+'" style="display:none;padding:0 15px 13px">'+lojasHtml+'</div></div>';
+      });
+      html += '<div style="margin-bottom:16px"></div>';
+    }
+
+    // ── Alertas por GOP ───────────────────────────────────────────────────────
+    html += '<div style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">👤 Alertas por GOP</div>';
+    const byGop = {};
+    rowsOutros.forEach(r=>{ const gopId=getGopByLoja(r.loja)||'outras'; if(!byGop[gopId])byGop[gopId]=[]; byGop[gopId].push(r); });
+    if(!Object.keys(byGop).length){
+      html += '<div class="card" style="text-align:center;color:var(--grn);font-weight:600;padding:20px">✅ Sem pendentes dos GOPs!</div>';
+    } else {
+      Object.keys(byGop).sort((a,b)=>(GOP_NAMES[a]||a).localeCompare(GOP_NAMES[b]||b)).forEach(gopId=>{
+        const items = byGop[gopId];
+        const folderId = 'al-gop-'+gopId;
+        const atrasadosGop = items.filter(r=>r.prazo && r.prazo<today).length;
+        const byLojaGop = {};
+        items.forEach(r=>{ if(!byLojaGop[r.loja])byLojaGop[r.loja]=[]; byLojaGop[r.loja].push(r); });
+        const lojasHtml = Object.keys(byLojaGop).sort((a,b)=>sn(a).localeCompare(sn(b))).map(loja=>{
+          const lojaItems = byLojaGop[loja];
+          const lojaFolderId = 'al-gop-loja-'+gopId+'-'+loja;
+          const atrasadosLoja = lojaItems.filter(r=>r.prazo && r.prazo<today).length;
+          return '<div style="border:1px solid var(--br);border-radius:var(--rb);margin-bottom:8px;overflow:hidden">' +
+            '<div style="background:var(--sf2);padding:9px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleDashFolder(\''+lojaFolderId+'\')">' +
+            '<div style="font-weight:600;font-size:.82rem">📍 '+sn(loja)+'</div>' +
+            '<div style="display:flex;align-items:center;gap:7px">' +
+            (atrasadosLoja>0?'<span class="bk bk-d">🔴 '+atrasadosLoja+'</span>':'')+
+            '<span class="bk bk-n">'+lojaItems.length+'</span>' +
+            '<span style="color:var(--t2);font-size:.8rem">▾</span></div></div>' +
+            '<div id="'+lojaFolderId+'" style="display:none;padding:9px 12px">'+
+            lojaItems.map(r=>renderPendenteItem(r,today)).join('') +
+            '</div></div>';
+        }).join('');
+        html += '<div class="card" style="margin-bottom:10px;padding:0;overflow:hidden">' +
+          '<div style="padding:13px 15px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleDashFolder(\''+folderId+'\')">' +
+          '<div style="font-weight:700;font-size:.92rem">👤 '+(GOP_NAMES[gopId]||'Outras lojas')+'</div>' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+          (atrasadosGop>0?'<span class="bk bk-d">🔴 '+atrasadosGop+'</span>':'')+
+          '<span class="bk bk-n">'+items.length+'</span>' +
+          '<span style="color:var(--t2)">▾</span></div></div>' +
+          '<div id="'+folderId+'" style="display:none;padding:0 15px 13px">'+lojasHtml+'</div></div>';
+      });
+    }
+
+    listEl.innerHTML = html;
+  }catch(e){
+    listEl.innerHTML = '<div style="color:var(--red);font-size:.82rem;padding:10px">Erro ao carregar alertas: '+e.message+'</div>';
   }
 }
 
