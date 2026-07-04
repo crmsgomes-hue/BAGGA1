@@ -313,13 +313,7 @@
       <div class="ch"><div class="ct">⭐ Classificação Geral da Loja</div></div>
       <div style="font-size:.8rem;color:var(--t2);margin-bottom:10px">Estado geral da loja nesta visita</div>
       <div id="cv-score-row" style="display:flex;gap:6px;flex-wrap:wrap">
-        <script>
-        (function(){
-          for(var i=1;i<=10;i++){
-            document.write('<button class="cv-score-btn" id="cvs'+i+'" onclick="setCvScore('+i+')" style="width:44px;height:44px;border-radius:var(--rb);border:2px solid var(--br);background:var(--sf2);font-weight:700;font-size:.95rem;cursor:pointer;font-family:inherit">'+i+'</button>');
-          }
-        })();
-        </script>
+        <!-- botões gerados em startCropV() -->
       </div>
       <div id="cv-score-label" style="font-size:.78rem;color:var(--t2);margin-top:8px"></div>
     </div>
@@ -1835,6 +1829,20 @@ async function startCropV(store){
   vCropDataChegada = now2.toLocaleDateString('pt-PT');
   if(el('cv-hora-display')) el('cv-hora-display').textContent = '🕐 Chegada: ' + vCropHoraChegada;
 
+  // Gerar botões de classificação (feito aqui para garantir que existem no DOM)
+  const scoreRow = el('cv-score-row');
+  if(scoreRow && !scoreRow.querySelector('#cvs1')){
+    scoreRow.innerHTML = Array.from({length:10},(_,i)=>{
+      const n=i+1;
+      return `<button class="cv-score-btn" id="cvs${n}" onclick="setCvScore(${n})" style="width:44px;height:44px;border-radius:var(--rb);border:2px solid var(--br);background:var(--sf2);font-weight:700;font-size:.95rem;cursor:pointer;font-family:inherit">${n}</button>`;
+    }).join('');
+  }
+
+  // Reset state antes de restaurar (evita toggle acidental no setCvScore)
+  vCropScore = null;
+  vCropCk = {limpeza:null, equip:null, proc:null};
+  vCropPhotos = {chegada:[], limpeza:[], equip:[], proc:[]};
+
   // Tentar restaurar rascunho
   await restoreCropAutoSave(store);
 
@@ -1862,9 +1870,20 @@ function setCvCk(sec, val){
   schedCropSave();
 }
 
-// ── Classificação ──────────────────────────────────────────────────────────────
+// setCvScore — toggle ao clicar (se já estiver no valor, desseleciona)
 function setCvScore(n){
   vCropScore = vCropScore===n ? null : n;
+  _renderScoreBtns();
+  schedCropSave();
+}
+
+// setCvScoreDirect — set directo sem toggle (usado no restore)
+function setCvScoreDirect(n){
+  vCropScore = n;
+  _renderScoreBtns();
+}
+
+function _renderScoreBtns(){
   for(let i=1;i<=10;i++){
     const b=el('cvs'+i);
     if(!b) continue;
@@ -1876,7 +1895,6 @@ function setCvScore(n){
   }
   const lbl=el('cv-score-label');
   if(lbl) lbl.textContent = vCropScore ? CV_SCORE_LABELS[vCropScore]||'' : '';
-  schedCropSave();
 }
 
 // ── Fotos ─────────────────────────────────────────────────────────────────────
@@ -2022,8 +2040,8 @@ async function restoreCropAutoSave(store){
     renderCropPhotos(sec);
   });
 
-  // Score
-  if(snap.score) setCvScore(snap.score);
+  // Score — usar função directa (não toggle) para evitar anular valor ao restaurar
+  if(snap.score) setCvScoreDirect(snap.score);
 }
 
 // ── Reset ─────────────────────────────────────────────────────────────────────
