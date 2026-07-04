@@ -2148,28 +2148,75 @@ async function cropFinalizarPDF(){
   await doCropAutoSave();
   const snap = _cropSnapshot();
   const lojaNome = sn(vCropStore||'Loja');
-  const ckLabel = v => v==='ok'?'<span style="color:#2d6a2d;font-weight:700">✓ Conforme</span>':v==='nok'?'<span style="color:#c1622d;font-weight:700">✗ Não Conforme</span>':'<span style="color:#888">— Não avaliado</span>';
-  const fotoHtml = (arr=[]) => arr.length ? arr.map(s=>'<img src="'+s+'" style="width:90px;height:70px;object-fit:cover;border-radius:5px;margin:2px">').join('') : '<span style="color:#999;font-size:.78rem">Sem fotos</span>';
-  const scoreLabel = n => n ? n+'/10 — '+CV_SCORE_LABELS[n] : '— Não classificado';
+
+  const ckLabel = v => v==='ok'
+    ? '<span style="background:#2d6a2d;color:#fff;padding:2px 9px;border-radius:99px;font-size:.75rem;font-weight:700">✓ Conforme</span>'
+    : v==='nok'
+    ? '<span style="background:#c1622d;color:#fff;padding:2px 9px;border-radius:99px;font-size:.75rem;font-weight:700">✗ Não Conforme</span>'
+    : '<span style="color:#aaa;font-size:.75rem">— Não avaliado</span>';
+
+  const fotosHtml = (arr=[]) => arr.length
+    ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">'
+      + arr.map(s=>'<img src="'+s+'" style="width:88px;height:66px;object-fit:cover;border-radius:5px">').join('')
+      + '</div>'
+    : '';
+
+  const secao = (titulo, ck, data, com, fotos) => {
+    const temConteudo = ck || com || (fotos&&fotos.length);
+    if(!temConteudo) return '';
+    return `<div style="margin-bottom:12px;padding:10px 12px;background:#fff;border-radius:8px;border:1px solid #e8ddc9">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${com||fotos&&fotos.length?'8px':'0'}">
+        <div style="font-weight:700;font-size:.88rem">${titulo}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${ckLabel(ck)}
+          ${data&&ck==='nok'?'<span style="font-size:.72rem;color:#c1622d">prazo '+data+'</span>':''}
+        </div>
+      </div>
+      ${com?'<div style="font-size:.82rem;color:#444;white-space:pre-wrap;line-height:1.5">'+com+'</div>':''}
+      ${fotosHtml(fotos)}
+    </div>`;
+  };
+
+  const scoreLabel = n => {
+    if(!n) return '— Não classificado';
+    const cor = n<=3?'#c1622d':n<=5?'#e07b39':n<=7?'#e0a339':'#2d6a2d';
+    return `<span style="font-size:1.6rem;font-weight:800;color:${cor}">${n}</span><span style="font-size:.85rem;color:${cor};margin-left:6px">/10 — ${CV_SCORE_LABELS[n]}</span>`;
+  };
 
   const previewHtml = `
     <div style="font-family:'DM Sans',sans-serif;color:#2b2118">
-      <div style="background:#c1622d;color:#fff;padding:12px 14px;border-radius:8px;margin-bottom:12px">
+
+      <!-- Cabeçalho -->
+      <div style="background:#c1622d;color:#fff;padding:13px 15px;border-radius:8px;margin-bottom:14px">
         <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1rem">Visita CROP — ${lojaNome}</div>
-        <div style="font-size:.75rem;opacity:.9">${snap.data||'—'} · Chegada: ${snap.hora||'—'}</div>
+        <div style="font-size:.75rem;opacity:.9;margin-top:2px">${snap.data||'—'} · Chegada: ${snap.hora||'—'}</div>
       </div>
-      <table style="width:100%;border-collapse:collapse;font-size:.82rem;margin-bottom:10px">
-        <tr style="background:#faf7f2"><td style="padding:7px 9px;border:1px solid #e8ddc9;font-weight:600">🧹 Limpeza</td><td style="padding:7px 9px;border:1px solid #e8ddc9">${ckLabel(snap.limpeza_ck)}${snap.limpeza_data?' — prazo '+snap.limpeza_data:''}</td></tr>
-        <tr><td style="padding:7px 9px;border:1px solid #e8ddc9;font-weight:600">⚙️ Equipamentos</td><td style="padding:7px 9px;border:1px solid #e8ddc9">${ckLabel(snap.equip_ck)}${snap.equip_data?' — prazo '+snap.equip_data:''}</td></tr>
-        <tr style="background:#faf7f2"><td style="padding:7px 9px;border:1px solid #e8ddc9;font-weight:600">📋 Procedimentos</td><td style="padding:7px 9px;border:1px solid #e8ddc9">${ckLabel(snap.proc_ck)}${snap.proc_data?' — prazo '+snap.proc_data:''}</td></tr>
-      </table>
-      ${snap.chegada_com?'<div style="margin-bottom:8px"><strong>Chegada:</strong> <span style="color:#555;font-size:.82rem">'+snap.chegada_com+'</span></div>':''}
-      ${snap.limpeza_com?'<div style="margin-bottom:6px"><strong>Limpeza:</strong> <span style="color:#555;font-size:.82rem">'+snap.limpeza_com+'</span></div>':''}
-      ${snap.equip_com?'<div style="margin-bottom:6px"><strong>Equipamentos:</strong> <span style="color:#555;font-size:.82rem">'+snap.equip_com+'</span></div>':''}
-      ${snap.proc_com?'<div style="margin-bottom:6px"><strong>Procedimentos:</strong> <span style="color:#555;font-size:.82rem">'+snap.proc_com+'</span></div>':''}
-      ${snap.obs?'<div style="margin:10px 0;padding:9px 11px;background:#faf7f2;border-radius:6px;border-left:3px solid #c1622d"><strong>📝 Observações:</strong><br><span style="font-size:.82rem">'+snap.obs+'</span></div>':''}
-      <div style="padding:7px 11px;background:#faf7f2;border-radius:6px;font-size:.82rem;margin-bottom:10px"><strong>⭐ Classificação:</strong> ${scoreLabel(snap.score)}</div>
-      ${[...snap.chegada_fotos||[],...snap.limpeza_fotos||[],...snap.equip_fotos||[],...snap.proc_fotos||[]].length?'<div><strong>📷 Fotos</strong><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">'+fotoHtml([...snap.chegada_fotos||[],...snap.limpeza_fotos||[],...snap.equip_fotos||[],...snap.proc_fotos||[]])+'</div></div>':''}
+
+      <!-- Chegada -->
+      ${snap.chegada_com||(snap.chegada_fotos&&snap.chegada_fotos.length)?`
+      <div style="margin-bottom:12px;padding:10px 12px;background:#fff;border-radius:8px;border:1px solid #e8ddc9">
+        <div style="font-weight:700;font-size:.88rem;margin-bottom:6px">🏪 Chegada à Loja</div>
+        ${snap.chegada_com?'<div style="font-size:.82rem;color:#444;white-space:pre-wrap;line-height:1.5">'+snap.chegada_com+'</div>':''}
+        ${fotosHtml(snap.chegada_fotos)}
+      </div>`:''}
+
+      <!-- Limpeza, Equipamentos, Procedimentos -->
+      ${secao('🧹 Limpeza',      snap.limpeza_ck, snap.limpeza_data, snap.limpeza_com, snap.limpeza_fotos)}
+      ${secao('⚙️ Equipamentos', snap.equip_ck,   snap.equip_data,  snap.equip_com,   snap.equip_fotos)}
+      ${secao('📋 Procedimentos',snap.proc_ck,    snap.proc_data,   snap.proc_com,    snap.proc_fotos)}
+
+      <!-- Observações gerais -->
+      ${snap.obs?`<div style="margin-bottom:12px;padding:10px 12px;background:#faf7f2;border-radius:8px;border-left:3px solid #c1622d">
+        <div style="font-weight:700;font-size:.88rem;margin-bottom:6px">📝 Observações Gerais</div>
+        <div style="font-size:.82rem;color:#444;white-space:pre-wrap;line-height:1.5">${snap.obs}</div>
+      </div>`:''}
+
+      <!-- Classificação — sempre no fim -->
+      <div style="padding:12px 14px;background:#faf7f2;border-radius:8px;border:1px solid #e8ddc9;display:flex;align-items:center;gap:8px">
+        <span style="font-size:.85rem;font-weight:700">⭐ Classificação:</span>
+        ${scoreLabel(snap.score)}
+      </div>
+
     </div>`;
 
   const previewEl = document.getElementById('crop-pdf-preview-content');
