@@ -222,8 +222,8 @@
     <div class="card">
       <div class="ch"><div class="ct">🏪 Chegada à Loja</div></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <div class="fg" style="flex:1;min-width:130px"><label>Data</label><input type="date" id="cv-data" class="fc" oninput="schedCropSave()"></div>
-        <div class="fg" style="flex:1;min-width:110px"><label>Hora</label><input type="time" id="cv-hora" class="fc" oninput="schedCropSave()"></div>
+        <div class="fg" style="flex:1;min-width:130px"><label>Data</label><input type="date" id="cv-data" class="fc" readonly style="background:var(--sf2);color:var(--t2)"></div>
+        <div class="fg" style="flex:1;min-width:110px"><label>Hora</label><input type="time" id="cv-hora" class="fc" readonly style="background:var(--sf2);color:var(--t2)"></div>
       </div>
       <div class="fg" style="margin-top:8px"><label>📷 Foto de chegada</label>
         <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -240,9 +240,9 @@
     <!-- ② LIMPEZA -->
     <div class="card">
       <div class="ch"><div class="ct">🧹 Limpeza</div></div>
-      <div style="display:flex;gap:8px;margin-bottom:10px">
-        <button class="ck" id="cv-limpeza-ok"  onclick="setCvCk('limpeza','ok')">✓ Conforme</button>
-        <button class="ck" id="cv-limpeza-nok" onclick="setCvCk('limpeza','nok')">✗ Não Conforme</button>
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:nowrap">
+        <button class="ck" id="cv-limpeza-ok"  onclick="setCvCk('limpeza','ok')" style="flex:1;min-width:0;padding:10px 6px;font-size:.82rem;white-space:nowrap">✓ Conforme</button>
+        <button class="ck" id="cv-limpeza-nok" onclick="setCvCk('limpeza','nok')" style="flex:1;min-width:0;padding:10px 6px;font-size:.82rem;white-space:nowrap">✗ Não Conforme</button>
       </div>
       <div id="cv-limpeza-data-row" style="display:none">
         <div class="fg"><label>Data limite de resolução</label><input type="date" id="cv-limpeza-data" class="fc" oninput="schedCropSave()"></div>
@@ -262,9 +262,9 @@
     <!-- ③ EQUIPAMENTOS -->
     <div class="card">
       <div class="ch"><div class="ct">⚙️ Equipamentos</div></div>
-      <div style="display:flex;gap:8px;margin-bottom:10px">
-        <button class="ck" id="cv-equip-ok"  onclick="setCvCk('equip','ok')">✓ Conforme</button>
-        <button class="ck" id="cv-equip-nok" onclick="setCvCk('equip','nok')">✗ Não Conforme</button>
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:nowrap">
+        <button class="ck" id="cv-equip-ok"  onclick="setCvCk('equip','ok')" style="flex:1;min-width:0;padding:10px 6px;font-size:.82rem;white-space:nowrap">✓ Conforme</button>
+        <button class="ck" id="cv-equip-nok" onclick="setCvCk('equip','nok')" style="flex:1;min-width:0;padding:10px 6px;font-size:.82rem;white-space:nowrap">✗ Não Conforme</button>
       </div>
       <div id="cv-equip-data-row" style="display:none">
         <div class="fg"><label>Data limite de resolução</label><input type="date" id="cv-equip-data" class="fc" oninput="schedCropSave()"></div>
@@ -284,9 +284,9 @@
     <!-- ④ PROCEDIMENTOS -->
     <div class="card">
       <div class="ch"><div class="ct">📋 Procedimentos</div></div>
-      <div style="display:flex;gap:8px;margin-bottom:10px">
-        <button class="ck" id="cv-proc-ok"  onclick="setCvCk('proc','ok')">✓ Conforme</button>
-        <button class="ck" id="cv-proc-nok" onclick="setCvCk('proc','nok')">✗ Não Conforme</button>
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:nowrap">
+        <button class="ck" id="cv-proc-ok"  onclick="setCvCk('proc','ok')" style="flex:1;min-width:0;padding:10px 6px;font-size:.82rem;white-space:nowrap">✓ Conforme</button>
+        <button class="ck" id="cv-proc-nok" onclick="setCvCk('proc','nok')" style="flex:1;min-width:0;padding:10px 6px;font-size:.82rem;white-space:nowrap">✗ Não Conforme</button>
       </div>
       <div id="cv-proc-data-row" style="display:none">
         <div class="fg"><label>Data limite de resolução</label><input type="date" id="cv-proc-data" class="fc" oninput="schedCropSave()"></div>
