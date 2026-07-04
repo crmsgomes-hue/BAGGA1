@@ -2213,16 +2213,19 @@ async function cropArquivarDoModal(){
   if(btn){ btn.disabled=true; btn.textContent='A arquivar…'; }
   const ok = await cropArquivar();
   if(ok){
-    const msg = document.getElementById('crop-pdf-arquivado-msg');
-    if(msg) msg.style.display='block';
-    if(btn){ btn.style.display='none'; }
+    closeM('m-crop-pdf-preview');
+    toast('✅ Visita arquivada com sucesso!');
+    // Voltar à lista de lojas automaticamente após arquivo
+    el('crop-v-form').style.display='none';
+    el('v-stores').style.display='block';
+    vCropStore=null;
   } else {
     if(btn){ btn.disabled=false; btn.textContent='📁 Arquivar'; }
   }
 }
 
 function cropConfirmarFinalizar(){
-  if(!confirm('Tens a certeza? Já fizeste o arquivo da visita?')) return;
+  if(!confirm('Tens a certeza? A visita não ficará arquivada.')) return;
   closeM('m-crop-pdf-preview');
   cropReset();
   el('crop-v-form').style.display='none';
