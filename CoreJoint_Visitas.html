@@ -200,6 +200,148 @@
     <div class="ch"><div class="ct">📁 Histórico de Visitas</div></div>
     <div class="sg" id="v-hist-grid"></div>
   </div></div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       FORMULÁRIO DE VISITA CROP — independente do formulário GOP
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <div id="crop-v-form" style="display:none">
+
+    <!-- Cabeçalho da visita -->
+    <div class="card">
+      <div class="ch">
+        <div>
+          <div class="ct" id="cv-loja-nome">Loja</div>
+          <div style="font-size:.72rem;color:var(--t2)" id="cv-dt"></div>
+        </div>
+        <button class="btn bsm bs" onclick="cropBackV()">← Lojas</button>
+      </div>
+      <div id="cv-autosave-ind" style="font-size:.7rem;color:var(--t2);margin-top:4px;min-height:16px"></div>
+    </div>
+
+    <!-- ① CHEGADA À LOJA -->
+    <div class="card">
+      <div class="ch"><div class="ct">🏪 Chegada à Loja</div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div class="fg" style="flex:1;min-width:130px"><label>Data</label><input type="date" id="cv-data" class="fc" oninput="schedCropSave()"></div>
+        <div class="fg" style="flex:1;min-width:110px"><label>Hora</label><input type="time" id="cv-hora" class="fc" oninput="schedCropSave()"></div>
+      </div>
+      <div class="fg" style="margin-top:8px"><label>📷 Foto de chegada</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <label class="btn bs bsm" style="cursor:pointer">📷 Câmara<input type="file" accept="image/*" capture="environment" style="display:none" onchange="cropAddPhoto('chegada',this)"></label>
+          <label class="btn bs bsm" style="cursor:pointer">🖼 Galeria<input type="file" accept="image/*" style="display:none" onchange="cropAddPhoto('chegada',this)"></label>
+        </div>
+        <div id="cv-chegada-photos" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+      <div class="fg" style="margin-top:8px"><label>Comentários</label>
+        <textarea id="cv-chegada-com" class="jta" style="min-height:120px" placeholder="Observações sobre a chegada à loja…" oninput="schedCropSave()"></textarea>
+      </div>
+    </div>
+
+    <!-- ② LIMPEZA -->
+    <div class="card">
+      <div class="ch"><div class="ct">🧹 Limpeza</div></div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="ck" id="cv-limpeza-ok"  onclick="setCvCk('limpeza','ok')">✓ Conforme</button>
+        <button class="ck" id="cv-limpeza-nok" onclick="setCvCk('limpeza','nok')">✗ Não Conforme</button>
+      </div>
+      <div id="cv-limpeza-data-row" style="display:none">
+        <div class="fg"><label>Data limite de resolução</label><input type="date" id="cv-limpeza-data" class="fc" oninput="schedCropSave()"></div>
+      </div>
+      <div class="fg" style="margin-top:8px"><label>📷 Fotos</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <label class="btn bs bsm" style="cursor:pointer">📷 Câmara<input type="file" accept="image/*" capture="environment" style="display:none" onchange="cropAddPhoto('limpeza',this)"></label>
+          <label class="btn bs bsm" style="cursor:pointer">🖼 Galeria<input type="file" accept="image/*" style="display:none" onchange="cropAddPhoto('limpeza',this)"></label>
+        </div>
+        <div id="cv-limpeza-photos" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+      <div class="fg" style="margin-top:8px"><label>Comentários</label>
+        <textarea id="cv-limpeza-com" class="jta" style="min-height:140px" placeholder="Descreve o estado da limpeza em detalhe…" oninput="schedCropSave()"></textarea>
+      </div>
+    </div>
+
+    <!-- ③ EQUIPAMENTOS -->
+    <div class="card">
+      <div class="ch"><div class="ct">⚙️ Equipamentos</div></div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="ck" id="cv-equip-ok"  onclick="setCvCk('equip','ok')">✓ Conforme</button>
+        <button class="ck" id="cv-equip-nok" onclick="setCvCk('equip','nok')">✗ Não Conforme</button>
+      </div>
+      <div id="cv-equip-data-row" style="display:none">
+        <div class="fg"><label>Data limite de resolução</label><input type="date" id="cv-equip-data" class="fc" oninput="schedCropSave()"></div>
+      </div>
+      <div class="fg" style="margin-top:8px"><label>📷 Fotos</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <label class="btn bs bsm" style="cursor:pointer">📷 Câmara<input type="file" accept="image/*" capture="environment" style="display:none" onchange="cropAddPhoto('equip',this)"></label>
+          <label class="btn bs bsm" style="cursor:pointer">🖼 Galeria<input type="file" accept="image/*" style="display:none" onchange="cropAddPhoto('equip',this)"></label>
+        </div>
+        <div id="cv-equip-photos" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+      <div class="fg" style="margin-top:8px"><label>Comentários</label>
+        <textarea id="cv-equip-com" class="jta" style="min-height:140px" placeholder="Descreve o estado dos equipamentos em detalhe…" oninput="schedCropSave()"></textarea>
+      </div>
+    </div>
+
+    <!-- ④ PROCEDIMENTOS -->
+    <div class="card">
+      <div class="ch"><div class="ct">📋 Procedimentos</div></div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="ck" id="cv-proc-ok"  onclick="setCvCk('proc','ok')">✓ Conforme</button>
+        <button class="ck" id="cv-proc-nok" onclick="setCvCk('proc','nok')">✗ Não Conforme</button>
+      </div>
+      <div id="cv-proc-data-row" style="display:none">
+        <div class="fg"><label>Data limite de resolução</label><input type="date" id="cv-proc-data" class="fc" oninput="schedCropSave()"></div>
+      </div>
+      <div class="fg" style="margin-top:8px"><label>📷 Fotos</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <label class="btn bs bsm" style="cursor:pointer">📷 Câmara<input type="file" accept="image/*" capture="environment" style="display:none" onchange="cropAddPhoto('proc',this)"></label>
+          <label class="btn bs bsm" style="cursor:pointer">🖼 Galeria<input type="file" accept="image/*" style="display:none" onchange="cropAddPhoto('proc',this)"></label>
+        </div>
+        <div id="cv-proc-photos" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+      <div class="fg" style="margin-top:8px"><label>Comentários</label>
+        <textarea id="cv-proc-com" class="jta" style="min-height:140px" placeholder="Descreve o estado dos procedimentos em detalhe…" oninput="schedCropSave()"></textarea>
+      </div>
+    </div>
+
+    <!-- ⑤ OBSERVAÇÕES GERAIS / RESUMO -->
+    <div class="card">
+      <div class="ch"><div class="ct">📝 Observações Gerais / Resumo</div></div>
+      <div class="fg">
+        <textarea id="cv-obs" class="jta" style="min-height:200px" placeholder="Resumo geral da visita, pontos de melhoria, reconhecimentos, próximos passos…" oninput="schedCropSave()"></textarea>
+      </div>
+    </div>
+
+    <!-- ⑥ CLASSIFICAÇÃO GERAL -->
+    <div class="card">
+      <div class="ch"><div class="ct">⭐ Classificação Geral da Loja</div></div>
+      <div style="font-size:.8rem;color:var(--t2);margin-bottom:10px">Estado geral da loja nesta visita</div>
+      <div id="cv-score-row" style="display:flex;gap:6px;flex-wrap:wrap">
+        <script>
+        (function(){
+          for(var i=1;i<=10;i++){
+            document.write('<button class="cv-score-btn" id="cvs'+i+'" onclick="setCvScore('+i+')" style="width:44px;height:44px;border-radius:var(--rb);border:2px solid var(--br);background:var(--sf2);font-weight:700;font-size:.95rem;cursor:pointer;font-family:inherit">'+i+'</button>');
+          }
+        })();
+        </script>
+      </div>
+      <div id="cv-score-label" style="font-size:.78rem;color:var(--t2);margin-top:8px"></div>
+    </div>
+
+    <!-- BOTÕES FINAIS -->
+    <div class="card">
+      <div class="dv"></div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <button class="btn bp" onclick="cropFinalizarPDF()">📄 PDF</button>
+        <button class="btn bs" onclick="doCropAutoSave().then(()=>toast('Guardado ✅'))">💾 Guardar</button>
+        <button class="btn bs" onclick="cropReset()">🔄 Reset</button>
+        <button class="btn bs" onclick="document.getElementById('crop-v-form').scrollIntoView({behavior:'smooth',block:'start'})">⬆️ Voltar ao Topo</button>
+      </div>
+      <div id="cv-autosave-ind2" style="font-size:.7rem;color:var(--t2);margin-top:6px;min-height:16px"></div>
+    </div>
+
+  </div>
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
   <div id="v-form" style="display:none">
     <div class="card">
       <div class="ch"><div><div class="ct" id="v-name"></div><div style="font-size:.72rem;color:var(--t2)" id="v-dt"></div></div><button class="btn bsm bs" onclick="backV()">← Lojas</button></div>
@@ -1087,7 +1229,7 @@
   <div class="mh"><div class="mtt" id="m-pick-title">📍 Loja</div><button class="mx" onclick="closeM('m-pick-store')">✕</button></div>
   <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
     <div id="m-pick-continuar" style="display:none">
-      <button class="btn bp" style="padding:16px;font-size:1rem;width:100%" onclick="restoreAutoSave(_pickStore);closeM('m-pick-store')">
+      <button class="btn bp" style="padding:16px;font-size:1rem;width:100%" onclick="if(CU&&CU.role==='crop'){closeM('m-pick-store');startCropV(_pickStore);}else{restoreAutoSave(_pickStore);closeM('m-pick-store');}">
         ▶ Continuar Visita em Curso
         <small id="m-pick-ts" style="display:block;font-size:.72rem;opacity:.8;margin-top:2px"></small>
       </button>
@@ -1649,6 +1791,343 @@ async function loadAlertasSistemicos(){
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+
+// ══════════════════════════════════════════════════════════════════════════════
+// VISITA CROP — lógica completamente independente da visita GOP
+// ══════════════════════════════════════════════════════════════════════════════
+
+let vCropStore = null;
+let vCropPhotos = { chegada:[], limpeza:[], equip:[], proc:[] };
+let vCropScore  = null;
+let vCropCk     = { limpeza: null, equip: null, proc: null };
+let _cropDirty  = false;
+let _cropSaveTimer = null;
+
+const CV_SCORE_LABELS = {1:'⛔ Muito mau',2:'⛔ Mau',3:'🔴 Abaixo do esperado',4:'🟠 Insuficiente',5:'🟡 Suficiente',6:'🟡 Razoável',7:'🟢 Bom',8:'🟢 Muito bom',9:'✅ Excelente',10:'🏆 Perfeito'};
+
+// ── Arrancar visita CROP ───────────────────────────────────────────────────────
+async function startCropV(store){
+  vCropStore = store;
+  _cropDirty = false;
+
+  // Esconder grelha de lojas, mostrar formulário CROP
+  el('v-stores').style.display = 'none';
+  el('crop-v-form').style.display = 'block';
+  el('v-form').style.display = 'none';
+
+  // Preencher cabeçalho
+  el('cv-loja-nome').textContent = sn(store);
+  const now2 = new Date();
+  el('cv-dt').textContent = now2.toLocaleDateString('pt-PT',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+  // Pré-preencher data e hora
+  const today = now2.toISOString().slice(0,10);
+  const timeStr = now2.toTimeString().slice(0,5);
+  if(el('cv-data') && !el('cv-data').value) el('cv-data').value = today;
+  if(el('cv-hora') && !el('cv-hora').value) el('cv-hora').value = timeStr;
+
+  // Tentar restaurar rascunho
+  await restoreCropAutoSave(store);
+
+  el('crop-v-form').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// ── Voltar à grelha de lojas ───────────────────────────────────────────────────
+function cropBackV(){
+  if(_cropDirty) doCropAutoSave();
+  el('crop-v-form').style.display = 'none';
+  el('v-stores').style.display = 'block';
+  vCropStore = null;
+}
+
+// ── Check / No-check ──────────────────────────────────────────────────────────
+function setCvCk(sec, val){
+  vCropCk[sec] = vCropCk[sec]===val ? null : val; // toggle
+  const ok  = el('cv-'+sec+'-ok');
+  const nok = el('cv-'+sec+'-nok');
+  if(ok)  ok.classList.toggle('ok',  vCropCk[sec]==='ok');
+  if(nok) nok.classList.toggle('fail', vCropCk[sec]==='nok');
+  const dataRow = el('cv-'+sec+'-data-row');
+  if(dataRow) dataRow.style.display = vCropCk[sec]==='nok' ? 'block' : 'none';
+  if(vCropCk[sec]!=='nok'){ const d=el('cv-'+sec+'-data'); if(d) d.value=''; }
+  schedCropSave();
+}
+
+// ── Classificação ──────────────────────────────────────────────────────────────
+function setCvScore(n){
+  vCropScore = vCropScore===n ? null : n;
+  for(let i=1;i<=10;i++){
+    const b=el('cvs'+i);
+    if(!b) continue;
+    if(i<=(vCropScore||0)){
+      b.style.background='var(--ac)'; b.style.color='#fff'; b.style.borderColor='var(--ac)';
+    } else {
+      b.style.background='var(--sf2)'; b.style.color=''; b.style.borderColor='var(--br)';
+    }
+  }
+  const lbl=el('cv-score-label');
+  if(lbl) lbl.textContent = vCropScore ? CV_SCORE_LABELS[vCropScore]||'' : '';
+  schedCropSave();
+}
+
+// ── Fotos ─────────────────────────────────────────────────────────────────────
+function cropAddPhoto(sec, input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    // Comprimir
+    const img = new Image();
+    img.onload = function(){
+      const canvas = document.createElement('canvas');
+      const MAX = 900;
+      let w=img.width, h=img.height;
+      if(w>MAX||h>MAX){ if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;} }
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      const src = canvas.toDataURL('image/jpeg',0.75);
+      vCropPhotos[sec].push(src);
+      renderCropPhotos(sec);
+      schedCropSave();
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+function renderCropPhotos(sec){
+  const container=el('cv-'+sec+'-photos');
+  if(!container) return;
+  container.innerHTML = (vCropPhotos[sec]||[]).map((src,i)=>
+    '<div style="position:relative;display:inline-block">'+
+    '<img src="'+src+'" style="width:72px;height:72px;object-fit:cover;border-radius:var(--rb);cursor:pointer" onclick="bigPhoto(\''+src+'\')">'+
+    '<button onclick="cropDelPhoto(\''+sec+'\','+i+')" style="position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:.65rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit">✕</button>'+
+    '</div>'
+  ).join('');
+}
+
+function cropDelPhoto(sec, idx){
+  vCropPhotos[sec].splice(idx,1);
+  renderCropPhotos(sec);
+  schedCropSave();
+}
+
+// ── AutoSave ──────────────────────────────────────────────────────────────────
+function schedCropSave(){
+  _cropDirty=true;
+  if(_cropSaveTimer) clearTimeout(_cropSaveTimer);
+  _cropSaveTimer=setTimeout(doCropAutoSave, 1500);
+}
+
+function _cropSnapshot(){
+  return {
+    loja: vCropStore,
+    ts: new Date().toISOString(),
+    data: (el('cv-data')||{value:''}).value,
+    hora: (el('cv-hora')||{value:''}).value,
+    chegada_com: (el('cv-chegada-com')||{value:''}).value,
+    chegada_fotos: vCropPhotos.chegada||[],
+    limpeza_ck: vCropCk.limpeza,
+    limpeza_data: (el('cv-limpeza-data')||{value:''}).value,
+    limpeza_com: (el('cv-limpeza-com')||{value:''}).value,
+    limpeza_fotos: vCropPhotos.limpeza||[],
+    equip_ck: vCropCk.equip,
+    equip_data: (el('cv-equip-data')||{value:''}).value,
+    equip_com: (el('cv-equip-com')||{value:''}).value,
+    equip_fotos: vCropPhotos.equip||[],
+    proc_ck: vCropCk.proc,
+    proc_data: (el('cv-proc-data')||{value:''}).value,
+    proc_com: (el('cv-proc-com')||{value:''}).value,
+    proc_fotos: vCropPhotos.proc||[],
+    obs: (el('cv-obs')||{value:''}).value,
+    score: vCropScore
+  };
+}
+
+async function doCropAutoSave(){
+  if(!vCropStore||!CU||CU.role!=='crop') return;
+  _cropDirty=false;
+  const snap = _cropSnapshot();
+  const key = getAutoSaveKey(vCropStore);
+  try{ localStorage.setItem(key, JSON.stringify(snap)); }catch(e){}
+  try{
+    const id = getAutoSaveId(vCropStore);
+    await fetch(SB+'/rest/v1/cj_visitas_rascunhos?on_conflict=id',{
+      method:'POST',
+      headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
+      body: JSON.stringify({ id, loja: vCropStore, data: snap.ts, saved_by:'CROP', crop_data: JSON.stringify(snap) })
+    });
+  }catch(e){ console.warn('cropAutoSave Supabase:', e); }
+  const ind1=el('cv-autosave-ind'), ind2=el('cv-autosave-ind2');
+  const msg='💾 Guardado às '+new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
+  if(ind1) ind1.textContent=msg;
+  if(ind2) ind2.textContent=msg;
+}
+
+async function restoreCropAutoSave(store){
+  // 1. Tentar localStorage
+  const key = getAutoSaveKey(store);
+  let snap = null;
+  try{
+    const local = JSON.parse(localStorage.getItem(key)||'null');
+    if(local && local.loja===store) snap=local;
+  }catch(e){}
+
+  // 2. Tentar Supabase
+  try{
+    const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+getAutoSaveId(store)+'&saved_by=eq.CROP');
+    if(rows && rows.length && rows[0].crop_data){
+      const remote = JSON.parse(rows[0].crop_data);
+      if(remote && remote.loja===store){
+        if(!snap || new Date(remote.ts)>=new Date(snap.ts)) snap=remote;
+      }
+    }
+  }catch(e){}
+
+  if(!snap) return;
+
+  // Preencher campos
+  if(el('cv-data'))         el('cv-data').value         = snap.data||'';
+  if(el('cv-hora'))         el('cv-hora').value         = snap.hora||'';
+  if(el('cv-chegada-com'))  el('cv-chegada-com').value  = snap.chegada_com||'';
+  if(el('cv-limpeza-com'))  el('cv-limpeza-com').value  = snap.limpeza_com||'';
+  if(el('cv-limpeza-data')) el('cv-limpeza-data').value = snap.limpeza_data||'';
+  if(el('cv-equip-com'))    el('cv-equip-com').value    = snap.equip_com||'';
+  if(el('cv-equip-data'))   el('cv-equip-data').value   = snap.equip_data||'';
+  if(el('cv-proc-com'))     el('cv-proc-com').value     = snap.proc_com||'';
+  if(el('cv-proc-data'))    el('cv-proc-data').value    = snap.proc_data||'';
+  if(el('cv-obs'))          el('cv-obs').value          = snap.obs||'';
+
+  // Checks
+  ['limpeza','equip','proc'].forEach(sec=>{
+    if(snap[sec+'_ck']){ vCropCk[sec]=snap[sec+'_ck']; setCvCk(sec, snap[sec+'_ck']); vCropCk[sec]=snap[sec+'_ck']; }
+  });
+
+  // Fotos
+  ['chegada','limpeza','equip','proc'].forEach(sec=>{
+    vCropPhotos[sec] = snap[sec+'_fotos']||[];
+    renderCropPhotos(sec);
+  });
+
+  // Score
+  if(snap.score) setCvScore(snap.score);
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+function cropReset(){
+  if(!confirm('Tens a certeza? Esta ação apaga toda a visita atual.')) return;
+  ['cv-data','cv-hora','cv-chegada-com','cv-limpeza-com','cv-limpeza-data',
+   'cv-equip-com','cv-equip-data','cv-proc-com','cv-proc-data','cv-obs'].forEach(id=>{
+    const e=el(id); if(e) e.value='';
+  });
+  ['limpeza','equip','proc'].forEach(sec=>{
+    vCropCk[sec]=null;
+    const ok=el('cv-'+sec+'-ok'), nok=el('cv-'+sec+'-nok');
+    if(ok) ok.classList.remove('ok');
+    if(nok) nok.classList.remove('fail');
+    const dr=el('cv-'+sec+'-data-row'); if(dr) dr.style.display='none';
+  });
+  vCropPhotos={chegada:[],limpeza:[],equip:[],proc:[]};
+  ['chegada','limpeza','equip','proc'].forEach(sec=>renderCropPhotos(sec));
+  vCropScore=null; setCvScore(null); if(el('cv-score-label')) el('cv-score-label').textContent='';
+  // Limpar autosave
+  if(vCropStore){
+    try{ localStorage.removeItem(getAutoSaveKey(vCropStore)); }catch(e){}
+    dbDel('cj_visitas_rascunhos', getAutoSaveId(vCropStore)).catch(()=>{});
+  }
+  _cropDirty=false;
+  toast('Visita reiniciada.');
+}
+
+// ── PDF ───────────────────────────────────────────────────────────────────────
+async function cropFinalizarPDF(){
+  const snap = _cropSnapshot();
+  const lojaNome = sn(vCropStore||'Loja');
+  const ckLabel = v => v==='ok'?'<span style="color:#2d6a2d;font-weight:700">✓ Conforme</span>':v==='nok'?'<span style="color:#c1622d;font-weight:700">✗ Não Conforme</span>':'<span style="color:#888">— Não avaliado</span>';
+  const fotoHtml = (arr=[]) => arr.length ? arr.map(s=>'<img src="'+s+'" style="width:140px;height:100px;object-fit:cover;border-radius:6px;margin:4px">').join('') : '<span style="color:#999;font-size:.8rem">Sem fotos</span>';
+  const scoreBar = n => {
+    if(!n) return '<span style="color:#888">— Não classificado</span>';
+    const color = n<=3?'#c1622d':n<=5?'#e07b39':n<=7?'#e0a339':'#2d6a2d';
+    return '<div style="display:flex;align-items:center;gap:10px"><div style="font-size:2rem;font-weight:800;color:'+color+'">'+n+'/10</div><div style="font-size:.9rem;color:'+color+'">'+CV_SCORE_LABELS[n]+'</div></div>';
+  };
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body{font-family:'Source Sans 3',sans-serif;background:#faf7f2;color:#2b2118;margin:0;padding:0}
+    .page{max-width:760px;margin:0 auto;padding:32px 24px}
+    h1{font-family:'Fraunces',serif;color:#c1622d;font-size:1.9rem;margin:0 0 4px}
+    .sub{font-size:.85rem;color:#888;margin-bottom:24px}
+    .sec{background:#fff;border-radius:10px;padding:18px 20px;margin-bottom:16px;border:1px solid #ead9cf}
+    .sec-title{font-family:'Fraunces',serif;font-size:1.05rem;color:#c1622d;margin:0 0 12px;font-weight:700}
+    .field{margin-bottom:10px}
+    .field label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#888;display:block;margin-bottom:3px}
+    .field .val{font-size:.9rem;color:#2b2118;white-space:pre-wrap;line-height:1.5}
+    .row2{display:flex;gap:16px;flex-wrap:wrap}
+    .row2 .field{flex:1;min-width:120px}
+    .photos{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+    .score-box{background:#faf7f2;border-radius:8px;padding:14px;margin-top:8px}
+    .footer{text-align:center;font-size:.72rem;color:#aaa;margin-top:28px}
+    hr{border:none;border-top:1px solid #ead9cf;margin:16px 0}
+  </style></head><body><div class="page">
+  <h1>Visita CROP</h1>
+  <div class="sub">${lojaNome} &nbsp;·&nbsp; ${snap.data||'—'} &nbsp;·&nbsp; ${snap.hora||'—'} &nbsp;·&nbsp; CROP</div>
+
+  <div class="sec">
+    <div class="sec-title">🏪 Chegada à Loja</div>
+    <div class="row2">
+      <div class="field"><label>Data</label><div class="val">${snap.data||'—'}</div></div>
+      <div class="field"><label>Hora</label><div class="val">${snap.hora||'—'}</div></div>
+    </div>
+    <div class="field"><label>Comentários</label><div class="val">${snap.chegada_com||'—'}</div></div>
+    <div class="field"><label>Fotos</label><div class="photos">${fotoHtml(snap.chegada_fotos)}</div></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">🧹 Limpeza</div>
+    <div class="field"><label>Avaliação</label><div class="val">${ckLabel(snap.limpeza_ck)}</div></div>
+    ${snap.limpeza_ck==='nok'?'<div class="field"><label>Data limite</label><div class="val">'+(snap.limpeza_data||'—')+'</div></div>':''}
+    <div class="field"><label>Comentários</label><div class="val">${snap.limpeza_com||'—'}</div></div>
+    <div class="field"><label>Fotos</label><div class="photos">${fotoHtml(snap.limpeza_fotos)}</div></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">⚙️ Equipamentos</div>
+    <div class="field"><label>Avaliação</label><div class="val">${ckLabel(snap.equip_ck)}</div></div>
+    ${snap.equip_ck==='nok'?'<div class="field"><label>Data limite</label><div class="val">'+(snap.equip_data||'—')+'</div></div>':''}
+    <div class="field"><label>Comentários</label><div class="val">${snap.equip_com||'—'}</div></div>
+    <div class="field"><label>Fotos</label><div class="photos">${fotoHtml(snap.equip_fotos)}</div></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">📋 Procedimentos</div>
+    <div class="field"><label>Avaliação</label><div class="val">${ckLabel(snap.proc_ck)}</div></div>
+    ${snap.proc_ck==='nok'?'<div class="field"><label>Data limite</label><div class="val">'+(snap.proc_data||'—')+'</div></div>':''}
+    <div class="field"><label>Comentários</label><div class="val">${snap.proc_com||'—'}</div></div>
+    <div class="field"><label>Fotos</label><div class="photos">${fotoHtml(snap.proc_fotos)}</div></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">📝 Observações Gerais / Resumo</div>
+    <div class="field"><div class="val">${snap.obs||'—'}</div></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">⭐ Classificação Geral</div>
+    <div class="score-box">${scoreBar(snap.score)}</div>
+  </div>
+
+  <div class="footer">CoreJoint · Visitas CROP · Bagga &nbsp;·&nbsp; Gerado em ${new Date().toLocaleString('pt-PT')}</div>
+  </div></body></html>`;
+
+  const win = window.open('','_blank');
+  if(win){ win.document.write(html); win.document.close(); setTimeout(()=>win.print(),600); }
+  else toast('Permite pop-ups para gerar o PDF.','e');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+
 // ── Alterar PIN ──────────────────────────────────────────────────────────────
 // PINs personalizados ficam em localStorage sob a chave 'cj_pin_<gopId>'.
 // Se não existir, usa o PIN padrão de GOP_PINS.
@@ -1751,7 +2230,9 @@ function doLogout(){
   // Limpar card de alertas sistémicos (era da CROP — não deve ficar visível para o próximo utilizador)
   const alertCard = el('crop-alertas-sistemicos');
   if(alertCard){ alertCard.style.display='none'; alertCard.innerHTML=''; }
-  safeShow('n-alertas','none');
+  const cropForm = el('crop-v-form');
+  if(cropForm) cropForm.style.display='none';
+  vCropStore=null; vCropPhotos={chegada:[],limpeza:[],equip:[],proc:[]}; vCropScore=null; vCropCk={limpeza:null,equip:null,proc:null};
   showFaseRole();
 }
 
@@ -5105,6 +5586,11 @@ async function delHistLoja(id, store){
 }
 
 async function iniciarNovaVisita(){
+  if(CU && CU.role==='crop'){
+    closeM('m-pick-store');
+    await startCropV(_pickStore);
+    return;
+  }
   const existe = await hasAutoSave(_pickStore);
   if(existe && !confirm('Tens uma visita em curso. Iniciar nova visita vai apagar o progresso anterior. Continuar?')) return;
   await clearAutoSave(_pickStore);
