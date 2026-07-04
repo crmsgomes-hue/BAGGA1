@@ -2000,19 +2000,31 @@ async function doCropAutoSave(){
   _cropDirty=false;
   const snap = _cropSnapshot();
   const key = getAutoSaveKey(vCropStore);
+  // Guardar no localStorage (cache local)
   try{ localStorage.setItem(key, JSON.stringify(snap)); }catch(e){}
-  try{
-    const id = getAutoSaveId(vCropStore);
-    await fetch(SB+'/rest/v1/cj_visitas_rascunhos?on_conflict=id',{
-      method:'POST',
-      headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},
-      body: JSON.stringify({ id, loja: vCropStore, data: snap.ts, saved_by:'CROP', crop_data: JSON.stringify(snap) })
-    });
-  }catch(e){ console.warn('cropAutoSave Supabase:', e); }
+  // Guardar no Supabase com upsert — usar sb() para ter visibilidade de erros
+  const id = getAutoSaveId(vCropStore);
+  const result = await sb('POST','cj_visitas_rascunhos',
+    { id, loja: vCropStore, data: snap.ts, saved_by:'CROP', crop_data: JSON.stringify(snap) },
+    'on_conflict=id',true); // silent=true para não spammar erros no autosave
   const ind1=el('cv-autosave-ind'), ind2=el('cv-autosave-ind2');
-  const msg='💾 Guardado às '+new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
+  const msg = result!==null
+    ? '💾 Guardado às '+new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})
+    : '⚠️ Erro ao guardar — a tentar novamente…';
   if(ind1) ind1.textContent=msg;
   if(ind2) ind2.textContent=msg;
+  // Se falhou, tentar outra vez em 5 segundos
+  if(result===null){
+    setTimeout(async ()=>{
+      const r2 = await sb('POST','cj_visitas_rascunhos',
+        { id, loja: vCropStore, data: snap.ts, saved_by:'CROP', crop_data: JSON.stringify(snap) },
+        'on_conflict=id',false);
+      if(r2!==null){
+        if(el('cv-autosave-ind')) el('cv-autosave-ind').textContent='💾 Guardado';
+        if(el('cv-autosave-ind2')) el('cv-autosave-ind2').textContent='💾 Guardado';
+      }
+    }, 5000);
+  }
 }
 
 async function restoreCropAutoSave(store){
