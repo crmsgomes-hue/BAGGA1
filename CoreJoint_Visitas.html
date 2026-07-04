@@ -4249,8 +4249,9 @@ async function rHistorico(){
             '<div class="card" style="text-align:center;color:var(--t2);padding:24px">Ainda sem visitas guardadas.</div>');
       }
     } else {
-      // GOP / Gerente normal: mostra as lojas, mas nunca visitas de identidades isoladas (CROP, Inês)
-      const hist = histAll.filter(r=>!ISOLATED_IDENTITIES.includes(r.saved_by));
+      // GOP normal: só mostra as suas próprias visitas — nunca visitas de outros GOPs
+      // (evita que João/Tiago vejam o histórico do Valter nas lojas que agora partilham)
+      const hist = histAll.filter(r => r.saved_by === who());
       const byLoja = {};
       hist.forEach(r=>{ if(!byLoja[r.loja])byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
       const lojasParaMostrar = CU&&CU.role==='mgr' ? [CU.store] : STORES;
@@ -5065,7 +5066,9 @@ async function abrirHistLoja(store){
   if(listEl) listEl.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:10px">A carregar...</div>';
   openM('m-hist-loja');
   try{
-    const url = SB+'/rest/v1/cj_historico?select=id,data,hora,resumo&loja=eq.'+store+'&order=created_at.desc';
+    // Filtrar por saved_by para GOPs normais — evita que vejam histórico de outros GOPs nas lojas partilhadas
+    const savedByFilter = (!isIsolatedUser() && CU && CU.role==='gop') ? '&saved_by=eq.'+encodeURIComponent(who()) : '';
+    const url = SB+'/rest/v1/cj_historico?select=id,data,hora,resumo&loja=eq.'+store+savedByFilter+'&order=created_at.desc';
     const r = await fetch(url, { headers: { 'apikey': SK, 'Authorization': 'Bearer '+SK } });
     if(!r.ok){ const t = await r.text(); throw new Error(t); }
     const hist = await r.json();
