@@ -2112,7 +2112,22 @@ async function cropArquivar(){
     ];
     for(const sec of secs){
       if(snap[sec.key+'_ck']==='nok'){
-        await dbIns('cj_tarefas',[{ loja:vCropStore, codigo:'CROP-NC-'+sec.key.toUpperCase(), descricao:'🔍 CROP — '+sec.label+' Não Conforme em '+lojaNome, notas:sec.com||'', prazo:sec.data||prazoDefault, estado:'pendente', criado_por:'CROP' }]);
+        await dbIns('cj_tarefas',[{
+          id: uid(),
+          loja: vCropStore,
+          codigo: 'CROP-NC-'+sec.key.toUpperCase(),
+          descricao: '🔍 CROP — '+sec.label+' Não Conforme em '+lojaNome,
+          notas: sec.com||'',
+          prazo: sec.data||prazoDefault,
+          estado: 'pendente',
+          criado_por: 'CROP',
+          criado_em: now(),
+          criado_iso: iso(),
+          justificacao: '',
+          concluido_por: '',
+          concluido_em: '',
+          log: 'Criada pela CROP após visita'
+        }]);
       }
     }
     // Limpar rascunho
