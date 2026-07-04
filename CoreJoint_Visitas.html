@@ -2092,7 +2092,7 @@ function cropReset(){
 
 // ── PDF ───────────────────────────────────────────────────────────────────────
 async function cropArquivar(){
-  if(!vCropStore){ toast('Sem loja selecionada.','e'); return; }
+  if(!vCropStore){ toast('Sem loja selecionada.','e'); return false; }
   const snap = _cropSnapshot();
   const lojaNome = sn(vCropStore);
   const ckStr = v => v==='ok'?'✓ Conforme':v==='nok'?'✗ Não Conforme':'— Não avaliado';
@@ -2101,40 +2101,45 @@ async function cropArquivar(){
     ' | Equipamentos: '+ckStr(snap.equip_ck)+
     ' | Procedimentos: '+ckStr(snap.proc_ck)+
     (snap.score ? ' | Nota: '+snap.score+'/10' : '');
-  try{
-    await dbIns('cj_historico', [{ loja: vCropStore, data: snap.data, hora: snap.hora, resumo, saved_by:'CROP', crop_data: JSON.stringify(snap) }]);
-    // Criar tarefas para o GOP por cada NC (sem campo assigned_to que não existe)
-    const prazoDefault = new Date(Date.now()+7*24*3600*1000).toISOString().slice(0,10);
-    const secs = [
-      {key:'limpeza', label:'Limpeza', com: snap.limpeza_com, data: snap.limpeza_data},
-      {key:'equip',   label:'Equipamentos', com: snap.equip_com, data: snap.equip_data},
-      {key:'proc',    label:'Procedimentos', com: snap.proc_com, data: snap.proc_data}
-    ];
-    for(const sec of secs){
-      if(snap[sec.key+'_ck']==='nok'){
-        await dbIns('cj_tarefas',[{
-          id: uid(),
-          loja: vCropStore,
-          codigo: 'CROP-NC-'+sec.key.toUpperCase(),
-          descricao: '🔍 CROP — '+sec.label+' Não Conforme em '+lojaNome,
-          notas: sec.com||'',
-          prazo: sec.data||prazoDefault,
-          estado: 'pendente',
-          criado_por: 'CROP',
-          criado_em: now(),
-          criado_iso: iso(),
-          justificacao: '',
-          concluido_por: '',
-          concluido_em: '',
-          log: 'Criada pela CROP após visita'
-        }]);
-      }
+
+  // 1. Guardar no histórico — verificar explicitamente que foi guardado
+  //    (dbIns usa sb() que captura erros internamente e retorna null em caso de falha)
+  const histResult = await dbIns('cj_historico', [{
+    loja: vCropStore, data: snap.data, hora: snap.hora,
+    resumo, saved_by:'CROP', crop_data: JSON.stringify(snap)
+  }]);
+  if(!histResult || (Array.isArray(histResult) && !histResult.length)){
+    // Se retornou null ou array vazio, o insert falhou (erro já mostrado pelo sb())
+    toast('Erro ao arquivar no histórico. O rascunho foi preservado.','e');
+    return false;
+  }
+
+  // 2. Criar tarefas para o GOP por cada NC (falha não impede o arquivo)
+  const prazoDefault = new Date(Date.now()+7*24*3600*1000).toISOString().slice(0,10);
+  const secs = [
+    {key:'limpeza', label:'Limpeza', com: snap.limpeza_com, data: snap.limpeza_data},
+    {key:'equip',   label:'Equipamentos', com: snap.equip_com, data: snap.equip_data},
+    {key:'proc',    label:'Procedimentos', com: snap.proc_com, data: snap.proc_data}
+  ];
+  for(const sec of secs){
+    if(snap[sec.key+'_ck']==='nok'){
+      await dbIns('cj_tarefas',[{
+        id: uid(), loja: vCropStore,
+        codigo: 'CROP-NC-'+sec.key.toUpperCase(),
+        descricao: '🔍 CROP — '+sec.label+' Não Conforme em '+lojaNome,
+        notas: sec.com||'', prazo: sec.data||prazoDefault,
+        estado: 'pendente', criado_por: 'CROP',
+        criado_em: now(), criado_iso: iso(),
+        justificacao:'', concluido_por:'', concluido_em:'',
+        log:'Criada pela CROP após visita'
+      }]);
     }
-    // Limpar rascunho
-    try{ localStorage.removeItem(getAutoSaveKey(vCropStore)); }catch(e){}
-    dbDel('cj_visitas_rascunhos', getAutoSaveId(vCropStore)).catch(()=>{});
-    return true;
-  }catch(e){ console.error('cropArquivar:', e); toast('Erro ao arquivar: '+e.message,'e'); return false; }
+  }
+
+  // 3. Só limpar rascunho depois de confirmar que o histórico ficou guardado
+  try{ localStorage.removeItem(getAutoSaveKey(vCropStore)); }catch(e){}
+  dbDel('cj_visitas_rascunhos', getAutoSaveId(vCropStore)).catch(()=>{});
+  return true;
 }
 
 async function cropArquivarDoModal(){
