@@ -237,9 +237,9 @@
     <!-- ② LIMPEZA -->
     <div class="card">
       <div class="ch"><div class="ct">🧹 Limpeza</div></div>
-      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:nowrap">
-        <button class="ck" id="cv-limpeza-ok"  onclick="setCvCk('limpeza','ok')" style="flex:1;min-width:0;padding:10px 6px;font-size:.82rem;white-space:nowrap">✓ Conforme</button>
-        <button class="ck" id="cv-limpeza-nok" onclick="setCvCk('limpeza','nok')" style="flex:1;min-width:0;padding:10px 6px;font-size:.82rem;white-space:nowrap">✗ Não Conforme</button>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button id="cv-limpeza-ok"  onclick="setCvCk('limpeza','ok')"  style="flex:1;padding:10px 8px;border-radius:var(--rb);border:2px solid var(--br);background:var(--sf2);font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent">✓ Conforme</button>
+        <button id="cv-limpeza-nok" onclick="setCvCk('limpeza','nok')" style="flex:1;padding:10px 8px;border-radius:var(--rb);border:2px solid var(--br);background:var(--sf2);font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent">✗ Não Conforme</button>
       </div>
       <div id="cv-limpeza-data-row" style="display:none">
         <div class="fg"><label>Data limite de resolução</label><input type="date" id="cv-limpeza-data" class="fc" oninput="schedCropSave()"></div>
@@ -259,9 +259,9 @@
     <!-- ③ EQUIPAMENTOS -->
     <div class="card">
       <div class="ch"><div class="ct">⚙️ Equipamentos</div></div>
-      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:nowrap">
-        <button class="ck" id="cv-equip-ok"  onclick="setCvCk('equip','ok')" style="flex:1;min-width:0;padding:10px 6px;font-size:.82rem;white-space:nowrap">✓ Conforme</button>
-        <button class="ck" id="cv-equip-nok" onclick="setCvCk('equip','nok')" style="flex:1;min-width:0;padding:10px 6px;font-size:.82rem;white-space:nowrap">✗ Não Conforme</button>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button id="cv-equip-ok"  onclick="setCvCk('equip','ok')"  style="flex:1;padding:10px 8px;border-radius:var(--rb);border:2px solid var(--br);background:var(--sf2);font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent">✓ Conforme</button>
+        <button id="cv-equip-nok" onclick="setCvCk('equip','nok')" style="flex:1;padding:10px 8px;border-radius:var(--rb);border:2px solid var(--br);background:var(--sf2);font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent">✗ Não Conforme</button>
       </div>
       <div id="cv-equip-data-row" style="display:none">
         <div class="fg"><label>Data limite de resolução</label><input type="date" id="cv-equip-data" class="fc" oninput="schedCropSave()"></div>
@@ -281,9 +281,9 @@
     <!-- ④ PROCEDIMENTOS -->
     <div class="card">
       <div class="ch"><div class="ct">📋 Procedimentos</div></div>
-      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:nowrap">
-        <button class="ck" id="cv-proc-ok"  onclick="setCvCk('proc','ok')" style="flex:1;min-width:0;padding:10px 6px;font-size:.82rem;white-space:nowrap">✓ Conforme</button>
-        <button class="ck" id="cv-proc-nok" onclick="setCvCk('proc','nok')" style="flex:1;min-width:0;padding:10px 6px;font-size:.82rem;white-space:nowrap">✗ Não Conforme</button>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button id="cv-proc-ok"  onclick="setCvCk('proc','ok')"  style="flex:1;padding:10px 8px;border-radius:var(--rb);border:2px solid var(--br);background:var(--sf2);font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent">✓ Conforme</button>
+        <button id="cv-proc-nok" onclick="setCvCk('proc','nok')" style="flex:1;padding:10px 8px;border-radius:var(--rb);border:2px solid var(--br);background:var(--sf2);font-weight:600;font-size:.85rem;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent">✗ Não Conforme</button>
       </div>
       <div id="cv-proc-data-row" style="display:none">
         <div class="fg"><label>Data limite de resolução</label><input type="date" id="cv-proc-data" class="fc" oninput="schedCropSave()"></div>
@@ -1857,11 +1857,11 @@ function cropBackV(){
   vCropStore = null;
 }
 
-// setCvCk — toggle ao clicar
+// setCvCk — toggle ao clicar, guarda imediatamente
 function setCvCk(sec, val){
   vCropCk[sec] = vCropCk[sec]===val ? null : val;
   _renderCkBtns(sec);
-  schedCropSave();
+  doCropAutoSave(); // guardar imediatamente — sem timer
 }
 
 // _setCvCkDirect — set directo sem toggle (usado no restore)
@@ -1873,11 +1873,21 @@ function _setCvCkDirect(sec, val){
 function _renderCkBtns(sec){
   const ok  = el('cv-'+sec+'-ok');
   const nok = el('cv-'+sec+'-nok');
-  if(ok)  ok.classList.toggle('ok',   vCropCk[sec]==='ok');
-  if(nok) nok.classList.toggle('fail', vCropCk[sec]==='nok');
+  const isOk  = vCropCk[sec]==='ok';
+  const isNok = vCropCk[sec]==='nok';
+  if(ok){
+    ok.style.background  = isOk  ? 'var(--grn)' : 'var(--sf2)';
+    ok.style.color       = isOk  ? '#fff' : '';
+    ok.style.borderColor = isOk  ? 'var(--grn)' : 'var(--br)';
+  }
+  if(nok){
+    nok.style.background  = isNok ? 'var(--red)' : 'var(--sf2)';
+    nok.style.color       = isNok ? '#fff' : '';
+    nok.style.borderColor = isNok ? 'var(--red)' : 'var(--br)';
+  }
   const dataRow = el('cv-'+sec+'-data-row');
-  if(dataRow) dataRow.style.display = vCropCk[sec]==='nok' ? 'block' : 'none';
-  if(vCropCk[sec]!=='nok'){ const d=el('cv-'+sec+'-data'); if(d) d.value=''; }
+  if(dataRow) dataRow.style.display = isNok ? 'block' : 'none';
+  if(!isNok){ const d=el('cv-'+sec+'-data'); if(d) d.value=''; }
 }
 
 // setCvScore — toggle ao clicar (se já estiver no valor, desseleciona)
