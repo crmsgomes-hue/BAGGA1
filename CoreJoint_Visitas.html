@@ -3376,7 +3376,17 @@ function setProcAns(sepId, state, btn){
 
 function setProcObs(sepId, val){
   scheduleAutoSave();
-  if(procAnswers[sepId]) procAnswers[sepId].obs = val;
+  // Garantir que a chave existe mesmo que o GOP escreva antes de clicar OK/NOK
+  if(!procAnswers[sepId]) procAnswers[sepId] = {state: null, obs: ''};
+  procAnswers[sepId].obs = val;
+}
+
+function syncProcAnswersFromDOM(){
+  document.querySelectorAll('[id^="proc-obs-"]').forEach(ta=>{
+    const sepId = ta.id.replace('proc-obs-','');
+    if(!procAnswers[sepId]) procAnswers[sepId] = {state: null, obs: ''};
+    procAnswers[sepId].obs = ta.value;
+  });
 }
 
 function getProcData(){ return { dossiers: procDossiers, answers: procAnswers }; }
@@ -3441,7 +3451,7 @@ async function saveV(){
       ebita:val('v-ebita'), staffcos:val('v-staffcos'), margem:val('v-margem'), notas:val('v-nt'),
       rut_check:JSON.stringify(vRut),
       checklist:JSON.stringify(chkMeta),
-      proc_answers:JSON.stringify(procAnswers),
+      proc_answers:(syncProcAnswersFromDOM(),JSON.stringify(procAnswers)),
       saved_by:who(), saved_by_role:CU?CU.role:''
     };
     const ex=await dbGet('cj_visitas','select=id,created_at&loja=eq.'+vStore+'&order=created_at.desc&limit=1');
@@ -5250,7 +5260,7 @@ async function doAutoSave(){
       rut_check: JSON.stringify(vRut),
       checklist: JSON.stringify(chkMeta),
       haccp: JSON.stringify(vHaccp),
-      proc_answers: JSON.stringify(procAnswers),
+      proc_answers: (syncProcAnswersFromDOM(),JSON.stringify(procAnswers)),
       proc_selected: JSON.stringify(procSelected),
       rh_ftes_definido: (document.getElementById('rh-ftes-definido')||{value:''}).value,
       rh_ftes_real: (document.getElementById('rh-ftes-real')||{value:''}).value,
