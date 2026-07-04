@@ -212,6 +212,7 @@
         <div>
           <div class="ct" id="cv-loja-nome">Loja</div>
           <div style="font-size:.72rem;color:var(--t2)" id="cv-dt"></div>
+          <div style="font-size:.8rem;color:var(--t2);margin-top:4px" id="cv-hora-display"></div>
         </div>
         <button class="btn bsm bs" onclick="cropBackV()">← Lojas</button>
       </div>
@@ -221,10 +222,6 @@
     <!-- ① CHEGADA À LOJA -->
     <div class="card">
       <div class="ch"><div class="ct">🏪 Chegada à Loja</div></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <div class="fg" style="flex:1;min-width:130px"><label>Data</label><input type="date" id="cv-data" class="fc" readonly style="background:var(--sf2);color:var(--t2)"></div>
-        <div class="fg" style="flex:1;min-width:110px"><label>Hora</label><input type="time" id="cv-hora" class="fc" readonly style="background:var(--sf2);color:var(--t2)"></div>
-      </div>
       <div class="fg" style="margin-top:8px"><label>📷 Foto de chegada</label>
         <div style="display:flex;gap:8px;margin-bottom:8px">
           <label class="btn bs bsm" style="cursor:pointer">📷 Câmara<input type="file" accept="image/*" capture="environment" style="display:none" onchange="cropAddPhoto('chegada',this)"></label>
@@ -331,7 +328,8 @@
     <div class="card">
       <div class="dv"></div>
       <div style="display:flex;gap:7px;flex-wrap:wrap">
-        <button class="btn bp" onclick="cropFinalizarPDF()">📄 PDF</button>
+        <button class="btn bp" onclick="cropArquivar()">📁 Arquivar</button>
+        <button class="btn bs" onclick="cropFinalizarPDF()">📄 PDF</button>
         <button class="btn bs" onclick="doCropAutoSave().then(()=>toast('Guardado ✅'))">💾 Guardar</button>
         <button class="btn bs" onclick="cropReset()">🔄 Reset</button>
         <button class="btn bs" onclick="document.getElementById('crop-v-form').scrollIntoView({behavior:'smooth',block:'start'})">⬆️ Voltar ao Topo</button>
@@ -1800,6 +1798,8 @@ let vCropStore = null;
 let vCropPhotos = { chegada:[], limpeza:[], equip:[], proc:[] };
 let vCropScore  = null;
 let vCropCk     = { limpeza: null, equip: null, proc: null };
+let vCropDataChegada = '';
+let vCropHoraChegada = '';
 let _cropDirty  = false;
 let _cropSaveTimer = null;
 
@@ -1815,16 +1815,14 @@ async function startCropV(store){
   el('crop-v-form').style.display = 'block';
   el('v-form').style.display = 'none';
 
-  // Preencher cabeçalho
+  // Preencher cabeçalho com data/hora do telemóvel (só na primeira abertura)
   el('cv-loja-nome').textContent = sn(store);
   const now2 = new Date();
   el('cv-dt').textContent = now2.toLocaleDateString('pt-PT',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-
-  // Pré-preencher data e hora
-  const today = now2.toISOString().slice(0,10);
-  const timeStr = now2.toTimeString().slice(0,5);
-  if(el('cv-data') && !el('cv-data').value) el('cv-data').value = today;
-  if(el('cv-hora') && !el('cv-hora').value) el('cv-hora').value = timeStr;
+  // Guardar data/hora de chegada (só se não houver rascunho — o restore vai sobrescrever se necessário)
+  vCropHoraChegada = now2.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
+  vCropDataChegada = now2.toLocaleDateString('pt-PT');
+  if(el('cv-hora-display')) el('cv-hora-display').textContent = '🕐 Chegada: ' + vCropHoraChegada;
 
   // Tentar restaurar rascunho
   await restoreCropAutoSave(store);
@@ -1924,8 +1922,8 @@ function _cropSnapshot(){
   return {
     loja: vCropStore,
     ts: new Date().toISOString(),
-    data: (el('cv-data')||{value:''}).value,
-    hora: (el('cv-hora')||{value:''}).value,
+    data: vCropDataChegada,
+    hora: vCropHoraChegada,
     chegada_com: (el('cv-chegada-com')||{value:''}).value,
     chegada_fotos: vCropPhotos.chegada||[],
     limpeza_ck: vCropCk.limpeza,
@@ -1987,9 +1985,12 @@ async function restoreCropAutoSave(store){
 
   if(!snap) return;
 
+  // Restaurar data/hora de chegada
+  vCropDataChegada = snap.data || vCropDataChegada;
+  vCropHoraChegada = snap.hora || vCropHoraChegada;
+  if(el('cv-hora-display')) el('cv-hora-display').textContent = '🕐 Chegada: ' + vCropHoraChegada;
+
   // Preencher campos
-  if(el('cv-data'))         el('cv-data').value         = snap.data||'';
-  if(el('cv-hora'))         el('cv-hora').value         = snap.hora||'';
   if(el('cv-chegada-com'))  el('cv-chegada-com').value  = snap.chegada_com||'';
   if(el('cv-limpeza-com'))  el('cv-limpeza-com').value  = snap.limpeza_com||'';
   if(el('cv-limpeza-data')) el('cv-limpeza-data').value = snap.limpeza_data||'';
@@ -2041,6 +2042,73 @@ function cropReset(){
 }
 
 // ── PDF ───────────────────────────────────────────────────────────────────────
+async function cropArquivar(){
+  if(!vCropStore){ toast('Sem loja selecionada.','e'); return; }
+  const snap = _cropSnapshot();
+  const lojaNome = sn(vCropStore);
+
+  // Gerar resumo textual
+  const ckStr = v => v==='ok'?'✓ Conforme':v==='nok'?'✗ Não Conforme':'— Não avaliado';
+  const resumo = lojaNome+' — '+snap.data+' '+snap.hora+
+    ' | Limpeza: '+ckStr(snap.limpeza_ck)+
+    ' | Equipamentos: '+ckStr(snap.equip_ck)+
+    ' | Procedimentos: '+ckStr(snap.proc_ck)+
+    (snap.score ? ' | Nota: '+snap.score+'/10' : '');
+
+  try{
+    // 1. Guardar em cj_historico
+    const entry = {
+      loja: vCropStore,
+      data: snap.data,
+      hora: snap.hora,
+      resumo,
+      saved_by: 'CROP',
+      crop_data: JSON.stringify(snap)
+    };
+    await dbIns('cj_historico', [entry]);
+
+    // 2. Criar tarefas para o GOP responsável por cada NC
+    const gopId = getGopByLoja(vCropStore);
+    const gopNome = gopId ? 'GOP — '+(GOP_NAMES[gopId]||gopId) : null;
+    const today = new Date().toISOString().slice(0,10);
+    const prazoDefault = new Date(Date.now()+7*24*3600*1000).toISOString().slice(0,10);
+
+    const secs = [
+      {key:'limpeza', label:'Limpeza', com: snap.limpeza_com, data: snap.limpeza_data},
+      {key:'equip',   label:'Equipamentos', com: snap.equip_com, data: snap.equip_data},
+      {key:'proc',    label:'Procedimentos', com: snap.proc_com, data: snap.proc_data}
+    ];
+    for(const sec of secs){
+      if(snap[sec.key+'_ck']==='nok'){
+        await dbIns('cj_tarefas',[{
+          loja: vCropStore,
+          codigo: 'CROP-NC-'+sec.key.toUpperCase(),
+          descricao: '🔍 CROP — '+sec.label+' Não Conforme em '+lojaNome,
+          notas: sec.com||'',
+          prazo: sec.data||prazoDefault,
+          estado: 'pendente',
+          criado_por: 'CROP',
+          ...(gopNome ? {assigned_to: gopNome} : {})
+        }]);
+      }
+    }
+
+    // 3. Limpar rascunho
+    const key = getAutoSaveKey(vCropStore);
+    try{ localStorage.removeItem(key); }catch(e){}
+    await dbDel('cj_visitas_rascunhos', getAutoSaveId(vCropStore)).catch(()=>{});
+
+    toast('✅ Visita arquivada!');
+    cropReset();
+    el('crop-v-form').style.display='none';
+    el('v-stores').style.display='block';
+    vCropStore=null;
+  }catch(e){
+    console.error('cropArquivar:', e);
+    toast('Erro ao arquivar: '+e.message,'e');
+  }
+}
+
 async function cropFinalizarPDF(){
   const snap = _cropSnapshot();
   const lojaNome = sn(vCropStore||'Loja');
