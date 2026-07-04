@@ -2105,6 +2105,7 @@ async function cropArquivar(){
   // 1. Guardar no histórico — verificar explicitamente que foi guardado
   //    (dbIns usa sb() que captura erros internamente e retorna null em caso de falha)
   const histResult = await dbIns('cj_historico', [{
+    id: uid(),
     loja: vCropStore, data: snap.data, hora: snap.hora,
     resumo, saved_by:'CROP', crop_data: JSON.stringify(snap)
   }]);
