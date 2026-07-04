@@ -4703,8 +4703,8 @@ function runAutoSave(){
   return _currentSaveChain;
 }
 
-function getAutoSaveKey(store){ return 'cj_as_' + (store||vStore) + (isIsolatedUser()?'_'+(CU.role==='crop'?'crop':CU.gopId):''); }
-function getAutoSaveId(store){ return 'as_' + (store||vStore) + (isIsolatedUser()?'_'+(CU.role==='crop'?'crop':CU.gopId):''); }
+function getAutoSaveKey(store){ return 'cj_as_' + (store||vStore) + '_' + (CU ? (CU.role==='crop'?'crop':CU.gopId) : 'anon'); }
+function getAutoSaveId(store){  return 'as_'  + (store||vStore) + '_' + (CU ? (CU.role==='crop'?'crop':CU.gopId) : 'anon'); }
 
 let _formDirty = false; // só true depois de uma interação real do utilizador nesta loja
 
@@ -4860,7 +4860,7 @@ function hasAutoSaveLocal(store){
 async function hasAutoSave(store){
   if(hasAutoSaveLocal(store)) return true;
   try{
-    const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+getAutoSaveId(store));
+    const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+getAutoSaveId(store)+'&saved_by=eq.'+encodeURIComponent(who()));
     return !!(rows && rows.length);
   }catch(e){ return false; }
 }
@@ -4888,10 +4888,13 @@ async function restoreAutoSave(store){
     // de novo, apague por cima algo mais recente que já estava a salvo no servidor.
     let dRemote = null;
     try{
-      const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+getAutoSaveId(store));
+      const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+getAutoSaveId(store)+'&saved_by=eq.'+encodeURIComponent(who()));
       if(rows && rows.length){
         const row = rows[0];
-        dRemote = {
+        // Guard extra: garantir que o registo é mesmo desta loja (nunca restaurar dados errados)
+        if(row.loja !== store){ console.warn('restoreAutoSave: loja remota ('+row.loja+') != store ('+store+') — ignorado'); }
+        else {
+          dRemote = {
           loja: row.loja,
           ts: row.data,
           hora_inicio: row.hora_inicio,
@@ -4921,6 +4924,7 @@ async function restoreAutoSave(store){
           fotos_chegada: row.fotos_chegada,
           fotos_cafe: row.fotos_cafe
         };
+        } // fim do else guard loja
       }
     }catch(e){ console.warn('restoreAutoSave Supabase fallback:', e); }
 
