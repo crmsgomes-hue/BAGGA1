@@ -2908,7 +2908,8 @@ function switchVTab(t){
   if(t==='tasks')rVTasks();
 }
 async function startV(store, skipReset=false){
-  // Antes de trocar de loja, garantir que qualquer gravação ainda a caminho da loja
+  // Garantir que a CROP nunca entra no formulário GOP — redirecionar para o formulário CROP
+  if(CU && CU.role==='crop'){ await startCropV(store); return; }
   // anterior termina primeiro — caso contrário, ao limpar o estado global a seguir,
   // essa gravação podia acabar a usar os dados da loja NOVA por engano.
   // Só grava se algo foi mesmo alterado (evita criar rascunhos vazios só por entrar
