@@ -2005,22 +2005,19 @@ async function doCropAutoSave(){
   const id = getAutoSaveId(vCropStore);
   const dbRow = { id, loja: vCropStore, data: snap.ts, saved_by:'CROP', crop_data: JSON.stringify(snap) };
   try{
-    const r = await fetch(SB+'/rest/v1/cj_visitas_rascunhos?on_conflict=id', {
-      method: 'POST',
-      headers: { 'apikey':SK, 'Authorization':'Bearer '+SK, 'Content-Type':'application/json',
-                 'Prefer':'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify(dbRow)
-    });
-    const ok = r.ok || r.status===201 || r.status===200 || r.status===204;
-    const msg = ok
-      ? '💾 Guardado às '+new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})
-      : '⚠️ Erro ao guardar — a tentar novamente…';
+    // Tentar PATCH (update) primeiro — se a linha já existe
+    const updated = await sb('PATCH','cj_visitas_rascunhos', dbRow, 'id=eq.'+id, true);
+    if(!updated || (Array.isArray(updated) && !updated.length)){
+      // Linha não existe — fazer INSERT
+      await sb('POST','cj_visitas_rascunhos', dbRow, '', true);
+    }
+    const msg = '💾 Guardado às '+new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
     if(ind1) ind1.textContent=msg;
     if(ind2) ind2.textContent=msg;
-    if(!ok) setTimeout(doCropAutoSave, 5000);
   }catch(e){
-    if(ind1) ind1.textContent='⚠️ Erro ao guardar — sem ligação?';
-    if(ind2) ind2.textContent='⚠️ Erro ao guardar — sem ligação?';
+    const msg = '⚠️ Erro ao guardar — a tentar novamente…';
+    if(ind1) ind1.textContent=msg;
+    if(ind2) ind2.textContent=msg;
     setTimeout(doCropAutoSave, 5000);
   }
 }
