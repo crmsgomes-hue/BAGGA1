@@ -2226,24 +2226,44 @@ async function cropFinalizarPDF(){
   const lojaNome = sn(vCropStore||'Loja');
   const pdfHtml = _cropBuildPdfHtml(snap, lojaNome, snap.data||'—', snap.hora||'—');
 
+  // Mostrar preview completo no modal (sem fotos para não pesar — só texto e checks)
+  const ckBadge = v => v==='ok'
+    ?'<span style="background:#2d6a2d;color:#fff;padding:2px 9px;border-radius:99px;font-size:.74rem;font-weight:700">✓ Conforme</span>'
+    :v==='nok'
+    ?'<span style="background:#c1622d;color:#fff;padding:2px 9px;border-radius:99px;font-size:.74rem;font-weight:700">✗ Não Conforme</span>'
+    :'<span style="color:#aaa;font-size:.74rem">— Não avaliado</span>';
+  const fotoMini = (arr=[]) => arr&&arr.length
+    ?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">'+arr.map(s=>'<img src="'+s+'" style="width:72px;height:54px;object-fit:cover;border-radius:5px">').join('')+'</div>'
+    :'';
+  const secaoPreview = (titulo,ck,data,com,fotos) => {
+    if(!ck&&!com&&!(fotos&&fotos.length)) return '';
+    return '<div style="border:1px solid var(--br);border-radius:var(--rb);padding:10px 12px;margin-bottom:8px">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:'+(com||(fotos&&fotos.length)?'6px':'0')+'">'+
+      '<div style="font-weight:700;font-size:.87rem">'+titulo+'</div>'+
+      '<div style="display:flex;align-items:center;gap:6px">'+ckBadge(ck)+(data&&ck==='nok'?'<span style="font-size:.71rem;color:#c1622d">prazo '+data+'</span>':'')+'</div></div>'+
+      (com?'<div style="font-size:.81rem;color:#555;white-space:pre-wrap;line-height:1.5">'+com+'</div>':'')+
+      fotoMini(fotos)+'</div>';
+  };
+  const scoreLabel = n => n?'<strong>'+n+'</strong>/10 — '+CV_SCORE_LABELS[n]:'—';
+
   const previewEl = document.getElementById('crop-pdf-preview-content');
-  if(previewEl) previewEl.innerHTML = `
-    <div style="font-family:'DM Sans',sans-serif;color:#2b2118">
-      <div style="background:#c1622d;color:#fff;padding:12px 14px;border-radius:8px;margin-bottom:12px">
-        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1rem">Visita CROP — ${lojaNome}</div>
-        <div style="font-size:.74rem;opacity:.9;margin-top:2px">${snap.data||'—'} · Chegada: ${snap.hora||'—'}</div>
-      </div>
-      <div style="font-size:.82rem;color:var(--t2);padding:8px 0">
-        ${[snap.limpeza_ck,snap.equip_ck,snap.proc_ck].filter(v=>v).length} secções avaliadas
-        · Score: ${snap.score?snap.score+'/10':'—'}
-        · ${[...snap.chegada_fotos||[],...snap.limpeza_fotos||[],...snap.equip_fotos||[],...snap.proc_fotos||[]].length} foto(s)
-      </div>
-    </div>`;
+  if(previewEl) previewEl.innerHTML =
+    '<div style="font-family:\'DM Sans\',sans-serif;color:#2b2118">'+
+    '<div style="background:#c1622d;color:#fff;padding:10px 13px;border-radius:7px;margin-bottom:11px">'+
+    '<div style="font-family:\'Syne\',sans-serif;font-weight:800;font-size:.95rem">Visita CROP — '+lojaNome+'</div>'+
+    '<div style="font-size:.73rem;opacity:.9;margin-top:2px">'+(snap.data||'—')+' · Chegada: '+(snap.hora||'—')+'</div></div>'+
+    (snap.chegada_com||(snap.chegada_fotos&&snap.chegada_fotos.length)?'<div style="border:1px solid var(--br);border-radius:var(--rb);padding:10px 12px;margin-bottom:8px"><div style="font-weight:700;font-size:.87rem;margin-bottom:5px">🏪 Chegada</div>'+(snap.chegada_com?'<div style="font-size:.81rem;color:#555;white-space:pre-wrap">'+snap.chegada_com+'</div>':'')+fotoMini(snap.chegada_fotos)+'</div>':'')+
+    secaoPreview('🧹 Limpeza',snap.limpeza_ck,snap.limpeza_data,snap.limpeza_com,snap.limpeza_fotos)+
+    secaoPreview('⚙️ Equipamentos',snap.equip_ck,snap.equip_data,snap.equip_com,snap.equip_fotos)+
+    secaoPreview('📋 Procedimentos',snap.proc_ck,snap.proc_data,snap.proc_com,snap.proc_fotos)+
+    (snap.obs?'<div style="border-left:3px solid #c1622d;padding:8px 11px;background:var(--sf2);border-radius:var(--rb);margin-bottom:8px"><div style="font-weight:700;font-size:.87rem;margin-bottom:4px">📝 Observações</div><div style="font-size:.81rem;color:#555;white-space:pre-wrap">'+snap.obs+'</div></div>':'')+
+    '<div style="font-size:.83rem;padding:8px 0">⭐ Classificação: '+scoreLabel(snap.score)+'</div>'+
+    '</div>';
+
   const msg = document.getElementById('crop-pdf-arquivado-msg');
   if(msg) msg.style.display='none';
   const btn = document.getElementById('crop-btn-arquivar');
   if(btn){ btn.disabled=false; btn.textContent='📁 Arquivar'; btn.style.display=''; }
-  // Guardar o HTML para abrir quando clicar Arquivar
   window._cropPdfHtmlPendente = pdfHtml;
   openM('m-crop-pdf-preview');
 }
