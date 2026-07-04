@@ -5413,7 +5413,8 @@ async function restoreAutoSave(store){
 
     // Escolher a cópia mais recente entre a local e a do servidor (nunca a local "por defeito")
     if(dLocal && dRemote){
-      d = (new Date(dLocal.ts).getTime() >= new Date(dRemote.ts).getTime()) ? dLocal : dRemote;
+      // Supabase é a fonte de verdade — só usa localStorage se for mais recente E Supabase não tiver dados
+      d = (new Date(dLocal.ts).getTime() > new Date(dRemote.ts).getTime()) ? dLocal : dRemote;
     } else {
       d = dLocal || dRemote;
     }
