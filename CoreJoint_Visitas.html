@@ -1857,17 +1857,27 @@ function cropBackV(){
   vCropStore = null;
 }
 
-// ── Check / No-check ──────────────────────────────────────────────────────────
+// setCvCk — toggle ao clicar
 function setCvCk(sec, val){
-  vCropCk[sec] = vCropCk[sec]===val ? null : val; // toggle
+  vCropCk[sec] = vCropCk[sec]===val ? null : val;
+  _renderCkBtns(sec);
+  schedCropSave();
+}
+
+// _setCvCkDirect — set directo sem toggle (usado no restore)
+function _setCvCkDirect(sec, val){
+  vCropCk[sec] = val;
+  _renderCkBtns(sec);
+}
+
+function _renderCkBtns(sec){
   const ok  = el('cv-'+sec+'-ok');
   const nok = el('cv-'+sec+'-nok');
-  if(ok)  ok.classList.toggle('ok',  vCropCk[sec]==='ok');
+  if(ok)  ok.classList.toggle('ok',   vCropCk[sec]==='ok');
   if(nok) nok.classList.toggle('fail', vCropCk[sec]==='nok');
   const dataRow = el('cv-'+sec+'-data-row');
   if(dataRow) dataRow.style.display = vCropCk[sec]==='nok' ? 'block' : 'none';
   if(vCropCk[sec]!=='nok'){ const d=el('cv-'+sec+'-data'); if(d) d.value=''; }
-  schedCropSave();
 }
 
 // setCvScore — toggle ao clicar (se já estiver no valor, desseleciona)
@@ -2029,9 +2039,9 @@ async function restoreCropAutoSave(store){
   if(el('cv-proc-data'))    el('cv-proc-data').value    = snap.proc_data||'';
   if(el('cv-obs'))          el('cv-obs').value          = snap.obs||'';
 
-  // Checks
+  // Checks — usar set directo (não toggle) para evitar anular valor ao restaurar
   ['limpeza','equip','proc'].forEach(sec=>{
-    if(snap[sec+'_ck']){ vCropCk[sec]=snap[sec+'_ck']; setCvCk(sec, snap[sec+'_ck']); vCropCk[sec]=snap[sec+'_ck']; }
+    if(snap[sec+'_ck']) _setCvCkDirect(sec, snap[sec+'_ck']);
   });
 
   // Fotos
