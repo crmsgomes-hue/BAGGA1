@@ -183,10 +183,22 @@
 <div class="sec on" id="s-dashboard">
   <div class="pt">Dashboard</div>
   <div class="ps">Pendentes em aberto nas lojas</div>
-  <!-- ALERTAS SISTÉMICOS — só visível para a CROP quando há ≥5 ocorrências da mesma NC -->
+  <!-- ALERTAS SISTÉMICOS — só visível para a CROP -->
   <div id="crop-alertas-sistemicos" style="display:none;margin-bottom:14px"></div>
+  <!-- TAREFAS DO CALENDÁRIO HOJE -->
+  <div id="dash-cal-hoje" style="display:none;margin-bottom:14px"></div>
   <div id="dash-resumo" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
   <div id="dash-pendentes-list"></div>
+</div>
+
+<!-- MODAL: Lembrete de tarefa (popup ao abrir a APP) -->
+<div class="mo" id="m-tarefa-lembrete">
+  <div class="md" style="max-width:340px;text-align:center">
+    <div style="font-size:2rem;margin-bottom:8px">📋</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;margin-bottom:6px">Tens tarefas para hoje!</div>
+    <div id="m-lembrete-body" style="font-size:.84rem;color:var(--t2);margin-bottom:16px;text-align:left"></div>
+    <button class="btn bp" style="width:100%" onclick="closeM('m-tarefa-lembrete')">👍 Ok, já sei!</button>
+  </div>
 </div>
 
 <div class="sec" id="s-alertas">
@@ -1598,6 +1610,9 @@ async function doLogin(){
   await go('dashboard');
   loadProcDossiers();
   if(CU && CU.role==='crop') loadAlertasSistemicos();
+  loadCalDashHoje();
+  // Popup de lembrete para GOPs — ligeiro delay para não bloquear o render
+  setTimeout(mostrarLembreteTarefas, 800);
 }
 
 function renderStoreGrids(){
@@ -2349,6 +2364,67 @@ async function cropFinalizarPDF(){
 
 
 // ══════════════════════════════════════════════════════════════════════════════
+// ── Calendário no Dashboard ────────────────────────────────────────────────────
+async function loadCalDashHoje(){
+  const container = el('dash-cal-hoje');
+  if(!container) return;
+  container.style.display='none';
+  container.innerHTML='';
+  const today = new Date().toISOString().slice(0,10);
+  if(!_calEventos.length) await calCarregarDados();
+  const evs = calEventosNoDia(today);
+  if(!evs.length) return;
+  const isCrop = CU && CU.role==='crop';
+  let html = '<div style="background:#fff8ee;border:2px solid var(--ac);border-radius:var(--ra);padding:14px">';
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-size:1.2rem">📋</span><div style="font-family:\'Syne\',sans-serif;font-weight:800;font-size:.92rem;color:var(--ac)">Tarefas de Hoje</div></div>';
+  evs.forEach(ev => {
+    const gopsEv = calGopsDoEvento(ev);
+    html += '<div style="background:#fff;border:1px solid #e8ddc9;border-radius:var(--rb);padding:10px 12px;margin-bottom:8px">';
+    html += '<div style="font-weight:700;font-size:.88rem;margin-bottom:6px">'+ev.titulo+'</div>';
+    if(ev.descricao) html += '<div style="font-size:.78rem;color:var(--t2);margin-bottom:6px">'+ev.descricao+'</div>';
+    if(isCrop){
+      const feitos=[],pendentes=[];
+      gopsEv.forEach(gId=>{
+        const nome=(GOP_NAMES[gId]||gId).split(' ')[0];
+        const feito=_calChecks.some(c=>c.evento_id===ev.id&&c.data===today&&c.gop_id===gId);
+        if(feito)feitos.push(nome);else pendentes.push(nome);
+      });
+      if(feitos.length) html+='<div style="font-size:.76rem;margin-bottom:3px"><span style="color:var(--grn);font-weight:600">✓ Feito:</span> '+feitos.join(' · ')+'</div>';
+      if(pendentes.length) html+='<div style="font-size:.76rem"><span style="color:var(--red);font-weight:600">○ Pendente:</span> '+pendentes.join(' · ')+'</div>';
+    } else {
+      const meuGopId=CU&&CU.gopId;
+      if(meuGopId&&gopsEv.includes(meuGopId)){
+        const jaFeito=_calChecks.some(c=>c.evento_id===ev.id&&c.data===today&&c.gop_id===meuGopId);
+        if(jaFeito) html+='<div style="font-size:.78rem;color:var(--grn);font-weight:600">✅ Já marcaste como feito</div>';
+        else html+='<div id="dash-cal-btn-'+ev.id+'"><button class="btn bg2 bsm" onclick="dashCalMarcarFeito(\''+ev.id+'\',\''+today+'\')">✓ Feito</button></div>';
+      }
+    }
+    html+='</div>';
+  });
+  html+='</div>';
+  container.innerHTML=html;
+  container.style.display='block';
+}
+
+async function dashCalMarcarFeito(eventoId,dataStr){
+  await calMarcarFeito(eventoId,dataStr);
+  loadCalDashHoje();
+}
+
+async function mostrarLembreteTarefas(){
+  if(!CU||CU.role==='crop') return;
+  const today=new Date().toISOString().slice(0,10);
+  if(!_calEventos.length) await calCarregarDados();
+  const evs=calEventosNoDia(today);
+  const meuGopId=CU.gopId;
+  const minhas=evs.filter(ev=>calGopsDoEvento(ev).includes(meuGopId));
+  if(!minhas.length) return;
+  const bodyEl=el('m-lembrete-body');
+  if(bodyEl) bodyEl.innerHTML=minhas.map(ev=>'<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--br)"><span>📌</span><div style="font-size:.85rem;font-weight:600">'+ev.titulo+'</div></div>').join('');
+  openM('m-tarefa-lembrete');
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // CALENDÁRIO — tarefas recorrentes para GOPs
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -6306,6 +6382,7 @@ function toggleDashFolder(id){
 }
 
 async function rDashboard(){
+  loadCalDashHoje();
   const resumoEl = document.getElementById('dash-resumo');
   const listEl = document.getElementById('dash-pendentes-list');
   if(!resumoEl || !listEl) return;
