@@ -2202,9 +2202,9 @@ async function cropArquivar(){
     }
   }
 
-  // 3. Só limpar rascunho depois de confirmar que o histórico ficou guardado
-  try{ localStorage.removeItem(getAutoSaveKey(vCropStore)); }catch(e){}
-  dbDel('cj_visitas_rascunhos', getAutoSaveId(vCropStore)).catch(()=>{});
+  // Arquivo feito — NÃO apagar o rascunho
+  // O rascunho só é apagado quando a CROP clica "Finalizar & Reset"
+  // Isto permite continuar a editar/corrigir a visita após arquivar
   return true;
 }
 
