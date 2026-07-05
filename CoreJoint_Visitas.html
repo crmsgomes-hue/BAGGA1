@@ -90,6 +90,7 @@
 <div id="NV">
   <span class="ni on" data-s="dashboard" onclick="go('dashboard')">📊 Dashboard</span>
   <span class="ni" data-s="alertas" onclick="go('alertas')" id="n-alertas" style="display:none">🔔 Alertas</span>
+  <span class="ni" data-s="calendario" onclick="go('calendario')">📅 Calendário</span>
   <span class="ni" data-s="visitas" onclick="go('visitas')">🔍 Visitas</span>
   <span class="ni" data-s="historico" onclick="go('historico')">📁 Histórico</span>
 </div>
@@ -192,6 +193,68 @@
   <div class="pt">Alertas</div>
   <div class="ps">Pendentes que identifiquei e alertas dos GOPs</div>
   <div id="alertas-list"><div style="color:var(--t2);font-size:.82rem;padding:10px">A carregar...</div></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ CALENDÁRIO ═══ -->
+<div class="sec" id="s-calendario">
+  <div class="pt">Calendário</div>
+  <div class="ps">Tarefas recorrentes e eventos para os GOPs</div>
+
+  <!-- Navegação do mês -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <button class="btn bs bsm" onclick="calNavMes(-1)">‹</button>
+    <div id="cal-mes-label" style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem"></div>
+    <button class="btn bs bsm" onclick="calNavMes(1)">›</button>
+  </div>
+
+  <!-- Grelha do calendário -->
+  <div id="cal-grid" style="background:#fff;border-radius:var(--ra);border:1px solid var(--br);overflow:hidden"></div>
+
+  <!-- Legenda -->
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:.74rem;color:var(--t2)">
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--ac);margin-right:4px"></span>Tarefa</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--grn);margin-right:4px"></span>Todos cumpriram</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);margin-right:4px"></span>Pendente</span>
+  </div>
+
+  <!-- Painel de detalhe do dia -->
+  <div id="cal-dia-detail" style="display:none;margin-top:14px"></div>
+</div>
+
+<!-- MODAL: Criar evento calendário (CROP) -->
+<div class="mo" id="m-cal-criar">
+  <div class="md" style="max-width:380px">
+    <div class="mh"><div class="mtt">📅 Nova Tarefa</div><button class="mx" onclick="closeM('m-cal-criar')">✕</button></div>
+    <div id="m-cal-criar-data-label" style="font-size:.8rem;color:var(--t2);margin-bottom:12px"></div>
+    <div class="fg"><label>Título</label><input type="text" id="cal-titulo" class="fc" placeholder="Ex: Enviar mapa de inventários"></div>
+    <div class="fg"><label>Descrição (opcional)</label><textarea id="cal-desc" class="jta" style="min-height:70px" placeholder="Detalhes da tarefa…"></textarea></div>
+    <div class="fg">
+      <label>Para quem</label>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px" id="cal-gop-sel">
+        <button class="ck ok" id="cal-gop-todos" onclick="calToggleTodos()" style="padding:6px 14px;font-size:.8rem">✓ Todos</button>
+      </div>
+    </div>
+    <div class="fg">
+      <label>Recorrência</label>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button id="cal-rec-unica" class="ck ok" onclick="calSetRec('unica')" style="flex:1;padding:9px;font-size:.82rem">📌 Único</button>
+        <button id="cal-rec-semanal" class="ck" onclick="calSetRec('semanal')" style="flex:1;padding:9px;font-size:.82rem">🔁 Semanal</button>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn bs" onclick="closeM('m-cal-criar')">Cancelar</button>
+      <button class="btn bp" onclick="calCriarEvento()">Criar Tarefa</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Detalhe de evento (GOP marca feito) -->
+<div class="mo" id="m-cal-evento">
+  <div class="md" style="max-width:360px">
+    <div class="mh"><div class="mtt" id="m-cal-ev-titulo">Tarefa</div><button class="mx" onclick="closeM('m-cal-evento')">✕</button></div>
+    <div id="m-cal-ev-body"></div>
+    <div class="mf" id="m-cal-ev-footer"></div>
+  </div>
 </div>
 
 <div class="sec" id="s-visitas">
@@ -2284,6 +2347,341 @@ async function cropFinalizarPDF(){
 
 // ══════════════════════════════════════════════════════════════════════════════
 
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CALENDÁRIO — tarefas recorrentes para GOPs
+// ══════════════════════════════════════════════════════════════════════════════
+
+let _calAno  = new Date().getFullYear();
+let _calMes  = new Date().getMonth(); // 0-11
+let _calEventos = [];
+let _calChecks  = [];
+let _calDiaSel  = null;
+let _calRecSel  = 'unica';
+let _calGopsSel = ['todos']; // ['todos'] ou array de gopIds
+
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DIAS_PT  = ['Dom','Seg','Ter','Qua','Qui','Sex','Sab'];
+
+async function rCalendario(){
+  await calCarregarDados();
+  calRenderMes();
+}
+
+async function calCarregarDados(){
+  const ano = _calAno;
+  // Buscar todos os eventos e checks do ano
+  const [evs, chks] = await Promise.all([
+    dbGet('cj_calendario','order=data_inicio.asc') || [],
+    dbGet('cj_calendario_checks','data=gte.'+ano+'-01-01&data=lte.'+ano+'-12-31') || []
+  ]);
+  _calEventos = evs || [];
+  _calChecks  = chks || [];
+}
+
+function calNavMes(delta){
+  _calMes += delta;
+  if(_calMes < 0){ _calMes = 11; _calAno--; }
+  if(_calMes > 11){ _calMes = 0; _calAno++; }
+  calRenderMes();
+  const detail = el('cal-dia-detail');
+  if(detail) detail.style.display='none';
+}
+
+// Devolve todos os eventos que ocorrem numa data específica
+function calEventosNoDia(dataStr){
+  return _calEventos.filter(ev => {
+    if(ev.data_inicio > dataStr) return false;
+    if(ev.recorrencia === 'unica') return ev.data_inicio === dataStr;
+    // Semanal: verificar se a diferença em dias é múltiplo de 7
+    const d0 = new Date(ev.data_inicio+'T00:00:00');
+    const d1 = new Date(dataStr+'T00:00:00');
+    const diff = Math.round((d1-d0)/(1000*60*60*24));
+    return diff >= 0 && diff % 7 === 0 && dataStr <= (_calAno+'-12-31');
+  });
+}
+
+// GOPs que devem cumprir um evento
+function calGopsDoEvento(ev){
+  let gopsEv;
+  try{ gopsEv = JSON.parse(ev.gops); }catch(e){ gopsEv = null; }
+  if(!gopsEv || gopsEv === 'todos' || (Array.isArray(gopsEv) && gopsEv.includes('todos'))){
+    return Object.keys(GOP_NAMES).filter(g => g !== 'ines_cruz');
+  }
+  return Array.isArray(gopsEv) ? gopsEv : [];
+}
+
+function calRenderMes(){
+  const lbl = el('cal-mes-label');
+  if(lbl) lbl.textContent = MESES_PT[_calMes]+' '+_calAno;
+
+  const grid = el('cal-grid');
+  if(!grid) return;
+
+  const hoje = new Date().toISOString().slice(0,10);
+  const primeiroDia = new Date(_calAno, _calMes, 1);
+  const ultimoDia   = new Date(_calAno, _calMes+1, 0);
+  const inicioSem   = primeiroDia.getDay(); // 0=Dom
+
+  let html = '<div style="display:grid;grid-template-columns:repeat(7,1fr)">';
+  // Cabeçalho dias
+  DIAS_PT.forEach(d => {
+    html += '<div style="text-align:center;font-size:.7rem;font-weight:700;color:var(--t2);padding:8px 0;border-bottom:1px solid var(--br)">'+d+'</div>';
+  });
+  // Células vazias iniciais
+  for(let i=0;i<inicioSem;i++) html += '<div style="border-right:1px solid var(--br);border-bottom:1px solid var(--br);min-height:52px"></div>';
+
+  for(let d=1; d<=ultimoDia.getDate(); d++){
+    const dataStr = _calAno+'-'+String(_calMes+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const evs = calEventosNoDia(dataStr);
+    const isHoje = dataStr === hoje;
+    const isSel  = dataStr === _calDiaSel;
+    const isCrop = CU && CU.role === 'crop';
+
+    // Calcular estado dos checks para este dia
+    let dotColor = '';
+    if(evs.length){
+      const todosFeitos = evs.every(ev => {
+        const gopsEv = calGopsDoEvento(ev);
+        return gopsEv.every(gId => _calChecks.some(c => c.evento_id===ev.id && c.data===dataStr && c.gop_id===gId));
+      });
+      dotColor = todosFeitos ? 'var(--grn)' : 'var(--red)';
+    }
+
+    const bgStyle = isSel ? 'background:var(--ac);color:#fff;' : isHoje ? 'background:#fef3e2;' : '';
+    const numColor = isSel ? '#fff' : isHoje ? 'var(--ac)' : '';
+    const clickable = isCrop || evs.length > 0;
+
+        html += '<div data-date="'+dataStr+'" style="'+bgStyle+'min-height:52px;padding:4px 6px;border-right:1px solid var(--br);border-bottom:1px solid var(--br);cursor:'+(clickable?'pointer':'default')+';position:relative;transition:background .15s">';
+    html += '<div style="font-size:.82rem;font-weight:'+(isHoje?'800':'500')+';color:'+(numColor||'')+'">'+d+'</div>';
+    if(evs.length){
+      html += '<div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:2px">';
+      evs.slice(0,3).forEach(() => {
+        html += '<div style="width:7px;height:7px;border-radius:50%;background:'+dotColor+'"></div>';
+      });
+      if(evs.length>3) html += '<div style="font-size:.55rem;color:var(--t2)">+</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  // Células vazias finais
+  const totalCells = inicioSem + ultimoDia.getDate();
+  const resto = totalCells % 7;
+  if(resto > 0){
+    for(let i=0; i<(7-resto); i++) html += '<div style="border-right:1px solid var(--br);border-bottom:1px solid var(--br);min-height:52px"></div>';
+  }
+  html += '</div>';
+  grid.innerHTML = html;
+  // Event delegation — um único listener no grid para todos os dias
+  grid.onclick = function(e){
+    const cell = e.target.closest('[data-date]');
+    if(!cell) return;
+    calClicarDia(cell.getAttribute('data-date'));
+  };
+}
+
+function calClicarDia(dataStr){
+  _calDiaSel = _calDiaSel === dataStr ? null : dataStr;
+  calRenderMes();
+  calRenderDiaDetail(dataStr);
+}
+
+function calRenderDiaDetail(dataStr){
+  const detail = el('cal-dia-detail');
+  if(!detail) return;
+
+  const evs = calEventosNoDia(dataStr);
+  const isCrop = CU && CU.role === 'crop';
+  const [ano,mes,dia] = dataStr.split('-');
+  const label = dia+'/'+mes+'/'+ano;
+
+  let html = '<div class="card">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">';
+  html += '<div style="font-weight:700">'+label+'</div>';
+  if(isCrop) html += '<button data-action="criar" data-date="'+dataStr+'" class="btn bp bsm">+ Tarefa</button>';
+  html += '</div>';
+
+  if(!evs.length){
+    html += '<div style="color:var(--t2);font-size:.82rem">Sem tarefas neste dia.</div>';
+  } else {
+    evs.forEach(ev => {
+      const gopsEv = calGopsDoEvento(ev);
+      html += '<div style="border:1px solid var(--br);border-radius:var(--rb);padding:10px 12px;margin-bottom:8px">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">';
+      html += '<div style="font-weight:700;font-size:.88rem">'+ev.titulo+'</div>';
+      html += '<div style="display:flex;align-items:center;gap:5px">';
+      if(ev.recorrencia==='semanal') html += '<span style="font-size:.7rem;background:var(--sf2);padding:2px 7px;border-radius:99px">\u{1F501} Semanal</span>';
+      if(isCrop) html += '<button data-action="apagar" data-evid="'+ev.id+'" data-date="'+dataStr+'" style="background:none;border:none;cursor:pointer;color:var(--t2);font-size:.85rem;padding:2px">\u{1F5D1}</button>';
+      html += '</div></div>';
+      if(ev.descricao) html += '<div style="font-size:.79rem;color:var(--t2);margin-top:4px">'+ev.descricao+'</div>';
+
+      // Estado dos GOPs
+      html += '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px">';
+      gopsEv.forEach(gId => {
+        const feito = _calChecks.some(c => c.evento_id===ev.id && c.data===dataStr && c.gop_id===gId);
+        const nome = (GOP_NAMES[gId]||gId).split(' ')[0];
+        html += '<span style="font-size:.74rem;padding:3px 9px;border-radius:99px;background:'+(feito?'var(--grn)':'var(--sf2)')+';color:'+(feito?'#fff':'var(--t2)')+';border:1px solid '+(feito?'var(--grn)':'var(--br)')+'">'+
+          (feito?'\u2713 ':'\u25CB ')+nome+'</span>';
+      });
+      html += '</div>';
+
+      // Botão para GOP marcar feito
+      if(!isCrop && CU){
+        const meuGopId = CU.gopId;
+        if(gopsEv.includes(meuGopId)){
+          const jaFeito = _calChecks.some(c => c.evento_id===ev.id && c.data===dataStr && c.gop_id===meuGopId);
+          if(!jaFeito){
+            html += '<div style="margin-top:8px"><button data-action="feito" data-evid="'+ev.id+'" data-date="'+dataStr+'" class="btn bg2 bsm">\u2713 Marcar como feito</button></div>';
+          } else {
+            html += '<div style="margin-top:6px;font-size:.78rem;color:var(--grn);font-weight:600">\u2705 J\u00E1 marcaste como feito</div>';
+          }
+        }
+      }
+      html += '</div>';
+    });
+  }
+  html += '</div>';
+  detail.innerHTML = html;
+  detail.style.display = 'block';
+
+  // Event delegation para botões de acção
+  detail.onclick = function(e){
+    const btn = e.target.closest('[data-action]');
+    if(!btn) return;
+    const action = btn.getAttribute('data-action');
+    const date   = btn.getAttribute('data-date');
+    const evid   = btn.getAttribute('data-evid');
+    if(action === 'criar')  calAbrirCriar(date);
+    if(action === 'apagar') calApagarEvento(evid, date);
+    if(action === 'feito')  calMarcarFeito(evid, date);
+  };
+}
+
+function calAbrirCriar(dataStr){
+  if(!CU || CU.role !== 'crop') return;
+  _calDiaSel = dataStr;
+  _calRecSel = 'unica';
+  _calGopsSel = ['todos'];
+
+  const [ano,mes,dia] = dataStr.split('-');
+  const lbl = el('m-cal-criar-data-label');
+  if(lbl) lbl.textContent = '📅 '+dia+'/'+mes+'/'+ano+' ('+DIAS_PT[new Date(dataStr+'T00:00:00').getDay()]+')';
+
+  // Limpar campos
+  const t = el('cal-titulo'); if(t) t.value='';
+  const d = el('cal-desc'); if(d) d.value='';
+
+  // Render seleção de GOPs
+  const sel = el('cal-gop-sel');
+  if(sel){
+    const gops = Object.entries(GOP_NAMES).filter(([id]) => id !== 'ines_cruz');
+    sel.innerHTML = '<button class="ck ok" id="cal-gop-todos" onclick="calToggleTodos()" style="padding:6px 14px;font-size:.8rem">✓ Todos</button>';
+    gops.forEach(([id, nome]) => {
+      const btn = document.createElement('button');
+      btn.className = 'ck';
+      btn.id = 'cal-gop-'+id;
+      btn.style.cssText = 'padding:6px 12px;font-size:.79rem';
+      btn.textContent = nome.split(' ')[0];
+      btn.addEventListener('click', (function(gopId){ return function(){ calToggleGop(gopId); }; })(id));
+      sel.appendChild(btn);
+    });
+  }
+
+  // Reset recorrência
+  const ru = el('cal-rec-unica'), rs = el('cal-rec-semanal');
+  if(ru){ ru.classList.add('ok'); }
+  if(rs){ rs.classList.remove('ok'); }
+
+  openM('m-cal-criar');
+}
+
+function calToggleTodos(){
+  _calGopsSel = ['todos'];
+  const sel = el('cal-gop-sel');
+  if(!sel) return;
+  sel.querySelectorAll('.ck').forEach(b => b.classList.remove('ok'));
+  const tb = el('cal-gop-todos'); if(tb) tb.classList.add('ok');
+}
+
+function calToggleGop(gopId){
+  // Desselecionar "todos"
+  if(_calGopsSel.includes('todos')) _calGopsSel = [];
+  const tb = el('cal-gop-todos'); if(tb) tb.classList.remove('ok');
+
+  const idx = _calGopsSel.indexOf(gopId);
+  if(idx >= 0) _calGopsSel.splice(idx,1);
+  else _calGopsSel.push(gopId);
+
+  const btn = el('cal-gop-'+gopId);
+  if(btn) btn.classList.toggle('ok', _calGopsSel.includes(gopId));
+
+  // Se nenhum selecionado, voltar a "todos"
+  if(_calGopsSel.length === 0) calToggleTodos();
+}
+
+function calSetRec(val){
+  _calRecSel = val;
+  const ru = el('cal-rec-unica'), rs = el('cal-rec-semanal');
+  if(ru) ru.classList.toggle('ok', val==='unica');
+  if(rs) rs.classList.toggle('ok', val==='semanal');
+}
+
+async function calCriarEvento(){
+  const titulo = (el('cal-titulo')||{value:''}).value.trim();
+  if(!titulo){ toast('Indica o título da tarefa.','w'); return; }
+  if(!_calDiaSel){ toast('Seleciona um dia primeiro.','w'); return; }
+
+  const ev = {
+    id: uid(),
+    titulo,
+    descricao: (el('cal-desc')||{value:''}).value.trim(),
+    data_inicio: _calDiaSel,
+    recorrencia: _calRecSel,
+    gops: JSON.stringify(_calGopsSel),
+    criado_por: 'CROP'
+  };
+
+  const res = await dbIns('cj_calendario', [ev]);
+  if(!res){ toast('Erro ao criar tarefa.','e'); return; }
+  closeM('m-cal-criar');
+  toast('✅ Tarefa criada!');
+  await calCarregarDados();
+  calRenderMes();
+  calRenderDiaDetail(_calDiaSel);
+}
+
+async function calMarcarFeito(eventoId, dataStr){
+  if(!CU || !CU.gopId) return;
+  const check = {
+    id: uid(),
+    evento_id: eventoId,
+    data: dataStr,
+    gop_id: CU.gopId,
+    feito_por: who()
+  };
+  const res = await sb('POST','cj_calendario_checks', check, '', true);
+  if(res === null){ toast('Erro ao registar.','e'); return; }
+  // Actualizar local
+  _calChecks.push({...check, feito_em: new Date().toISOString()});
+  toast('✅ Registado!');
+  calRenderMes();
+  calRenderDiaDetail(dataStr);
+}
+
+async function calApagarEvento(eventoId, dataStr){
+  if(!CU || CU.role !== 'crop') return;
+  if(!confirm('Apagar esta tarefa? Se for semanal, apaga todas as recorrências.')) return;
+  await dbDel('cj_calendario', eventoId);
+  _calEventos = _calEventos.filter(e => e.id !== eventoId);
+  _calChecks  = _calChecks.filter(c => c.evento_id !== eventoId);
+  toast('Tarefa apagada.');
+  calRenderMes();
+  calRenderDiaDetail(dataStr);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+
 // ── Alterar PIN ──────────────────────────────────────────────────────────────
 // PINs personalizados ficam em localStorage sob a chave 'cj_pin_<gopId>'.
 // Se não existir, usa o PIN padrão de GOP_PINS.
@@ -2397,7 +2795,7 @@ async function go(s){
   document.querySelectorAll('.ni').forEach(x=>x.classList.remove('on'));
   const sec=el('s-'+s);if(sec)sec.classList.add('on');
   const ni=document.querySelector('.ni[data-s="'+s+'"]');if(ni)ni.classList.add('on');
-  const fn={dash:rDash,tarefas:rTarefas,quebras:rQ,trocas:()=>{rT();rF();},avarias:rA,srm:rS,wfm:rWFM,ruturas:rRut,ferias:rFer,historico:rHistorico,operacional:rOperacional,marketing:rMkt,visitas:()=>{},dashboard:rDashboard,alertas:rAlertas};
+  const fn={dash:rDash,tarefas:rTarefas,quebras:rQ,trocas:()=>{rT();rF();},avarias:rA,srm:rS,wfm:rWFM,ruturas:rRut,ferias:rFer,historico:rHistorico,operacional:rOperacional,marketing:rMkt,visitas:()=>{},dashboard:rDashboard,alertas:rAlertas,calendario:rCalendario};
   if(fn[s])await fn[s]();
 }
 
