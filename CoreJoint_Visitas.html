@@ -1846,6 +1846,8 @@ async function startCropV(store){
   vCropScore = null;
   vCropCk = {limpeza:null, equip:null, proc:null};
   vCropPhotos = {chegada:[], limpeza:[], equip:[], proc:[]};
+  // Limpar visual dos botões check (podem ter ficado com cor da visita anterior)
+  ['limpeza','equip','proc'].forEach(sec => _renderCkBtns(sec));
 
   // Tentar restaurar rascunho
   await restoreCropAutoSave(store);
@@ -2137,15 +2139,16 @@ function _cropBuildPdfHtml(snap, lojaNome, dataLabel, horaLabel){
         <div style="font-size:.9rem;font-weight:600;margin-top:2px">${lojaNome}</div>
         <div style="font-size:.82rem;opacity:.85;margin-top:4px">${dataLabel} · Chegada: ${horaLabel}</div>
       </div>
+      <!-- ⭐ Classificação — primeiro -->
+      <div style="background:#fff;border-radius:10px;border:1px solid #e8ddc9;padding:14px 16px;margin-bottom:18px;display:flex;align-items:center;gap:12px">
+        <span style="font-family:'Fraunces',serif;font-size:1rem;font-weight:700">⭐ Classificação</span>
+        ${scoreLabel(snap.score)}
+      </div>
       ${snap.chegada_com||(snap.chegada_fotos&&snap.chegada_fotos.length)?'<div style="background:#fff;border-radius:10px;border:1px solid #e8ddc9;padding:14px 16px;margin-bottom:14px"><div style="font-family:\'Fraunces\',serif;font-size:1rem;font-weight:700;margin-bottom:8px">🏪 Chegada à Loja</div>'+(snap.chegada_com?'<p style="font-size:.9rem;color:#333;white-space:pre-wrap;line-height:1.6;margin:0 0 8px">'+snap.chegada_com+'</p>':'')+fotosHtml(snap.chegada_fotos)+'</div>':''}
       ${secao('🧹 Limpeza',snap.limpeza_ck,snap.limpeza_data,snap.limpeza_com,snap.limpeza_fotos)}
       ${secao('⚙️ Equipamentos',snap.equip_ck,snap.equip_data,snap.equip_com,snap.equip_fotos)}
       ${secao('📋 Procedimentos',snap.proc_ck,snap.proc_data,snap.proc_com,snap.proc_fotos)}
       ${snap.obs?'<div style="background:#faf7f2;border-radius:10px;border-left:4px solid #c1622d;padding:14px 16px;margin-bottom:14px"><div style="font-family:\'Fraunces\',serif;font-size:1rem;font-weight:700;margin-bottom:8px">📝 Observações Gerais</div><p style="font-size:.9rem;color:#333;white-space:pre-wrap;line-height:1.6;margin:0">'+snap.obs+'</p></div>':''}
-      <div style="background:#fff;border-radius:10px;border:1px solid #e8ddc9;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px">
-        <span style="font-family:'Fraunces',serif;font-size:1rem;font-weight:700">⭐ Classificação</span>
-        ${scoreLabel(snap.score)}
-      </div>
       <div class="no-print" style="text-align:center;margin-top:20px">
         <button onclick="window.print()" style="background:#c1622d;color:#fff;border:none;border-radius:8px;padding:12px 28px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit">🖨 Imprimir / Guardar PDF</button>
       </div>
