@@ -2214,11 +2214,7 @@ async function cropArquivarDoModal(){
   const ok = await cropArquivar();
   if(ok){
     closeM('m-crop-pdf-preview');
-    toast('✅ Visita arquivada com sucesso!');
-    // Voltar à lista de lojas automaticamente após arquivo
-    el('crop-v-form').style.display='none';
-    el('v-stores').style.display='block';
-    vCropStore=null;
+    toast('✅ Visita arquivada! Usa ← Lojas para sair ou continua a editar.');
   } else {
     if(btn){ btn.disabled=false; btn.textContent='📁 Arquivar'; }
   }
