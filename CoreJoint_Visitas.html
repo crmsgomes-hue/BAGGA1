@@ -6364,10 +6364,12 @@ function renderPendenteItem(r, today){
   const prazoTxt = r.prazo
     ? (isAtrasado ? '🔴 Atrasado — ' : isHoje ? '🟡 Hoje — ' : '📅 ') + new Date(r.prazo+'T00:00:00').toLocaleDateString('pt-PT')
     : '— Sem prazo definido';
+  const notasTxt = r.notas ? '<div class="ic-notas" style="font-size:.77rem;color:var(--t2);margin-top:3px;white-space:pre-wrap">'+r.notas+'</div>' : '';
   return '<div class="ic" style="border-left-color:'+borderCol+';margin-bottom:6px">' +
     '<div class="ic-top"><div class="ic-info">' +
     '<div class="ic-store">📍 '+sn(r.loja)+'</div>' +
     '<div class="ic-title">'+(r.descricao||r.codigo)+'</div>' +
+    notasTxt +
     '<div class="ic-sub">'+prazoTxt+'</div>' +
     '</div>' +
     '<div class="ic-acts"><div class="ic-btns">' +
