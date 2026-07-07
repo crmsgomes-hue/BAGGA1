@@ -6364,7 +6364,10 @@ function renderPendenteItem(r, today){
   const prazoTxt = r.prazo
     ? (isAtrasado ? '🔴 Atrasado — ' : isHoje ? '🟡 Hoje — ' : '📅 ') + new Date(r.prazo+'T00:00:00').toLocaleDateString('pt-PT')
     : '— Sem prazo definido';
-  const notasTxt = r.notas ? '<div class="ic-notas" style="font-size:.77rem;color:var(--t2);margin-top:3px;white-space:pre-wrap">'+r.notas+'</div>' : '';
+  const isCropTask = r.criado_por === 'CROP';
+  const notasTxt = r.notas
+    ? '<div style="font-size:.79rem;color:#444;margin-top:4px;padding:6px 8px;background:var(--sf2);border-radius:var(--rb);white-space:pre-wrap;line-height:1.4">💬 '+r.notas+'</div>'
+    : (isCropTask ? '<div style="font-size:.76rem;color:var(--t2);margin-top:3px;font-style:italic">Sem comentários adicionais da CROP</div>' : '');
   return '<div class="ic" style="border-left-color:'+borderCol+';margin-bottom:6px">' +
     '<div class="ic-top"><div class="ic-info">' +
     '<div class="ic-store">📍 '+sn(r.loja)+'</div>' +
