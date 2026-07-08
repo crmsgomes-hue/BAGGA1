@@ -6413,12 +6413,12 @@ async function rDashboard(){
       const atrasadosGop = rowsOutros.filter(r=>r.prazo && r.prazo<today).length;
       const hojeGop = rowsOutros.filter(r=>r.prazo===today).length;
       resumoEl.innerHTML =
-        '<div style="flex:1 1 100%;font-size:.7rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">'+meuIcone+' Alertas '+meuRotulo+'</div>' +
+        '<div style="flex:1 1 100%;font-size:.7rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">'+meuIcone+' Alertas CROP para Lojas</div>' +
         '<div class="sc" style="flex:1;min-width:90px"><div class="slb">Total</div><div class="svl">'+rowsMine.length+'</div></div>' +
         '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🔴 Atrasados</div><div class="svl cr">'+atrasadosMine+'</div></div>' +
         '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🟡 Hoje</div><div class="svl co">'+hojeMine+'</div></div>' +
         (CU.role==='crop' ?
-          '<div style="flex:1 1 100%;font-size:.7rem;font-weight:700;color:var(--ac);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 2px">👤 Alertas GOP</div>' +
+          '<div style="flex:1 1 100%;font-size:.7rem;font-weight:700;color:var(--ac);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 2px">👤 Alertas GOP para Lojas</div>' +
           '<div class="sc" style="flex:1;min-width:90px"><div class="slb">Total</div><div class="svl">'+rowsOutros.length+'</div></div>' +
           '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🔴 Atrasados</div><div class="svl cr">'+atrasadosGop+'</div></div>' +
           '<div class="sc" style="flex:1;min-width:90px"><div class="slb">🟡 Hoje</div><div class="svl co">'+hojeGop+'</div></div>' : '');
@@ -6587,7 +6587,7 @@ async function rDashboard(){
         return h;
       };
 
-      html += renderSecaoIsolada('🟣 Alertas identificados pela CROP', rowsCrop, '#7c3aed');
+      html += renderSecaoIsolada('🟣 Alertas CROP para Lojas', rowsCrop, '#7c3aed');
       if(partilhaComInes) html += renderSecaoIsolada('🎓 Alertas identificados pela Inês Cruz', rowsInes, '#0e7490');
     }
 
