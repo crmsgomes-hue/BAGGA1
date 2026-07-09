@@ -653,6 +653,7 @@
               <div class="cli" style="padding:7px 10px"><div style="flex:1;font-size:.82rem;font-weight:600">REG 8</div><button class="ck" onclick="setHaccp('reg_8',true)" id="hck-ok-reg_8">✓</button><button class="ck" onclick="setHaccp('reg_8',false)" id="hck-fail-reg_8">✗</button></div>
               <div class="cli" style="padding:7px 10px"><div style="flex:1;font-size:.82rem;font-weight:600">REG 9</div><button class="ck" onclick="setHaccp('reg_9',true)" id="hck-ok-reg_9">✓</button><button class="ck" onclick="setHaccp('reg_9',false)" id="hck-fail-reg_9">✗</button></div>
               <div class="cli" style="padding:7px 10px"><div style="flex:1;font-size:.82rem;font-weight:600">REG 10</div><button class="ck" onclick="setHaccp('reg_10',true)" id="hck-ok-reg_10">✓</button><button class="ck" onclick="setHaccp('reg_10',false)" id="hck-fail-reg_10">✗</button></div>
+              <div class="cli" style="padding:7px 10px"><div style="flex:1;font-size:.82rem;font-weight:600">REG 13</div><button class="ck" onclick="setHaccp('reg_13',true)" id="hck-ok-reg_13">✓</button><button class="ck" onclick="setHaccp('reg_13',false)" id="hck-fail-reg_13">✗</button></div>
               <div class="cli" style="padding:7px 10px"><div style="flex:1;font-size:.82rem;font-weight:600">REG 14</div><button class="ck" onclick="setHaccp('reg_14',true)" id="hck-ok-reg_14">✓</button><button class="ck" onclick="setHaccp('reg_14',false)" id="hck-fail-reg_14">✗</button></div>
               <div class="cli" style="padding:7px 10px"><div style="flex:1;font-size:.82rem;font-weight:600">REG 21</div><button class="ck" onclick="setHaccp('reg_21',true)" id="hck-ok-reg_21">✓</button><button class="ck" onclick="setHaccp('reg_21',false)" id="hck-fail-reg_21">✗</button></div>
               <div class="cli" style="padding:7px 10px"><div style="flex:1;font-size:.82rem;font-weight:600">REG 141</div><button class="ck" onclick="setHaccp('reg_141',true)" id="hck-ok-reg_141">✓</button><button class="ck" onclick="setHaccp('reg_141',false)" id="hck-fail-reg_141">✗</button></div>
@@ -1684,7 +1685,7 @@ const RUT_LABELS = {
 // Mapeamento id -> label legível para HACCP
 const HACCP_LABELS_MAP = {
   reg_3:'REG 3', reg_4:'REG 4', reg_8:'REG 8', reg_9:'REG 9',
-  reg_10:'REG 10', reg_14:'REG 14', reg_21:'REG 21', reg_141:'REG 141',
+  reg_10:'REG 10', reg_13:'REG 13', reg_14:'REG 14', reg_21:'REG 21', reg_141:'REG 141',
   dlus:'D.L.U.S', iogurte:'Iogurte', laranjas:'Laranjas', manteiga:'Manteiga'
 };
 
@@ -4309,7 +4310,7 @@ async function genRel(){
   // Build HACCP table HTML
   const HACCP_ITEMS_RPT = [
     {id:'reg_3',label:'REG 3'},{id:'reg_4',label:'REG 4'},{id:'reg_8',label:'REG 8'},
-    {id:'reg_9',label:'REG 9'},{id:'reg_10',label:'REG 10'},{id:'reg_14',label:'REG 14'},
+    {id:'reg_9',label:'REG 9'},{id:'reg_10',label:'REG 10'},{id:'reg_13',label:'REG 13'},{id:'reg_14',label:'REG 14'},
     {id:'reg_21',label:'Checklist 21'},{id:'reg_141',label:'REG 141'},
     {id:'dlus',label:'DLUS'},{id:'iogurte',label:'Iogurte'},
     {id:'laranjas',label:'Laranjas'},{id:'manteiga',label:'Manteiga'}
