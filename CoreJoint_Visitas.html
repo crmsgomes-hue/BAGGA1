@@ -5119,23 +5119,19 @@ function saveChkPrazo(id){
 }
 
 async function saveToHistory(reportData){
-  try{
-    const entry = {
-      id: Date.now().toString(),
-      loja: reportData.loja,
-      data: reportData.data,
-      hora: reportData.hora,
-      resumo: reportData.resumo,
-      html: reportData.html,
-      saved_by: who()
-    };
-    // Also keep a local copy as backup
-    try{ localStorage.setItem('cj_hist_html_'+entry.id, reportData.html); }catch(e){}
-    await dbIns('cj_historico',[entry]);
-    toast('✅ Relatório guardado no histórico!');
-  }catch(e){
-    console.error('History save error:', e);
-    toast('Erro ao guardar histórico: '+e.message,'e');
+  const entry = {
+    id: Date.now().toString(),
+    loja: reportData.loja,
+    data: reportData.data,
+    hora: reportData.hora,
+    resumo: reportData.resumo,
+    html: reportData.html,
+    saved_by: who()
+  };
+  try{ localStorage.setItem('cj_hist_html_'+entry.id, reportData.html); }catch(e){}
+  const result = await dbIns('cj_historico',[entry]);
+  if(!result || (Array.isArray(result) && !result.length)){
+    throw new Error('Falha ao guardar no Supabase. Os dados estão preservados no rascunho — tenta novamente.');
   }
 }
 
