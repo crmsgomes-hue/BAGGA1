@@ -5996,7 +5996,8 @@ function hasAutoSaveLocal(store){
 async function hasAutoSave(store){
   if(hasAutoSaveLocal(store)) return true;
   try{
-    const rows = await dbGet('cj_visitas_rascunhos','id=eq.'+getAutoSaveId(store)+'&saved_by=eq.'+encodeURIComponent(who()));
+    // Usar select=id para não carregar o rascunho inteiro (pode ter MB de fotos)
+    const rows = await dbGet('cj_visitas_rascunhos','select=id&id=eq.'+getAutoSaveId(store)+'&saved_by=eq.'+encodeURIComponent(who()));
     return !!(rows && rows.length);
   }catch(e){ return false; }
 }
