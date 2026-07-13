@@ -5284,9 +5284,9 @@ async function rHistorico(){
     const q = 'select=id,loja,data,hora,resumo,saved_by&order=created_at.desc'+lf;
     const histAll = await dbGet('cj_historico', q) || [];
 
-    const storeFolderHtml = (loja, src) => {
+    const storeFolderHtml = (loja, src, prefix='') => {
       const reports = src[loja] || [];
-      const folderId = 'hist-folder-'+loja;
+      const folderId = 'hist-folder-'+(prefix?prefix+'-':'')+loja;
       return '<div style="border:1.5px solid var(--br);border-radius:var(--rb);margin-bottom:8px;overflow:hidden">' +
         '<div style="background:var(--sf2);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleHistFolder(\''+folderId+'\')">' +
         '<div style="font-weight:700;font-size:.85rem">📍 '+sn(loja)+'</div>' +
@@ -5360,7 +5360,7 @@ async function rHistorico(){
             '<span style="font-size:.72rem;color:var(--ac);background:#fff;border-radius:99px;padding:2px 9px">'+totalGop+'</span>' +
             '<span style="color:var(--ac)">▾</span></div></div>' +
             '<div id="'+groupId+'" style="display:none;padding:10px 12px;background:var(--bg)">' +
-            lojasDoGop.map(l=>storeFolderHtml(l, byLoja)).join('') +
+            lojasDoGop.map(l=>storeFolderHtml(l, byLoja, gopId)).join('') +
             '</div></div>';
         });
 
