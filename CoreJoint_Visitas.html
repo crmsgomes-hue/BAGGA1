@@ -5367,7 +5367,7 @@ async function rHistorico(){
             '<span style="font-size:.72rem;color:var(--ac);background:#fff;border-radius:99px;padding:2px 9px">'+totalGop+'</span>' +
             '<span style="color:var(--ac)">▾</span></div></div>' +
             '<div id="'+groupId+'" style="display:none;padding:10px 12px;background:var(--bg)">' +
-            (totalGop>0 ? Object.keys(byLojaGop).map(l=>storeFolderHtml(l, byLojaGop)).join('') :
+            (totalGop>0 ? Object.keys(byLojaGop).map(l=>storeFolderHtml(l, byLojaGop, gopId)).join('') :
               '<div style="color:var(--t2);font-size:.78rem;padding:6px">Sem visitas arquivadas.</div>') +
             '</div></div>';
         });
