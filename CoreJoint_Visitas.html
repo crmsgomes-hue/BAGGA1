@@ -6247,8 +6247,12 @@ async function iniciarNovaVisita(){
     await startCropV(_pickStore);
     return;
   }
+  // Verificar primeiro com select=id (rápido). Se tiver dúvida (timeout), perguntar sempre.
   const existe = await hasAutoSave(_pickStore);
-  if(existe && !confirm('Tens uma visita em curso. Iniciar nova visita vai apagar o progresso anterior. Continuar?')) return;
+  if(existe){
+    if(!confirm('Tens uma visita em curso. Iniciar nova visita vai apagar o progresso anterior. Continuar?')) return;
+  }
+  // Só apaga se o utilizador confirmou explicitamente OU se não há rascunho
   await clearAutoSave(_pickStore);
   startV(_pickStore);
   closeM('m-pick-store');
