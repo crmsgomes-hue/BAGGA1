@@ -5316,13 +5316,12 @@ async function rHistorico(){
       const lojasComVisita = Object.keys(byLojaMinhas);
 
       if(CU.role==='crop'){
-        // CROP precisa de ver tudo: as suas próprias visitas + as de cada GOP + as da Inês, cada uma à parte
+        // CROP: as suas próprias visitas + cada GOP (só as visitas DESSE GOP) + Inês
         const histGops = histAll.filter(r=>!ISOLATED_IDENTITIES.includes(r.saved_by));
-        const byLoja = {};
-        histGops.forEach(r=>{ if(!byLoja[r.loja])byLoja[r.loja]=[]; byLoja[r.loja].push(r); });
 
         let html = '<div style="font-size:.78rem;color:var(--t2);margin-bottom:10px">📁 <strong>'+histAll.length+'</strong> relatório(s) guardado(s)</div>';
 
+        // Secção CROP
         html += '<div style="border:1.5px solid #7c3aed;border-radius:var(--rb);margin-bottom:14px;overflow:hidden">' +
           '<div style="background:#f5f3ff;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleHistFolder(\'hist-crop-own\')">' +
           '<div style="font-weight:700;font-size:.85rem;color:#7c3aed">🟣 Auditorias feitas pela CROP</div>' +
@@ -5334,6 +5333,7 @@ async function rHistorico(){
             '<div style="color:var(--t2);font-size:.78rem;padding:6px">Ainda sem visitas auditadas pela CROP.</div>') +
           '</div></div>';
 
+        // Secção Inês Cruz
         const histInes = histAll.filter(r=>r.saved_by==='GOP — Inês Cruz');
         const byLojaInes = {};
         histInes.forEach(r=>{ if(!byLojaInes[r.loja])byLojaInes[r.loja]=[]; byLojaInes[r.loja].push(r); });
@@ -5349,18 +5349,26 @@ async function rHistorico(){
             '<div style="color:var(--t2);font-size:.78rem;padding:6px">Ainda sem visitas auditadas pela Inês.</div>') +
           '</div></div>';
 
+        // Secção de cada GOP — filtrada pelo saved_by (evita misturar visitas em lojas partilhadas)
         Object.keys(GOP_STORES).filter(g=>g!=='ines_cruz').forEach(gopId=>{
-          const lojasDoGop = GOP_STORES[gopId];
-          const totalGop = lojasDoGop.reduce((a,l)=>a+(byLoja[l]?byLoja[l].length:0),0);
+          const gopDisplayName = 'GOP — '+(GOP_NAMES[gopId]||gopId);
+          const gopOldName = gopId==='luis_serrano' ? 'GOP — Luís Serrano' : null;
+          const visitasDoGop = histGops.filter(r =>
+            r.saved_by===gopDisplayName || (gopOldName && r.saved_by===gopOldName)
+          );
+          const byLojaGop = {};
+          visitasDoGop.forEach(r=>{ if(!byLojaGop[r.loja])byLojaGop[r.loja]=[]; byLojaGop[r.loja].push(r); });
+          const totalGop = visitasDoGop.length;
           const groupId = 'hist-gop-'+gopId;
           html += '<div style="border:1.5px solid var(--ac);border-radius:var(--rb);margin-bottom:10px;overflow:hidden">' +
-            '<div style="background:var(--acl);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleHistFolder(\''+groupId+'\')">' +
+            '<div style="background:var(--acl);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleHistFolder(\''+groupId+'\')">'+
             '<div style="font-weight:700;font-size:.85rem;color:var(--ac)">👤 '+(GOP_NAMES[gopId]||gopId)+'</div>' +
             '<div style="display:flex;align-items:center;gap:8px">' +
             '<span style="font-size:.72rem;color:var(--ac);background:#fff;border-radius:99px;padding:2px 9px">'+totalGop+'</span>' +
             '<span style="color:var(--ac)">▾</span></div></div>' +
             '<div id="'+groupId+'" style="display:none;padding:10px 12px;background:var(--bg)">' +
-            lojasDoGop.map(l=>storeFolderHtml(l, byLoja, gopId)).join('') +
+            (totalGop>0 ? Object.keys(byLojaGop).map(l=>storeFolderHtml(l, byLojaGop)).join('') :
+              '<div style="color:var(--t2);font-size:.78rem;padding:6px">Sem visitas arquivadas.</div>') +
             '</div></div>';
         });
 
