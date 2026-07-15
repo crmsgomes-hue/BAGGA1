@@ -1598,14 +1598,13 @@ async function doLogin(){
   const pin=val('l-pin'),err=el('l-err');err.style.display='none';
 
   if(_loginGopId==='crop' || _loginGopId==='crop_norte'){
-    // CROP Norte (PIN 1000) ou CROP Sul (PIN 9000)
-    const pinSul   = getPin('crop');
-    const pinNorte = getPin('crop_norte');
-    if(pin!==pinSul && pin!==pinNorte){
+    // Determinar a região pelo loginGopId (já foi seleccionada pelo utilizador)
+    const regiao = _loginGopId==='crop_norte' ? 'norte' : 'sul';
+    const pinCorreto = regiao==='norte' ? getPin('crop_norte') : getPin('crop');
+    if(pin!==pinCorreto){
       err.textContent='PIN incorreto.';
       err.style.display='block'; kpClear(); return;
     }
-    const regiao = (pin===pinNorte || _loginGopId==='crop_norte') ? 'norte' : 'sul';
     CU={role:'crop', gopId:null, store:null, region:regiao};
     STORES = [...new Set(gopsDeRegiao(regiao).flatMap(g=>GOP_STORES[g]))];
   } else if(_loginGopId && GOP_NAMES[_loginGopId]){
@@ -2495,9 +2494,10 @@ async function rCalendario(){
 
 async function calCarregarDados(){
   const ano = _calAno;
-  // Buscar todos os eventos e checks do ano
+  const regiao = CU && CU.region ? CU.region : (CU && CU.gopId ? gopRegion(CU.gopId) : 'sul');
+  // Buscar apenas eventos da região do utilizador actual
   const [evs, chks] = await Promise.all([
-    dbGet('cj_calendario','order=data_inicio.asc') || [],
+    dbGet('cj_calendario','region=eq.'+regiao+'&order=data_inicio.asc') || [],
     dbGet('cj_calendario_checks','data=gte.'+ano+'-01-01&data=lte.'+ano+'-12-31') || []
   ]);
   _calEventos = evs || [];
@@ -2759,6 +2759,7 @@ async function calCriarEvento(){
   if(!titulo){ toast('Indica o título da tarefa.','w'); return; }
   if(!_calDiaSel){ toast('Seleciona um dia primeiro.','w'); return; }
 
+  const regiao = CU && CU.region ? CU.region : 'sul';
   const ev = {
     id: uid(),
     titulo,
@@ -2766,7 +2767,8 @@ async function calCriarEvento(){
     data_inicio: _calDiaSel,
     recorrencia: _calRecSel,
     gops: JSON.stringify(_calGopsSel),
-    criado_por: 'CROP'
+    criado_por: 'CROP',
+    region: regiao
   };
 
   const res = await dbIns('cj_calendario', [ev]);
