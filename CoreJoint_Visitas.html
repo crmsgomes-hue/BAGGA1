@@ -2518,15 +2518,25 @@ function calNavMes(delta){
 
 // Devolve todos os eventos que ocorrem numa data específica
 function calEventosNoDia(dataStr){
-  return _calEventos.filter(ev => {
+  const evsDoDia = _calEventos.filter(ev => {
     if(ev.data_inicio > dataStr) return false;
     if(ev.recorrencia === 'unica') return ev.data_inicio === dataStr;
-    // Semanal: verificar se a diferença em dias é múltiplo de 7
     const d0 = new Date(ev.data_inicio+'T00:00:00');
     const d1 = new Date(dataStr+'T00:00:00');
     const diff = Math.round((d1-d0)/(1000*60*60*24));
     return diff >= 0 && diff % 7 === 0 && dataStr <= (_calAno+'-12-31');
   });
+
+  // GOPs só vêem eventos que lhes dizem respeito (todos ou específicamente eles)
+  if(CU && CU.role === 'gop'){
+    const meuGopId = CU.gopId;
+    return evsDoDia.filter(ev => {
+      const gopsEv = calGopsDoEvento(ev);
+      return gopsEv.includes(meuGopId) || gopsEv.includes('todos');
+    });
+  }
+  // CROP vê tudo
+  return evsDoDia;
 }
 
 // GOPs que devem cumprir um evento
