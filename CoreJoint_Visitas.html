@@ -5970,7 +5970,6 @@ async function doAutoSave(){
         saved_by: who()
       };
       // Usar PATCH→POST em vez de on_conflict upsert (evita duplicate key silencioso)
-      const sbId = getAutoSaveId(saveStore);
       const patchR = await sb('PATCH','cj_visitas_rascunhos', dbRow, 'id=eq.'+sbId, true);
       if(!patchR || (Array.isArray(patchR) && !patchR.length)){
         // Linha não existe — inserir
