@@ -5969,15 +5969,13 @@ async function doAutoSave(){
         fotos_cafe: snapshot.fotos_cafe,
         saved_by: who()
       };
-      const r = await fetch(SB+'/rest/v1/cj_visitas_rascunhos?on_conflict=id', {
-        method: 'POST',
-        headers: {
-          'apikey': SK, 'Authorization': 'Bearer '+SK, 'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates,return=minimal'
-        },
-        body: JSON.stringify(dbRow)
-      });
-      if(!r.ok){ console.warn('AutoSave Supabase upsert falhou:', await r.text()); }
+      // Usar PATCH→POST em vez de on_conflict upsert (evita duplicate key silencioso)
+      const sbId = getAutoSaveId(saveStore);
+      const patchR = await sb('PATCH','cj_visitas_rascunhos', dbRow, 'id=eq.'+sbId, true);
+      if(!patchR || (Array.isArray(patchR) && !patchR.length)){
+        // Linha não existe — inserir
+        await sb('POST','cj_visitas_rascunhos', dbRow, '', true);
+      }
     }catch(e){ console.warn('AutoSave Supabase error:', e); }
 
     // Indicador visual
