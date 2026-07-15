@@ -1406,14 +1406,23 @@
 <script>
 const SB='https://isdaegejkxgtzjcpzstr.supabase.co';
 const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k';
-const GOP_NAMES={joao_martinho:'João Martinho',carla_costa:'Carla Costa',luis_serrano:'Valter Costa',carina_paixao:'Carina Paixão',tiago_campos:'Tiago Campos',catia_peleve:'Cátia Pé-Leve',ines_cruz:'Inês Cruz'};
-const GOP_PINS={joao_martinho:'3028',carla_costa:'4817',luis_serrano:'6293',carina_paixao:'5071',tiago_campos:'1005',catia_peleve:'8456',ines_cruz:'2649',crop:'9000'};
-const GOP_STORES={joao_martinho:['bombarral','peniche','rio_maior','caldas','carregado','torres_novas_mch','ponte_sor','torres_novas','santarem','almeirim','marechal_g_cos','belas','loures','s_joao_talha','arroja'],carla_costa:['malveira','mafra_mh','mafra_mch','vf_xira','alverca','montelavar','torres_vedras','estoril','porto_alto_i','s_magos'],luis_serrano:['vasco_da_gama','loures','marechal_g_cos','colombo','s_joao_talha','arroja','alto_lumiar','alta_lisboa','belas','defens_chaves'],carina_paixao:['sesimbra','barreiro_mch','setubal','moita','palmela','alhos_vedros','quinta_conde','pinhal_novo','mdl_seixal','sines','grandola'],tiago_campos:['beja_retail_mh','evora','beja_mch','estremoz','reguengos','sintra','tapada_merces','carcavelos','mem_martins','tires','cacem','vasco_da_gama','colombo','alto_lumiar','alta_lisboa','defens_chaves'],catia_peleve:['loule_mh','silves','lagos','quarteira','vrs_antonio','olhao','faro','odiaxere','loule_mch','portimao_ii'],ines_cruz:['beja_retail_mh','evora','beja_mch','estremoz','reguengos','sintra','tapada_merces','carcavelos','mem_martins','tires','cacem','vasco_da_gama','loures','marechal_g_cos','colombo','s_joao_talha','arroja','alto_lumiar','alta_lisboa','belas','defens_chaves']};
+const GOP_NAMES={joao_martinho:'João Martinho',carla_costa:'Carla Costa',luis_serrano:'Valter Costa',carina_paixao:'Carina Paixão',tiago_campos:'Tiago Campos',catia_peleve:'Cátia Pé-Leve',ines_cruz:'Inês Cruz',marisa_rodrigues:'Marisa Rodrigues',sandra_ferreira:'Sandra Ferreira',andre_gomes:'André Gomes',valter_norte:'Valter Costa Norte',maria_joao:'Maria João Carvalho'};
+const GOP_PINS={joao_martinho:'3028',carla_costa:'4817',luis_serrano:'6293',carina_paixao:'5071',tiago_campos:'1005',catia_peleve:'8456',ines_cruz:'2649',crop:'9000',marisa_rodrigues:'2847',sandra_ferreira:'3651',andre_gomes:'4729',valter_norte:'5183',maria_joao:'6394',crop_norte:'1000'};
+const GOP_STORES={joao_martinho:['bombarral','peniche','rio_maior','caldas','carregado','torres_novas_mch','ponte_sor','torres_novas','santarem','almeirim','marechal_g_cos','belas','loures','s_joao_talha','arroja'],carla_costa:['malveira','mafra_mh','mafra_mch','vf_xira','alverca','montelavar','torres_vedras','estoril','porto_alto_i','s_magos'],luis_serrano:['vasco_da_gama','loures','marechal_g_cos','colombo','s_joao_talha','arroja','alto_lumiar','alta_lisboa','belas','defens_chaves'],carina_paixao:['sesimbra','barreiro_mch','setubal','moita','palmela','alhos_vedros','quinta_conde','pinhal_novo','mdl_seixal','sines','grandola'],tiago_campos:['beja_retail_mh','evora','beja_mch','estremoz','reguengos','sintra','tapada_merces','carcavelos','mem_martins','tires','cacem','vasco_da_gama','colombo','alto_lumiar','alta_lisboa','defens_chaves'],catia_peleve:['loule_mh','silves','lagos','quarteira','vrs_antonio','olhao','faro','odiaxere','loule_mch','portimao_ii'],ines_cruz:['beja_retail_mh','evora','beja_mch','estremoz','reguengos','sintra','tapada_merces','carcavelos','mem_martins','tires','cacem','vasco_da_gama','loures','marechal_g_cos','colombo','s_joao_talha','arroja','alto_lumiar','alta_lisboa','belas','defens_chaves'],marisa_rodrigues:['lamego','chaves','braganca','amarante','mirandela','santo_tirso','ponte_lima','moncao','vizela','viana_castelo','marco_canav_ii','fafe','esposende'],sandra_ferreira:['maia_jard_mch','norte_shopping','leca_balio','maia_mira_mh','paredes','penafiel','trofa','camara_lobos','machico','famalicao_r','braga','barcelos'],andre_gomes:['s_m_feira','fanzeres','valbom','ovar_mch','rio_tinto','oliveira_azeme','ermesinde','maia_a_sant_mh','valongo','areosa','s_joao_madeira','vila_conde','povoa_varzim'],valter_norte:['ilhavo','cantanhede','anadia','agueda','gaia','figueira_foz','avintes','guarda','mangualde','s_felix_marinh','gulpilhares','vale_cambra'],maria_joao:['tomar','ourem','coimbra','nazare','abrantes','forum_coimbra','leiria','marinha_grande','porto_de_mos','fundao','castelo_branco','pombal','lousa']};
 // Identidades "isoladas": as visitas/alertas destas pessoas nunca se misturam com as dos GOPs
 // cujas lojas partilham — tal como já acontecia com a CROP, agora também com estagiários/exceções.
 const ISOLATED_IDENTITIES = ['CROP', 'GOP — Inês Cruz'];
+const GOP_REGION = {
+  joao_martinho:'sul',carla_costa:'sul',luis_serrano:'sul',carina_paixao:'sul',
+  tiago_campos:'sul',catia_peleve:'sul',ines_cruz:'sul',
+  marisa_rodrigues:'norte',sandra_ferreira:'norte',andre_gomes:'norte',
+  valter_norte:'norte',maria_joao:'norte'
+};
+function gopRegion(gopId){ return GOP_REGION[gopId]||'sul'; }
+function cropRegion(){ return CU&&CU.region||'sul'; }
+function gopsDeRegiao(r){ return Object.keys(GOP_STORES).filter(g=>g!=='ines_cruz'&&gopRegion(g)===r); }
 function isIsolatedUser(){ return CU && (CU.role==='crop' || CU.gopId==='ines_cruz'); }
-const SN={bombarral:'Bombarral',peniche:'Peniche',rio_maior:'Rio Maior',caldas:'Caldas da Rainha',carregado:'Carregado',torres_novas_mch:'T. Novas MCH',ponte_sor:'Ponte de Sor',torres_novas:'Torres Novas',santarem:'Santarém',almeirim:'Almeirim',malveira:'Malveira',mafra_mh:'Mafra MH',mafra_mch:'Mafra MCH',vf_xira:'V F Xira',alverca:'Alverca',montelavar:'Montelavar',torres_vedras:'Torres Vedras',estoril:'Estoril',porto_alto_i:'Porto Alto I',s_magos:'S Magos',vasco_da_gama:'Vasco da Gama',loures:'Loures',marechal_g_cos:'Marechal G Cos',colombo:'Colombo',s_joao_talha:'S João Talha',arroja:'Arroja',alto_lumiar:'Alto do Lumiar',alta_lisboa:'Alta Lisboa',belas:'Belas',defens_chaves:'Defens Chaves',sesimbra:'Sesimbra',barreiro_mch:'Barreiro MCH',setubal:'Setúbal',moita:'Moita',palmela:'Palmela',alhos_vedros:'Alhos Vedros',quinta_conde:'Quinta Conde',pinhal_novo:'Pinhal Novo',mdl_seixal:'MDL Seixal',sines:'Sines',grandola:'Grândola',beja_retail_mh:'Beja Retail MH',evora:'Évora',beja_mch:'Beja MCH',estremoz:'Estremoz',reguengos:'Reguengos',sintra:'Sintra',tapada_merces:'Tapada Merces',carcavelos:'Carcavelos',mem_martins:'Mem Martins',tires:'Tires',cacem:'Cacém',loule_mh:'Loulé MH',silves:'Silves',lagos:'Lagos',quarteira:'Quarteira',vrs_antonio:'VRS António',olhao:'Olhão',faro:'Faro',odiaxere:'Odiaxere',loule_mch:'Loulé MCH',portimao_ii:'Portimão II',rede:'Toda a Rede'};
+const SN={bombarral:'Bombarral',peniche:'Peniche',rio_maior:'Rio Maior',caldas:'Caldas da Rainha',carregado:'Carregado',torres_novas_mch:'T. Novas MCH',ponte_sor:'Ponte de Sor',torres_novas:'Torres Novas',santarem:'Santarém',almeirim:'Almeirim',malveira:'Malveira',mafra_mh:'Mafra MH',mafra_mch:'Mafra MCH',vf_xira:'V F Xira',alverca:'Alverca',montelavar:'Montelavar',torres_vedras:'Torres Vedras',estoril:'Estoril',porto_alto_i:'Porto Alto I',s_magos:'S Magos',vasco_da_gama:'Vasco da Gama',loures:'Loures',marechal_g_cos:'Marechal G Cos',colombo:'Colombo',s_joao_talha:'S João Talha',arroja:'Arroja',alto_lumiar:'Alto do Lumiar',alta_lisboa:'Alta Lisboa',belas:'Belas',defens_chaves:'Defens Chaves',sesimbra:'Sesimbra',barreiro_mch:'Barreiro MCH',setubal:'Setúbal',moita:'Moita',palmela:'Palmela',alhos_vedros:'Alhos Vedros',quinta_conde:'Quinta Conde',pinhal_novo:'Pinhal Novo',mdl_seixal:'MDL Seixal',sines:'Sines',grandola:'Grândola',beja_retail_mh:'Beja Retail MH',evora:'Évora',beja_mch:'Beja MCH',estremoz:'Estremoz',reguengos:'Reguengos',sintra:'Sintra',tapada_merces:'Tapada Merces',carcavelos:'Carcavelos',mem_martins:'Mem Martins',tires:'Tires',cacem:'Cacém',loule_mh:'Loulé MH',silves:'Silves',lagos:'Lagos',quarteira:'Quarteira',vrs_antonio:'VRS António',olhao:'Olhão',faro:'Faro',odiaxere:'Odiaxere',loule_mch:'Loulé MCH',portimao_ii:'Portimão II',lamego:'Lamego',chaves:'Chaves',braganca:'Bragança',amarante:'Amarante',mirandela:'Mirandela',santo_tirso:'Santo Tirso',ponte_lima:'Ponte Lima',moncao:'Monção',vizela:'Vizela',viana_castelo:'Viana do Castelo',marco_canav_ii:'Marco Canav II',fafe:'Fafe',esposende:'Esposende',maia_jard_mch:'Maia Jard MCH',norte_shopping:'Norte Shopping',leca_balio:'Leça Balio',maia_mira_mh:'Maia Mira MH',paredes:'Paredes',penafiel:'Penafiel',trofa:'Trofa',camara_lobos:'Câmara Lobos',machico:'Machico',famalicao_r:'Famalicão R',braga:'Braga',barcelos:'Barcelos',s_m_feira:'S M Feira',fanzeres:'Fanzeres',valbom:'Valbom',ovar_mch:'Ovar MCH',rio_tinto:'Rio Tinto',oliveira_azeme:'Oliveira Azeme',ermesinde:'Ermesinde',maia_a_sant_mh:'Maia A Sant MH',valongo:'Valongo',areosa:'Areosa',s_joao_madeira:'S João Madeira',vila_conde:'Vila Conde',povoa_varzim:'Póvoa Varzim',ilhavo:'Ílhavo',cantanhede:'Cantanhede',anadia:'Anadia',agueda:'Águeda',gaia:'Gaia',figueira_foz:'Figueira Foz',avintes:'Avintes',guarda:'Guarda',mangualde:'Mangualde',s_felix_marinh:'S Félix Marinh',gulpilhares:'Gulpilhares',vale_cambra:'Vale Cambra',tomar:'Tomar',ourem:'Ourém',coimbra:'Coimbra',nazare:'Nazaré',abrantes:'Abrantes',forum_coimbra:'Fórum Coimbra',leiria:'Leiria',marinha_grande:'Marinha Grande',porto_de_mos:'Porto de Mós',fundao:'Fundão',castelo_branco:'Castelo Branco',pombal:'Pombal',lousa:'Lousã',rede:'Toda a Rede'};
 let STORES=GOP_STORES.joao_martinho; // será redefinido dinamicamente após login conforme o GOP
 const CRIT={baixa:{l:'🟢 Baixa',c:'bk-g',w:7},media:{l:'🟡 Média',c:'bk-i',w:3},alta:{l:'🟠 Alta',c:'bk-o',w:2},critica:{l:'🔴 Crítica',c:'bk-d',w:1}};
 let CU=null,loginP='gop',avPhoto=null,vStore=null,vPhotos={cafe:[],nc:[]},vRut={},vRutNotas={},vRutObs={},_eS='',_eB='';
@@ -1558,13 +1567,16 @@ async function doLogin(){
   const pin=val('l-pin'),err=el('l-err');err.style.display='none';
 
   if(_loginGopId==='crop'){
-    // CROP nunca bloqueia — tentativas ilimitadas
-    if(pin!==getPin('crop')){
+    // CROP Norte (PIN 1000) ou CROP Sul (PIN 9000)
+    const pinSul   = getPin('crop');
+    const pinNorte = getPin('crop_norte');
+    if(pin!==pinSul && pin!==pinNorte){
       err.textContent='PIN incorreto.';
       err.style.display='block'; kpClear(); return;
     }
-    CU={role:'crop', gopId:null, store:null};
-    STORES = [...new Set(Object.keys(GOP_STORES).filter(g=>g!=='ines_cruz').flatMap(g=>GOP_STORES[g]))];
+    const regiao = (pin===pinNorte) ? 'norte' : 'sul';
+    CU={role:'crop', gopId:null, store:null, region:regiao};
+    STORES = [...new Set(gopsDeRegiao(regiao).flatMap(g=>GOP_STORES[g]))];
   } else if(_loginGopId && GOP_NAMES[_loginGopId]){
     // A palavra-mestre da CROP também desbloqueia/entra como qualquer GOP
     if(pin===getPin('crop')){
@@ -1591,7 +1603,7 @@ async function doLogin(){
 
   el('LS').style.display='none'; el('HD').style.display='flex'; el('NV').style.display='block'; el('MN').style.display='block';
   const tag=el('h-rtag');
-  tag.textContent = CU.role==='crop' ? 'CROP' : GOP_NAMES[CU.gopId];
+  tag.textContent = CU.role==='crop' ? ('CROP '+(CU.region==='norte'?'Norte':'Sul')) : GOP_NAMES[CU.gopId];
   tag.className = 'hrtag '+(CU.role==='crop' ? 'ops' : 'gop');
 
   // CROP também pode auditar lojas — separador Visitas disponível para todos
@@ -1623,7 +1635,7 @@ function renderStoreGrids(){
     // CROP: agrupar por todos os GOPs reais (excluindo a Inês, que cobre lojas mas não é "dona" de nenhuma).
     // Inês: agrupar só pelos GOPs cujas lojas ela realmente cobre (Tiago e Luís).
     const gopIdsParaAgrupar = CU.role==='crop'
-      ? Object.keys(GOP_STORES).filter(g=>g!=='ines_cruz')
+      ? gopsDeRegiao(cropRegion())
       : [...new Set(STORES.map(s=>getGopByLoja(s)).filter(Boolean))];
     const buildGrouped = (prefix, onClickFn) => gopIdsParaAgrupar.map(gopId=>{
       const lojas = GOP_STORES[gopId];
@@ -1816,9 +1828,14 @@ async function loadAlertasSistemicos(){
     const rows = await dbGet('cj_visitas_rascunhos',
       'select=loja,saved_by,checklist,rut_check,haccp') || [];
 
+    // Filtrar rascunhos pelos GOPs da região desta CROP
+    const gopsRegiao = gopsDeRegiao(cropRegion());
+    const lojasRegiao = new Set(gopsRegiao.flatMap(g=>GOP_STORES[g]||[]));
+    const rowsFiltrados = rows.filter(r => lojasRegiao.has(r.loja));
+
     const ncChecklist = {}, ncRuturas = {}, ncHaccp = {};
 
-    rows.forEach(row => {
+    rowsFiltrados.forEach(row => {
       // ── Checklist de visita ──
       let chk = row.checklist;
       if(typeof chk === 'string'){ try{ chk = JSON.parse(chk); }catch(e){ chk = null; } }
@@ -2482,8 +2499,10 @@ function calEventosNoDia(dataStr){
 function calGopsDoEvento(ev){
   let gopsEv;
   try{ gopsEv = JSON.parse(ev.gops); }catch(e){ gopsEv = null; }
+  const regiao = CU && CU.region ? CU.region : (CU && CU.gopId ? gopRegion(CU.gopId) : null);
+  const todosGops = Object.keys(GOP_NAMES).filter(g => g !== 'ines_cruz' && (!regiao || gopRegion(g)===regiao));
   if(!gopsEv || gopsEv === 'todos' || (Array.isArray(gopsEv) && gopsEv.includes('todos'))){
-    return Object.keys(GOP_NAMES).filter(g => g !== 'ines_cruz');
+    return todosGops;
   }
   return Array.isArray(gopsEv) ? gopsEv : [];
 }
@@ -2652,7 +2671,7 @@ function calAbrirCriar(dataStr){
   // Render seleção de GOPs
   const sel = el('cal-gop-sel');
   if(sel){
-    const gops = Object.entries(GOP_NAMES).filter(([id]) => id !== 'ines_cruz');
+    const gops = Object.entries(GOP_NAMES).filter(([id]) => id !== 'ines_cruz' && gopRegion(id)===cropRegion());
     sel.innerHTML = '<button class="ck ok" id="cal-gop-todos" onclick="calToggleTodos()" style="padding:6px 14px;font-size:.8rem">✓ Todos</button>';
     gops.forEach(([id, nome]) => {
       const btn = document.createElement('button');
@@ -5314,6 +5333,13 @@ async function rHistorico(){
       if(CU.role==='crop'){
         // CROP: as suas próprias visitas + cada GOP (só as visitas DESSE GOP) + Inês
         const histGops = histAll.filter(r=>!ISOLATED_IDENTITIES.includes(r.saved_by));
+        // Filtrar GOPs da região da CROP
+        const gopsMinhaRegiao = gopsDeRegiao(cropRegion());
+        const nomesRegiao = gopsMinhaRegiao.flatMap(g=>{
+          const n=['GOP — '+(GOP_NAMES[g]||g)];
+          if(g==='luis_serrano') n.push('GOP — Luís Serrano');
+          return n;
+        });
 
         let html = '<div style="font-size:.78rem;color:var(--t2);margin-bottom:10px">📁 <strong>'+histAll.length+'</strong> relatório(s) guardado(s)</div>';
 
@@ -5349,6 +5375,8 @@ async function rHistorico(){
         Object.keys(GOP_STORES).filter(g=>g!=='ines_cruz').forEach(gopId=>{
           const gopDisplayName = 'GOP — '+(GOP_NAMES[gopId]||gopId);
           const gopOldName = gopId==='luis_serrano' ? 'GOP — Luís Serrano' : null;
+          // Só mostrar GOPs da região desta CROP
+          if(!nomesRegiao.includes(gopDisplayName)) return;
           const visitasDoGop = histGops.filter(r =>
             r.saved_by===gopDisplayName || (gopOldName && r.saved_by===gopOldName)
           );
