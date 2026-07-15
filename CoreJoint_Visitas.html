@@ -1608,10 +1608,13 @@ async function doLogin(){
     CU={role:'crop', gopId:null, store:null, region:regiao};
     STORES = [...new Set(gopsDeRegiao(regiao).flatMap(g=>GOP_STORES[g]))];
   } else if(_loginGopId && GOP_NAMES[_loginGopId]){
-    // A palavra-mestre da CROP também desbloqueia/entra como qualquer GOP
-    if(pin===getPin('crop')){
-      resetFails(_loginGopId); // desbloqueia este GOP automaticamente
-      CU={role:'gop', gopId:_loginGopId, store:null};
+    // O PIN da CROP da mesma região desbloqueia/entra como qualquer GOP dessa região
+    const regiaoGop = gopRegion(_loginGopId);
+    const pinMasterRegiao = regiaoGop==='norte' ? getPin('crop_norte') : getPin('crop');
+    if(pin===pinMasterRegiao){
+      // Verificar que o PIN master corresponde à região do GOP seleccionado
+      resetFails(_loginGopId);
+      CU={role:'gop', gopId:_loginGopId, store:null, region:gopRegion(_loginGopId)};
       STORES = GOP_STORES[_loginGopId];
     } else {
       if(isLocked(_loginGopId)){
@@ -1624,7 +1627,7 @@ async function doLogin(){
         err.style.display='block'; kpClear(); return;
       }
       resetFails(_loginGopId);
-      CU={role:'gop', gopId:_loginGopId, store:null};
+      CU={role:'gop', gopId:_loginGopId, store:null, region:gopRegion(_loginGopId)};
       STORES = GOP_STORES[_loginGopId];
     }
   } else {
