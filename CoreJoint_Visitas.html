@@ -6368,6 +6368,7 @@ async function pickStore(store){
 
 // ── FINALIZAR VISITA ────────────────────────────────
 let _reportHtmlFinal = null; // guarda o HTML do relatório para enviar
+let _pendentesGuardados = false; // garante que salvarPendentes só corre uma vez por visita
 
 async function gravarManual(){
   if(!vStore){ toast('Sem loja selecionada.','e'); return; }
@@ -6379,8 +6380,6 @@ async function finalizarVisita(){
   if(!vStore){ toast('Sem loja selecionada.','e'); return; }
   load('A gerar relatório…');
   try{
-    // Guardar pendentes já neste momento (não depender do utilizador clicar "Finalizar & Reset" mais tarde)
-    try{ await salvarPendentes(); }catch(e){ console.error('salvarPendentes (finalizarVisita):', e); }
     // Gerar HTML do relatório
     const html = await buildReportHtml();
     _reportHtmlFinal = html;
@@ -6413,6 +6412,10 @@ async function arquivarRelatorio(){
   const btn = document.getElementById('btn-arquivar');
   if(btn){ btn.disabled = true; btn.textContent = '📁 A arquivar…'; }
   try{
+    // Criar pendentes/alertas apenas ao arquivar, e só uma vez por visita
+    if(!_pendentesGuardados){
+      try{ await salvarPendentes(); _pendentesGuardados = true; }catch(e){ console.error('salvarPendentes (arquivar):', e); }
+    }
     await saveToHistory({
       loja: vStore,
       data: now(),
@@ -6841,6 +6844,7 @@ async function confirmarFinalizar(){
   procSelected = [];
   vChegadaPhoto = null;
   _reportHtmlFinal = null;
+  _pendentesGuardados = false;
   vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],
              rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],
              rh_horarios:[],rh_ferias:[],raid:[],procedimentos:[]};
