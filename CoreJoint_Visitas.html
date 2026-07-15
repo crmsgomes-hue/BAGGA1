@@ -30,13 +30,23 @@
   <div class="logo-s">Visitas GOP · Bagga</div>
   <div class="lc">
 
+    <!-- FASE 0: Norte ou Sul -->
+    <div id="ls-fase-regiao">
+      <div style="font-size:.8rem;color:var(--t2);text-align:center;margin-bottom:14px">Selecione a sua região</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn bp" style="padding:18px;font-size:1.1rem;font-weight:700" onclick="showFaseRole('norte')">🔵 Norte</button>
+        <button class="btn bp" style="padding:18px;font-size:1.1rem;font-weight:700" onclick="showFaseRole('sul')">🟠 Sul</button>
+      </div>
+    </div>
+
     <!-- FASE 1: Escolher GOP ou CROP -->
-    <div id="ls-fase-role">
+    <div id="ls-fase-role" style="display:none">
       <div style="font-size:.8rem;color:var(--t2);text-align:center;margin-bottom:14px">Quem é?</div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <button class="btn bp" style="padding:16px;font-size:1rem" onclick="showFaseGopNome()">👤 GOP</button>
-        <button class="btn bs" style="padding:16px;font-size:1rem" onclick="showFasePin('crop')">👔 CROP</button>
+        <button class="btn bs" style="padding:16px;font-size:1rem" onclick="showFasePinCrop()">👔 CROP</button>
       </div>
+      <button class="lrst" style="margin-top:10px" onclick="showFaseRegiao()">← Voltar</button>
     </div>
 
     <!-- FASE 2: Escolher o nome do GOP -->
@@ -1515,12 +1525,23 @@ function updPinDots(){
 
 function safeShow(id, display){ const e=el(id); if(e) e.style.display=display; }
 
-function showFaseRole(){
+let _loginRegiao = null;
+
+function showFaseRegiao(){
+  el('ls-fase-regiao').style.display='block';
+  el('ls-fase-role').style.display='none';
+  el('ls-fase-gop-nome').style.display='none';
+  el('ls-fase-pin').style.display='none';
+  el('l-pin').value=''; kpClear();
+}
+
+function showFaseRole(regiao){
+  if(regiao) _loginRegiao = regiao;
+  el('ls-fase-regiao').style.display='none';
   el('ls-fase-role').style.display='block';
   el('ls-fase-gop-nome').style.display='none';
   el('ls-fase-pin').style.display='none';
-  el('l-pin').value='';
-  kpClear();
+  el('l-pin').value=''; kpClear();
 }
 
 function showFaseGopNome(){
@@ -1528,12 +1549,22 @@ function showFaseGopNome(){
   el('ls-fase-gop-nome').style.display='block';
   el('ls-fase-pin').style.display='none';
   const grid = el('gop-nome-grid');
-  grid.innerHTML = Object.keys(GOP_NAMES).map(id => {
+  const gopsRegiao = Object.keys(GOP_NAMES).filter(id => gopRegion(id) === _loginRegiao);
+  grid.innerHTML = '';
+  gopsRegiao.forEach(id => {
     const locked = isLocked(id);
-    return '<button class="sb" style="text-align:left;padding:14px'+(locked?';opacity:.6':'')+'" onclick="showFasePin(\''+id+'\')">'+
-      (locked?'🔒 ':'👤 ')+GOP_NAMES[id]+(locked?' <span style="color:var(--red);font-size:.7rem">(bloqueado)</span>':'')+
-      '</button>';
-  }).join('');
+    const btn = document.createElement('button');
+    btn.className = 'sb';
+    btn.style.cssText = 'text-align:left;padding:14px'+(locked?';opacity:.6':'');
+    btn.innerHTML = (locked?'🔒 ':'👤 ')+GOP_NAMES[id]+(locked?' <span style="color:var(--red);font-size:.7rem">(bloqueado)</span>':'');
+    btn.addEventListener('click', (function(gId){ return function(){ showFasePin(gId); }; })(id));
+    grid.appendChild(btn);
+  });
+}
+
+function showFasePinCrop(){
+  const cropId = _loginRegiao === 'norte' ? 'crop_norte' : 'crop';
+  showFasePin(cropId);
 }
 
 let _loginGopId = null;
@@ -1544,7 +1575,7 @@ function showFasePin(idOrCrop){
   el('ls-fase-gop-nome').style.display='none';
   el('ls-fase-pin').style.display='block';
   const titulo = el('ls-pin-titulo');
-  if(idOrCrop==='crop'){ titulo.textContent = '👔 CROP'; }
+  if(idOrCrop==='crop'){ titulo.textContent = '👔 CROP Sul'; } else if(idOrCrop==='crop_norte'){ titulo.textContent = '👔 CROP Norte'; }
   else{ titulo.textContent = '👤 ' + (GOP_NAMES[idOrCrop]||idOrCrop); }
   el('l-pin').value='';
   kpClear();
@@ -1566,7 +1597,7 @@ function resetFails(id){ setFails(id, 0); }
 async function doLogin(){
   const pin=val('l-pin'),err=el('l-err');err.style.display='none';
 
-  if(_loginGopId==='crop'){
+  if(_loginGopId==='crop' || _loginGopId==='crop_norte'){
     // CROP Norte (PIN 1000) ou CROP Sul (PIN 9000)
     const pinSul   = getPin('crop');
     const pinNorte = getPin('crop_norte');
@@ -1574,7 +1605,7 @@ async function doLogin(){
       err.textContent='PIN incorreto.';
       err.style.display='block'; kpClear(); return;
     }
-    const regiao = (pin===pinNorte) ? 'norte' : 'sul';
+    const regiao = (pin===pinNorte || _loginGopId==='crop_norte') ? 'norte' : 'sul';
     CU={role:'crop', gopId:null, store:null, region:regiao};
     STORES = [...new Set(gopsDeRegiao(regiao).flatMap(g=>GOP_STORES[g]))];
   } else if(_loginGopId && GOP_NAMES[_loginGopId]){
