@@ -641,6 +641,13 @@
         <div id="v-nc-photos" style="display:none"></div>
         <div id="v-rut" style="display:none"></div>
 
+        <!-- ⑦ LISTA DETALHADA DE EQUIPAMENTOS -->
+        <div class="ic" id="chk-equip-lista" style="margin-bottom:10px;border-left-color:var(--br);padding:12px 14px">
+          <div style="font-size:.9rem;font-weight:700;margin-bottom:4px">🔧 Lista de Equipamentos</div>
+          <div style="font-size:.76rem;color:var(--t2);margin-bottom:10px">Verificação individual de cada equipamento</div>
+          <div id="equip-lista-items"></div>
+        </div>
+
         <!-- ⑦ LIMPEZA / HACCP -->
         <div class="ic" id="chk-limpeza" style="margin-bottom:10px;border-left-color:var(--br)">
           <div style="font-size:.9rem;font-weight:700;margin-bottom:6px">🧹 ⑦ Limpeza / HACCP</div>
@@ -2824,6 +2831,120 @@ async function calApagarEvento(eventoId, dataStr){
 
 // ══════════════════════════════════════════════════════════════════════════════
 
+// ══════════════════════════════════════════════════════════════════════════════
+// LISTA DETALHADA DE EQUIPAMENTOS
+// ══════════════════════════════════════════════════════════════════════════════
+
+const EQUIP_LISTA = [
+  {id:'maq_sumo',       label:'Máquina Sumo'},
+  {id:'maq_loica',      label:'Máquina Loiça'},
+  {id:'maq_gelo',       label:'Máquina Gelo'},
+  {id:'forno',          label:'Forno'},
+  {id:'tostadeira',     label:'Tostadeira'},
+  {id:'sopeira',        label:'Sopeira'},
+  {id:'blockit_frio_p', label:'Blockit Frio (+)'},
+  {id:'blockit_frio_n', label:'Blockit Frio (-)'},
+  {id:'bancada_refrig', label:'Bancada Refrigerada'},
+  {id:'expositor_frio', label:'Expositor Frio'},
+  {id:'termoacumul',    label:'Termoacumulador'},
+  {id:'ar_condic',      label:'Ar Condicionado'},
+  {id:'microondas',     label:'Microondas'},
+  {id:'fritadeira',     label:'Fritadeira'},
+  {id:'inseto_cacador', label:'Inseto Caçador'},
+];
+
+// Estado em memória: { id: { estado:'ok'|'nok'|'na'|null, notas:'', fotos:[] } }
+let vEquip = {};
+
+function initVEquip(){
+  vEquip = {};
+  EQUIP_LISTA.forEach(e => { vEquip[e.id] = {estado:null, notas:'', fotos:[]}; });
+}
+
+function renderEquipLista(){
+  const container = document.getElementById('equip-lista-items');
+  if(!container) return;
+  container.innerHTML = '';
+  EQUIP_LISTA.forEach(eq => {
+    const item = vEquip[eq.id] || {estado:null, notas:'', fotos:[]};
+    const div = document.createElement('div');
+    div.style.cssText = 'border:1px solid var(--br);border-radius:var(--rb);padding:10px 12px;margin-bottom:8px;background:var(--bg)';
+
+    // Estado visual da borda
+    if(item.estado==='ok')  div.style.borderLeftColor='var(--grn)';
+    if(item.estado==='nok') div.style.borderLeftColor='var(--red)';
+    if(item.estado==='na')  div.style.borderLeftColor='var(--t2)';
+    div.style.borderLeftWidth='3px';
+
+    div.innerHTML = `
+      <div style="font-weight:700;font-size:.85rem;margin-bottom:7px">${eq.label}</div>
+      <div style="display:flex;gap:6px;margin-bottom:7px">
+        <button id="eqbtn-ok-${eq.id}"  onclick="setEquipEstado('${eq.id}','ok')"  style="flex:1;padding:7px 4px;border-radius:var(--rb);border:2px solid var(--br);background:${item.estado==='ok'?'var(--grn)':'var(--sf2)'};color:${item.estado==='ok'?'#fff':''};font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">✓ OK</button>
+        <button id="eqbtn-nok-${eq.id}" onclick="setEquipEstado('${eq.id}','nok')" style="flex:1;padding:7px 4px;border-radius:var(--rb);border:2px solid var(--br);background:${item.estado==='nok'?'var(--red)':'var(--sf2)'};color:${item.estado==='nok'?'#fff':''};font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">✗ NOK</button>
+        <button id="eqbtn-na-${eq.id}"  onclick="setEquipEstado('${eq.id}','na')"  style="flex:1;padding:7px 4px;border-radius:var(--rb);border:2px solid var(--br);background:${item.estado==='na'?'#888':'var(--sf2)'};color:${item.estado==='na'?'#fff':''};font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">N/A</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <label class="cam-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:.76rem">📷 <span>Câmara</span><input type="file" accept="image/*" capture="environment" style="display:none" onchange="addEquipFoto('${eq.id}',this)"></label>
+        <label class="cam-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:.76rem;background:var(--sf2);border-color:var(--br);color:var(--t2)">📁 <span>Galeria</span><input type="file" accept="image/*" style="display:none" onchange="addEquipFoto('${eq.id}',this)"></label>
+        <span style="font-size:.72rem;color:var(--t2);align-self:center">${item.fotos.length>0?item.fotos.length+' foto(s)':''}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px" id="equip-fotos-${eq.id}">${renderEquipFotos(eq.id,item.fotos)}</div>
+      <textarea class="jta" placeholder="Observações…" style="min-height:48px;font-size:.82rem" oninput="setEquipNotas('${eq.id}',this.value)">${item.notas||''}</textarea>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function renderEquipFotos(id, fotos){
+  return (fotos||[]).map((src,i) =>
+    `<div style="position:relative;display:inline-block"><img src="${src}" style="width:62px;height:62px;object-fit:cover;border-radius:5px;cursor:pointer" onclick="bigPhoto('${src}')">` +
+    `<button onclick="delEquipFoto('${id}',${i})" style="position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;border:none;border-radius:50%;width:16px;height:16px;font-size:.6rem;cursor:pointer;font-family:inherit">✕</button></div>`
+  ).join('');
+}
+
+function setEquipEstado(id, estado){
+  if(!vEquip[id]) vEquip[id]={estado:null,notas:'',fotos:[]};
+  vEquip[id].estado = vEquip[id].estado===estado ? null : estado; // toggle
+  renderEquipLista();
+  scheduleAutoSave();
+}
+
+function setEquipNotas(id, val){
+  if(!vEquip[id]) vEquip[id]={estado:null,notas:'',fotos:[]};
+  vEquip[id].notas = val;
+  scheduleAutoSave();
+}
+
+function addEquipFoto(id, input){
+  const file = input.files&&input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas=document.createElement('canvas');
+      const MAX=900; let w=img.width,h=img.height;
+      if(w>MAX||h>MAX){if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      if(!vEquip[id]) vEquip[id]={estado:null,notas:'',fotos:[]};
+      vEquip[id].fotos.push(canvas.toDataURL('image/jpeg',0.75));
+      renderEquipLista();
+      scheduleAutoSave();
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+function delEquipFoto(id, idx){
+  vEquip[id].fotos.splice(idx,1);
+  renderEquipLista();
+  scheduleAutoSave();
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+
 // ── Alterar PIN ──────────────────────────────────────────────────────────────
 // PINs personalizados ficam em localStorage sob a chave 'cj_pin_<gopId>'.
 // Se não existir, usa o PIN padrão de GOP_PINS.
@@ -4147,6 +4268,7 @@ async function saveV(){
       ebita:val('v-ebita'), staffcos:val('v-staffcos'), margem:val('v-margem'), notas:val('v-nt'),
       rut_check:JSON.stringify(vRut),
       checklist:JSON.stringify(chkMeta),
+      equip_lista:JSON.stringify(vEquip),
       proc_answers:(syncProcAnswersFromDOM(),JSON.stringify(procAnswers)),
       saved_by:who(), saved_by_role:CU?CU.role:''
     };
@@ -4524,6 +4646,23 @@ async function genRel(){
     return block + extra;
   }).join('');
 
+  // Secção lista de equipamentos (vEquip)
+  const equipListaHtml = (()=>{
+    const estadoLabel = v => v==='ok'?'<span style="color:#5C7A5C;font-weight:700">✓ OK</span>':v==='nok'?'<span style="color:#B0432F;font-weight:700">✗ NOK</span>':v==='na'?'<span style="color:#888">N/A</span>':'<span style="color:#c0a88a">—</span>';
+    const rows = EQUIP_LISTA.map(eq=>{
+      const item = vEquip[eq.id]||{estado:null,notas:'',fotos:[]};
+      const fotosH = item.fotos.map(f=>`<img src="${f}" style="width:80px;height:60px;object-fit:cover;border-radius:4px;margin:2px">`).join('');
+      return `<tr><td style="padding:6px 8px;font-weight:600;font-size:.82rem;border:1px solid #e8ddc9">${eq.label}</td>`+
+        `<td style="padding:6px 8px;text-align:center;border:1px solid #e8ddc9">${estadoLabel(item.estado)}</td>`+
+        `<td style="padding:6px 8px;font-size:.79rem;color:#555;border:1px solid #e8ddc9">${item.notas||'—'}</td>`+
+        `<td style="padding:4px 6px;border:1px solid #e8ddc9">${fotosH}</td></tr>`;
+    }).join('');
+    return rows.trim() ? `<div style="margin-bottom:16px;break-inside:avoid"><div class="rep-sec">🔧 Lista de Equipamentos</div>`+
+      `<table style="width:100%;border-collapse:collapse;font-size:.82rem">`+
+      `<tr style="background:#faf7f2"><th style="padding:5px 8px;border:1px solid #e8ddc9;text-align:left">Equipamento</th><th style="padding:5px 8px;border:1px solid #e8ddc9">Estado</th><th style="padding:5px 8px;border:1px solid #e8ddc9;text-align:left">Observação</th><th style="padding:5px 8px;border:1px solid #e8ddc9;text-align:left">Fotos</th></tr>`+
+      rows+`</table></div>` : '';
+  })();
+
   const chegadaHtml = vChegadaPhoto ?
     '<div style="margin-bottom:16px;break-inside:avoid">'+
     '<div class="rep-sec" style="margin-bottom:8px">Foto de Chegada</div>'+
@@ -4597,6 +4736,7 @@ async function genRel(){
   ${chegadaHtml}
   ${perfHtml}
   ${chkHtml}
+  ${equipListaHtml}
   <div style="margin-top:36px;border-top:1px solid #e8ddc9;padding-top:13px;display:flex;justify-content:space-between;font-size:10px;color:#a8987f">
     <div>CoreJoint · Bagga · ${now()}</div><div>${who()}</div>
   </div>
@@ -6176,6 +6316,7 @@ async function restoreAutoSave(store){
     if(d.rut_check) try{ vRut = JSON.parse(d.rut_check); }catch(e){}
     if(d.haccp) try{ vHaccp = JSON.parse(d.haccp); }catch(e){}
     if(d.proc_answers) try{ procAnswers = JSON.parse(d.proc_answers||'{}'); }catch(e){}
+  if(d.equip_lista) try{ vEquip = JSON.parse(d.equip_lista||'{}'); renderEquipLista(); }catch(e){}
     if(d.proc_selected) try{ procSelected = JSON.parse(d.proc_selected||'[]'); }catch(e){}
     if(d.rh_comentario){ const rc=document.getElementById('rh-comentario'); if(rc) rc.value = d.rh_comentario; }
     if(d.rh_ftes_definido){ const fd=document.getElementById('rh-ftes-definido'); if(fd) fd.value = d.rh_ftes_definido; }
@@ -6837,6 +6978,7 @@ async function confirmarFinalizar(){
   vStore = null;
   vChecklist = {};
   vHaccp = {};
+  initVEquip();
   vRut = {};
   vRutNotas = {};
   vRutObs = {};
@@ -6845,6 +6987,7 @@ async function confirmarFinalizar(){
   vChegadaPhoto = null;
   _reportHtmlFinal = null;
   _pendentesGuardados = false;
+  initVEquip();
   vPhotos = {cafe:[],nc:[],vitrine:[],tabaco:[],equipamentos:[],limpeza:[],jsc:[],
              rh_formacoes:[],rh_trocas:[],rh_folgas:[],rh_bh:[],rh_ts:[],
              rh_horarios:[],rh_ferias:[],raid:[],procedimentos:[]};
