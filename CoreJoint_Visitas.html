@@ -3740,6 +3740,7 @@ async function startV(store, skipReset=false){
     vRut={};vRutNotas={};vRutObs={};
     vChecklist={};
     vHaccp={};
+    initVEquip();
     procAnswers={};
     procSelected=[];
     vChegadaPhoto=null;
@@ -3786,6 +3787,7 @@ async function startV(store, skipReset=false){
   // (resets already handled at top of startV)
   // RH comment field - no special reset needed (cleared with form)
   if(!skipReset){ procAnswers = {}; procSelected = []; }
+  renderEquipLista();
   renderProcVisita();
   // Reset UI state (items are static HTML)
   if(!skipReset) ['vitrine','tabaco','limpeza','equipamentos','procedimentos','rh'].forEach(id=>{
