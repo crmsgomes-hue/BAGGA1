@@ -274,17 +274,24 @@ function renderHoje(main){
     const card = document.createElement("div");
     card.className = "card";
     const label = tipo==="vitrine" ? "Vitrine" : "Vendas";
+    const icon = tipo==="vitrine" ? "🪟" : "🧾";
     card.innerHTML = `
       <div class="card-top">
-        <div class="card-title">📸 ${label}</div>
-        <div class="status-badge ${rec?'ok':'pend'}">${rec?'Enviado hoje':'Pendente'}</div>
+        <div class="card-title">${icon} ${label}</div>
+        <div class="status-badge ${rec?'ok':'pend'}">${rec?'✔ Feito':'Por fazer'}</div>
       </div>
-      <div class="card-sub">${rec ? 'Enviado às ' + new Date(rec.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) + ' por ' + (rec.enviado_por||'') : 'Ainda não enviaste a foto de hoje.'}</div>
-      <button class="cambtn" onclick="openCapture('daily','${tipo}')">${rec ? 'Substituir foto' : 'Tirar foto'}</button>
-      <div class="history" id="hist-${tipo}"></div>
+      <button class="cambtn" onclick="openCapture('daily','${tipo}')">${rec ? 'Substituir foto' : '📸 Tirar foto agora'}</button>
+      <div class="card-sub" style="margin-top:10px; text-decoration:underline; cursor:pointer;" data-toggle-hist="${tipo}">Ver últimos 7 dias</div>
+      <div class="history" id="hist-${tipo}" style="display:none;"></div>
     `;
     main.appendChild(card);
-    const hist = card.querySelector(`#hist-${tipo}`);
+    const histWrap = card.querySelector(`#hist-${tipo}`);
+    const toggle = card.querySelector(`[data-toggle-hist="${tipo}"]`);
+    toggle.onclick = ()=>{
+      const showing = histWrap.style.display !== "none";
+      histWrap.style.display = showing ? "none" : "flex";
+      toggle.textContent = showing ? "Ver últimos 7 dias" : "Ocultar histórico";
+    };
     for(let i=6;i>=0;i--){
       const d = new Date(); d.setDate(d.getDate()-i);
       const ds = isoDate(d);
@@ -292,7 +299,7 @@ function renderHoje(main){
       const dot = document.createElement("div");
       dot.className = "hdot " + (has?"ok":"no");
       dot.textContent = d.getDate();
-      hist.appendChild(dot);
+      histWrap.appendChild(dot);
     }
   });
 }
@@ -303,20 +310,28 @@ function renderInventario(main){
     const card = document.createElement("div");
     card.className = "card";
     const badgeClass = st.state==="ok"?"ok":st.state==="late"?"late":"pend";
+    const badgeIcon = st.state==="ok"?"✔":st.state==="late"?"⚠":"⏳";
     const badgeText = st.state==="ok"?"Enviado":st.state==="late"?"Atrasado":"Pendente";
-    const freqLabel = cat.freq==="semanal"?"Semanal":cat.freq==="quinzenal"?"Quinzenal":"Mensal (3ª semana)";
-    let subText = `Prazo atual: ${st.window.start.toLocaleDateString('pt-PT')} a ${st.window.end.toLocaleDateString('pt-PT')}`;
-    if(st.latest) subText += ` — enviado em ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')} (Inv: ${st.latest.valor_inventario ?? '-'} · CNVs: ${st.latest.valor_cnvs ?? '-'})`;
+    const prazoTxt = `até ${st.window.end.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}`;
     card.innerHTML = `
       <div class="card-top">
         <div class="card-title">${cat.label}</div>
-        <div class="status-badge ${badgeClass}">${badgeText}</div>
+        <div class="status-badge ${badgeClass}">${badgeIcon} ${badgeText}</div>
       </div>
-      <div class="card-sub">${freqLabel}</div>
-      <div class="card-sub">${subText}</div>
-      <button class="cambtn" onclick="openCapture('inv','${cat.key}')">${st.latest ? 'Enviar nova contagem' : 'Enviar foto + valores'}</button>
+      <div class="card-sub">Prazo ${prazoTxt}</div>
+      <button class="cambtn" onclick="openCapture('inv','${cat.key}')">${st.latest ? 'Enviar nova contagem' : '📸 Enviar foto + valores'}</button>
+      ${st.latest ? `<div class="card-sub" style="margin-top:8px; text-decoration:underline; cursor:pointer;" data-toggle-det="${cat.key}">Ver último envio</div><div id="det-${cat.key}" style="display:none; margin-top:6px; font-size:13px; color:var(--ink-soft);">Enviado em ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')} · Inventário: ${st.latest.valor_inventario ?? '-'} € · CNVs: ${st.latest.valor_cnvs ?? '-'} €</div>` : ``}
     `;
     main.appendChild(card);
+    if(st.latest){
+      const t = card.querySelector(`[data-toggle-det="${cat.key}"]`);
+      const d = card.querySelector(`#det-${cat.key}`);
+      t.onclick = ()=>{
+        const showing = d.style.display !== "none";
+        d.style.display = showing ? "none" : "block";
+        t.textContent = showing ? "Ver último envio" : "Ocultar";
+      };
+    }
   });
 }
 
@@ -430,33 +445,38 @@ function renderGestao(){
   main.appendChild(sumRow);
 
   const t1 = document.createElement("div");
-  t1.className="section-title"; t1.textContent="Diário — hoje";
+  t1.className="section-title"; t1.textContent="Por loja";
   main.appendChild(t1);
-  const table1 = document.createElement("table");
-  table1.className = "dash-table";
-  table1.innerHTML = `<tr><th style="text-align:left;">Loja</th><th>Vitrine</th><th>Vendas</th></tr>` +
-    LOJAS.map(l=>{
-      const v = dailyStatus(l,"vitrine",today) ? '<span class="icon-ok">✔</span>' : '<span class="icon-late">✕</span>';
-      const s = dailyStatus(l,"vendas",today) ? '<span class="icon-ok">✔</span>' : '<span class="icon-late">✕</span>';
-      return `<tr><td class="name">${l}</td><td>${v}</td><td>${s}</td></tr>`;
-    }).join("");
-  main.appendChild(table1);
 
-  const t2 = document.createElement("div");
-  t2.className="section-title"; t2.textContent="Inventário — período atual";
-  main.appendChild(t2);
-  const table2 = document.createElement("table");
-  table2.className = "dash-table";
-  table2.innerHTML = `<tr><th style="text-align:left;">Loja</th>${INV_CATS.map(c=>`<th>${c.label}</th>`).join("")}</tr>` +
-    LOJAS.map(l=>{
-      const cells = INV_CATS.map(c=>{
-        const st = invStatus(l,c.key,c.freq);
-        const icon = st.state==="ok" ? '<span class="icon-ok">✔</span>' : st.state==="late" ? '<span class="icon-late">✕</span>' : '<span class="icon-pend">…</span>';
-        return `<td>${icon}</td>`;
-      }).join("");
-      return `<tr><td class="name">${l}</td>${cells}</tr>`;
-    }).join("");
-  main.appendChild(table2);
+  LOJAS.forEach(l=>{
+    const v = !!dailyStatus(l,"vitrine",today);
+    const vd = !!dailyStatus(l,"vendas",today);
+    const invStates = INV_CATS.map(c=>({...invStatus(l,c.key,c.freq), label:c.label}));
+    const invLate = invStates.filter(s=>s.state==="late").length;
+    const invPend = invStates.filter(s=>s.state==="pend").length;
+
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.paddingBottom = "12px";
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="card-title">${l}</div>
+        ${invLate>0 ? `<div class="status-badge late">${invLate} atrasado${invLate>1?'s':''}</div>` : (!v || !vd) ? `<div class="status-badge pend">Diário incompleto</div>` : `<div class="status-badge ok">✔ Em dia</div>`}
+      </div>
+      <div style="display:flex; gap:14px; margin-top:8px; font-size:13px;">
+        <div>🪟 Vitrine ${v?'<span class="icon-ok">✔</span>':'<span class="icon-late">✕</span>'}</div>
+        <div>🧾 Vendas ${vd?'<span class="icon-ok">✔</span>':'<span class="icon-late">✕</span>'}</div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;">
+        ${invStates.map(s=>{
+          const cls = s.state==="ok"?"icon-ok":s.state==="late"?"icon-late":"icon-pend";
+          const icon = s.state==="ok"?"✔":s.state==="late"?"✕":"…";
+          return `<span style="font-size:11px; background:var(--cream); border:1px solid var(--line); border-radius:8px; padding:3px 7px;">${s.label} <span class="${cls}">${icon}</span></span>`;
+        }).join("")}
+      </div>
+    `;
+    main.appendChild(card);
+  });
 }
 
 /* ---------- INIT ---------- */
