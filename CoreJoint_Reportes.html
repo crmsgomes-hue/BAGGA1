@@ -277,9 +277,14 @@ function invStatus(loja, catKey, freq){
   if(rows.length>0) return {state:"ok", latest: rows[0], window:w};
   return {state: today>w.end ? "late" : "pend", latest:null, window:w};
 }
-function dailyStatus(loja, tipo, dateStr){
-  return dailyRows.find(r=>r.loja===loja && r.tipo===tipo && r.data===dateStr) || null;
+function dailyStatus(loja, tipo, dateStr, turno){
+  return dailyRows.find(r=>r.loja===loja && r.tipo===tipo && r.data===dateStr && r.turno===turno) || null;
 }
+const VITRINE_TURNOS = [
+  {key:"manha", label:"Manhã", icon:"🌅"},
+  {key:"almoco", label:"Almoço", icon:"🌞"},
+  {key:"lanche", label:"Lanche", icon:"🌇"}
+];
 
 /* ---------- RENDER: LOJA ---------- */
 function render(){
@@ -291,39 +296,32 @@ function render(){
 
 function renderHoje(main){
   const today = todayStr();
-  ["vitrine","vendas"].forEach(tipo=>{
-    const rec = dailyStatus(currentLoja, tipo, today);
+  VITRINE_TURNOS.forEach(t=>{
+    const rec = dailyStatus(currentLoja, "vitrine", today, t.key);
     const card = document.createElement("div");
     card.className = "card";
-    const label = tipo==="vitrine" ? "Vitrine" : "Vendas";
-    const icon = tipo==="vitrine" ? "🪟" : "🧾";
     card.innerHTML = `
       <div class="card-top">
-        <div class="card-title">${icon} ${label}</div>
+        <div class="card-title">${t.icon} Vitrine — ${t.label}</div>
         <div class="status-badge ${rec?'ok':'pend'}">${rec?'✔ Feito':'Por fazer'}</div>
       </div>
-      <button class="cambtn" onclick="openCapture('daily','${tipo}')">${rec ? 'Substituir foto' : '📸 Tirar foto agora'}</button>
-      <div class="card-sub" style="margin-top:10px; text-decoration:underline; cursor:pointer;" data-toggle-hist="${tipo}">Ver últimos 7 dias</div>
-      <div class="history" id="hist-${tipo}" style="display:none;"></div>
+      <button class="cambtn" onclick="openCapture('daily','vitrine','${t.key}')">${rec ? 'Substituir foto' : '📸 Tirar foto agora'}</button>
     `;
     main.appendChild(card);
-    const histWrap = card.querySelector(`#hist-${tipo}`);
-    const toggle = card.querySelector(`[data-toggle-hist="${tipo}"]`);
-    toggle.onclick = ()=>{
-      const showing = histWrap.style.display !== "none";
-      histWrap.style.display = showing ? "none" : "flex";
-      toggle.textContent = showing ? "Ver últimos 7 dias" : "Ocultar histórico";
-    };
-    for(let i=6;i>=0;i--){
-      const d = new Date(); d.setDate(d.getDate()-i);
-      const ds = isoDate(d);
-      const has = !!dailyStatus(currentLoja, tipo, ds);
-      const dot = document.createElement("div");
-      dot.className = "hdot " + (has?"ok":"no");
-      dot.textContent = d.getDate();
-      histWrap.appendChild(dot);
-    }
   });
+  {
+    const rec = dailyStatus(currentLoja, "vendas", today, "unico");
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="card-title">🧾 Vendas — Final do dia</div>
+        <div class="status-badge ${rec?'ok':'pend'}">${rec?'✔ Feito':'Por fazer'}</div>
+      </div>
+      <button class="cambtn" onclick="openCapture('daily','vendas','unico')">${rec ? 'Substituir foto' : '📸 Tirar foto agora'}</button>
+    `;
+    main.appendChild(card);
+  }
 }
 
 function renderInventario(main){
@@ -365,15 +363,17 @@ function renderInventario(main){
 }
 
 /* ---------- CAPTURA / MODAL ---------- */
-function openCapture(kind, key){
+function openCapture(kind, tipoOrCat, turno){
   pendingPhoto = null;
   const isInv = kind==="inv";
-  const catObj = isInv ? INV_CATS.find(c=>c.key===key) : null;
+  const catObj = isInv ? INV_CATS.find(c=>c.key===tipoOrCat) : null;
+  const turnoLabel = turno && turno!=="unico" ? " — " + VITRINE_TURNOS.find(t=>t.key===turno)?.label : "";
+  const title = isInv ? catObj.label : (tipoOrCat==="vitrine" ? "Vitrine" : "Vendas") + turnoLabel;
   const overlay = document.createElement("div");
   overlay.className = "overlay"; overlay.id = "capOverlay";
   overlay.innerHTML = `
     <div class="modal">
-      <h2>${isInv ? catObj.label : (key==="vitrine"?"Vitrine":"Vendas")}</h2>
+      <h2>${title}</h2>
       <div class="sub">${currentLoja} · ${new Date().toLocaleDateString('pt-PT')}</div>
       <label class="filebtn">Tirar / escolher foto<input type="file" accept="image/*" capture="environment" id="capFile"></label>
       <img id="capPreview" class="cam-preview" style="display:none;">
@@ -382,7 +382,7 @@ function openCapture(kind, key){
           <label>Valor do inventário (€)</label>
           <input id="vInv" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
         </div>
-        ${key==="global" ? `
+        ${tipoOrCat==="global" ? `
         <div class="field">
           <label>Valor CNVs (consumíveis) (€)</label>
           <input id="vCnvs" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
@@ -391,7 +391,7 @@ function openCapture(kind, key){
       ` : ``}
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeCapture()">Cancelar</button>
-        <button class="btn-save" id="capSaveBtn" onclick="confirmCapture('${kind}','${key}')" disabled>Guardar</button>
+        <button class="btn-save" id="capSaveBtn" onclick="confirmCapture('${kind}','${tipoOrCat}','${turno||''}')" disabled>Guardar</button>
       </div>
     </div>
   `;
@@ -427,22 +427,22 @@ function handleCapFile(e){
   reader.readAsDataURL(file);
 }
 
-async function confirmCapture(kind, key){
+async function confirmCapture(kind, tipoOrCat, turno){
   if(!pendingPhoto){ toast("Tira a foto primeiro"); return; }
   const today = todayStr();
   const who = currentUser || currentLoja;
   try{
     if(kind==="daily"){
-      const path = `${slug(currentLoja)}/${key}/${today}.jpg`;
+      const path = `${slug(currentLoja)}/${tipoOrCat}/${turno}/${today}.jpg`;
       const url = await uploadPhoto(pendingPhoto, path);
-      await upsertDaily(currentLoja, key, today, url, who);
+      await upsertDaily(currentLoja, tipoOrCat, today, url, who, turno);
     } else {
       const vInv = parseFloat(document.getElementById("vInv").value);
       const cnvsEl = document.getElementById("vCnvs");
       const vCnvs = cnvsEl ? parseFloat(cnvsEl.value) : NaN;
-      const path = `${slug(currentLoja)}/inventario/${key}/${today}.jpg`;
+      const path = `${slug(currentLoja)}/inventario/${tipoOrCat}/${today}.jpg`;
       const url = await uploadPhoto(pendingPhoto, path);
-      await insertInv(currentLoja, key, today, url, isNaN(vInv)?null:vInv, isNaN(vCnvs)?null:vCnvs, who);
+      await insertInv(currentLoja, tipoOrCat, today, url, isNaN(vInv)?null:vInv, isNaN(vCnvs)?null:vCnvs, who);
     }
     toast("Registado!");
     closeCapture();
@@ -454,11 +454,11 @@ async function confirmCapture(kind, key){
 }
 function slug(s){ return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_").toLowerCase(); }
 
-async function upsertDaily(loja, tipo, data, foto_path, enviado_por){
-  const filter = `loja=eq.${encodeURIComponent(loja)}&tipo=eq.${tipo}&data=eq.${data}`;
+async function upsertDaily(loja, tipo, data, foto_path, enviado_por, turno){
+  const filter = `loja=eq.${encodeURIComponent(loja)}&tipo=eq.${tipo}&data=eq.${data}&turno=eq.${turno}`;
   const patched = await api("PATCH", `cj_daily_reportes?${filter}`, {foto_path, enviado_por, criado_em:new Date().toISOString()});
   if(!patched || patched.length===0){
-    await api("POST", "cj_daily_reportes", {loja, tipo, data, foto_path, enviado_por});
+    await api("POST", "cj_daily_reportes", {loja, tipo, data, foto_path, enviado_por, turno});
   }
 }
 async function insertInv(loja, categoria, data, foto_path, valor_inventario, valor_cnvs, enviado_por){
@@ -473,14 +473,14 @@ function generateWeeklyReport(){
 
   let html = `<h1>CoreJoint · Relatório Semanal</h1><div style="font-size:12px; color:#555; margin-bottom:14px;">Período: ${rangeTxt} · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
 
-  html += `<h2>Vitrine — % de dias enviados</h2><table><tr><th style="text-align:left;">Loja</th><th>Semana</th>${days.map(d=>`<th>${d.getDate()}</th>`).join("")}</tr>`;
+  html += `<h2>Vitrine — nº de turnos enviados por dia (de 3: manhã/almoço/lanche)</h2><table><tr><th style="text-align:left;">Loja</th><th>Média</th>${days.map(d=>`<th>${d.getDate()}</th>`).join("")}</tr>`;
   LOJAS.forEach(l=>{
-    const cells = days.map(d=>{
+    const cellCounts = days.map(d=>{
       const ds = isoDate(d);
-      return dailyStatus(l,"vitrine",ds) ? '✔' : '✕';
+      return VITRINE_TURNOS.filter(t=>dailyStatus(l,"vitrine",ds,t.key)).length;
     });
-    const pct = Math.round(cells.filter(c=>c==='✔').length/7*100);
-    html += `<tr><td class="name">${l}</td><td><b>${pct}%</b></td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+    const avg = (cellCounts.reduce((a,b)=>a+b,0)/7).toFixed(1);
+    html += `<tr><td class="name">${l}</td><td><b>${avg}/3</b></td>${cellCounts.map(c=>`<td>${c}/3</td>`).join("")}</tr>`;
   });
   html += `</table>`;
 
@@ -488,7 +488,7 @@ function generateWeeklyReport(){
   LOJAS.forEach(l=>{
     const cells = days.map(d=>{
       const ds = isoDate(d);
-      return dailyStatus(l,"vendas",ds) ? '✔' : '✕';
+      return dailyStatus(l,"vendas",ds,"unico") ? '✔' : '✕';
     });
     const pct = Math.round(cells.filter(c=>c==='✔').length/7*100);
     html += `<tr><td class="name">${l}</td><td><b>${pct}%</b></td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
@@ -516,9 +516,9 @@ function openManualEntry(){
   const overlay = document.createElement("div");
   overlay.className = "overlay"; overlay.id = "manualOverlay";
   const tipoOptions = `
-    <option value="daily:vitrine">Vitrine</option>
-    <option value="daily:vendas">Vendas</option>
-    ${INV_CATS.map(c=>`<option value="inv:${c.key}">Inventário — ${c.label}</option>`).join("")}
+    ${VITRINE_TURNOS.map(t=>`<option value="daily:vitrine:${t.key}">Vitrine — ${t.label}</option>`).join("")}
+    <option value="daily:vendas:unico">Vendas</option>
+    ${INV_CATS.map(c=>`<option value="inv:${c.key}:">Inventário — ${c.label}</option>`).join("")}
   `;
   overlay.innerHTML = `
     <div class="modal">
@@ -602,12 +602,12 @@ async function confirmManualEntry(){
   const loja = document.getElementById("mLoja").value;
   const val = document.getElementById("mTipo").value;
   const data = document.getElementById("mData").value;
-  const [kind, key] = val.split(":");
+  const [kind, key, turno] = val.split(":");
   try{
     if(kind==="daily"){
-      const path = `${slug(loja)}/${key}/${data}.jpg`;
+      const path = `${slug(loja)}/${key}/${turno}/${data}.jpg`;
       const url = await uploadPhoto(manualPhoto, path);
-      await upsertDaily(loja, key, data, url, "Gestão (WhatsApp)");
+      await upsertDaily(loja, key, data, url, "Gestão (WhatsApp)", turno);
     } else {
       const vInv = parseFloat(document.getElementById("mVInv").value);
       const cnvsEl = document.getElementById("mVCnvs");
@@ -645,14 +645,15 @@ function renderGestao(){
   main.appendChild(printBtn);
 
   const today = todayStr();
-  const missingVitrine = LOJAS.filter(l=>!dailyStatus(l,"vitrine",today)).length;
-  const missingVendas = LOJAS.filter(l=>!dailyStatus(l,"vendas",today)).length;
+  const vitrineTurnosDone = (l,ds)=>VITRINE_TURNOS.filter(t=>dailyStatus(l,"vitrine",ds,t.key)).length;
+  const missingVitrine = LOJAS.filter(l=>vitrineTurnosDone(l,today) < 3).length;
+  const missingVendas = LOJAS.filter(l=>!dailyStatus(l,"vendas",today,"unico")).length;
   const lateInv = LOJAS.reduce((acc,l)=>acc + INV_CATS.filter(c=>invStatus(l,c.key,c.freq).state==="late").length, 0);
 
   const sumRow = document.createElement("div");
   sumRow.style.cssText = "display:flex; gap:10px; margin-bottom:16px;";
   sumRow.innerHTML = `
-    <div class="card" style="flex:1; text-align:center; margin-bottom:0;"><div style="font-size:20px;font-weight:700;">${missingVitrine}</div><div class="card-sub">sem vitrine hoje</div></div>
+    <div class="card" style="flex:1; text-align:center; margin-bottom:0;"><div style="font-size:20px;font-weight:700;">${missingVitrine}</div><div class="card-sub">vitrine incompleta hoje</div></div>
     <div class="card" style="flex:1; text-align:center; margin-bottom:0;"><div style="font-size:20px;font-weight:700;">${missingVendas}</div><div class="card-sub">sem vendas hoje</div></div>
     <div class="card" style="flex:1; text-align:center; margin-bottom:0;"><div style="font-size:20px;font-weight:700; color:var(--red);">${lateInv}</div><div class="card-sub">inventários atrasados</div></div>
   `;
@@ -663,11 +664,10 @@ function renderGestao(){
   main.appendChild(t1);
 
   LOJAS.forEach(l=>{
-    const v = !!dailyStatus(l,"vitrine",today);
-    const vd = !!dailyStatus(l,"vendas",today);
+    const vCount = vitrineTurnosDone(l,today);
+    const vd = !!dailyStatus(l,"vendas",today,"unico");
     const invStates = INV_CATS.map(c=>({...invStatus(l,c.key,c.freq), label:c.label}));
     const invLate = invStates.filter(s=>s.state==="late").length;
-    const invPend = invStates.filter(s=>s.state==="pend").length;
 
     const card = document.createElement("div");
     card.className = "card";
@@ -675,10 +675,10 @@ function renderGestao(){
     card.innerHTML = `
       <div class="card-top">
         <div class="card-title">${l}</div>
-        ${invLate>0 ? `<div class="status-badge late">${invLate} atrasado${invLate>1?'s':''}</div>` : (!v || !vd) ? `<div class="status-badge pend">Diário incompleto</div>` : `<div class="status-badge ok">✔ Em dia</div>`}
+        ${invLate>0 ? `<div class="status-badge late">${invLate} atrasado${invLate>1?'s':''}</div>` : (vCount<3 || !vd) ? `<div class="status-badge pend">Diário incompleto</div>` : `<div class="status-badge ok">✔ Em dia</div>`}
       </div>
       <div style="display:flex; gap:14px; margin-top:8px; font-size:13px;">
-        <div>🪟 Vitrine ${v?'<span class="icon-ok">✔</span>':'<span class="icon-late">✕</span>'}</div>
+        <div>🪟 Vitrine ${vCount}/3</div>
         <div>🧾 Vendas ${vd?'<span class="icon-ok">✔</span>':'<span class="icon-late">✕</span>'}</div>
       </div>
       <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;">
