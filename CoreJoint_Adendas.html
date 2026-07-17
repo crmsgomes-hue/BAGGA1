@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>CoreJoint · Adendas</title>
+<style>
+  :root{
+    --cream:#F4F1EA;
+    --ink:#2B2723;
+    --ink-soft:#5C564E;
+    --terracotta:#C1622E;
+    --terracotta-dark:#9C4C22;
+    --line:#E4DDD0;
+    --green:#3F7D5C;
+    --amber:#C08A2E;
+    --red:#B44435;
+    --card:#FFFFFF;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; font-family:'Source Sans 3',-apple-system,Segoe UI,Roboto,sans-serif; background:var(--cream); color:var(--ink); padding-bottom:40px;}
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif; font-weight:600; margin:0;}
+  @font-face{font-family:'Fraunces'; src:local('Georgia');}
+
+  /* ---------- LOGIN ---------- */
+  #login{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;}
+  #login h1{font-size:28px; color:var(--terracotta-dark); margin-bottom:6px;}
+  #login p{color:var(--ink-soft); margin-bottom:24px; text-align:center;}
+  #login input{width:100%; max-width:320px; padding:14px 16px; font-size:17px; border:1px solid var(--line); border-radius:10px; margin-bottom:14px; background:#fff;}
+  #login button{width:100%; max-width:320px; padding:14px; font-size:17px; font-weight:600; border:none; border-radius:10px; background:var(--terracotta); color:#fff;}
+
+  /* ---------- HEADER ---------- */
+  header{position:sticky; top:0; z-index:20; background:var(--cream); padding:16px 16px 10px; border-bottom:1px solid var(--line);}
+  .headrow{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  header h1{font-size:22px; color:var(--terracotta-dark);}
+  .who{font-size:13px; color:var(--ink-soft);}
+  .newbtn{background:var(--terracotta); color:#fff; border:none; padding:10px 16px; border-radius:20px; font-size:15px; font-weight:600; white-space:nowrap;}
+  .tabs{display:flex; gap:8px; margin-top:12px; overflow-x:auto;}
+  .tab{flex:none; padding:7px 13px; border-radius:16px; font-size:13px; background:#fff; border:1px solid var(--line); color:var(--ink-soft);}
+  .tab.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+
+  main{padding:14px 16px 60px; max-width:640px; margin:0 auto;}
+  .section-title{font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin:20px 0 8px;}
+  .empty{color:var(--ink-soft); font-size:14px; padding:30px 10px; text-align:center;}
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:10px;}
+  .card-top{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .card-name{font-family:'Fraunces',Georgia,serif; font-size:17px; font-weight:600;}
+  .card-meta{font-size:13px; color:var(--ink-soft); margin-top:2px;}
+  .badge{font-size:12px; font-weight:600; padding:3px 9px; border-radius:12px; white-space:nowrap;}
+  .badge.g{background:#E4EFE8; color:var(--green);}
+  .badge.a{background:#F5EAD3; color:var(--amber);}
+  .badge.r{background:#F5E1DD; color:var(--red);}
+  .card-actions{display:flex; gap:8px; margin-top:12px;}
+  .btn-advance{flex:1; background:var(--ink); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;}
+  .btn-undo{background:none; border:none; color:var(--ink-soft); font-size:13px; text-decoration:underline; padding:12px 6px;}
+  .photo-thumb{width:44px; height:44px; border-radius:8px; object-fit:cover; border:1px solid var(--line);}
+
+  /* ---------- MODAL ---------- */
+  .overlay{position:fixed; inset:0; background:rgba(43,39,35,.45); display:flex; align-items:flex-end; justify-content:center; z-index:50;}
+  .modal{background:var(--cream); width:100%; max-width:480px; border-radius:18px 18px 0 0; padding:22px 20px 28px; max-height:88vh; overflow-y:auto;}
+  .modal h2{font-size:19px; color:var(--terracotta-dark); margin-bottom:16px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:13px; color:var(--ink-soft); margin-bottom:5px;}
+  .field input, .field select{width:100%; padding:12px 14px; font-size:16px; border:1px solid var(--line); border-radius:10px; background:#fff;}
+  .modal-actions{display:flex; gap:10px; margin-top:18px;}
+  .btn-cancel{flex:1; background:none; border:1px solid var(--line); padding:13px; border-radius:10px; font-size:15px; color:var(--ink-soft);}
+  .btn-save{flex:1.4; background:var(--terracotta); color:#fff; border:none; padding:13px; border-radius:10px; font-size:15px; font-weight:600;}
+  .cam-preview{width:100%; border-radius:10px; margin-top:8px; max-height:220px; object-fit:contain; background:#eee;}
+  .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:20px; font-size:14px; z-index:99; opacity:0; transition:opacity .25s;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <h1>CoreJoint · Adendas</h1>
+  <p>Controlo de impressão, entrega, assinatura e envio das adendas.</p>
+  <input id="loginName" placeholder="O teu nome" autocomplete="off">
+  <button onclick="doLogin()">Entrar</button>
+</div>
+
+<div id="app" style="display:none;">
+  <header>
+    <div class="headrow">
+      <div>
+        <h1>Adendas</h1>
+        <div class="who" id="whoLabel"></div>
+      </div>
+      <button class="newbtn" onclick="openNew()">+ Nova adenda</button>
+    </div>
+    <div class="tabs">
+      <div class="tab active" data-f="ativas" onclick="setFilter('ativas')">Em curso</div>
+      <div class="tab" data-f="concluidas" onclick="setFilter('concluidas')">Concluídas</div>
+    </div>
+  </header>
+  <main id="main"></main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
+const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k";
+const TABLE = "cj_adendas";
+
+const STAGES = [
+  {key:"impressa", label:"Imprimir", verb:"Marcar como impressa", nextField:"impressa_em", personField:"impressa_por"},
+  {key:"entregue", label:"Entregar", verb:"Marcar como entregue", nextField:"entregue_em", personField:"entregue_por"},
+  {key:"assinada", label:"Assinar", verb:"Marcar como assinada (+ foto)", nextField:"assinada_em", personField:"assinada_por", needsPhoto:true},
+  {key:"enviada", label:"Enviar", verb:"Marcar como enviada", nextField:"enviada_em", personField:"enviada_por"}
+];
+
+const LOJAS = [
+  "Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim",
+  "Carregado","Ponte de Sor","Torres MCH","Torres MH","Marechal","Arroja",
+  "São João da Talha","Belas"
+];
+
+let rows = [];
+let filter = "ativas";
+let currentUser = localStorage.getItem("cj_adendas_user") || "";
+let pendingPhoto = null;
+
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 1800);
+}
+
+async function api(method, path, body){
+  const res = await fetch(SUPA_URL + "/rest/v1/" + path, {
+    method,
+    headers:{
+      "apikey": SUPA_KEY,
+      "Authorization": "Bearer " + SUPA_KEY,
+      "Content-Type":"application/json",
+      "Prefer": method==="PATCH" || method==="POST" ? "return=representation" : ""
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if(!res.ok){ const t = await res.text(); throw new Error(t); }
+  return res.status === 204 ? null : res.json();
+}
+
+async function loadRows(){
+  try{
+    rows = await api("GET", `${TABLE}?select=*&order=criado_em.desc`);
+    render();
+  }catch(e){
+    console.error(e);
+    toast("Erro a carregar dados");
+  }
+}
+
+function doLogin(){
+  const name = document.getElementById("loginName").value.trim();
+  if(!name){ toast("Escreve o teu nome"); return; }
+  currentUser = name;
+  localStorage.setItem("cj_adendas_user", name);
+  startApp();
+}
+
+function startApp(){
+  document.getElementById("login").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  document.getElementById("whoLabel").textContent = "Sessão: " + currentUser;
+  loadRows();
+  setInterval(loadRows, 30000);
+}
+
+function setFilter(f){
+  filter = f;
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.dataset.f===f));
+  render();
+}
+
+function daysSince(dateStr){
+  if(!dateStr) return 0;
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+}
+
+function badgeClass(d){
+  if(d >= 5) return "r";
+  if(d >= 2) return "a";
+  return "g";
+}
+
+function currentStageIndex(row){
+  for(let i=0;i<STAGES.length;i++){
+    if(!row[STAGES[i].nextField]) return i;
+  }
+  return STAGES.length; // done
+}
+
+function render(){
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const active = rows.filter(r=>!r.arquivada);
+  const done = rows.filter(r=>r.arquivada);
+  const list = filter==="ativas" ? active : done;
+
+  if(filter==="ativas"){
+    // group by stage
+    STAGES.forEach((stage, idx)=>{
+      const inStage = active.filter(r=>currentStageIndex(r)===idx);
+      if(inStage.length===0) return;
+      const h = document.createElement("div");
+      h.className="section-title";
+      h.textContent = `${stage.label} · ${inStage.length}`;
+      main.appendChild(h);
+      inStage.sort((a,b)=> new Date(a.updated_at) - new Date(b.updated_at));
+      inStage.forEach(r=>main.appendChild(renderCard(r, idx)));
+    });
+    if(active.length===0){
+      main.innerHTML = '<div class="empty">Sem adendas em curso. Toca em "+ Nova adenda" para começar.</div>';
+    }
+  } else {
+    if(done.length===0){
+      main.innerHTML = '<div class="empty">Ainda não há adendas concluídas.</div>';
+    } else {
+      done.sort((a,b)=> new Date(b.enviada_em) - new Date(a.enviada_em));
+      done.forEach(r=>main.appendChild(renderCard(r, STAGES.length)));
+    }
+  }
+}
+
+function renderCard(r, stageIdx){
+  const div = document.createElement("div");
+  div.className = "card";
+  const stage = STAGES[stageIdx];
+  const d = daysSince(r.updated_at || r.criado_em);
+  const bClass = badgeClass(d);
+  const dayLabel = d===0 ? "hoje" : d===1 ? "há 1 dia" : `há ${d} dias`;
+
+  let actionsHtml = "";
+  if(stage){
+    actionsHtml = `<div class="card-actions">
+      <button class="btn-advance" onclick="advance(${r.id}, ${stageIdx})">${stage.verb}</button>
+    </div>`;
+  } else {
+    actionsHtml = `<div class="card-meta" style="margin-top:8px;">✅ Concluída — enviada em ${new Date(r.enviada_em).toLocaleDateString('pt-PT')} por ${r.enviada_por||''}</div>`;
+  }
+
+  let undoHtml = "";
+  if(stageIdx>0){
+    undoHtml = `<button class="btn-undo" onclick="undo(${r.id}, ${stageIdx-1})">↩ desfazer última etapa</button>`;
+  }
+
+  let photoHtml = "";
+  if(r.foto_assinada){
+    photoHtml = `<img class="photo-thumb" src="${r.foto_assinada}" onclick="viewPhoto('${r.foto_assinada.replace(/'/g,"")}')">`;
+  }
+
+  div.innerHTML = `
+    <div class="card-top">
+      <div>
+        <div class="card-name">${escapeHtml(r.colaborador)}</div>
+        <div class="card-meta">${escapeHtml(r.tipo||'Adenda')}${r.loja ? ' · '+escapeHtml(r.loja) : ''}</div>
+      </div>
+      ${photoHtml || `<span class="badge ${bClass}">${dayLabel}</span>`}
+    </div>
+    ${actionsHtml}
+    ${undoHtml}
+  `;
+  return div;
+}
+
+function escapeHtml(s){
+  if(!s) return "";
+  return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function viewPhoto(src){
+  window.open(src, "_blank");
+}
+
+async function advance(id, stageIdx){
+  const stage = STAGES[stageIdx];
+  const row = rows.find(r=>r.id===id);
+  if(!row) return;
+
+  if(stage.needsPhoto){
+    openPhotoCapture(id, stageIdx);
+    return;
+  }
+  await commitAdvance(id, stageIdx, null);
+}
+
+async function commitAdvance(id, stageIdx, photoDataUrl){
+  const stage = STAGES[stageIdx];
+  const now = new Date().toISOString();
+  const patch = {
+    [stage.nextField]: now,
+    [stage.personField]: currentUser,
+    updated_at: now
+  };
+  if(photoDataUrl){ patch.foto_assinada = photoDataUrl; }
+  if(stageIdx === STAGES.length - 1){ patch.arquivada = true; }
+
+  try{
+    await api("PATCH", `${TABLE}?id=eq.${id}`, patch);
+    toast("Atualizado");
+    await loadRows();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao gravar");
+  }
+}
+
+async function undo(id, targetStageIdx){
+  if(!confirm("Desfazer a última etapa desta adenda?")) return;
+  const stage = STAGES[targetStageIdx];
+  const patch = {
+    [stage.nextField]: null,
+    [stage.personField]: null,
+    updated_at: new Date().toISOString()
+  };
+  if(targetStageIdx === STAGES.length - 1){ patch.arquivada = false; }
+  try{
+    await api("PATCH", `${TABLE}?id=eq.${id}`, patch);
+    toast("Etapa desfeita");
+    await loadRows();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao desfazer");
+  }
+}
+
+/* ---------- NOVA ADENDA ---------- */
+function openNew(){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "newOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>Nova adenda</h2>
+      <div class="field">
+        <label>Colaborador</label>
+        <input id="fColab" placeholder="Nome do colaborador">
+      </div>
+      <div class="field">
+        <label>Tipo de adenda</label>
+        <select id="fTipo">
+          <option>Advertência</option>
+          <option>Alteração de horário</option>
+          <option>Alteração de local de trabalho</option>
+          <option>Alteração de funções</option>
+          <option>Outra</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Loja</label>
+        <select id="fLoja" onchange="toggleLojaOutra()">
+          ${LOJAS.map(l=>`<option>${l}</option>`).join("")}
+          <option value="__outra__">Outra...</option>
+        </select>
+        <input id="fLojaOutra" placeholder="Nome da loja" style="display:none; margin-top:8px;">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeNew()">Cancelar</button>
+        <button class="btn-save" onclick="saveNew()">Criar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+function toggleLojaOutra(){
+  const sel = document.getElementById("fLoja").value;
+  document.getElementById("fLojaOutra").style.display = sel === "__outra__" ? "block" : "none";
+}
+function closeNew(){
+  const o = document.getElementById("newOverlay");
+  if(o) o.remove();
+}
+async function saveNew(){
+  const colaborador = document.getElementById("fColab").value.trim();
+  const tipo = document.getElementById("fTipo").value;
+  let loja = document.getElementById("fLoja").value;
+  if(loja === "__outra__"){
+    loja = document.getElementById("fLojaOutra").value.trim();
+  }
+  if(!colaborador){ toast("Indica o colaborador"); return; }
+  if(!loja){ toast("Indica a loja"); return; }
+  const now = new Date().toISOString();
+  try{
+    await api("POST", TABLE, {
+      colaborador, tipo, loja,
+      criado_em: now, criado_por: currentUser, updated_at: now
+    });
+    toast("Adenda criada");
+    closeNew();
+    await loadRows();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao criar");
+  }
+}
+
+/* ---------- FOTO (assinatura) ---------- */
+function openPhotoCapture(id, stageIdx){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "photoOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>Foto da adenda assinada</h2>
+      <input type="file" id="fPhoto" accept="image/*" capture="environment">
+      <img id="camPreview" class="cam-preview" style="display:none;">
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closePhoto()">Cancelar</button>
+        <button class="btn-save" id="btnSavePhoto" onclick="saveWithPhoto(${id}, ${stageIdx})" disabled>Confirmar assinatura</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("fPhoto").addEventListener("change", handlePhotoSelect);
+}
+function closePhoto(){
+  const o = document.getElementById("photoOverlay");
+  if(o) o.remove();
+  pendingPhoto = null;
+}
+function handlePhotoSelect(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    const img = new Image();
+    img.onload = function(){
+      const maxDim = 1280;
+      let {width, height} = img;
+      if(width > height && width > maxDim){ height = height*maxDim/width; width = maxDim; }
+      else if(height > maxDim){ width = width*maxDim/height; height = maxDim; }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      pendingPhoto = canvas.toDataURL("image/jpeg", 0.7);
+      const prev = document.getElementById("camPreview");
+      prev.src = pendingPhoto;
+      prev.style.display = "block";
+      document.getElementById("btnSavePhoto").disabled = false;
+    };
+    img.src = evt.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+async function saveWithPhoto(id, stageIdx){
+  if(!pendingPhoto){ toast("Tira a foto primeiro"); return; }
+  closePhoto();
+  await commitAdvance(id, stageIdx, pendingPhoto);
+  pendingPhoto = null;
+}
+
+/* ---------- INIT ---------- */
+if(currentUser){ startApp(); }
+</script>
+</body>
+</html>
