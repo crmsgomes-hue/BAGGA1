@@ -75,6 +75,9 @@ const INV_SUBCATS = [
   {key:"raspadinhas", label:"Raspadinhas"}, {key:"laranja", label:"Laranja"},
   {key:"cafe", label:"Café"}, {key:"tabaco", label:"Tabaco"}, {key:"global", label:"Global"}
 ];
+const VITRINE_TURNOS_CF = [
+  {key:"manha", label:"Manhã"}, {key:"almoco", label:"Almoço"}, {key:"lanche", label:"Lanche"}
+];
 
 async function api(method, path, body){
   const res = await fetch(SUPA_URL + "/rest/v1/" + path, {
@@ -95,18 +98,18 @@ async function uploadPhoto(blob, path){
   if(!res.ok) throw new Error(await res.text());
   return `${SUPA_URL}/storage/v1/object/public/${BUCKET}/${path}`;
 }
-async function upsertDaily(loja, tipo, data, foto_path){
-  const filter = `loja=eq.${encodeURIComponent(loja)}&tipo=eq.${tipo}&data=eq.${data}`;
+async function upsertDaily(loja, tipo, data, foto_path, turno){
+  const filter = `loja=eq.${encodeURIComponent(loja)}&tipo=eq.${tipo}&data=eq.${data}&turno=eq.${turno}`;
   const patched = await api("PATCH", `cj_daily_reportes?${filter}`, {foto_path, enviado_por:"Import WhatsApp", criado_em:new Date().toISOString()});
   if(!patched || patched.length===0){
-    await api("POST", "cj_daily_reportes", {loja, tipo, data, foto_path, enviado_por:"Import WhatsApp"});
+    await api("POST", "cj_daily_reportes", {loja, tipo, data, foto_path, turno, enviado_por:"Import WhatsApp"});
   }
 }
 function slug(s){ return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_").toLowerCase(); }
 
 const CATEGORIAS = ["Vitrine","Vendas","Inventário"];
 const state = {
-  "Vitrine": {raw:null, fname:null, zip:null, senders:[], selected:new Set(), period:"mes", data:null, lojaMap:{}},
+  "Vitrine": {raw:null, fname:null, zip:null, senders:[], selected:new Set(), period:"mes", data:null, lojaMap:{}, turno:"manha"},
   "Vendas": {raw:null, fname:null, zip:null, senders:[], selected:new Set(), period:"mes", data:null, lojaMap:{}},
   "Inventário": {raw:null, fname:null, zip:null, senders:[], selected:new Set(), period:"mes", data:null, lojaMap:{}, invSub:"global"}
 };
@@ -210,6 +213,7 @@ function saveToStorage(cat){
     period: s.period,
     lojaMap: s.lojaMap,
     invSub: s.invSub,
+    turno: s.turno,
     minDate: s.data.minDate,
     maxDate: s.data.maxDate,
     bySender: Object.fromEntries(s.senders.map(n=>[n, [...s.data.bySender[n]]]))
@@ -230,6 +234,7 @@ function loadFromStorage(cat){
     s.period = plain.period || "mes";
     s.lojaMap = plain.lojaMap || {};
     s.invSub = plain.invSub || "global";
+    s.turno = plain.turno || "manha";
     s.raw = "__restored__"; // marca que há dados, mesmo sem o texto completo
     s.zip = null;
     const bySender = {};
@@ -362,6 +367,23 @@ function render(){
       });
       impCard.appendChild(subRow);
     }
+    if(currentCat==="Vitrine"){
+      const subLabel = document.createElement("div");
+      subLabel.className = "field-label";
+      subLabel.style.marginTop = "14px";
+      subLabel.textContent = "A que turno corresponde este grupo? (manhã/almoço/lanche)";
+      impCard.appendChild(subLabel);
+      const subRow = document.createElement("div");
+      subRow.className = "chip-row";
+      VITRINE_TURNOS_CF.forEach(t=>{
+        const c = document.createElement("div");
+        c.className = "chip" + (s.turno===t.key ? " sel":"");
+        c.textContent = t.label;
+        c.onclick = ()=>{ s.turno = t.key; saveToStorage(currentCat); render(); };
+        subRow.appendChild(c);
+      });
+      impCard.appendChild(subRow);
+    }
 
     const impBtn = document.createElement("button");
     impBtn.className = "copybtn";
@@ -481,14 +503,15 @@ async function runImport(cat, btn){
       statusEl.textContent = `A importar ${done+1}/${jobs.length}...`;
       const entry = s.zip.file(job.fname);
       const blob = await entry.async("blob");
+      const turnoForPath = cat==="Vitrine" ? s.turno : "unico";
       const path = cat==="Inventário"
         ? `${slug(job.loja)}/inventario/${tipoKey}/${job.date}.jpg`
-        : `${slug(job.loja)}/${tipoKey}/${job.date}.jpg`;
+        : `${slug(job.loja)}/${tipoKey}/${turnoForPath}/${job.date}.jpg`;
       const url = await uploadPhoto(blob, path);
       if(cat==="Inventário"){
         await api("POST", "cj_inventario_reportes", {loja:job.loja, categoria:tipoKey, data:job.date, foto_path:url, enviado_por:"Import WhatsApp"});
       } else {
-        await upsertDaily(job.loja, tipoKey, job.date, url);
+        await upsertDaily(job.loja, tipoKey, job.date, url, turnoForPath);
       }
       done++;
     }catch(e){
