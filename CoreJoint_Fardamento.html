@@ -131,6 +131,7 @@ let currentUser = localStorage.getItem("cj_fard_user") || "";
 let currentPolo = POLOS[0];
 let openPecas = {};
 let saidaQtd = 1;
+let saidaColab = "";
 let saidaLoja = "";
 
 function toast(msg){
@@ -303,7 +304,9 @@ async function logMovimento(m){
 function openSaida(polo, peca, tamanho){
   saidaQtd = 1;
   saidaLoja = "";
+  saidaColab = "";
   const disponivel = getQty(polo, peca, tamanho);
+  const knownColabs = [...new Set(movimentos.map(m=>m.colaborador_destino).filter(Boolean))].sort();
   const overlay = document.createElement("div");
   overlay.className = "overlay";
   overlay.id = "saidaOverlay";
@@ -321,7 +324,8 @@ function openSaida(polo, peca, tamanho){
       </div>
       <div class="field">
         <label>Colaborador (para quem)</label>
-        <input id="sColab" placeholder="Nome do colaborador">
+        <div class="chip-row" id="colabChips"></div>
+        <input id="sColabNovo" placeholder="Nome do novo colaborador" style="display:none; margin-top:8px;">
       </div>
       <div class="field">
         <label>Loja de destino</label>
@@ -336,6 +340,29 @@ function openSaida(polo, peca, tamanho){
   document.body.appendChild(overlay);
   document.getElementById("sMinus").onclick = ()=>{ saidaQtd = Math.max(1, saidaQtd-1); document.getElementById("sQtyDisplay").textContent = saidaQtd; };
   document.getElementById("sPlus").onclick = ()=>{ saidaQtd = Math.min(disponivel||999, saidaQtd+1); document.getElementById("sQtyDisplay").textContent = saidaQtd; };
+  const colabRow = document.getElementById("colabChips");
+  knownColabs.forEach(name=>{
+    const c = document.createElement("div");
+    c.className = "chip";
+    c.textContent = name;
+    c.onclick = ()=>{
+      saidaColab = name;
+      colabRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel"));
+      c.classList.add("sel");
+      document.getElementById("sColabNovo").style.display = "none";
+    };
+    colabRow.appendChild(c);
+  });
+  const novoChip = document.createElement("div");
+  novoChip.className = "chip";
+  novoChip.textContent = "+ Novo";
+  novoChip.onclick = ()=>{
+    saidaColab = "__novo__";
+    colabRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel"));
+    novoChip.classList.add("sel");
+    document.getElementById("sColabNovo").style.display = "block";
+  };
+  colabRow.appendChild(novoChip);
   const chipRow = document.getElementById("sLojaChips");
   LOJAS.forEach(l=>{
     const c = document.createElement("div");
@@ -354,8 +381,8 @@ function closeSaida(){
   if(o) o.remove();
 }
 async function confirmSaida(polo, peca, tamanho){
-  const colaborador = document.getElementById("sColab").value.trim();
-  if(!colaborador){ toast("Indica o colaborador"); return; }
+  const colaborador = saidaColab === "__novo__" ? document.getElementById("sColabNovo").value.trim() : saidaColab;
+  if(!colaborador){ toast("Escolhe ou escreve o colaborador"); return; }
   if(!saidaLoja){ toast("Escolhe a loja de destino"); return; }
   const atual = getQty(polo, peca, tamanho);
   const novo = Math.max(0, atual - saidaQtd);
