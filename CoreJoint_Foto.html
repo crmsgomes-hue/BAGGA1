@@ -101,11 +101,11 @@ async function uploadPhoto(dataUrl, path){
   if(!res.ok) throw new Error(await res.text());
   return `${SUPA_URL}/storage/v1/object/public/${BUCKET}/${path}`;
 }
-async function upsertDaily(loja, tipo, data, foto_path){
-  const filter = `loja=eq.${encodeURIComponent(loja)}&tipo=eq.${tipo}&data=eq.${data}`;
+async function upsertDaily(loja, tipo, data, foto_path, turno){
+  const filter = `loja=eq.${encodeURIComponent(loja)}&tipo=eq.${tipo}&data=eq.${data}&turno=eq.${turno}`;
   const patched = await api("PATCH", `cj_daily_reportes?${filter}`, {foto_path, enviado_por:loja, criado_em:new Date().toISOString()});
   if(!patched || patched.length===0){
-    await api("POST", "cj_daily_reportes", {loja, tipo, data, foto_path, enviado_por:loja});
+    await api("POST", "cj_daily_reportes", {loja, tipo, data, foto_path, turno, enviado_por:loja});
   }
 }
 
@@ -147,8 +147,8 @@ function invStatus(catKey, freq){
   if(rows.length>0) return {state:"ok", latest: rows[0], window:w};
   return {state: today>w.end ? "late" : "pend", latest:null, window:w};
 }
-function dailyStatus(tipo, dateStr){
-  return dailyRows.find(r=>r.tipo===tipo && r.data===dateStr) || null;
+function dailyStatus(tipo, dateStr, turno){
+  return dailyRows.find(r=>r.tipo===tipo && r.data===dateStr && r.turno===turno) || null;
 }
 
 async function loadAll(){
@@ -172,16 +172,27 @@ function render(){
   }
 
   const today = todayStr();
-  ["vitrine","vendas"].forEach(tipo=>{
-    const rec = dailyStatus(tipo, today);
-    const label = tipo==="vitrine" ? "Vitrine" : "Vendas";
-    const icon = tipo==="vitrine" ? "🪟" : "🧾";
+  const VITRINE_TURNOS = [
+    {key:"manha", label:"Vitrine — Manhã", icon:"🌅"},
+    {key:"almoco", label:"Vitrine — Almoço", icon:"🌞"},
+    {key:"lanche", label:"Vitrine — Lanche", icon:"🌇"}
+  ];
+  VITRINE_TURNOS.forEach(t=>{
+    const rec = dailyStatus("vitrine", today, t.key);
     const btn = document.createElement("button");
     btn.className = "big-btn";
-    btn.innerHTML = `<div class="icon">${icon}</div><div class="txt"><div class="t">${label}</div><div class="d">${rec ? 'Já enviaste hoje' : 'Ainda não enviaste hoje'}</div></div><div class="status">${rec?'✅':'⭕'}</div>`;
-    btn.onclick = ()=>openCapture("daily", tipo, label);
+    btn.innerHTML = `<div class="icon">${t.icon}</div><div class="txt"><div class="t">${t.label}</div><div class="d">${rec ? 'Já enviaste' : 'Ainda não enviaste'}</div></div><div class="status">${rec?'✅':'⭕'}</div>`;
+    btn.onclick = ()=>openCapture("daily", "vitrine", t.label, t.key);
     main.appendChild(btn);
   });
+  {
+    const rec = dailyStatus("vendas", today, "unico");
+    const btn = document.createElement("button");
+    btn.className = "big-btn";
+    btn.innerHTML = `<div class="icon">🧾</div><div class="txt"><div class="t">Vendas — Final do dia</div><div class="d">${rec ? 'Já enviaste' : 'Ainda não enviaste'}</div></div><div class="status">${rec?'✅':'⭕'}</div>`;
+    btn.onclick = ()=>openCapture("daily", "vendas", "Vendas — Final do dia", "unico");
+    main.appendChild(btn);
+  }
 
   const dueInv = INV_CATS.map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>c.st.state!=="ok");
   if(dueInv.length>0){
@@ -208,7 +219,7 @@ function render(){
   }
 }
 
-function openCapture(kind, key, label){
+function openCapture(kind, key, label, turno){
   pendingPhoto = null;
   const isInv = kind==="inv";
   const overlay = document.createElement("div");
@@ -232,7 +243,7 @@ function openCapture(kind, key, label){
       ` : ``}
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeCapture()">Cancelar</button>
-        <button class="btn-save" id="capSaveBtn" onclick="confirmCapture('${kind}','${key}')" disabled>Guardar</button>
+        <button class="btn-save" id="capSaveBtn" onclick="confirmCapture('${kind}','${key}','${turno||''}')" disabled>Guardar</button>
       </div>
     </div>
   `;
@@ -267,14 +278,14 @@ function handleCapFile(e){
   };
   reader.readAsDataURL(file);
 }
-async function confirmCapture(kind, key){
+async function confirmCapture(kind, key, turno){
   if(!pendingPhoto){ toast("Tira a foto primeiro"); return; }
   const today = todayStr();
   try{
     if(kind==="daily"){
-      const path = `${slug(currentLoja)}/${key}/${today}.jpg`;
+      const path = `${slug(currentLoja)}/${key}/${turno}/${today}.jpg`;
       const url = await uploadPhoto(pendingPhoto, path);
-      await upsertDaily(currentLoja, key, today, url);
+      await upsertDaily(currentLoja, key, today, url, turno);
     } else {
       const vInv = parseFloat(document.getElementById("vInv").value);
       const cnvsEl = document.getElementById("vCnvs");
