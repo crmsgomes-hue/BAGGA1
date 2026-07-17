@@ -63,11 +63,52 @@
 <main id="main"></main>
 
 <script>
+const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
+const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k";
+const BUCKET = "cj_reportes_fotos";
+const LOJAS = [
+  "Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim",
+  "Carregado","Ponte de Sor","Torres MCH","Torres MH","Marechal","Arroja",
+  "São João da Talha","Belas"
+];
+const INV_SUBCATS = [
+  {key:"raspadinhas", label:"Raspadinhas"}, {key:"laranja", label:"Laranja"},
+  {key:"cafe", label:"Café"}, {key:"tabaco", label:"Tabaco"}, {key:"global", label:"Global"}
+];
+
+async function api(method, path, body){
+  const res = await fetch(SUPA_URL + "/rest/v1/" + path, {
+    method,
+    headers:{ "apikey": SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY, "Content-Type":"application/json",
+      "Prefer": (method==="PATCH"||method==="POST") ? "return=representation" : "" },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if(!res.ok){ throw new Error(await res.text()); }
+  return res.status === 204 ? null : res.json();
+}
+async function uploadPhoto(blob, path){
+  const res = await fetch(`${SUPA_URL}/storage/v1/object/${BUCKET}/${path}`, {
+    method:"POST",
+    headers:{ "apikey":SUPA_KEY, "Authorization":"Bearer "+SUPA_KEY, "Content-Type":"image/jpeg", "x-upsert":"true" },
+    body: blob
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return `${SUPA_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+}
+async function upsertDaily(loja, tipo, data, foto_path){
+  const filter = `loja=eq.${encodeURIComponent(loja)}&tipo=eq.${tipo}&data=eq.${data}`;
+  const patched = await api("PATCH", `cj_daily_reportes?${filter}`, {foto_path, enviado_por:"Import WhatsApp", criado_em:new Date().toISOString()});
+  if(!patched || patched.length===0){
+    await api("POST", "cj_daily_reportes", {loja, tipo, data, foto_path, enviado_por:"Import WhatsApp"});
+  }
+}
+function slug(s){ return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_").toLowerCase(); }
+
 const CATEGORIAS = ["Vitrine","Vendas","Inventário"];
 const state = {
-  "Vitrine": {raw:null, fname:null, zip:null, senders:[], selected:new Set(), period:"mes", data:null},
-  "Vendas": {raw:null, fname:null, zip:null, senders:[], selected:new Set(), period:"mes", data:null},
-  "Inventário": {raw:null, fname:null, zip:null, senders:[], selected:new Set(), period:"mes", data:null}
+  "Vitrine": {raw:null, fname:null, zip:null, senders:[], selected:new Set(), period:"mes", data:null, lojaMap:{}},
+  "Vendas": {raw:null, fname:null, zip:null, senders:[], selected:new Set(), period:"mes", data:null, lojaMap:{}},
+  "Inventário": {raw:null, fname:null, zip:null, senders:[], selected:new Set(), period:"mes", data:null, lojaMap:{}, invSub:"global"}
 };
 let currentCat = CATEGORIAS[0];
 
@@ -167,6 +208,8 @@ function saveToStorage(cat){
     senders: s.senders,
     selected: [...s.selected],
     period: s.period,
+    lojaMap: s.lojaMap,
+    invSub: s.invSub,
     minDate: s.data.minDate,
     maxDate: s.data.maxDate,
     bySender: Object.fromEntries(s.senders.map(n=>[n, [...s.data.bySender[n]]]))
@@ -185,6 +228,8 @@ function loadFromStorage(cat){
     s.senders = plain.senders;
     s.selected = new Set(plain.selected);
     s.period = plain.period || "mes";
+    s.lojaMap = plain.lojaMap || {};
+    s.invSub = plain.invSub || "global";
     s.raw = "__restored__"; // marca que há dados, mesmo sem o texto completo
     s.zip = null;
     const bySender = {};
@@ -280,6 +325,64 @@ function render(){
   peopleCard.appendChild(chipRow);
   main.appendChild(peopleCard);
 
+  // importação automática (só disponível com zip, i.e. export com multimédia)
+  if(s.zip){
+    const impCard = document.createElement("div");
+    impCard.className = "card";
+    impCard.innerHTML = `<h3>🚀 Importar fotos para o sistema</h3><div class="field-label">Associa cada pessoa à loja certa — só precisas de fazer isto uma vez.</div>`;
+    const mapWrap = document.createElement("div");
+    mapWrap.style.cssText = "display:flex; flex-direction:column; gap:8px; margin-top:10px;";
+    s.senders.filter(n=>s.selected.has(n)).forEach(name=>{
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex; align-items:center; gap:10px;";
+      row.innerHTML = `<div style="flex:1; font-size:13px; font-weight:600;">${name}</div>
+        <select data-map="${name}" style="flex:1.2; padding:8px; border-radius:8px; border:1px solid var(--line);">
+          <option value="">— ignorar —</option>
+          ${LOJAS.map(l=>`<option value="${l}" ${s.lojaMap[name]===l?'selected':''}>${l}</option>`).join("")}
+        </select>`;
+      row.querySelector('select').onchange = (e)=>{ s.lojaMap[name] = e.target.value; saveToStorage(currentCat); };
+      mapWrap.appendChild(row);
+    });
+    impCard.appendChild(mapWrap);
+
+    if(currentCat==="Inventário"){
+      const subLabel = document.createElement("div");
+      subLabel.className = "field-label";
+      subLabel.style.marginTop = "14px";
+      subLabel.textContent = "A que categoria de inventário corresponde este grupo?";
+      impCard.appendChild(subLabel);
+      const subRow = document.createElement("div");
+      subRow.className = "chip-row";
+      INV_SUBCATS.forEach(sc=>{
+        const c = document.createElement("div");
+        c.className = "chip" + (s.invSub===sc.key ? " sel":"");
+        c.textContent = sc.label;
+        c.onclick = ()=>{ s.invSub = sc.key; saveToStorage(currentCat); render(); };
+        subRow.appendChild(c);
+      });
+      impCard.appendChild(subRow);
+    }
+
+    const impBtn = document.createElement("button");
+    impBtn.className = "copybtn";
+    impBtn.style.marginTop = "16px";
+    impBtn.textContent = "Importar tudo agora";
+    impBtn.onclick = ()=>runImport(currentCat, impBtn);
+    impCard.appendChild(impBtn);
+    const impStatus = document.createElement("div");
+    impStatus.id = "impStatus";
+    impStatus.className = "field-label";
+    impStatus.style.marginTop = "8px";
+    impCard.appendChild(impStatus);
+
+    main.appendChild(impCard);
+  } else {
+    const note = document.createElement("div");
+    note.className = "card";
+    note.innerHTML = `<div class="field-label">💡 Para importar as fotos automaticamente para o sistema, exporta a conversa com <b>"incluir multimédia"</b> (zip). Um export "sem multimédia" só serve para a verificação de quem enviou ou não.</div>`;
+    main.appendChild(note);
+  }
+
   // resultados
   const bounds = periodBounds(currentCat);
   const dates = dateRange(bounds.start, bounds.end);
@@ -355,6 +458,49 @@ function render(){
   });
 }
 
+async function runImport(cat, btn){
+  const s = state[cat];
+  const statusEl = document.getElementById("impStatus");
+  const tipoKey = cat==="Vitrine" ? "vitrine" : cat==="Vendas" ? "vendas" : s.invSub;
+  const bounds = periodBounds(cat);
+  const dates = dateRange(bounds.start, bounds.end);
+  const jobs = [];
+  s.senders.filter(n=>s.selected.has(n) && s.lojaMap[n]).forEach(name=>{
+    const loja = s.lojaMap[name];
+    const filesByDate = s.data.bySenderFiles[name] || {};
+    dates.forEach(d=>{
+      if(filesByDate[d]) jobs.push({loja, date:d, fname:filesByDate[d][0]});
+    });
+  });
+  if(jobs.length===0){ toast("Sem fotos para importar (verifica o mapeamento de lojas)."); return; }
+
+  btn.disabled = true;
+  let done=0, errors=0;
+  for(const job of jobs){
+    try{
+      statusEl.textContent = `A importar ${done+1}/${jobs.length}...`;
+      const entry = s.zip.file(job.fname);
+      const blob = await entry.async("blob");
+      const path = cat==="Inventário"
+        ? `${slug(job.loja)}/inventario/${tipoKey}/${job.date}.jpg`
+        : `${slug(job.loja)}/${tipoKey}/${job.date}.jpg`;
+      const url = await uploadPhoto(blob, path);
+      if(cat==="Inventário"){
+        await api("POST", "cj_inventario_reportes", {loja:job.loja, categoria:tipoKey, data:job.date, foto_path:url, enviado_por:"Import WhatsApp"});
+      } else {
+        await upsertDaily(job.loja, tipoKey, job.date, url);
+      }
+      done++;
+    }catch(e){
+      console.error(e);
+      errors++;
+    }
+  }
+  btn.disabled = false;
+  statusEl.textContent = `Concluído: ${done} importadas${errors>0 ? `, ${errors} com erro` : ''}.`;
+  toast("Importação concluída");
+}
+
 function uploadCard(cat){
   const card = document.createElement("div");
   card.className = "card";
@@ -365,6 +511,9 @@ function uploadCard(cat){
       <br><label class="filebtn">Escolher ficheiro<input type="file" accept=".txt,.zip" id="fileInput-${cat}"></label>
       <div id="loadMsg-${cat}" style="margin-top:8px; font-size:13px; color:var(--ink-soft);"></div>
     </div>
+    <div class="field-label" style="margin-top:14px;">Ou, só para uma verificação rápida (sem fotos), cola aqui o texto da conversa:</div>
+    <textarea id="pasteArea-${cat}" placeholder="Cola aqui o texto exportado..." style="width:100%; min-height:80px; padding:10px; border:1px solid var(--line); border-radius:10px; font-size:13px; margin-top:6px;"></textarea>
+    <button class="resetbtn" style="margin-top:8px;" id="pasteBtn-${cat}">Analisar texto colado</button>
   `;
   setTimeout(()=>{
     document.getElementById(`fileInput-${cat}`).addEventListener("change", async (e)=>{
@@ -394,6 +543,16 @@ function uploadCard(cat){
         console.error(err);
         msgEl.textContent = "Erro ao ler o ficheiro.";
       }
+    });
+    document.getElementById(`pasteBtn-${cat}`).addEventListener("click", ()=>{
+      const text = document.getElementById(`pasteArea-${cat}`).value;
+      if(!text.trim()){ toast("Cola o texto primeiro"); return; }
+      state[cat].raw = text;
+      state[cat].zip = null;
+      state[cat].fname = "Texto colado";
+      analyze(cat);
+      buildTabs();
+      render();
     });
   }, 0);
   return card;
