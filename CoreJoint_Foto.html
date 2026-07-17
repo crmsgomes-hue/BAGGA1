@@ -57,12 +57,22 @@ const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const BUCKET = "cj_reportes_fotos";
 
 const INV_CATS = [
-  {key:"raspadinhas", label:"Raspadinhas", freq:"semanal"},
+  {key:"raspadinhas", label:"JSC", freq:"semanal"},
   {key:"laranja", label:"Laranja", freq:"semanal"},
   {key:"cafe", label:"Café", freq:"semanal"},
   {key:"tabaco", label:"Tabaco", freq:"quinzenal"},
   {key:"global", label:"Global", freq:"mensal3"}
 ];
+// Exceções conhecidas por loja (ajustar à medida que se confirma mais informação)
+const JSC_LOJAS = ["Almeirim", "Ponte de Sor"]; // só estas confirmadas com JSC por agora
+const TABACO_EXCLUIR = ["Caldas da Rainha"]; // não tem tabaco
+function categoriasParaLoja(loja){
+  return INV_CATS.filter(c=>{
+    if(c.key==="raspadinhas") return JSC_LOJAS.includes(loja);
+    if(c.key==="tabaco") return !TABACO_EXCLUIR.includes(loja);
+    return true;
+  });
+}
 
 const params = new URLSearchParams(location.search);
 const currentLoja = params.get("loja") || "Loja não identificada";
@@ -140,11 +150,23 @@ function isLastDaysOfMonth(threshold=3){
   const lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
   return d.getDate() > lastDay - threshold;
 }
+const CATEGORY_DOW = { raspadinhas:1, cafe:2, laranja:3, tabaco:4 };
+const DOW_LABELS = ["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"];
+function findWeekdayInRange(start, end, dow){
+  let d = new Date(start);
+  while((((d.getDay()+6)%7)+1) !== dow && d<=end){ d.setDate(d.getDate()+1); }
+  return d>end ? end : d;
+}
 function invStatus(catKey, freq){
   const today = new Date();
   const w = windowFor(freq, today);
   const rows = invRows.filter(r=>r.categoria===catKey && inRange(r.data, w.start, w.end));
   if(rows.length>0) return {state:"ok", latest: rows[0], window:w};
+  const dow = CATEGORY_DOW[catKey];
+  if(dow){
+    const targetDate = findWeekdayInRange(w.start, w.end, dow);
+    return {state: today>targetDate ? "late" : "pend", latest:null, window:w, targetDate, dowLabel:DOW_LABELS[dow-1]};
+  }
   return {state: today>w.end ? "late" : "pend", latest:null, window:w};
 }
 function dailyStatus(tipo, dateStr, turno){
@@ -194,7 +216,7 @@ function render(){
     main.appendChild(btn);
   }
 
-  const dueInv = INV_CATS.map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>c.st.state!=="ok");
+  const dueInv = categoriasParaLoja(currentLoja).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>c.st.state!=="ok");
   if(dueInv.length>0){
     const title = document.createElement("div");
     title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px;";
