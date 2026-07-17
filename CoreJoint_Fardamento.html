@@ -92,7 +92,10 @@
         <h1>Fardamento</h1>
         <div class="who" id="whoLabel"></div>
       </div>
-      <button class="bell" id="bellBtn" onclick="openAlertas()">🔔<span class="dot"></span></button>
+      <div style="display:flex; gap:8px;">
+        <button class="bell" id="histBtn" onclick="openHistorico()">📜</button>
+        <button class="bell" id="bellBtn" onclick="openAlertas()">🔔<span class="dot"></span></button>
+      </div>
     </div>
     <a href="CoreJoint_Hub.html" style="display:inline-block; margin-top:2px; font-size:12px; color:var(--ink-soft); text-decoration:none;">⌂ CoreJoint</a>
     <div class="polo-grid" id="poloGrid"></div>
@@ -123,6 +126,7 @@ const LOJAS = [
 const LOW_THRESHOLD = 5;
 
 let stockRows = [];
+let movimentos = [];
 let currentUser = localStorage.getItem("cj_fard_user") || "";
 let currentPolo = POLOS[0];
 let openPecas = {};
@@ -183,6 +187,7 @@ function buildPoloGrid(){
 async function loadStock(){
   try{
     stockRows = await api("GET", "cj_fardamento_stock?select=*");
+    movimentos = await api("GET", "cj_fardamento_movimentos?select=*&tipo=eq.saida&order=criado_em.desc&limit=200");
     updateBell();
     render();
   }catch(e){
@@ -400,6 +405,40 @@ function openAlertas(){
     navigator.clipboard.writeText(text).then(()=>toast("Lista copiada")).catch(()=>toast("Não foi possível copiar"));
   };
   main.appendChild(btn);
+}
+
+/* ---------- HISTÓRICO (para onde foram as peças) ---------- */
+function openHistorico(){
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "backbtn";
+  back.textContent = "← Voltar ao stock";
+  back.onclick = render;
+  main.appendChild(back);
+
+  if(movimentos.length===0){
+    main.innerHTML += '<div class="empty">Ainda não há saídas registadas.</div>';
+    return;
+  }
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:10px;";
+  title.textContent = `Últimas ${movimentos.length} saídas`;
+  main.appendChild(title);
+
+  movimentos.forEach(m=>{
+    const c = document.createElement("div");
+    c.className = "alert-card";
+    c.style.borderLeftColor = "var(--terracotta)";
+    const dt = new Date(m.criado_em);
+    const dataStr = dt.toLocaleDateString('pt-PT') + " " + dt.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
+    c.innerHTML = `
+      <div class="an">${m.peca} · ${m.tamanho} <span style="color:var(--ink-soft); font-weight:400;">(${m.quantidade} un.)</span></div>
+      <div class="am">${m.polo} → ${m.colaborador_destino || 'sem nome'} ${m.loja_destino ? '· ' + m.loja_destino : ''}</div>
+      <div class="am">${dataStr} · registado por ${m.registado_por || '—'}</div>
+    `;
+    main.appendChild(c);
+  });
 }
 
 /* ---------- INIT ---------- */
