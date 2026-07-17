@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>CoreJoint · Links das Lojas</title>
+<style>
+  :root{
+    --cream:#F4F1EA; --ink:#2B2723; --ink-soft:#5C564E;
+    --terracotta:#C1622E; --terracotta-dark:#9C4C22; --line:#E4DDD0; --card:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:'Source Sans 3',-apple-system,Segoe UI,Roboto,sans-serif; background:var(--cream); color:var(--ink);}
+  h1{font-family:'Fraunces',Georgia,serif; font-size:22px; color:var(--terracotta-dark); text-align:center; padding:24px 20px 4px;}
+  p.sub{text-align:center; font-size:13px; color:var(--ink-soft); margin:0 0 20px;}
+  main{max-width:520px; margin:0 auto; padding:0 16px 40px;}
+  .loja-card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; display:flex; gap:14px; align-items:center;}
+  .loja-card img{width:80px; height:80px; border-radius:8px; flex:none;}
+  .loja-card .info{flex:1; min-width:0;}
+  .loja-card .t{font-family:'Fraunces',Georgia,serif; font-weight:600; font-size:16px;}
+  .loja-card .link{font-size:11px; color:var(--ink-soft); word-break:break-all; margin:4px 0 8px;}
+  .copybtn{background:var(--terracotta); color:#fff; border:none; padding:7px 12px; border-radius:8px; font-size:12px; font-weight:600;}
+</style>
+</head>
+<body>
+<h1>Links por loja — Foto do dia</h1>
+<p class="sub">Envia o link (ou o QR) a cada loja. Podem gravá-lo no ecrã principal.</p>
+<main id="main"></main>
+<script>
+const BASE = "https://crmsgomes-hue.github.io/BAGGA1/CoreJoint_Foto.html";
+const LOJAS = [
+  "Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim",
+  "Carregado","Ponte de Sor","Torres MCH","Torres MH","Marechal","Arroja",
+  "São João da Talha","Belas"
+];
+const main = document.getElementById("main");
+LOJAS.forEach(l=>{
+  const url = `${BASE}?loja=${encodeURIComponent(l)}`;
+  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}`;
+  const card = document.createElement("div");
+  card.className = "loja-card";
+  card.innerHTML = `
+    <img src="${qr}" alt="QR ${l}">
+    <div class="info">
+      <div class="t">${l}</div>
+      <div class="link">${url}</div>
+      <button class="copybtn" data-url="${url}">Copiar link</button>
+    </div>
+  `;
+  card.querySelector("button").onclick = (e)=>{
+    navigator.clipboard.writeText(e.target.dataset.url);
+    e.target.textContent = "Copiado!";
+    setTimeout(()=>e.target.textContent="Copiar link", 1500);
+  };
+  main.appendChild(card);
+});
+</script>
+</body>
+</html>
