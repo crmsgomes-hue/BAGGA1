@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>CoreJoint · Fardamento</title>
+<style>
+  :root{
+    --cream:#F4F1EA; --ink:#2B2723; --ink-soft:#5C564E;
+    --terracotta:#C1622E; --terracotta-dark:#9C4C22;
+    --line:#E4DDD0; --green:#3F7D5C; --amber:#C08A2E; --red:#B44435; --card:#FFFFFF;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+  body{margin:0; font-family:'Source Sans 3',-apple-system,Segoe UI,Roboto,sans-serif; background:var(--cream); color:var(--ink); padding-bottom:40px;}
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif; font-weight:600; margin:0;}
+
+  #login{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;}
+  #login h1{font-size:26px; color:var(--terracotta-dark); margin-bottom:6px; text-align:center;}
+  #login p{color:var(--ink-soft); margin-bottom:24px; text-align:center;}
+  #login input{width:100%; max-width:320px; padding:14px 16px; font-size:17px; border:1px solid var(--line); border-radius:10px; margin-bottom:14px; background:#fff;}
+  #login button{width:100%; max-width:320px; padding:14px; font-size:17px; font-weight:600; border:none; border-radius:10px; background:var(--terracotta); color:#fff;}
+
+  header{position:sticky; top:0; z-index:20; background:var(--cream); padding:12px 14px 12px; border-bottom:1px solid var(--line);}
+  .headrow{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+  header h1{font-size:19px; color:var(--terracotta-dark);}
+  .who{font-size:11px; color:var(--ink-soft);}
+  .bell{background:#fff; border:1px solid var(--line); border-radius:12px; width:42px; height:42px; font-size:18px; position:relative;}
+  .bell .dot{position:absolute; top:4px; right:5px; width:9px; height:9px; border-radius:50%; background:var(--red); display:none;}
+  .bell.has-alert .dot{display:block;}
+  .polo-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  .polo-btn{padding:11px 4px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:14px; font-weight:700; color:var(--ink-soft);}
+  .polo-btn.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+
+  main{padding:12px 14px 60px; max-width:640px; margin:0 auto;}
+  .peca-card{background:var(--card); border:1px solid var(--line); border-radius:14px; margin-bottom:10px; overflow:hidden;}
+  .peca-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; }
+  .peca-head .pn{font-family:'Fraunces',Georgia,serif; font-size:16px; font-weight:600;}
+  .peca-head .pc{font-size:12px; color:var(--ink-soft);}
+  .chev{font-size:13px; color:var(--ink-soft); transition:transform .2s;}
+  .peca-card.open .chev{transform:rotate(180deg);}
+  .peca-body{display:none; padding:0 12px 12px;}
+  .peca-card.open .peca-body{display:block;}
+
+  .size-row{display:flex; align-items:center; gap:6px; background:var(--cream); border-radius:10px; padding:8px 8px; margin-bottom:6px;}
+  .size-tag{font-size:13px; font-weight:700; width:44px; flex:none;}
+  .stepbtn{width:32px; height:32px; border-radius:8px; border:1px solid var(--line); background:#fff; font-size:14px; color:var(--ink); font-weight:700; flex:none;}
+  .qty-num{font-size:16px; font-weight:700; min-width:26px; text-align:center; flex:none;}
+  .qty-num.low{color:var(--red);}
+  .saida-btn{background:var(--terracotta); color:#fff; border:none; padding:8px 10px; border-radius:8px; font-size:12px; font-weight:600; margin-left:auto; flex:none;}
+
+  .empty{color:var(--ink-soft); font-size:14px; padding:30px 10px; text-align:center;}
+  .alert-card{background:var(--card); border:1px solid var(--line); border-left:4px solid var(--red); border-radius:10px; padding:12px 14px; margin-bottom:8px;}
+  .alert-card .an{font-weight:700; font-family:'Fraunces',Georgia,serif;}
+  .alert-card .am{font-size:13px; color:var(--ink-soft); margin-top:2px;}
+  .copybtn, .backbtn{width:100%; background:var(--ink); color:#fff; border:none; padding:13px; border-radius:10px; font-size:15px; font-weight:600; margin-top:10px;}
+  .backbtn{background:none; border:1px solid var(--line); color:var(--ink-soft); margin-bottom:14px;}
+
+  .overlay{position:fixed; inset:0; background:rgba(43,39,35,.45); display:flex; align-items:flex-end; justify-content:center; z-index:50;}
+  .modal{background:var(--cream); width:100%; max-width:480px; border-radius:18px 18px 0 0; padding:22px 20px 28px; max-height:88vh; overflow-y:auto;}
+  .modal h2{font-size:18px; color:var(--terracotta-dark); margin-bottom:4px;}
+  .modal .sub{font-size:13px; color:var(--ink-soft); margin-bottom:16px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:13px; color:var(--ink-soft); margin-bottom:7px;}
+  .field input{width:100%; padding:12px 14px; font-size:16px; border:1px solid var(--line); border-radius:10px; background:#fff;}
+  .qty-picker{display:flex; align-items:center; justify-content:center; gap:10px;}
+  .qty-picker .stepbtn{width:44px; height:44px; font-size:18px;}
+  .qty-picker .qbig{font-size:26px; font-weight:700; min-width:50px; text-align:center;}
+  .chip-row{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{padding:9px 13px; border-radius:16px; border:1px solid var(--line); background:#fff; font-size:13px; font-weight:600; color:var(--ink-soft);}
+  .chip.sel{background:var(--terracotta); color:#fff; border-color:var(--terracotta);}
+  .modal-actions{display:flex; gap:10px; margin-top:18px;}
+  .btn-cancel{flex:1; background:none; border:1px solid var(--line); padding:13px; border-radius:10px; font-size:15px; color:var(--ink-soft);}
+  .btn-save{flex:1.4; background:var(--terracotta); color:#fff; border:none; padding:13px; border-radius:10px; font-size:15px; font-weight:600;}
+
+  .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:20px; font-size:14px; z-index:99; opacity:0; transition:opacity .25s;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <h1>CoreJoint · Fardamento</h1>
+  <p>Stock de fardamento nos polos de Caldas, Santarém e Torres.</p>
+  <input id="loginName" placeholder="O teu nome" autocomplete="off">
+  <button onclick="doLogin()">Entrar</button>
+</div>
+
+<div id="app" style="display:none;">
+  <header>
+    <div class="headrow">
+      <div>
+        <h1>Fardamento</h1>
+        <div class="who" id="whoLabel"></div>
+      </div>
+      <button class="bell" id="bellBtn" onclick="openAlertas()">🔔<span class="dot"></span></button>
+    </div>
+    <div class="polo-grid" id="poloGrid"></div>
+  </header>
+  <main id="main"></main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
+const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k";
+
+const POLOS = ["Caldas","Santarém","Torres"];
+const PECAS = {
+  "Polo manga curta": ["S","M","L","XL","XXL"],
+  "Polo manga comprida": ["S","M","L","XL","XXL"],
+  "Camisola": ["S","M","L","XL","XXL"],
+  "Calças": ["32","34","36","38","40","42","44","46","48","50","52","54","56","Especial"],
+  "Avental": ["Único"],
+  "Sapatos": ["36","37","38","39","40","41","42","43","44","45"]
+};
+const LOJAS = [
+  "Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim",
+  "Carregado","Ponte de Sor","Torres MCH","Torres MH","Marechal","Arroja",
+  "São João da Talha","Belas"
+];
+const LOW_THRESHOLD = 5;
+
+let stockRows = [];
+let currentUser = localStorage.getItem("cj_fard_user") || "";
+let currentPolo = POLOS[0];
+let openPecas = {};
+let saidaQtd = 1;
+let saidaLoja = "";
+
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 1800);
+}
+
+async function api(method, path, body){
+  const res = await fetch(SUPA_URL + "/rest/v1/" + path, {
+    method,
+    headers:{
+      "apikey": SUPA_KEY,
+      "Authorization": "Bearer " + SUPA_KEY,
+      "Content-Type":"application/json",
+      "Prefer": (method==="PATCH"||method==="POST") ? "return=representation" : ""
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if(!res.ok){ const t = await res.text(); throw new Error(t); }
+  return res.status === 204 ? null : res.json();
+}
+
+function doLogin(){
+  const name = document.getElementById("loginName").value.trim();
+  if(!name){ toast("Escreve o teu nome"); return; }
+  currentUser = name;
+  localStorage.setItem("cj_fard_user", name);
+  startApp();
+}
+
+function startApp(){
+  document.getElementById("login").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  document.getElementById("whoLabel").textContent = "Sessão: " + currentUser;
+  buildPoloGrid();
+  loadStock();
+  setInterval(loadStock, 30000);
+}
+
+function buildPoloGrid(){
+  const row = document.getElementById("poloGrid");
+  row.innerHTML = "";
+  POLOS.forEach(p=>{
+    const b = document.createElement("button");
+    b.className = "polo-btn" + (p===currentPolo ? " active":"");
+    b.textContent = p;
+    b.onclick = ()=>{ currentPolo = p; buildPoloGrid(); render(); };
+    row.appendChild(b);
+  });
+}
+
+async function loadStock(){
+  try{
+    stockRows = await api("GET", "cj_fardamento_stock?select=*");
+    updateBell();
+    render();
+  }catch(e){
+    console.error(e);
+    toast("Erro a carregar stock");
+  }
+}
+
+function getQty(polo, peca, tamanho){
+  const r = stockRows.find(r=>r.polo===polo && r.peca===peca && r.tamanho===tamanho);
+  return r ? r.quantidade : 0;
+}
+
+function allAlerts(){
+  const alerts = [];
+  POLOS.forEach(polo=>{
+    Object.keys(PECAS).forEach(peca=>{
+      PECAS[peca].forEach(tam=>{
+        const q = getQty(polo, peca, tam);
+        if(q < LOW_THRESHOLD) alerts.push({polo, peca, tam, q});
+      });
+    });
+  });
+  return alerts.sort((a,b)=>a.q-b.q);
+}
+
+function updateBell(){
+  document.getElementById("bellBtn").classList.toggle("has-alert", allAlerts().length>0);
+}
+
+function render(){
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  Object.keys(PECAS).forEach(peca=>{
+    main.appendChild(renderPecaCard(currentPolo, peca));
+  });
+}
+
+function renderPecaCard(polo, peca){
+  const key = peca;
+  const isOpen = !!openPecas[key];
+  const card = document.createElement("div");
+  card.className = "peca-card" + (isOpen ? " open":"");
+
+  const sizes = PECAS[peca];
+  const total = sizes.reduce((s,t)=>s+getQty(polo,peca,t), 0);
+
+  const head = document.createElement("div");
+  head.className = "peca-head";
+  head.innerHTML = `<div><div class="pn">${peca}</div><div class="pc">${total} peças no total</div></div><div class="chev">▾</div>`;
+  head.onclick = ()=>{ openPecas[key] = !openPecas[key]; render(); };
+  card.appendChild(head);
+
+  const body = document.createElement("div");
+  body.className = "peca-body";
+  sizes.forEach(tam=>{
+    const qty = getQty(polo, peca, tam);
+    const row = document.createElement("div");
+    row.className = "size-row";
+    row.innerHTML = `
+      <div class="size-tag">${tam}</div>
+      <button class="stepbtn" data-act="dec10">－10</button>
+      <button class="stepbtn" data-act="dec1">－1</button>
+      <span class="qty-num ${qty<LOW_THRESHOLD?'low':''}">${qty}</span>
+      <button class="stepbtn" data-act="inc1">＋1</button>
+      <button class="stepbtn" data-act="inc10">＋10</button>
+      <button class="saida-btn" data-act="saida">Saída</button>
+    `;
+    row.querySelector('[data-act="dec10"]').onclick = ()=>adjustQty(polo,peca,tam,-10);
+    row.querySelector('[data-act="dec1"]').onclick = ()=>adjustQty(polo,peca,tam,-1);
+    row.querySelector('[data-act="inc1"]').onclick = ()=>adjustQty(polo,peca,tam,1);
+    row.querySelector('[data-act="inc10"]').onclick = ()=>adjustQty(polo,peca,tam,10);
+    row.querySelector('[data-act="saida"]').onclick = ()=>openSaida(polo,peca,tam);
+    body.appendChild(row);
+  });
+  card.appendChild(body);
+  return card;
+}
+
+async function adjustQty(polo, peca, tamanho, delta){
+  const current = getQty(polo, peca, tamanho);
+  const novo = Math.max(0, current + delta);
+  try{
+    await upsertStock(polo, peca, tamanho, novo);
+    await logMovimento({polo, peca, tamanho, quantidade:Math.abs(novo-current), tipo: delta>0 ? "entrada":"ajuste", registado_por: currentUser, nota: delta>0 ? "Reposição/contagem" : "Ajuste/contagem"});
+    await loadStock();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao gravar");
+  }
+}
+
+async function upsertStock(polo, peca, tamanho, quantidade){
+  const filter = `polo=eq.${encodeURIComponent(polo)}&peca=eq.${encodeURIComponent(peca)}&tamanho=eq.${encodeURIComponent(tamanho)}`;
+  const now = new Date().toISOString();
+  const patched = await api("PATCH", `cj_fardamento_stock?${filter}`, {quantidade, updated_at:now, updated_por:currentUser});
+  if(!patched || patched.length===0){
+    await api("POST", "cj_fardamento_stock", {polo, peca, tamanho, quantidade, updated_at:now, updated_por:currentUser});
+  }
+}
+
+async function logMovimento(m){
+  try{
+    await api("POST", "cj_fardamento_movimentos", {
+      polo:m.polo, peca:m.peca, tamanho:m.tamanho, quantidade:m.quantidade, tipo:m.tipo,
+      colaborador_destino:m.colaborador_destino||null, loja_destino:m.loja_destino||null,
+      nota:m.nota||null, registado_por:m.registado_por, criado_em:new Date().toISOString()
+    });
+  }catch(e){ console.error(e); }
+}
+
+/* ---------- SAÍDA (modal, só cliques) ---------- */
+function openSaida(polo, peca, tamanho){
+  saidaQtd = 1;
+  saidaLoja = "";
+  const disponivel = getQty(polo, peca, tamanho);
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "saidaOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>Registar saída</h2>
+      <div class="sub">${peca} · ${tamanho} · ${polo} — disponível: ${disponivel}</div>
+      <div class="field">
+        <label>Quantidade</label>
+        <div class="qty-picker">
+          <button class="stepbtn" id="sMinus">－</button>
+          <span class="qbig" id="sQtyDisplay">1</span>
+          <button class="stepbtn" id="sPlus">＋</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Colaborador (para quem)</label>
+        <input id="sColab" placeholder="Nome do colaborador">
+      </div>
+      <div class="field">
+        <label>Loja de destino</label>
+        <div class="chip-row" id="sLojaChips"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeSaida()">Cancelar</button>
+        <button class="btn-save" onclick="confirmSaida('${polo}','${peca}','${tamanho}')">Confirmar saída</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("sMinus").onclick = ()=>{ saidaQtd = Math.max(1, saidaQtd-1); document.getElementById("sQtyDisplay").textContent = saidaQtd; };
+  document.getElementById("sPlus").onclick = ()=>{ saidaQtd = Math.min(disponivel||999, saidaQtd+1); document.getElementById("sQtyDisplay").textContent = saidaQtd; };
+  const chipRow = document.getElementById("sLojaChips");
+  LOJAS.forEach(l=>{
+    const c = document.createElement("div");
+    c.className = "chip";
+    c.textContent = l;
+    c.onclick = ()=>{
+      saidaLoja = l;
+      chipRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel"));
+      c.classList.add("sel");
+    };
+    chipRow.appendChild(c);
+  });
+}
+function closeSaida(){
+  const o = document.getElementById("saidaOverlay");
+  if(o) o.remove();
+}
+async function confirmSaida(polo, peca, tamanho){
+  const colaborador = document.getElementById("sColab").value.trim();
+  if(!colaborador){ toast("Indica o colaborador"); return; }
+  if(!saidaLoja){ toast("Escolhe a loja de destino"); return; }
+  const atual = getQty(polo, peca, tamanho);
+  const novo = Math.max(0, atual - saidaQtd);
+  try{
+    await upsertStock(polo, peca, tamanho, novo);
+    await logMovimento({polo, peca, tamanho, quantidade:saidaQtd, tipo:"saida", colaborador_destino:colaborador, loja_destino:saidaLoja, registado_por:currentUser});
+    toast("Saída registada");
+    closeSaida();
+    await loadStock();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao registar saída");
+  }
+}
+
+/* ---------- ALERTAS ---------- */
+function openAlertas(){
+  const alerts = allAlerts();
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "backbtn";
+  back.textContent = "← Voltar ao stock";
+  back.onclick = render;
+  main.appendChild(back);
+
+  if(alerts.length===0){
+    main.innerHTML += '<div class="empty">Sem alertas — stock acima do mínimo em todos os polos.</div>';
+    return;
+  }
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:10px;";
+  title.textContent = `${alerts.length} combinações abaixo de ${LOW_THRESHOLD} unidades`;
+  main.appendChild(title);
+  alerts.forEach(a=>{
+    const c = document.createElement("div");
+    c.className = "alert-card";
+    c.innerHTML = `<div class="an">${a.peca} · ${a.tam}</div><div class="am">${a.polo} — restam ${a.q}</div>`;
+    main.appendChild(c);
+  });
+  const btn = document.createElement("button");
+  btn.className = "copybtn";
+  btn.textContent = "Copiar lista para encomenda";
+  btn.onclick = ()=>{
+    const text = "Fardamento a encomendar (< " + LOW_THRESHOLD + " un.):\n" +
+      alerts.map(a=>`- ${a.peca} ${a.tam} (${a.polo}): restam ${a.q}`).join("\n");
+    navigator.clipboard.writeText(text).then(()=>toast("Lista copiada")).catch(()=>toast("Não foi possível copiar"));
+  };
+  main.appendChild(btn);
+}
+
+/* ---------- INIT ---------- */
+if(currentUser){ startApp(); }
+</script>
+</body>
+</html>
