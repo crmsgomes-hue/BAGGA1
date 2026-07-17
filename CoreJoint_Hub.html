@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>CoreJoint</title>
+<style>
+  :root{
+    --cream:#F4F1EA; --ink:#2B2723; --ink-soft:#5C564E;
+    --terracotta:#C1622E; --terracotta-dark:#9C4C22; --line:#E4DDD0; --card:#FFFFFF;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; font-family:'Source Sans 3',-apple-system,Segoe UI,Roboto,sans-serif; background:var(--cream); color:var(--ink); min-height:100vh;}
+  h1,h2{font-family:'Fraunces',Georgia,serif; font-weight:600; margin:0;}
+  header{padding:36px 24px 10px; text-align:center;}
+  header h1{font-size:30px; color:var(--terracotta-dark);}
+  header p{font-size:14px; color:var(--ink-soft); margin-top:6px;}
+  main{padding:20px 20px 40px; max-width:480px; margin:0 auto; display:flex; flex-direction:column; gap:14px;}
+  a.card{display:flex; align-items:center; gap:16px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; text-decoration:none; color:var(--ink);}
+  a.card .icon{font-size:30px; width:48px; text-align:center; flex:none;}
+  a.card .txt .t{font-family:'Fraunces',Georgia,serif; font-size:18px; font-weight:600;}
+  a.card .txt .d{font-size:13px; color:var(--ink-soft); margin-top:2px;}
+  a.card .arrow{margin-left:auto; color:var(--terracotta); font-size:20px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>CoreJoint</h1>
+  <p>As tuas ferramentas de gestão, num só sítio.</p>
+</header>
+<main>
+  <a class="card" href="CoreJoint_Reportes.html">
+    <div class="icon">📸</div>
+    <div class="txt"><div class="t">Reportes</div><div class="d">Vitrine, vendas e inventário por loja</div></div>
+    <div class="arrow">›</div>
+  </a>
+  <a class="card" href="CoreJoint_Fardamento.html">
+    <div class="icon">👕</div>
+    <div class="txt"><div class="t">Fardamento</div><div class="d">Stock nos 3 polos, saídas e alertas</div></div>
+    <div class="arrow">›</div>
+  </a>
+  <a class="card" href="CoreJoint_Adendas.html">
+    <div class="icon">📋</div>
+    <div class="txt"><div class="t">Adendas</div><div class="d">Controlo de impressão, entrega e assinatura</div></div>
+    <div class="arrow">›</div>
+  </a>
+  <a class="card" href="CoreJoint_Visitas.html">
+    <div class="icon">🏬</div>
+    <div class="txt"><div class="t">Visitas</div><div class="d">Auditorias GOP e CROP</div></div>
+    <div class="arrow">›</div>
+  </a>
+</main>
+</body>
+</html>
