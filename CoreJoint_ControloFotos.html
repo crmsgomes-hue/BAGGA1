@@ -522,10 +522,21 @@ function uploadCard(cat){
       const msgEl = document.getElementById(`loadMsg-${cat}`);
       try{
         if(file.name.toLowerCase().endsWith(".zip")){
-          msgEl.textContent = "A abrir o zip...";
-          const zip = await JSZip.loadAsync(file);
+          const sizeMB = (file.size / (1024*1024)).toFixed(0);
+          msgEl.textContent = `A abrir o zip (${sizeMB} MB)... pode demorar um pouco se tiver muitas fotos.`;
+          if(file.size > 300*1024*1024){
+            msgEl.textContent = `Este ficheiro tem ${sizeMB} MB — é muito grande para o telemóvel processar de uma vez. Tenta exportar um período mais curto (ex: só o último mês) ou usa "sem multimédia" para a verificação, e importa as fotos aos poucos.`;
+            return;
+          }
+          let zip;
+          try{
+            zip = await JSZip.loadAsync(file);
+          }catch(zipErr){
+            msgEl.textContent = "Não consegui abrir o zip: " + (zipErr.message || zipErr) + ". Confirma que é mesmo o ficheiro exportado do WhatsApp.";
+            return;
+          }
           const txtEntry = Object.values(zip.files).find(f=>!f.dir && f.name.toLowerCase().endsWith(".txt"));
-          if(!txtEntry){ msgEl.textContent = "Não encontrei o .txt da conversa dentro do zip."; return; }
+          if(!txtEntry){ msgEl.textContent = "Abri o zip, mas não encontrei o .txt da conversa lá dentro."; return; }
           const text = await txtEntry.async("string");
           state[cat].raw = text;
           state[cat].zip = zip;
@@ -541,7 +552,7 @@ function uploadCard(cat){
         render();
       }catch(err){
         console.error(err);
-        msgEl.textContent = "Erro ao ler o ficheiro.";
+        msgEl.textContent = "Erro: " + (err.message || err);
       }
     });
     document.getElementById(`pasteBtn-${cat}`).addEventListener("click", ()=>{
