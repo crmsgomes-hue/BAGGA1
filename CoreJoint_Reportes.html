@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>CoreJoint · Reportes</title>
+<style>
+  :root{
+    --cream:#F4F1EA; --ink:#2B2723; --ink-soft:#5C564E;
+    --terracotta:#C1622E; --terracotta-dark:#9C4C22;
+    --line:#E4DDD0; --green:#3F7D5C; --amber:#C08A2E; --red:#B44435; --card:#FFFFFF;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; font-family:'Source Sans 3',-apple-system,Segoe UI,Roboto,sans-serif; background:var(--cream); color:var(--ink); padding-bottom:50px;}
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif; font-weight:600; margin:0;}
+
+  #login{min-height:100vh; padding:26px 18px; display:flex; flex-direction:column; align-items:center;}
+  #login h1{font-size:24px; color:var(--terracotta-dark); text-align:center;}
+  #login p{color:var(--ink-soft); text-align:center; margin:6px 0 20px; font-size:14px;}
+  .loja-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; max-width:420px;}
+  .loja-btn{padding:16px 8px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:15px; font-weight:700; color:var(--ink);}
+  .mgmt-btn{margin-top:22px; width:100%; max-width:420px; padding:14px; border-radius:12px; border:none; background:var(--ink); color:#fff; font-size:15px; font-weight:600;}
+
+  header{position:sticky; top:0; z-index:20; background:var(--cream); padding:12px 16px; border-bottom:1px solid var(--line);}
+  .headrow{display:flex; align-items:center; justify-content:space-between;}
+  header h1{font-size:19px; color:var(--terracotta-dark);}
+  .who{font-size:11px; color:var(--ink-soft);}
+  .switch{background:none; border:1px solid var(--line); color:var(--ink-soft); font-size:12px; padding:7px 11px; border-radius:10px;}
+  .tabs{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;}
+  .tab{padding:10px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:14px; font-weight:700; color:var(--ink-soft); text-align:center;}
+  .tab.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+
+  main{padding:14px 16px 60px; max-width:640px; margin:0 auto;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:12px;}
+  .card-top{display:flex; justify-content:space-between; align-items:center;}
+  .card-title{font-size:16px; font-weight:600;}
+  .status-badge{font-size:12px; font-weight:700; padding:4px 10px; border-radius:12px;}
+  .status-badge.ok{background:#E4EFE8; color:var(--green);}
+  .status-badge.pend{background:#F5EAD3; color:var(--amber);}
+  .status-badge.late{background:#F5E1DD; color:var(--red);}
+  .card-sub{font-size:13px; color:var(--ink-soft); margin-top:4px;}
+  .cambtn{width:100%; margin-top:12px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;}
+  .cambtn.secondary{background:var(--ink);}
+  .history{display:flex; gap:5px; margin-top:10px;}
+  .hdot{flex:1; height:22px; border-radius:5px; background:var(--line); font-size:9px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;}
+  .hdot.ok{background:var(--green);} .hdot.no{background:var(--red);}
+
+  input[type=file]{display:none;}
+  .empty{color:var(--ink-soft); font-size:14px; padding:24px 10px; text-align:center;}
+
+  /* dashboard gestão */
+  .dash-table{width:100%; border-collapse:collapse; font-size:12px;}
+  .dash-table th, .dash-table td{padding:7px 4px; text-align:center; border-bottom:1px solid var(--line);}
+  .dash-table th{color:var(--ink-soft); font-weight:600; font-size:11px;}
+  .dash-table td.name{text-align:left; font-weight:600;}
+  .icon-ok{color:var(--green); font-weight:700;}
+  .icon-pend{color:var(--amber); font-weight:700;}
+  .icon-late{color:var(--red); font-weight:700;}
+  .section-title{font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin:18px 0 8px;}
+
+  .overlay{position:fixed; inset:0; background:rgba(43,39,35,.5); display:flex; align-items:flex-end; justify-content:center; z-index:50;}
+  .modal{background:var(--cream); width:100%; max-width:480px; border-radius:18px 18px 0 0; padding:22px 20px 28px; max-height:90vh; overflow-y:auto;}
+  .modal h2{font-size:18px; color:var(--terracotta-dark); margin-bottom:4px;}
+  .modal .sub{font-size:13px; color:var(--ink-soft); margin-bottom:14px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:13px; color:var(--ink-soft); margin-bottom:6px;}
+  .field input{width:100%; padding:12px 14px; font-size:16px; border:1px solid var(--line); border-radius:10px; background:#fff;}
+  .cam-preview{width:100%; border-radius:10px; margin-top:8px; max-height:220px; object-fit:contain; background:#eee;}
+  .filebtn{display:inline-block; background:var(--terracotta); color:#fff; padding:11px 18px; border-radius:10px; font-size:14px; font-weight:600;}
+  .modal-actions{display:flex; gap:10px; margin-top:18px;}
+  .btn-cancel{flex:1; background:none; border:1px solid var(--line); padding:13px; border-radius:10px; font-size:15px; color:var(--ink-soft);}
+  .btn-save{flex:1.4; background:var(--terracotta); color:#fff; border:none; padding:13px; border-radius:10px; font-size:15px; font-weight:600;}
+  .btn-save:disabled{opacity:.5;}
+
+  .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:20px; font-size:14px; z-index:99; opacity:0; transition:opacity .25s;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <h1>CoreJoint · Reportes</h1>
+  <p>Vitrine, vendas e inventário — por loja, todos os dias.</p>
+  <div class="loja-grid" id="lojaGrid"></div>
+  <button class="mgmt-btn" onclick="enterGestao()">📊 Ver painel de gestão (todas as lojas)</button>
+</div>
+
+<div id="app" style="display:none;">
+  <header>
+    <div class="headrow">
+      <div>
+        <h1 id="titleH1">Reportes</h1>
+        <div class="who" id="whoLabel"></div>
+      </div>
+      <button class="switch" onclick="doSwitch()">Trocar</button>
+    </div>
+    <div class="tabs" id="tabsRow"></div>
+  </header>
+  <main id="main"></main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
+const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k";
+const BUCKET = "cj_reportes_fotos";
+
+const LOJAS = [
+  "Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim",
+  "Carregado","Ponte de Sor","Torres MCH","Torres MH","Marechal","Arroja",
+  "São João da Talha","Belas"
+];
+const INV_CATS = [
+  {key:"raspadinhas", label:"Raspadinhas", freq:"semanal"},
+  {key:"laranja", label:"Laranja", freq:"semanal"},
+  {key:"cafe", label:"Café", freq:"semanal"},
+  {key:"tabaco", label:"Tabaco", freq:"quinzenal"},
+  {key:"global", label:"Global", freq:"mensal3"}
+];
+
+let mode = null; // 'loja' | 'gestao'
+let currentLoja = localStorage.getItem("cj_rep_loja") || null;
+let currentUser = localStorage.getItem("cj_rep_user") || "";
+let currentTab = "hoje";
+let dailyRows = [];
+let invRows = [];
+let pendingPhoto = null;
+
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 1800);
+}
+function isoDate(d){ return d.toISOString().slice(0,10); }
+function todayStr(){ return isoDate(new Date()); }
+
+async function api(method, path, body){
+  const res = await fetch(SUPA_URL + "/rest/v1/" + path, {
+    method,
+    headers:{
+      "apikey": SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY,
+      "Content-Type":"application/json",
+      "Prefer": (method==="PATCH"||method==="POST") ? "return=representation" : ""
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if(!res.ok){ throw new Error(await res.text()); }
+  return res.status === 204 ? null : res.json();
+}
+
+async function uploadPhoto(dataUrl, path){
+  const blob = await (await fetch(dataUrl)).blob();
+  const res = await fetch(`${SUPA_URL}/storage/v1/object/${BUCKET}/${path}`, {
+    method:"POST",
+    headers:{ "apikey":SUPA_KEY, "Authorization":"Bearer "+SUPA_KEY, "Content-Type":"image/jpeg", "x-upsert":"true" },
+    body: blob
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return `${SUPA_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+}
+
+/* ---------- LOGIN ---------- */
+function buildLojaGrid(){
+  const g = document.getElementById("lojaGrid");
+  g.innerHTML = "";
+  LOJAS.forEach(l=>{
+    const b = document.createElement("button");
+    b.className = "loja-btn";
+    b.textContent = l;
+    b.onclick = ()=>{ currentLoja = l; localStorage.setItem("cj_rep_loja", l); enterLoja(); };
+    g.appendChild(b);
+  });
+}
+function enterLoja(){
+  mode = "loja";
+  document.getElementById("login").style.display="none";
+  document.getElementById("app").style.display="block";
+  document.getElementById("titleH1").textContent = currentLoja;
+  document.getElementById("whoLabel").textContent = "Reportes desta loja";
+  buildLojaTabs();
+  loadAll();
+  setInterval(loadAll, 30000);
+}
+function enterGestao(){
+  mode = "gestao";
+  document.getElementById("login").style.display="none";
+  document.getElementById("app").style.display="block";
+  document.getElementById("titleH1").textContent = "Painel de gestão";
+  document.getElementById("whoLabel").textContent = "Todas as lojas";
+  document.getElementById("tabsRow").innerHTML = "";
+  loadAll();
+  setInterval(loadAll, 30000);
+}
+function doSwitch(){
+  document.getElementById("app").style.display="none";
+  document.getElementById("login").style.display="flex";
+  buildLojaGrid();
+}
+
+function buildLojaTabs(){
+  const row = document.getElementById("tabsRow");
+  row.innerHTML = "";
+  [["hoje","Hoje"],["inventario","Inventário"]].forEach(([k,label])=>{
+    const t = document.createElement("div");
+    t.className = "tab" + (currentTab===k ? " active":"");
+    t.textContent = label;
+    t.onclick = ()=>{ currentTab=k; buildLojaTabs(); render(); };
+    row.appendChild(t);
+  });
+}
+
+async function loadAll(){
+  try{
+    const lojaFilter = mode==="loja" ? `&loja=eq.${encodeURIComponent(currentLoja)}` : "";
+    dailyRows = await api("GET", `cj_daily_reportes?select=*${lojaFilter}&order=data.desc`);
+    invRows = await api("GET", `cj_inventario_reportes?select=*${lojaFilter}&order=data.desc`);
+    render();
+  }catch(e){ console.error(e); toast("Erro a carregar dados"); }
+}
+
+/* ---------- JANELAS DE PRAZO ---------- */
+function weekWindow(d){
+  const day = (d.getDay()+6)%7;
+  const start = new Date(d); start.setDate(d.getDate()-day);
+  const end = new Date(start); end.setDate(start.getDate()+6);
+  return {start, end};
+}
+function biweekWindow(d){
+  const day = d.getDate();
+  const start = day<=15 ? new Date(d.getFullYear(),d.getMonth(),1) : new Date(d.getFullYear(),d.getMonth(),16);
+  const end = day<=15 ? new Date(d.getFullYear(),d.getMonth(),15) : new Date(d.getFullYear(),d.getMonth()+1,0);
+  return {start, end};
+}
+function month3Window(d){
+  const start = new Date(d.getFullYear(), d.getMonth(), 15);
+  const end = new Date(d.getFullYear(), d.getMonth(), 21);
+  return {start, end};
+}
+function windowFor(freq, d){
+  if(freq==="semanal") return weekWindow(d);
+  if(freq==="quinzenal") return biweekWindow(d);
+  return month3Window(d);
+}
+function inRange(dateStr, start, end){
+  const d = new Date(dateStr+"T00:00:00");
+  return d>=start && d<=end;
+}
+
+function invStatus(loja, catKey, freq){
+  const today = new Date();
+  const w = windowFor(freq, today);
+  const rows = invRows.filter(r=>r.loja===loja && r.categoria===catKey && inRange(r.data, w.start, w.end));
+  if(rows.length>0) return {state:"ok", latest: rows[0], window:w};
+  return {state: today>w.end ? "late" : "pend", latest:null, window:w};
+}
+function dailyStatus(loja, tipo, dateStr){
+  return dailyRows.find(r=>r.loja===loja && r.tipo===tipo && r.data===dateStr) || null;
+}
+
+/* ---------- RENDER: LOJA ---------- */
+function render(){
+  if(mode==="gestao"){ renderGestao(); return; }
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  if(currentTab==="hoje") renderHoje(main); else renderInventario(main);
+}
+
+function renderHoje(main){
+  const today = todayStr();
+  ["vitrine","vendas"].forEach(tipo=>{
+    const rec = dailyStatus(currentLoja, tipo, today);
+    const card = document.createElement("div");
+    card.className = "card";
+    const label = tipo==="vitrine" ? "Vitrine" : "Vendas";
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="card-title">📸 ${label}</div>
+        <div class="status-badge ${rec?'ok':'pend'}">${rec?'Enviado hoje':'Pendente'}</div>
+      </div>
+      <div class="card-sub">${rec ? 'Enviado às ' + new Date(rec.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) + ' por ' + (rec.enviado_por||'') : 'Ainda não enviaste a foto de hoje.'}</div>
+      <button class="cambtn" onclick="openCapture('daily','${tipo}')">${rec ? 'Substituir foto' : 'Tirar foto'}</button>
+      <div class="history" id="hist-${tipo}"></div>
+    `;
+    main.appendChild(card);
+    const hist = card.querySelector(`#hist-${tipo}`);
+    for(let i=6;i>=0;i--){
+      const d = new Date(); d.setDate(d.getDate()-i);
+      const ds = isoDate(d);
+      const has = !!dailyStatus(currentLoja, tipo, ds);
+      const dot = document.createElement("div");
+      dot.className = "hdot " + (has?"ok":"no");
+      dot.textContent = d.getDate();
+      hist.appendChild(dot);
+    }
+  });
+}
+
+function renderInventario(main){
+  INV_CATS.forEach(cat=>{
+    const st = invStatus(currentLoja, cat.key, cat.freq);
+    const card = document.createElement("div");
+    card.className = "card";
+    const badgeClass = st.state==="ok"?"ok":st.state==="late"?"late":"pend";
+    const badgeText = st.state==="ok"?"Enviado":st.state==="late"?"Atrasado":"Pendente";
+    const freqLabel = cat.freq==="semanal"?"Semanal":cat.freq==="quinzenal"?"Quinzenal":"Mensal (3ª semana)";
+    let subText = `Prazo atual: ${st.window.start.toLocaleDateString('pt-PT')} a ${st.window.end.toLocaleDateString('pt-PT')}`;
+    if(st.latest) subText += ` — enviado em ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')} (Inv: ${st.latest.valor_inventario ?? '-'} · CNVs: ${st.latest.valor_cnvs ?? '-'})`;
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="card-title">${cat.label}</div>
+        <div class="status-badge ${badgeClass}">${badgeText}</div>
+      </div>
+      <div class="card-sub">${freqLabel}</div>
+      <div class="card-sub">${subText}</div>
+      <button class="cambtn" onclick="openCapture('inv','${cat.key}')">${st.latest ? 'Enviar nova contagem' : 'Enviar foto + valores'}</button>
+    `;
+    main.appendChild(card);
+  });
+}
+
+/* ---------- CAPTURA / MODAL ---------- */
+function openCapture(kind, key){
+  pendingPhoto = null;
+  const isInv = kind==="inv";
+  const catObj = isInv ? INV_CATS.find(c=>c.key===key) : null;
+  const overlay = document.createElement("div");
+  overlay.className = "overlay"; overlay.id = "capOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>${isInv ? catObj.label : (key==="vitrine"?"Vitrine":"Vendas")}</h2>
+      <div class="sub">${currentLoja} · ${new Date().toLocaleDateString('pt-PT')}</div>
+      <label class="filebtn">Tirar / escolher foto<input type="file" accept="image/*" capture="environment" id="capFile"></label>
+      <img id="capPreview" class="cam-preview" style="display:none;">
+      ${isInv ? `
+        <div class="field" style="margin-top:16px;">
+          <label>Valor do inventário (€)</label>
+          <input id="vInv" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label>Valor CNVs (consumíveis) (€)</label>
+          <input id="vCnvs" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
+        </div>
+      ` : ``}
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeCapture()">Cancelar</button>
+        <button class="btn-save" id="capSaveBtn" onclick="confirmCapture('${kind}','${key}')" disabled>Guardar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("capFile").addEventListener("change", handleCapFile);
+}
+function closeCapture(){
+  const o = document.getElementById("capOverlay");
+  if(o) o.remove();
+  pendingPhoto = null;
+}
+function handleCapFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = evt=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const maxDim = 1280;
+      let {width,height} = img;
+      if(width>height && width>maxDim){ height=height*maxDim/width; width=maxDim; }
+      else if(height>maxDim){ width=width*maxDim/height; height=maxDim; }
+      const canvas = document.createElement("canvas");
+      canvas.width=width; canvas.height=height;
+      canvas.getContext("2d").drawImage(img,0,0,width,height);
+      pendingPhoto = canvas.toDataURL("image/jpeg",0.7);
+      const prev = document.getElementById("capPreview");
+      prev.src = pendingPhoto; prev.style.display="block";
+      document.getElementById("capSaveBtn").disabled = false;
+    };
+    img.src = evt.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function confirmCapture(kind, key){
+  if(!pendingPhoto){ toast("Tira a foto primeiro"); return; }
+  const today = todayStr();
+  const who = currentUser || currentLoja;
+  try{
+    if(kind==="daily"){
+      const path = `${slug(currentLoja)}/${key}/${today}.jpg`;
+      const url = await uploadPhoto(pendingPhoto, path);
+      await api("POST", "cj_daily_reportes", {loja:currentLoja, tipo:key, data:today, foto_path:url, enviado_por:who});
+    } else {
+      const vInv = parseFloat(document.getElementById("vInv").value);
+      const vCnvs = parseFloat(document.getElementById("vCnvs").value);
+      const path = `${slug(currentLoja)}/inventario/${key}/${today}.jpg`;
+      const url = await uploadPhoto(pendingPhoto, path);
+      await api("POST", "cj_inventario_reportes", {
+        loja:currentLoja, categoria:key, data:today, foto_path:url,
+        valor_inventario: isNaN(vInv)?null:vInv, valor_cnvs: isNaN(vCnvs)?null:vCnvs, enviado_por:who
+      });
+    }
+    toast("Registado!");
+    closeCapture();
+    await loadAll();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao guardar — tenta de novo");
+  }
+}
+function slug(s){ return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_").toLowerCase(); }
+
+/* ---------- GESTÃO (todas as lojas) ---------- */
+function renderGestao(){
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+
+  const today = todayStr();
+  const missingVitrine = LOJAS.filter(l=>!dailyStatus(l,"vitrine",today)).length;
+  const missingVendas = LOJAS.filter(l=>!dailyStatus(l,"vendas",today)).length;
+  const lateInv = LOJAS.reduce((acc,l)=>acc + INV_CATS.filter(c=>invStatus(l,c.key,c.freq).state==="late").length, 0);
+
+  const sumRow = document.createElement("div");
+  sumRow.style.cssText = "display:flex; gap:10px; margin-bottom:16px;";
+  sumRow.innerHTML = `
+    <div class="card" style="flex:1; text-align:center; margin-bottom:0;"><div style="font-size:20px;font-weight:700;">${missingVitrine}</div><div class="card-sub">sem vitrine hoje</div></div>
+    <div class="card" style="flex:1; text-align:center; margin-bottom:0;"><div style="font-size:20px;font-weight:700;">${missingVendas}</div><div class="card-sub">sem vendas hoje</div></div>
+    <div class="card" style="flex:1; text-align:center; margin-bottom:0;"><div style="font-size:20px;font-weight:700; color:var(--red);">${lateInv}</div><div class="card-sub">inventários atrasados</div></div>
+  `;
+  main.appendChild(sumRow);
+
+  const t1 = document.createElement("div");
+  t1.className="section-title"; t1.textContent="Diário — hoje";
+  main.appendChild(t1);
+  const table1 = document.createElement("table");
+  table1.className = "dash-table";
+  table1.innerHTML = `<tr><th style="text-align:left;">Loja</th><th>Vitrine</th><th>Vendas</th></tr>` +
+    LOJAS.map(l=>{
+      const v = dailyStatus(l,"vitrine",today) ? '<span class="icon-ok">✔</span>' : '<span class="icon-late">✕</span>';
+      const s = dailyStatus(l,"vendas",today) ? '<span class="icon-ok">✔</span>' : '<span class="icon-late">✕</span>';
+      return `<tr><td class="name">${l}</td><td>${v}</td><td>${s}</td></tr>`;
+    }).join("");
+  main.appendChild(table1);
+
+  const t2 = document.createElement("div");
+  t2.className="section-title"; t2.textContent="Inventário — período atual";
+  main.appendChild(t2);
+  const table2 = document.createElement("table");
+  table2.className = "dash-table";
+  table2.innerHTML = `<tr><th style="text-align:left;">Loja</th>${INV_CATS.map(c=>`<th>${c.label}</th>`).join("")}</tr>` +
+    LOJAS.map(l=>{
+      const cells = INV_CATS.map(c=>{
+        const st = invStatus(l,c.key,c.freq);
+        const icon = st.state==="ok" ? '<span class="icon-ok">✔</span>' : st.state==="late" ? '<span class="icon-late">✕</span>' : '<span class="icon-pend">…</span>';
+        return `<td>${icon}</td>`;
+      }).join("");
+      return `<tr><td class="name">${l}</td>${cells}</tr>`;
+    }).join("");
+  main.appendChild(table2);
+}
+
+/* ---------- INIT ---------- */
+buildLojaGrid();
+if(currentLoja){ enterLoja(); }
+</script>
+</body>
+</html>
