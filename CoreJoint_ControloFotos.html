@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>CoreJoint · Controlo de Fotos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{
+    --cream:#F4F1EA; --ink:#2B2723; --ink-soft:#5C564E;
+    --terracotta:#C1622E; --terracotta-dark:#9C4C22;
+    --line:#E4DDD0; --green:#3F7D5C; --amber:#C08A2E; --red:#B44435; --card:#FFFFFF;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; font-family:'Source Sans 3',-apple-system,Segoe UI,Roboto,sans-serif; background:var(--cream); color:var(--ink); padding-bottom:50px;}
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif; font-weight:600; margin:0;}
+
+  header{position:sticky; top:0; z-index:20; background:var(--cream); padding:14px 16px 10px; border-bottom:1px solid var(--line);}
+  header h1{font-size:19px; color:var(--terracotta-dark);}
+  header p{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+  .tabs{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px;}
+  .tab{padding:10px 4px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:13px; font-weight:700; color:var(--ink-soft); text-align:center;}
+  .tab.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+
+  main{padding:14px 16px 60px; max-width:640px; margin:0 auto;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px;}
+  .card h3{font-size:15px; margin-bottom:10px;}
+  .dropzone{border:2px dashed var(--line); border-radius:12px; padding:22px 14px; text-align:center; color:var(--ink-soft); font-size:14px;}
+  .filebtn{display:inline-block; margin-top:10px; background:var(--terracotta); color:#fff; padding:11px 18px; border-radius:10px; font-size:14px; font-weight:600; border:none;}
+  input[type=file]{display:none;}
+  .fname{font-size:13px; color:var(--green); margin-top:8px; font-weight:600;}
+
+  .chip-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;}
+  .chip{padding:9px 13px; border-radius:16px; border:1px solid var(--line); background:#fff; font-size:13px; font-weight:600; color:var(--ink-soft);}
+  .chip.sel{background:var(--terracotta); color:#fff; border-color:var(--terracotta);}
+  .field-label{font-size:13px; color:var(--ink-soft); margin:14px 0 4px;}
+
+  .person-card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:13px 15px; margin-bottom:8px;}
+  .p-top{display:flex; justify-content:space-between; align-items:center;}
+  .p-name{font-family:'Fraunces',Georgia,serif; font-weight:600; font-size:15px;}
+  .p-pct{font-size:14px; font-weight:700;}
+  .p-pct.ok{color:var(--green);} .p-pct.warn{color:var(--amber);} .p-pct.bad{color:var(--red);}
+  .bar-bg{background:var(--line); height:6px; border-radius:3px; margin:8px 0; overflow:hidden;}
+  .bar-fg{height:100%; border-radius:3px;}
+  .missing{font-size:12px; color:var(--ink-soft); margin-top:4px;}
+  .missing b{color:var(--red);}
+  .empty{color:var(--ink-soft); font-size:14px; padding:30px 10px; text-align:center;}
+  .summary-row{display:flex; gap:10px; margin-bottom:14px;}
+  .summary-box{flex:1; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; text-align:center;}
+  .summary-box .n{font-size:22px; font-weight:700; font-family:'Fraunces',Georgia,serif;}
+  .summary-box .l{font-size:11px; color:var(--ink-soft);}
+  .resetbtn{background:none; border:1px solid var(--line); color:var(--ink-soft); padding:9px 14px; border-radius:10px; font-size:13px; margin-top:10px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CoreJoint · Controlo de Fotos</h1>
+  <p>Vê quem enviou (ou não) fotos no grupo de WhatsApp, e em que dias.</p>
+  <div class="tabs" id="tabsRow"></div>
+</header>
+<main id="main"></main>
+
+<script>
+const CATEGORIAS = ["Vitrine","Vendas","Inventário"];
+const state = {
+  "Vitrine": {raw:null, fname:null, zip:null, senders:[], selected:new Set(), period:"mes", data:null},
+  "Vendas": {raw:null, fname:null, zip:null, senders:[], selected:new Set(), period:"mes", data:null},
+  "Inventário": {raw:null, fname:null, zip:null, senders:[], selected:new Set(), period:"mes", data:null}
+};
+let currentCat = CATEGORIAS[0];
+
+function buildTabs(){
+  const row = document.getElementById("tabsRow");
+  row.innerHTML = "";
+  CATEGORIAS.forEach(c=>{
+    const b = document.createElement("div");
+    b.className = "tab" + (c===currentCat ? " active":"");
+    b.textContent = c;
+    b.onclick = ()=>{ currentCat = c; buildTabs(); render(); };
+    row.appendChild(b);
+  });
+}
+
+/* ---------- PARSING DO EXPORT DO WHATSAPP ---------- */
+const IMG_HINTS = /imagem om?itida|imagem ocultada|m[ií]dia oculta|image omitted|media omitted|<anexado|\.jpe?g|\.png|\.heic|IMG-|PHOTO-/i;
+const ATTACH_NAME = /([\w\-]+\.(?:jpe?g|png|heic|webp))/i;
+const LINE_ANDROID = /^(\d{1,2}\/\d{1,2}\/\d{2,4}),?\s(\d{1,2}:\d{2})\s-\s([^:]+):\s(.*)$/;
+const LINE_IOS = /^\u200e?\[(\d{1,2}\/\d{1,2}\/\d{2,4}),\s(\d{1,2}:\d{2}:\d{2})\]\s([^:]+):\s(.*)$/;
+
+function parseDate(dstr){
+  const parts = dstr.split("/");
+  let [d,m,y] = parts.map(p=>parseInt(p,10));
+  if(y < 100) y += 2000;
+  return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+}
+
+function parseChat(text){
+  const lines = text.split(/\r?\n/);
+  const messages = [];
+  let current = null;
+  lines.forEach(line=>{
+    line = line.replace(/^\u200e/, "");
+    let m = line.match(LINE_ANDROID) || line.match(LINE_IOS);
+    if(m){
+      if(current) messages.push(current);
+      current = { date: parseDate(m[1]), sender: m[3].trim(), text: m[4] };
+    } else if(current){
+      current.text += "\n" + line;
+    }
+  });
+  if(current) messages.push(current);
+  return messages;
+}
+
+function analyze(cat){
+  const s = state[cat];
+  const messages = parseChat(s.raw);
+  const bySender = {};
+  const bySenderFiles = {};
+  let minDate=null, maxDate=null;
+  messages.forEach(m=>{
+    if(!bySender[m.sender]) bySender[m.sender] = new Set();
+    if(!bySenderFiles[m.sender]) bySenderFiles[m.sender] = {};
+    const attachMatch = m.text.match(ATTACH_NAME);
+    const hasAttachInZip = attachMatch && s.zip && s.zip.file(attachMatch[1]);
+    if(hasAttachInZip || IMG_HINTS.test(m.text)){
+      bySender[m.sender].add(m.date);
+      if(hasAttachInZip){
+        if(!bySenderFiles[m.sender][m.date]) bySenderFiles[m.sender][m.date] = [];
+        bySenderFiles[m.sender][m.date].push(attachMatch[1]);
+      }
+    }
+    if(!minDate || m.date<minDate) minDate=m.date;
+    if(!maxDate || m.date>maxDate) maxDate=m.date;
+  });
+  s.senders = Object.keys(bySender).sort();
+  s.selected = new Set(s.senders);
+  s.data = {bySender, bySenderFiles, minDate, maxDate};
+}
+
+function dateRange(startStr, endStr){
+  const out = [];
+  let d = new Date(startStr+"T00:00:00");
+  const end = new Date(endStr+"T00:00:00");
+  while(d<=end){
+    out.push(d.toISOString().slice(0,10));
+    d.setDate(d.getDate()+1);
+  }
+  return out;
+}
+
+function periodBounds(cat){
+  const s = state[cat];
+  if(!s.data) return null;
+  const today = new Date();
+  let start, end = s.data.maxDate;
+  if(s.period === "7"){
+    const d = new Date(end+"T00:00:00"); d.setDate(d.getDate()-6);
+    start = d.toISOString().slice(0,10);
+  } else if(s.period === "mes"){
+    start = end.slice(0,8) + "01";
+  } else {
+    start = s.data.minDate;
+  }
+  if(start < s.data.minDate) start = s.data.minDate;
+  return {start, end};
+}
+
+/* ---------- RENDER ---------- */
+function render(){
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const s = state[currentCat];
+
+  if(!s.raw){
+    main.appendChild(uploadCard(currentCat));
+    return;
+  }
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "card";
+  toolbar.innerHTML = `<h3>Ficheiro: ${s.fname}</h3>`;
+  const reset = document.createElement("button");
+  reset.className = "resetbtn";
+  reset.textContent = "Trocar ficheiro";
+  reset.onclick = ()=>{ s.raw=null; s.fname=null; s.data=null; s.zip=null; render(); };
+  toolbar.appendChild(reset);
+  main.appendChild(toolbar);
+
+  // período
+  const periodCard = document.createElement("div");
+  periodCard.className = "card";
+  periodCard.innerHTML = `<h3>Período</h3>`;
+  const pRow = document.createElement("div");
+  pRow.className = "chip-row";
+  [["7","Últimos 7 dias"],["mes","Este mês"],["tudo","Tudo"]].forEach(([val,label])=>{
+    const c = document.createElement("div");
+    c.className = "chip" + (s.period===val ? " sel":"");
+    c.textContent = label;
+    c.onclick = ()=>{ s.period=val; render(); };
+    pRow.appendChild(c);
+  });
+  periodCard.appendChild(pRow);
+  main.appendChild(periodCard);
+
+  // pessoas esperadas
+  const peopleCard = document.createElement("div");
+  peopleCard.className = "card";
+  peopleCard.innerHTML = `<h3>Quem deve enviar?</h3><div class="field-label">Toca para incluir/excluir da verificação</div>`;
+  const chipRow = document.createElement("div");
+  chipRow.className = "chip-row";
+  s.senders.forEach(name=>{
+    const c = document.createElement("div");
+    c.className = "chip" + (s.selected.has(name) ? " sel":"");
+    c.textContent = name;
+    c.onclick = ()=>{
+      if(s.selected.has(name)) s.selected.delete(name); else s.selected.add(name);
+      render();
+    };
+    chipRow.appendChild(c);
+  });
+  peopleCard.appendChild(chipRow);
+  main.appendChild(peopleCard);
+
+  // resultados
+  const bounds = periodBounds(currentCat);
+  const dates = dateRange(bounds.start, bounds.end);
+  const totalDias = dates.length;
+
+  const results = [...s.selected].map(name=>{
+    const sentDates = s.data.bySender[name] || new Set();
+    const sentInRange = dates.filter(d=>sentDates.has(d));
+    const missing = dates.filter(d=>!sentDates.has(d));
+    return {name, sent:sentInRange.length, missing, pct: totalDias? Math.round(sentInRange.length/totalDias*100):0};
+  }).sort((a,b)=>a.pct-b.pct);
+
+  const summary = document.createElement("div");
+  summary.className = "summary-row";
+  const okCount = results.filter(r=>r.pct===100).length;
+  summary.innerHTML = `
+    <div class="summary-box"><div class="n">${totalDias}</div><div class="l">dias no período</div></div>
+    <div class="summary-box"><div class="n">${okCount}/${results.length}</div><div class="l">100% cumprimento</div></div>
+  `;
+  main.appendChild(summary);
+
+  if(results.length===0){
+    main.innerHTML += '<div class="empty">Nenhuma pessoa selecionada.</div>';
+    return;
+  }
+
+  results.forEach(r=>{
+    const card = document.createElement("div");
+    card.className = "person-card";
+    const pctClass = r.pct>=90 ? "ok" : r.pct>=60 ? "warn" : "bad";
+    const barColor = r.pct>=90 ? "var(--green)" : r.pct>=60 ? "var(--amber)" : "var(--red)";
+    let missingHtml = "";
+    if(r.missing.length>0){
+      const shown = r.missing.slice(0,6).map(d=>d.slice(8,10)+"/"+d.slice(5,7)).join(", ");
+      const extra = r.missing.length>6 ? ` +${r.missing.length-6}` : "";
+      missingHtml = `<div class="missing">Faltam: <b>${shown}${extra}</b></div>`;
+    }
+    card.innerHTML = `
+      <div class="p-top"><div class="p-name">${r.name}</div><div class="p-pct ${pctClass}">${r.pct}%</div></div>
+      <div class="bar-bg"><div class="bar-fg" style="width:${r.pct}%; background:${barColor};"></div></div>
+      <div class="missing">${r.sent}/${totalDias} dias com foto</div>
+      ${missingHtml}
+      ${s.zip ? `<button class="resetbtn" style="margin-top:8px;" data-photos="${r.name}">📷 Ver fotos enviadas</button><div class="photo-strip" style="display:none; flex-wrap:wrap; gap:6px; margin-top:8px;"></div>` : ""}
+    `;
+    main.appendChild(card);
+    if(s.zip){
+      const btn = card.querySelector('[data-photos]');
+      const strip = card.querySelector('.photo-strip');
+      btn.onclick = async ()=>{
+        if(strip.style.display === "flex"){ strip.style.display = "none"; return; }
+        strip.style.display = "flex";
+        if(strip.dataset.loaded) return;
+        strip.dataset.loaded = "1";
+        const filesByDate = s.data.bySenderFiles[r.name] || {};
+        const relevantDates = dates.filter(d=>filesByDate[d]);
+        if(relevantDates.length===0){ strip.innerHTML = '<div class="missing">Sem fotos identificadas no zip para este período.</div>'; return; }
+        for(const d of relevantDates){
+          for(const fname of filesByDate[d]){
+            const entry = s.zip.file(fname);
+            if(!entry) continue;
+            const blob = await entry.async("blob");
+            const url = URL.createObjectURL(blob);
+            const img = document.createElement("img");
+            img.src = url;
+            img.style.cssText = "width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line);";
+            img.title = d;
+            img.onclick = ()=>window.open(url, "_blank");
+            strip.appendChild(img);
+          }
+        }
+      };
+    }
+  });
+}
+
+function uploadCard(cat){
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <h3>Carregar conversa — ${cat}</h3>
+    <div class="dropzone">
+      No WhatsApp: abre o grupo → nome do grupo → Exportar conversa → <b>incluir multimédia</b>. Sai um ficheiro .zip — carrega-o aqui (também aceita .txt sem fotos).
+      <br><label class="filebtn">Escolher ficheiro<input type="file" accept=".txt,.zip" id="fileInput-${cat}"></label>
+      <div id="loadMsg-${cat}" style="margin-top:8px; font-size:13px; color:var(--ink-soft);"></div>
+    </div>
+  `;
+  setTimeout(()=>{
+    document.getElementById(`fileInput-${cat}`).addEventListener("change", async (e)=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      const msgEl = document.getElementById(`loadMsg-${cat}`);
+      try{
+        if(file.name.toLowerCase().endsWith(".zip")){
+          msgEl.textContent = "A abrir o zip...";
+          const zip = await JSZip.loadAsync(file);
+          const txtEntry = Object.values(zip.files).find(f=>!f.dir && f.name.toLowerCase().endsWith(".txt"));
+          if(!txtEntry){ msgEl.textContent = "Não encontrei o .txt da conversa dentro do zip."; return; }
+          const text = await txtEntry.async("string");
+          state[cat].raw = text;
+          state[cat].zip = zip;
+          state[cat].fname = file.name;
+        } else {
+          const text = await file.text();
+          state[cat].raw = text;
+          state[cat].zip = null;
+          state[cat].fname = file.name;
+        }
+        analyze(cat);
+        render();
+      }catch(err){
+        console.error(err);
+        msgEl.textContent = "Erro ao ler o ficheiro.";
+      }
+    });
+  }, 0);
+  return card;
+}
+
+buildTabs();
+render();
+</script>
+</body>
+</html>
