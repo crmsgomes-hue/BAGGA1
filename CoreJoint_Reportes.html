@@ -238,6 +238,12 @@ function month3Window(d){
   const end = new Date(d.getFullYear(), d.getMonth(), 21);
   return {start, end};
 }
+function isLastDaysOfMonth(threshold=3){
+  const d = new Date();
+  const lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+  return d.getDate() > lastDay - threshold;
+}
+
 function windowFor(freq, d){
   if(freq==="semanal") return weekWindow(d);
   if(freq==="quinzenal") return biweekWindow(d);
@@ -305,6 +311,13 @@ function renderHoje(main){
 }
 
 function renderInventario(main){
+  if(isLastDaysOfMonth()){
+    const warn = document.createElement("div");
+    warn.className = "card";
+    warn.style.borderLeft = "4px solid var(--red)";
+    warn.innerHTML = `<div class="card-title" style="font-size:14px;">⚠ Não fazer contagens estes dias</div><div class="card-sub" style="margin-top:4px;">Estamos nos últimos dias do mês — evita fazer inventário agora, para não desalinhar com o fecho.</div>`;
+    main.appendChild(warn);
+  }
   INV_CATS.forEach(cat=>{
     const st = invStatus(currentLoja, cat.key, cat.freq);
     const card = document.createElement("div");
@@ -320,7 +333,7 @@ function renderInventario(main){
       </div>
       <div class="card-sub">Prazo ${prazoTxt}</div>
       <button class="cambtn" onclick="openCapture('inv','${cat.key}')">${st.latest ? 'Enviar nova contagem' : '📸 Enviar foto + valores'}</button>
-      ${st.latest ? `<div class="card-sub" style="margin-top:8px; text-decoration:underline; cursor:pointer;" data-toggle-det="${cat.key}">Ver último envio</div><div id="det-${cat.key}" style="display:none; margin-top:6px; font-size:13px; color:var(--ink-soft);">Enviado em ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')} · Inventário: ${st.latest.valor_inventario ?? '-'} € · CNVs: ${st.latest.valor_cnvs ?? '-'} €</div>` : ``}
+      ${st.latest ? `<div class="card-sub" style="margin-top:8px; text-decoration:underline; cursor:pointer;" data-toggle-det="${cat.key}">Ver último envio</div><div id="det-${cat.key}" style="display:none; margin-top:6px; font-size:13px; color:var(--ink-soft);">Enviado em ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')} · Inventário: ${st.latest.valor_inventario ?? '-'} €${cat.key==="global" ? ' · CNVs: ' + (st.latest.valor_cnvs ?? '-') + ' €' : ''}</div>` : ``}
     `;
     main.appendChild(card);
     if(st.latest){
@@ -353,10 +366,12 @@ function openCapture(kind, key){
           <label>Valor do inventário (€)</label>
           <input id="vInv" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
         </div>
+        ${key==="global" ? `
         <div class="field">
           <label>Valor CNVs (consumíveis) (€)</label>
           <input id="vCnvs" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
         </div>
+        ` : ``}
       ` : ``}
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeCapture()">Cancelar</button>
@@ -404,16 +419,14 @@ async function confirmCapture(kind, key){
     if(kind==="daily"){
       const path = `${slug(currentLoja)}/${key}/${today}.jpg`;
       const url = await uploadPhoto(pendingPhoto, path);
-      await api("POST", "cj_daily_reportes", {loja:currentLoja, tipo:key, data:today, foto_path:url, enviado_por:who});
+      await upsertDaily(currentLoja, key, today, url, who);
     } else {
       const vInv = parseFloat(document.getElementById("vInv").value);
-      const vCnvs = parseFloat(document.getElementById("vCnvs").value);
+      const cnvsEl = document.getElementById("vCnvs");
+      const vCnvs = cnvsEl ? parseFloat(cnvsEl.value) : NaN;
       const path = `${slug(currentLoja)}/inventario/${key}/${today}.jpg`;
       const url = await uploadPhoto(pendingPhoto, path);
-      await api("POST", "cj_inventario_reportes", {
-        loja:currentLoja, categoria:key, data:today, foto_path:url,
-        valor_inventario: isNaN(vInv)?null:vInv, valor_cnvs: isNaN(vCnvs)?null:vCnvs, enviado_por:who
-      });
+      await insertInv(currentLoja, key, today, url, isNaN(vInv)?null:vInv, isNaN(vCnvs)?null:vCnvs, who);
     }
     toast("Registado!");
     closeCapture();
@@ -425,10 +438,144 @@ async function confirmCapture(kind, key){
 }
 function slug(s){ return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_").toLowerCase(); }
 
+async function upsertDaily(loja, tipo, data, foto_path, enviado_por){
+  const filter = `loja=eq.${encodeURIComponent(loja)}&tipo=eq.${tipo}&data=eq.${data}`;
+  const patched = await api("PATCH", `cj_daily_reportes?${filter}`, {foto_path, enviado_por, criado_em:new Date().toISOString()});
+  if(!patched || patched.length===0){
+    await api("POST", "cj_daily_reportes", {loja, tipo, data, foto_path, enviado_por});
+  }
+}
+async function insertInv(loja, categoria, data, foto_path, valor_inventario, valor_cnvs, enviado_por){
+  await api("POST", "cj_inventario_reportes", {loja, categoria, data, foto_path, valor_inventario, valor_cnvs, enviado_por});
+}
+
+/* ---------- INSERÇÃO MANUAL (fotos guardadas do WhatsApp) ---------- */
+let manualPhoto = null;
+function openManualEntry(){
+  manualPhoto = null;
+  const overlay = document.createElement("div");
+  overlay.className = "overlay"; overlay.id = "manualOverlay";
+  const tipoOptions = `
+    <option value="daily:vitrine">Vitrine</option>
+    <option value="daily:vendas">Vendas</option>
+    ${INV_CATS.map(c=>`<option value="inv:${c.key}">Inventário — ${c.label}</option>`).join("")}
+  `;
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>Inserir manualmente</h2>
+      <div class="sub">Para fotos guardadas do WhatsApp (galeria)</div>
+      <div class="field">
+        <label>Loja</label>
+        <select id="mLoja">${LOJAS.map(l=>`<option>${l}</option>`).join("")}</select>
+      </div>
+      <div class="field">
+        <label>O que é</label>
+        <select id="mTipo" onchange="updateManualExtra()">${tipoOptions}</select>
+      </div>
+      <div class="field">
+        <label>Data</label>
+        <input type="date" id="mData" value="${todayStr()}">
+      </div>
+      <label class="filebtn">🖼️ Escolher da galeria<input type="file" accept="image/*" id="mFile"></label>
+      <img id="mPreview" class="cam-preview" style="display:none;">
+      <div id="mExtraFields"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeManualEntry()">Cancelar</button>
+        <button class="btn-save" id="mSaveBtn" onclick="confirmManualEntry()" disabled>Guardar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("mFile").addEventListener("change", handleManualFile);
+  updateManualExtra();
+}
+function updateManualExtra(){
+  const val = document.getElementById("mTipo").value;
+  const extra = document.getElementById("mExtraFields");
+  const [kind, key] = val.split(":");
+  if(kind==="inv"){
+    extra.innerHTML = `
+      <div class="field" style="margin-top:14px;">
+        <label>Valor do inventário (€)</label>
+        <input id="mVInv" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
+      </div>
+      ${key==="global" ? `
+      <div class="field">
+        <label>Valor CNVs (consumíveis) (€)</label>
+        <input id="mVCnvs" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
+      </div>` : ``}
+    `;
+  } else {
+    extra.innerHTML = "";
+  }
+}
+function closeManualEntry(){
+  const o = document.getElementById("manualOverlay");
+  if(o) o.remove();
+  manualPhoto = null;
+}
+function handleManualFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = evt=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const maxDim = 1280;
+      let {width,height} = img;
+      if(width>height && width>maxDim){ height=height*maxDim/width; width=maxDim; }
+      else if(height>maxDim){ width=width*maxDim/height; height=maxDim; }
+      const canvas = document.createElement("canvas");
+      canvas.width=width; canvas.height=height;
+      canvas.getContext("2d").drawImage(img,0,0,width,height);
+      manualPhoto = canvas.toDataURL("image/jpeg",0.7);
+      const prev = document.getElementById("mPreview");
+      prev.src = manualPhoto; prev.style.display="block";
+      document.getElementById("mSaveBtn").disabled = false;
+    };
+    img.src = evt.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+async function confirmManualEntry(){
+  if(!manualPhoto){ toast("Escolhe a foto primeiro"); return; }
+  const loja = document.getElementById("mLoja").value;
+  const val = document.getElementById("mTipo").value;
+  const data = document.getElementById("mData").value;
+  const [kind, key] = val.split(":");
+  try{
+    if(kind==="daily"){
+      const path = `${slug(loja)}/${key}/${data}.jpg`;
+      const url = await uploadPhoto(manualPhoto, path);
+      await upsertDaily(loja, key, data, url, "Gestão (WhatsApp)");
+    } else {
+      const vInv = parseFloat(document.getElementById("mVInv").value);
+      const cnvsEl = document.getElementById("mVCnvs");
+      const vCnvs = cnvsEl ? parseFloat(cnvsEl.value) : NaN;
+      const path = `${slug(loja)}/inventario/${key}/${data}.jpg`;
+      const url = await uploadPhoto(manualPhoto, path);
+      await insertInv(loja, key, data, url, isNaN(vInv)?null:vInv, isNaN(vCnvs)?null:vCnvs, "Gestão (WhatsApp)");
+    }
+    toast("Inserido!");
+    closeManualEntry();
+    await loadAll();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao guardar — tenta de novo");
+  }
+}
+
 /* ---------- GESTÃO (todas as lojas) ---------- */
 function renderGestao(){
   const main = document.getElementById("main");
   main.innerHTML = "";
+
+  const manualBtn = document.createElement("button");
+  manualBtn.className = "cambtn secondary";
+  manualBtn.style.marginBottom = "14px";
+  manualBtn.textContent = "📥 Inserir manualmente (foto do WhatsApp)";
+  manualBtn.onclick = openManualEntry;
+  main.appendChild(manualBtn);
 
   const today = todayStr();
   const missingVitrine = LOJAS.filter(l=>!dailyStatus(l,"vitrine",today)).length;
