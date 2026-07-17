@@ -101,6 +101,22 @@
 </div>
 
 <div id="toast" class="toast"></div>
+<div id="printReport" style="display:none;"></div>
+
+<style>
+  @media print{
+    body > *:not(#printReport){ display:none !important; }
+    #printReport{ display:block !important; padding:20px; font-family:Georgia,serif; color:#000; }
+    #printReport h1{ font-size:20px; margin-bottom:2px; }
+    #printReport h2{ font-size:15px; margin:18px 0 8px; }
+    #printReport table{ width:100%; border-collapse:collapse; font-size:11px; margin-bottom:10px; }
+    #printReport th, #printReport td{ border:1px solid #999; padding:5px 6px; text-align:center; }
+    #printReport th{ background:#eee; }
+    #printReport td.name{ text-align:left; font-weight:600; }
+    #printReport .bar-bg{ background:#eee; height:8px; border-radius:4px; overflow:hidden; }
+    #printReport .bar-fg{ height:100%; background:#555; }
+  }
+</style>
 
 <script>
 const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
@@ -449,6 +465,50 @@ async function insertInv(loja, categoria, data, foto_path, valor_inventario, val
   await api("POST", "cj_inventario_reportes", {loja, categoria, data, foto_path, valor_inventario, valor_cnvs, enviado_por});
 }
 
+/* ---------- RELATÓRIO SEMANAL (PDF via impressão) ---------- */
+function generateWeeklyReport(){
+  const days = [];
+  for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days.push(d); }
+  const rangeTxt = `${days[0].toLocaleDateString('pt-PT')} a ${days[6].toLocaleDateString('pt-PT')}`;
+
+  let html = `<h1>CoreJoint · Relatório Semanal</h1><div style="font-size:12px; color:#555; margin-bottom:14px;">Período: ${rangeTxt} · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
+
+  html += `<h2>Vitrine — % de dias enviados</h2><table><tr><th style="text-align:left;">Loja</th><th>Semana</th>${days.map(d=>`<th>${d.getDate()}</th>`).join("")}</tr>`;
+  LOJAS.forEach(l=>{
+    const cells = days.map(d=>{
+      const ds = isoDate(d);
+      return dailyStatus(l,"vitrine",ds) ? '✔' : '✕';
+    });
+    const pct = Math.round(cells.filter(c=>c==='✔').length/7*100);
+    html += `<tr><td class="name">${l}</td><td><b>${pct}%</b></td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+  });
+  html += `</table>`;
+
+  html += `<h2>Vendas — % de dias enviados</h2><table><tr><th style="text-align:left;">Loja</th><th>Semana</th>${days.map(d=>`<th>${d.getDate()}</th>`).join("")}</tr>`;
+  LOJAS.forEach(l=>{
+    const cells = days.map(d=>{
+      const ds = isoDate(d);
+      return dailyStatus(l,"vendas",ds) ? '✔' : '✕';
+    });
+    const pct = Math.round(cells.filter(c=>c==='✔').length/7*100);
+    html += `<tr><td class="name">${l}</td><td><b>${pct}%</b></td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+  });
+  html += `</table>`;
+
+  html += `<h2>Inventário — estado do período atual</h2><table><tr><th style="text-align:left;">Loja</th>${INV_CATS.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
+  LOJAS.forEach(l=>{
+    const cells = INV_CATS.map(c=>{
+      const st = invStatus(l,c.key,c.freq);
+      return st.state==="ok" ? "✔" : st.state==="late" ? "✕" : "…";
+    });
+    html += `<tr><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+  });
+  html += `</table>`;
+
+  document.getElementById("printReport").innerHTML = html;
+  setTimeout(()=>window.print(), 100);
+}
+
 /* ---------- INSERÇÃO MANUAL (fotos guardadas do WhatsApp) ---------- */
 let manualPhoto = null;
 function openManualEntry(){
@@ -572,10 +632,17 @@ function renderGestao(){
 
   const manualBtn = document.createElement("button");
   manualBtn.className = "cambtn secondary";
-  manualBtn.style.marginBottom = "14px";
+  manualBtn.style.marginBottom = "10px";
   manualBtn.textContent = "📥 Inserir manualmente (foto do WhatsApp)";
   manualBtn.onclick = openManualEntry;
   main.appendChild(manualBtn);
+
+  const printBtn = document.createElement("button");
+  printBtn.className = "cambtn";
+  printBtn.style.marginBottom = "14px";
+  printBtn.textContent = "🖨️ Relatório semanal (PDF)";
+  printBtn.onclick = generateWeeklyReport;
+  main.appendChild(printBtn);
 
   const today = todayStr();
   const missingVitrine = LOJAS.filter(l=>!dailyStatus(l,"vitrine",today)).length;
