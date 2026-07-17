@@ -119,6 +119,7 @@ const LOJAS = [
 ];
 
 let rows = [];
+let selectedColab = "";
 let filter = "ativas";
 let currentUser = localStorage.getItem("cj_adendas_user") || "";
 let pendingPhoto = null;
@@ -331,6 +332,7 @@ async function undo(id, targetStageIdx){
 
 /* ---------- NOVA ADENDA ---------- */
 function openNew(){
+  const knownColabs = [...new Set(rows.map(r=>r.colaborador).filter(Boolean))].sort();
   const overlay = document.createElement("div");
   overlay.className = "overlay";
   overlay.id = "newOverlay";
@@ -339,7 +341,8 @@ function openNew(){
       <h2>Nova adenda</h2>
       <div class="field">
         <label>Colaborador</label>
-        <input id="fColab" placeholder="Nome do colaborador">
+        <div class="chip-row" id="colabChips"></div>
+        <input id="fColabNovo" placeholder="Nome do novo colaborador" style="display:none; margin-top:8px;">
       </div>
       <div class="field">
         <label>Tipo de adenda</label>
@@ -366,6 +369,30 @@ function openNew(){
     </div>
   `;
   document.body.appendChild(overlay);
+  selectedColab = "";
+  const chipRow = document.getElementById("colabChips");
+  knownColabs.forEach(name=>{
+    const c = document.createElement("div");
+    c.className = "chip";
+    c.textContent = name;
+    c.onclick = ()=>{
+      selectedColab = name;
+      chipRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel"));
+      c.classList.add("sel");
+      document.getElementById("fColabNovo").style.display = "none";
+    };
+    chipRow.appendChild(c);
+  });
+  const novoChip = document.createElement("div");
+  novoChip.className = "chip";
+  novoChip.textContent = "+ Novo";
+  novoChip.onclick = ()=>{
+    selectedColab = "__novo__";
+    chipRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel"));
+    novoChip.classList.add("sel");
+    document.getElementById("fColabNovo").style.display = "block";
+  };
+  chipRow.appendChild(novoChip);
 }
 function toggleLojaOutra(){
   const sel = document.getElementById("fLoja").value;
@@ -376,13 +403,13 @@ function closeNew(){
   if(o) o.remove();
 }
 async function saveNew(){
-  const colaborador = document.getElementById("fColab").value.trim();
+  let colaborador = selectedColab === "__novo__" ? document.getElementById("fColabNovo").value.trim() : selectedColab;
   const tipo = document.getElementById("fTipo").value;
   let loja = document.getElementById("fLoja").value;
   if(loja === "__outra__"){
     loja = document.getElementById("fLojaOutra").value.trim();
   }
-  if(!colaborador){ toast("Indica o colaborador"); return; }
+  if(!colaborador){ toast("Escolhe ou escreve o colaborador"); return; }
   if(!loja){ toast("Indica a loja"); return; }
   const now = new Date().toISOString();
   try{
