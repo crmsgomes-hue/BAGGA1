@@ -77,10 +77,26 @@ function buildTabs(){
   CATEGORIAS.forEach(c=>{
     const b = document.createElement("div");
     b.className = "tab" + (c===currentCat ? " active":"");
-    b.textContent = c;
+    const pend = pendingCount(c);
+    b.innerHTML = c + (pend>0 ? ` <span style="background:var(--red); color:#fff; border-radius:8px; padding:1px 6px; font-size:11px;">${pend}</span>` : "");
     b.onclick = ()=>{ currentCat = c; buildTabs(); render(); };
     row.appendChild(b);
   });
+}
+
+function pendingCount(cat){
+  const s = state[cat];
+  if(!s.data) return 0;
+  const bounds = periodBounds(cat);
+  if(!bounds) return 0;
+  const dates = dateRange(bounds.start, bounds.end);
+  let count = 0;
+  s.selected.forEach(name=>{
+    const sentDates = s.data.bySender[name] || new Set();
+    const hasMissing = dates.some(d=>!sentDates.has(d));
+    if(hasMissing) count++;
+  });
+  return count;
 }
 
 /* ---------- PARSING DO EXPORT DO WHATSAPP ---------- */
@@ -138,6 +154,43 @@ function analyze(cat){
   s.senders = Object.keys(bySender).sort();
   s.selected = new Set(s.senders);
   s.data = {bySender, bySenderFiles, minDate, maxDate};
+  s.savedAt = new Date().toISOString();
+  saveToStorage(cat);
+}
+
+function saveToStorage(cat){
+  const s = state[cat];
+  if(!s.data) return;
+  const plain = {
+    fname: s.fname,
+    savedAt: s.savedAt,
+    senders: s.senders,
+    selected: [...s.selected],
+    period: s.period,
+    minDate: s.data.minDate,
+    maxDate: s.data.maxDate,
+    bySender: Object.fromEntries(s.senders.map(n=>[n, [...s.data.bySender[n]]]))
+  };
+  try{ localStorage.setItem("cj_fotos_"+cat, JSON.stringify(plain)); }catch(e){}
+}
+
+function loadFromStorage(cat){
+  try{
+    const raw = localStorage.getItem("cj_fotos_"+cat);
+    if(!raw) return;
+    const plain = JSON.parse(raw);
+    const s = state[cat];
+    s.fname = plain.fname;
+    s.savedAt = plain.savedAt;
+    s.senders = plain.senders;
+    s.selected = new Set(plain.selected);
+    s.period = plain.period || "mes";
+    s.raw = "__restored__"; // marca que há dados, mesmo sem o texto completo
+    s.zip = null;
+    const bySender = {};
+    Object.keys(plain.bySender).forEach(n=> bySender[n] = new Set(plain.bySender[n]));
+    s.data = {bySender, bySenderFiles:{}, minDate:plain.minDate, maxDate:plain.maxDate};
+  }catch(e){ console.error(e); }
 }
 
 function dateRange(startStr, endStr){
@@ -181,11 +234,12 @@ function render(){
 
   const toolbar = document.createElement("div");
   toolbar.className = "card";
-  toolbar.innerHTML = `<h3>Ficheiro: ${s.fname}</h3>`;
+  const savedTxt = s.savedAt ? new Date(s.savedAt).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : "";
+  toolbar.innerHTML = `<h3>Última verificação</h3><div class="field-label">${savedTxt} · ${s.fname||''}</div>`;
   const reset = document.createElement("button");
   reset.className = "resetbtn";
-  reset.textContent = "Trocar ficheiro";
-  reset.onclick = ()=>{ s.raw=null; s.fname=null; s.data=null; s.zip=null; render(); };
+  reset.textContent = "📥 Carregar novo export";
+  reset.onclick = ()=>{ s.raw=null; s.fname=null; s.data=null; s.zip=null; localStorage.removeItem("cj_fotos_"+currentCat); buildTabs(); render(); };
   toolbar.appendChild(reset);
   main.appendChild(toolbar);
 
@@ -199,7 +253,7 @@ function render(){
     const c = document.createElement("div");
     c.className = "chip" + (s.period===val ? " sel":"");
     c.textContent = label;
-    c.onclick = ()=>{ s.period=val; render(); };
+    c.onclick = ()=>{ s.period=val; saveToStorage(currentCat); buildTabs(); render(); };
     pRow.appendChild(c);
   });
   periodCard.appendChild(pRow);
@@ -217,6 +271,8 @@ function render(){
     c.textContent = name;
     c.onclick = ()=>{
       if(s.selected.has(name)) s.selected.delete(name); else s.selected.add(name);
+      saveToStorage(currentCat);
+      buildTabs();
       render();
     };
     chipRow.appendChild(c);
@@ -332,6 +388,7 @@ function uploadCard(cat){
           state[cat].fname = file.name;
         }
         analyze(cat);
+        buildTabs();
         render();
       }catch(err){
         console.error(err);
@@ -342,6 +399,7 @@ function uploadCard(cat){
   return card;
 }
 
+CATEGORIAS.forEach(c=>loadFromStorage(c));
 buildTabs();
 render();
 </script>
