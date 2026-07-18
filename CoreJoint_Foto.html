@@ -39,7 +39,7 @@
   .btn-cancel{flex:1; background:none; border:1px solid var(--line); padding:13px; border-radius:10px; font-size:15px; color:var(--ink-soft);}
   .btn-save{flex:1.4; background:var(--terracotta); color:#fff; border:none; padding:13px; border-radius:10px; font-size:15px; font-weight:600;}
   .btn-save:disabled{opacity:.5;}
-  .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:20px; font-size:14px; z-index:99; opacity:0; transition:opacity .25s;}
+  .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:14px; font-size:13px; z-index:99; opacity:0; transition:opacity .25s; max-width:90vw; white-space:pre-wrap; word-break:break-word; text-align:center;}
   .toast.show{opacity:1;}
 </style>
 </head>
@@ -81,8 +81,10 @@ let pendingPhoto = null;
 
 function toast(msg){
   const t = document.getElementById("toast");
+  const dur = msg.length > 40 ? 7000 : 1800;
   t.textContent = msg; t.classList.add("show");
-  setTimeout(()=>t.classList.remove("show"), 1800);
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>t.classList.remove("show"), dur);
 }
 function isoDate(d){ return d.toISOString().slice(0,10); }
 function todayStr(){ return isoDate(new Date()); }
@@ -324,7 +326,7 @@ async function confirmCapture(kind, key, turno){
     await loadAll();
   }catch(e){
     console.error(e);
-    toast("Erro ao guardar — tenta de novo");
+    toast("Erro: " + (e.message||e).slice(0,120));
   }
 }
 
