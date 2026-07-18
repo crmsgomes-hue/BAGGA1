@@ -4649,19 +4649,60 @@ async function genRel(){
 
   // Secção lista de equipamentos (vEquip)
   const equipListaHtml = (()=>{
-    const estadoLabel = v => v==='ok'?'<span style="color:#5C7A5C;font-weight:700">✓ OK</span>':v==='nok'?'<span style="color:#B0432F;font-weight:700">✗ NOK</span>':v==='na'?'<span style="color:#888">N/A</span>':'<span style="color:#c0a88a">—</span>';
-    const rows = EQUIP_LISTA.map(eq=>{
-      const item = vEquip[eq.id]||{estado:null,notas:'',fotos:[]};
-      const fotosH = item.fotos.map(f=>`<img src="${f}" style="width:80px;height:60px;object-fit:cover;border-radius:4px;margin:2px">`).join('');
-      return `<tr><td style="padding:6px 8px;font-weight:600;font-size:.82rem;border:1px solid #e8ddc9">${eq.label}</td>`+
-        `<td style="padding:6px 8px;text-align:center;border:1px solid #e8ddc9">${estadoLabel(item.estado)}</td>`+
-        `<td style="padding:6px 8px;font-size:.79rem;color:#555;border:1px solid #e8ddc9">${item.notas||'—'}</td>`+
-        `<td style="padding:4px 6px;border:1px solid #e8ddc9">${fotosH}</td></tr>`;
+    const temDados = EQUIP_LISTA.some(eq => vEquip[eq.id]&&vEquip[eq.id].estado);
+    if(!temDados) return '';
+
+    const nokItems  = EQUIP_LISTA.filter(eq => vEquip[eq.id]&&vEquip[eq.id].estado==='nok');
+    const okCount   = EQUIP_LISTA.filter(eq => vEquip[eq.id]&&vEquip[eq.id].estado==='ok').length;
+    const naCount   = EQUIP_LISTA.filter(eq => vEquip[eq.id]&&vEquip[eq.id].estado==='na').length;
+    const totalAval = EQUIP_LISTA.filter(eq => vEquip[eq.id]&&vEquip[eq.id].estado).length;
+
+    // ── Resumo compacto para o PDF impresso (sempre visível) ──
+    const nokSummary = nokItems.length
+      ? nokItems.map(eq=>{
+          const item=vEquip[eq.id];
+          return `<div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;border-bottom:1px solid #f5ebe0">
+            <span style="color:#B0432F;font-weight:700;min-width:14px">✗</span>
+            <div><strong style="font-size:.82rem">${eq.label}</strong>${item.notas?`<span style="color:#555;font-size:.79rem"> — ${item.notas}</span>`:''}</div>
+          </div>`;
+        }).join('')
+      : `<div style="color:#5C7A5C;font-size:.82rem">Todos os equipamentos avaliados conformes.</div>`;
+
+    // ── Tabela completa para a app (dentro do <details>) ──
+    const fullTable = EQUIP_LISTA.map(eq=>{
+      const item=vEquip[eq.id]||{estado:null,notas:'',fotos:[]};
+      if(!item.estado) return '';
+      const est=item.estado==='ok'?'<span style="color:#5C7A5C;font-weight:700">✓ OK</span>':item.estado==='nok'?'<span style="color:#B0432F;font-weight:700">✗ NOK</span>':'<span style="color:#888">N/A</span>';
+      const fotosH=item.fotos.map(f=>`<img src="${f}" style="width:72px;height:54px;object-fit:cover;border-radius:4px;margin:2px">`).join('');
+      return `<tr>
+        <td style="padding:5px 8px;font-weight:600;font-size:.81rem;border:1px solid #e8ddc9">${eq.label}</td>
+        <td style="padding:5px 8px;text-align:center;border:1px solid #e8ddc9">${est}</td>
+        <td style="padding:5px 8px;font-size:.78rem;color:#555;border:1px solid #e8ddc9">${item.notas||'—'}</td>
+        <td style="padding:3px 6px;border:1px solid #e8ddc9">${fotosH}</td>
+      </tr>`;
     }).join('');
-    return rows.trim() ? `<div style="margin-bottom:16px;break-inside:avoid"><div class="rep-sec">🔧 Lista de Equipamentos</div>`+
-      `<table style="width:100%;border-collapse:collapse;font-size:.82rem">`+
-      `<tr style="background:#faf7f2"><th style="padding:5px 8px;border:1px solid #e8ddc9;text-align:left">Equipamento</th><th style="padding:5px 8px;border:1px solid #e8ddc9">Estado</th><th style="padding:5px 8px;border:1px solid #e8ddc9;text-align:left">Observação</th><th style="padding:5px 8px;border:1px solid #e8ddc9;text-align:left">Fotos</th></tr>`+
-      rows+`</table></div>` : '';
+
+    return `
+    <div style="margin-bottom:14px">
+      <div class="rep-sec">🔧 Equipamentos — Resumo <span style="font-weight:400;color:#888;font-size:.78rem">(${okCount} OK · ${nokItems.length} NOK · ${naCount} N/A)</span></div>
+      <!-- Resumo NOK: visível sempre, incluindo no print -->
+      <div class="equip-resumo-print">${nokSummary}</div>
+      <!-- Tabela completa: colapsável na app, oculta no print -->
+      <details class="equip-detalhe-app" style="margin-top:8px">
+        <summary style="cursor:pointer;font-size:.8rem;color:var(--ac,#C1622D);font-weight:600;list-style:none;display:flex;align-items:center;gap:6px">
+          <span class="equip-arrow">▶</span> Ver lista completa (${totalAval}/${EQUIP_LISTA.length} avaliados)
+        </summary>
+        <table style="width:100%;border-collapse:collapse;font-size:.81rem;margin-top:8px">
+          <tr style="background:#faf7f2">
+            <th style="padding:5px 8px;border:1px solid #e8ddc9;text-align:left">Equipamento</th>
+            <th style="padding:5px 8px;border:1px solid #e8ddc9">Estado</th>
+            <th style="padding:5px 8px;border:1px solid #e8ddc9;text-align:left">Observação</th>
+            <th style="padding:5px 8px;border:1px solid #e8ddc9;text-align:left">Fotos</th>
+          </tr>
+          ${fullTable}
+        </table>
+      </details>
+    </div>`;
   })();
 
   const chegadaHtml = vChegadaPhoto ?
@@ -4725,7 +4766,9 @@ async function genRel(){
     .rep-comment.filled{color:#3f362b;font-style:normal;background:#f7f3ea;padding:7px 9px;border-radius:3px}
     .rep-photo{width:118px;height:88px;object-fit:cover;border-radius:3px;border:1px solid #e8ddc9;display:inline-block;margin:0 6px 6px 0;vertical-align:top}
     .rep-photo-cap{font-size:9px;color:#6b5d4f;max-width:118px;display:block;margin:2px 6px 6px 0}
-    @media print{body{margin:0;padding:18px}.no-print{display:none!important}.rep-detail-toggle{display:none!important}}
+    .equip-detalhe-app summary{user-select:none}
+    .equip-detalhe-app[open] .equip-arrow{transform:rotate(90deg);display:inline-block}
+    @media print{body{margin:0;padding:18px}.no-print{display:none!important}.rep-detail-toggle{display:none!important}.equip-detalhe-app{display:none!important}.equip-resumo-print{display:block!important}}
   </style></head><body>
   <div id="pdf-report">
   <div style="margin-bottom:18px">
