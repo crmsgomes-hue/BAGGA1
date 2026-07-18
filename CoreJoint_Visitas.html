@@ -196,8 +196,10 @@
   <div class="ps">Pendentes em aberto nas lojas</div>
   <!-- ALERTAS SISTÉMICOS — só visível para a CROP -->
   <div id="crop-alertas-sistemicos" style="display:none;margin-bottom:14px"></div>
-  <!-- TAREFAS DO CALENDÁRIO HOJE -->
+  <!-- ALERTAS CALENDÁRIO -->
   <div id="dash-cal-hoje" style="display:none;margin-bottom:14px"></div>
+  <!-- ALERTAS EQUIPAMENTOS SEM PO (só GOP) -->
+  <div id="dash-equip-alerts" style="display:none"></div>
   <div id="dash-resumo" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
   <div id="dash-pendentes-list"></div>
 </div>
@@ -284,9 +286,22 @@
 <div class="sec" id="s-equipamentos_avarias">
   <div class="pt">Equipamentos</div>
   <div class="ps" id="equip-av-sub">Avarias reportadas nas visitas</div>
-  <div id="equip-av-filtro" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
+  <div id="equip-av-filtro" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px"></div>
   <div id="equip-av-lista"></div>
+  <div id="equip-av-hist"></div>
 </div>
+
+<!-- MODAL: Número de PO -->
+<div class="mo" id="m-equip-po"><div class="md" style="max-width:340px">
+  <div class="mh"><div class="mtt">🔧 Equipamento Resolvido</div><button class="mx" onclick="closeM('m-equip-po')">✕</button></div>
+  <input type="hidden" id="equip-po-avid">
+  <p style="font-size:.85rem;color:var(--t2);margin:0 0 12px">Introduz o número da PO (Pedido de Compra). Podes deixar em branco mas receberás um alerta no Dashboard.</p>
+  <div class="fg"><label>Número de PO</label><input type="text" id="equip-po-input" class="fc" placeholder="Ex: PO-2026-0432"></div>
+  <div class="mf">
+    <button class="btn bs" onclick="closeM('m-equip-po')">Cancelar</button>
+    <button class="btn bg2" onclick="confirmarPO()">✅ Confirmar</button>
+  </div>
+</div></div>
 
 <div class="sec" id="s-visitas">
   <div class="pt" id="v-page-title">Visitas GOP</div><div class="ps">Auditoria de loja com câmara e tarefas</div>
@@ -1673,7 +1688,7 @@ async function doLogin(){
   loadProcDossiers();
   if(CU && CU.role==='crop') loadAlertasSistemicos();
   loadCalDashHoje();
-  // Popup de lembrete para GOPs — ligeiro delay para não bloquear o render
+  loadEquipAlertsDashboard();
   setTimeout(mostrarLembreteTarefas, 800);
 }
 
@@ -2958,30 +2973,21 @@ function delEquipFoto(id, idx){
 // EQUIPAMENTOS AVARIAS
 // ══════════════════════════════════════════════════════════════════════════════
 
-let _equipAvFiltro = null; // filtro activo por equipamento
+let _equipAvFiltro = null;
 
 async function rEquipamentosAvarias(){
   const lista = el('equip-av-lista');
   if(lista) lista.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:10px">A carregar…</div>';
   const isCrop = CU && CU.role === 'crop';
   const regiao = CU && CU.region ? CU.region : (CU && CU.gopId ? gopRegion(CU.gopId) : 'sul');
-
-  let q = 'estado=neq.resolvido&order=updated_at.desc';
-  if(isCrop){
-    q += '&region=eq.'+regiao;
-    if(el('equip-av-sub')) el('equip-av-sub').textContent = 'Equipamentos avariados — '+regiao.charAt(0).toUpperCase()+regiao.slice(1);
-  } else {
-    q += '&gop_id=eq.'+CU.gopId;
-    if(el('equip-av-sub')) el('equip-av-sub').textContent = 'Os teus equipamentos avariados';
-  }
-
+  let q = 'estado=in.(aberto,em_curso)&order=updated_at.desc';
+  q += isCrop ? '&region=eq.'+regiao : '&gop_id=eq.'+CU.gopId;
   const rows = await dbGet('cj_equipamentos_avarias', q) || [];
 
-  // Filtros por tipo de equipamento
-  const tiposPresentes = [...new Set(rows.map(r=>r.equip_id))];
-  const PILL = 'display:inline-block;padding:6px 13px;border-radius:99px;font-size:.78rem;font-weight:600;cursor:pointer;border:1.5px solid var(--br);background:var(--sf2);color:var(--t2);margin:0 4px 6px 0;font-family:inherit;touch-action:manipulation';
+  // ── Filtros ───────────────────────────────────────────────────────────────
+  const PILL    = 'display:inline-block;padding:6px 13px;border-radius:99px;font-size:.78rem;font-weight:600;cursor:pointer;border:1.5px solid var(--br);background:var(--sf2);color:var(--t2);margin:0 4px 6px 0;font-family:inherit;touch-action:manipulation';
   const PILL_ON = 'display:inline-block;padding:6px 13px;border-radius:99px;font-size:.78rem;font-weight:600;cursor:pointer;border:1.5px solid var(--ac);background:var(--ac);color:#fff;margin:0 4px 6px 0;font-family:inherit;touch-action:manipulation';
-
+  const tiposPresentes = [...new Set(rows.map(r=>r.equip_id))];
   const filtroEl = el('equip-av-filtro');
   if(filtroEl){
     filtroEl.innerHTML = '';
@@ -2990,7 +2996,6 @@ async function rEquipamentosAvarias(){
     btnTodos.textContent = 'Todos ('+rows.length+')';
     btnTodos.addEventListener('click', () => setEquipAvFiltro(null));
     filtroEl.appendChild(btnTodos);
-
     tiposPresentes.forEach(id => {
       const lbl = EQUIP_LISTA.find(e=>e.id===id);
       const cnt = rows.filter(r=>r.equip_id===id).length;
@@ -3002,117 +3007,153 @@ async function rEquipamentosAvarias(){
     });
   }
 
-  const rowsFiltradas = _equipAvFiltro ? rows.filter(r=>r.equip_id===_equipAvFiltro) : rows;
-
-  if(!rowsFiltradas.length){
+  const rowsFilt = _equipAvFiltro ? rows.filter(r=>r.equip_id===_equipAvFiltro) : rows;
+  if(!rowsFilt.length){
     if(lista) lista.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:16px;text-align:center">✅ Sem equipamentos avariados em aberto.</div>';
-    return;
-  }
+  } else {
+    const grupos = {};
+    rowsFilt.forEach(r=>{ if(!grupos[r.equip_id]) grupos[r.equip_id]=[]; grupos[r.equip_id].push(r); });
+    let html = '';
+    Object.entries(grupos).forEach(([equipId, items])=>{
+      const lbl = EQUIP_LISTA.find(e=>e.id===equipId);
+      html += '<div style="margin-bottom:16px"><div style="font-family:Syne,sans-serif;font-weight:800;font-size:.92rem;color:var(--ac);margin-bottom:8px;padding:8px 12px;background:var(--acl);border-radius:var(--rb)">⚙️ '+(lbl?lbl.label:equipId)+' <span style="font-size:.75rem;font-weight:400;color:var(--t2)">('+items.length+')</span></div>';
+      items.forEach(r=>{
+        const valCor = r.validacao==='aprovado'?'var(--grn)':r.validacao==='rejeitado'?'var(--red)':'var(--org)';
+        const valLabel = r.validacao==='aprovado'?'✅ Aprovado':r.validacao==='rejeitado'?'❌ Rejeitado':'⏳ Pendente';
+        const fotos = JSON.parse(r.fotos||'[]');
+        html += '<div style="background:#fff;border-radius:var(--rb);border:1px solid var(--br);border-left:4px solid var(--red);padding:12px 14px;margin-bottom:8px">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:8px"><div><div style="font-weight:700;font-size:.88rem">📍 '+sn(r.loja)+'</div>';
+        if(isCrop) html += '<div style="font-size:.75rem;color:var(--t2)">👤 '+r.gop_nome+' · '+r.data_visita+'</div>';
+        else html += '<div style="font-size:.75rem;color:var(--t2)">'+r.data_visita+'</div>';
+        html += '</div><span style="font-size:.73rem;font-weight:700;color:'+valCor+';background:#fff;border:1.5px solid '+valCor+';padding:2px 9px;border-radius:99px">'+valLabel+'</span></div>';
+        if(r.notas_gop) html += '<div style="font-size:.81rem;color:#444;margin-bottom:8px;padding:6px 8px;background:var(--sf2);border-radius:var(--rb)">📋 '+r.notas_gop+'</div>';
+        if(fotos.length) html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">'+fotos.slice(0,4).map(f=>'<img src="'+f+'" style="width:72px;height:54px;object-fit:cover;border-radius:5px">').join('')+'</div>';
 
-  // Agrupar por tipo de equipamento
-  const grupos = {};
-  rowsFiltradas.forEach(r=>{ if(!grupos[r.equip_id]) grupos[r.equip_id]=[]; grupos[r.equip_id].push(r); });
-
-  let html = '';
-  Object.entries(grupos).forEach(([equipId, items])=>{
-    const lbl = EQUIP_LISTA.find(e=>e.id===equipId);
-    const equipNome = lbl ? lbl.label : equipId;
-    html += '<div style="margin-bottom:16px">';
-    html += '<div style="font-family:Syne,sans-serif;font-weight:800;font-size:.92rem;color:var(--ac);margin-bottom:8px;padding:8px 12px;background:var(--acl);border-radius:var(--rb)">⚙️ '+equipNome+' <span style="font-size:.75rem;font-weight:400;color:var(--t2)">('+items.length+')</span></div>';
-    items.forEach(r=>{
-      const valCor = r.validacao==='aprovado'?'var(--grn)':r.validacao==='rejeitado'?'var(--red)':'var(--org)';
-      const valLabel = r.validacao==='aprovado'?'✅ Aprovado':r.validacao==='rejeitado'?'❌ Rejeitado':'⏳ Pendente';
-      const fotos = JSON.parse(r.fotos||'[]');
-      html += '<div style="background:#fff;border-radius:var(--rb);border:1px solid var(--br);border-left:4px solid var(--red);padding:12px 14px;margin-bottom:8px">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:8px">';
-      html += '<div><div style="font-weight:700;font-size:.88rem">📍 '+sn(r.loja)+'</div>';
-      if(isCrop) html += '<div style="font-size:.75rem;color:var(--t2)">👤 '+r.gop_nome+' · '+r.data_visita+'</div>';
-      else html += '<div style="font-size:.75rem;color:var(--t2)">'+r.data_visita+'</div>';
-      html += '</div>';
-      html += '<span style="font-size:.73rem;font-weight:700;color:'+valCor+';background:#fff;border:1.5px solid '+valCor+';padding:2px 9px;border-radius:99px">'+valLabel+'</span>';
-      html += '</div>';
-      if(r.notas_gop) html += '<div style="font-size:.81rem;color:#444;margin-bottom:8px;padding:6px 8px;background:var(--sf2);border-radius:var(--rb)">📋 '+r.notas_gop+'</div>';
-      if(fotos.length) html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">'+fotos.slice(0,4).map(f=>'<img src="'+f+'" style="width:72px;height:54px;object-fit:cover;border-radius:5px">').join('')+'</div>';
-
-      // Campos editáveis pelo GOP
-      html += '<div style="margin-bottom:8px">';
-      html += '<label style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:var(--t2);display:block;margin-bottom:3px">Ação tomada / Empresa contactada</label>';
-      html += '<textarea id="eqav-acao-'+r.id+'" class="jta" style="min-height:55px;font-size:.82rem" placeholder="Ex: Chamei a UPK, aguarda peça…">'+escH(r.acao_gop||'')+'</textarea>';
-      html += '</div>';
-      html += '<div style="margin-bottom:8px">';
-      html += '<label style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:var(--t2);display:block;margin-bottom:3px">Orçamento (€)</label>';
-      html += '<input type="text" id="eqav-orc-'+r.id+'" class="fc" style="font-size:.85rem" placeholder="Ex: 350,00€" value="'+escH(r.orcamento||'')+'">';
-      html += '</div>';
-      html += '<button data-avid="'+r.id+'" data-action="guardar" style="padding:8px 14px;border-radius:var(--rb);border:none;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;background:var(--sf2);color:var(--t);border:1.5px solid var(--br);margin-bottom:8px">💾 Guardar</button>';
-
-      // Validação CROP
-      if(isCrop){
-        html += '<div style="border-top:1px solid var(--br);padding-top:8px;margin-top:4px">';
-        html += '<label style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:var(--t2);display:block;margin-bottom:5px">🟣 Validação CROP</label>';
-        html += '<textarea id="eqav-ncrop-'+r.id+'" class="jta" style="min-height:44px;font-size:.82rem;margin-bottom:6px" placeholder="Notas da CROP…">'+escH(r.notas_crop||'')+'</textarea>';
-        html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
-        html += '<button data-avid="'+r.id+'" data-action="aprovar" style="padding:8px 14px;border-radius:var(--rb);border:none;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;background:var(--grn);color:#fff">✅ Aprovar orçamento</button>';
-        html += '<button data-avid="'+r.id+'" data-action="rejeitar" style="padding:8px 14px;border-radius:var(--rb);border:none;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;background:var(--red);color:#fff">❌ Rejeitar</button>';
-        html += '<button data-avid="'+r.id+'" data-action="resolver" style="padding:8px 14px;border-radius:var(--rb);border:none;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;background:#6b7280;color:#fff">🔧 Resolvido</button>';
-        html += '</div>';
-        if(r.notas_crop) html += '<div style="font-size:.78rem;color:var(--t2);margin-top:5px;font-style:italic">Última nota CROP: '+escH(r.notas_crop)+'</div>';
-        html += '</div>';
-      } else {
-        // GOP vê o resultado da validação da CROP
-        if(r.validacao !== 'pendente'){
-          html += '<div style="border-top:1px solid var(--br);padding-top:8px;margin-top:4px;font-size:.79rem">';
-          html += '<span style="color:'+valCor+';font-weight:600">CROP: '+valLabel+'</span>';
-          if(r.notas_crop) html += '<div style="color:var(--t2);margin-top:2px">'+escH(r.notas_crop)+'</div>';
+        if(isCrop){
+          if(r.acao_gop) html += '<div style="margin-bottom:8px"><div style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:var(--t2);margin-bottom:3px">Ação tomada</div><div style="font-size:.82rem;color:#444;padding:7px 9px;background:var(--sf2);border-radius:var(--rb)">'+escH(r.acao_gop)+'</div></div>';
+          if(r.orcamento) html += '<div style="margin-bottom:10px"><div style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:var(--t2);margin-bottom:3px">Orçamento</div><div style="font-size:.88rem;font-weight:700;color:var(--ac)">'+escH(r.orcamento)+'</div></div>';
+          html += '<div style="border-top:1px solid var(--br);padding-top:10px"><div style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:#7c3aed;margin-bottom:5px">🟣 Validação CROP</div>';
+          html += '<textarea id="eqav-ncrop-'+r.id+'" class="jta" style="min-height:44px;font-size:.82rem;margin-bottom:8px" placeholder="Notas…">'+escH(r.notas_crop||'')+'</textarea>';
+          html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+          html += '<button data-avid="'+r.id+'" data-action="aprovar" style="padding:8px 16px;border-radius:var(--rb);border:none;background:var(--grn);color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">✅ Aprovar orçamento</button>';
+          html += '<button data-avid="'+r.id+'" data-action="rejeitar" style="padding:8px 16px;border-radius:var(--rb);border:none;background:var(--red);color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">❌ Rejeitar</button>';
           html += '</div>';
+          if(r.notas_crop) html += '<div style="font-size:.77rem;color:var(--t2);margin-top:5px;font-style:italic">Última nota: '+escH(r.notas_crop)+'</div>';
+          html += '</div>';
+        } else {
+          html += '<div style="margin-bottom:8px"><div style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:var(--t2);margin-bottom:3px">Ação tomada / Empresa contactada</div><textarea id="eqav-acao-'+r.id+'" class="jta" style="min-height:55px;font-size:.82rem" placeholder="Ex: Chamei a UPK, aguarda peça…">'+escH(r.acao_gop||'')+'</textarea></div>';
+          html += '<div style="margin-bottom:10px"><div style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:var(--t2);margin-bottom:3px">Orçamento (€)</div><input type="text" id="eqav-orc-'+r.id+'" class="fc" style="font-size:.85rem" placeholder="Ex: 350,00€" value="'+escH(r.orcamento||'')+'"></div>';
+          html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+          html += '<button data-avid="'+r.id+'" data-action="guardar" style="padding:8px 14px;border-radius:var(--rb);border:1.5px solid var(--br);background:var(--sf2);color:var(--t);font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">💾 Guardar</button>';
+          html += '<button data-avid="'+r.id+'" data-action="resolver" style="padding:8px 14px;border-radius:var(--rb);border:none;background:#6b7280;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">🔧 Resolvido</button>';
+          html += '</div>';
+          if(r.validacao !== 'pendente'){
+            const vc2 = r.validacao==='aprovado'?'var(--grn)':'var(--red)';
+            html += '<div style="border-top:1px solid var(--br);padding-top:7px;margin-top:8px;font-size:.79rem"><span style="color:'+vc2+';font-weight:600">CROP: '+valLabel+'</span>';
+            if(r.notas_crop) html += '<div style="color:var(--t2);margin-top:2px">'+escH(r.notas_crop)+'</div>';
+            html += '</div>';
+          }
         }
-      }
-      html += '</div>'; // fim card
+        html += '</div>';
+      });
+      html += '</div>';
     });
-    html += '</div>'; // fim grupo
-  });
-  if(lista){
-    lista.innerHTML = html;
-    lista.onclick = function(e){
-      const btn = e.target.closest('[data-action]');
-      if(!btn) return;
-      const avId = btn.getAttribute('data-avid');
-      const action = btn.getAttribute('data-action');
-      if(action==='guardar') guardarEquipAv(avId);
-      if(action==='aprovar') validarEquipAv(avId,'aprovado');
-      if(action==='rejeitar') validarEquipAv(avId,'rejeitado');
-      if(action==='resolver') resolverEquipAv(avId);
-    };
+    if(lista){
+      lista.innerHTML = html;
+      lista.onclick = function(e){
+        const btn = e.target.closest('[data-action]');
+        if(!btn) return;
+        const avId = btn.getAttribute('data-avid');
+        const ac   = btn.getAttribute('data-action');
+        if(ac==='guardar')  guardarEquipAv(avId);
+        if(ac==='aprovar')  validarEquipAv(avId,'aprovado');
+        if(ac==='rejeitar') validarEquipAv(avId,'rejeitado');
+        if(ac==='resolver') abrirModalPO(avId);
+      };
+    }
   }
+  await renderEquipAvHist(isCrop, regiao);
 }
 
-function setEquipAvFiltro(id){
-  _equipAvFiltro = id;
-  rEquipamentosAvarias();
+async function renderEquipAvHist(isCrop, regiao){
+  const histEl = el('equip-av-hist');
+  if(!histEl) return;
+  let q = 'estado=eq.resolvido&order=updated_at.desc';
+  q += isCrop ? '&region=eq.'+regiao : '&gop_id=eq.'+CU.gopId;
+  const hist = await dbGet('cj_equipamentos_avarias', q) || [];
+  let html = '<div style="font-weight:700;font-size:.88rem;margin:16px 0 10px;border-top:2px solid var(--br);padding-top:14px">📁 Histórico — Equipamentos Resolvidos</div>';
+  if(!hist.length){ histEl.innerHTML = html+'<div style="color:var(--t2);font-size:.82rem;padding:8px">Sem histórico.</div>'; return; }
+  const grupos = {};
+  if(isCrop){
+    hist.forEach(r=>{ const k=r.gop_nome||r.gop_id; if(!grupos[k]) grupos[k]={}; if(!grupos[k][r.loja]) grupos[k][r.loja]=[]; grupos[k][r.loja].push(r); });
+  } else {
+    hist.forEach(r=>{ if(!grupos[r.loja]) grupos[r.loja]=[]; grupos[r.loja].push(r); });
+  }
+  Object.entries(grupos).forEach(([grp, data])=>{
+    html += '<div style="margin-bottom:12px"><div style="font-weight:700;font-size:.83rem;color:var(--t2);padding:5px 10px;background:var(--sf2);border-radius:var(--rb);margin-bottom:6px">'+(isCrop?'👤 ':'📍 ')+grp+'</div>';
+    const items = isCrop ? Object.entries(data).flatMap(([,rs])=>rs) : data;
+    items.forEach(r=>{
+      const semPO = !r.po_number || !r.po_number.trim();
+      html += '<div style="display:flex;align-items:flex-start;gap:10px;padding:7px 10px;border-bottom:1px solid var(--br);font-size:.8rem"><div style="flex:1">';
+      if(isCrop) html += '<div style="font-size:.73rem;color:var(--t2)">📍 '+sn(r.loja)+'</div>';
+      html += '<strong>'+r.equip_label+'</strong>';
+      if(r.notas_gop) html += ' <span style="color:var(--t2)">— '+r.notas_gop+'</span>';
+      html += '<div style="font-size:.73rem;color:var(--t2);margin-top:2px">'+r.data_visita+(r.resolved_at?' · Resolvido '+r.resolved_at:'')+'</div>';
+      if(r.acao_gop) html += '<div style="font-size:.77rem;color:#555;margin-top:2px">'+r.acao_gop+'</div>';
+      html += '</div><div style="text-align:right;min-width:80px">';
+      if(semPO) html += '<span style="font-size:.72rem;background:#fff3cd;color:#856404;padding:2px 8px;border-radius:99px;font-weight:600">⚠️ Sem PO</span>';
+      else html += '<span style="font-size:.72rem;background:#d1e7dd;color:#0f5132;padding:2px 8px;border-radius:99px;font-weight:600">PO '+escH(r.po_number)+'</span>';
+      if(r.orcamento) html += '<div style="font-size:.77rem;color:var(--ac);font-weight:600;margin-top:3px">'+escH(r.orcamento)+'</div>';
+      html += '</div></div>';
+    });
+    html += '</div>';
+  });
+  histEl.innerHTML = html;
 }
+
+function setEquipAvFiltro(id){ _equipAvFiltro=id; rEquipamentosAvarias(); }
 
 async function guardarEquipAv(id){
-  const acao = (el('eqav-acao-'+id)||{value:''}).value;
-  const orc  = (el('eqav-orc-'+id)||{value:''}).value;
-  const upd = {acao_gop: acao, orcamento: orc, updated_at: new Date().toISOString()};
-  if(orc && orc.trim()) upd.estado = 'em_curso';
-  await sb('PATCH','cj_equipamentos_avarias', upd, 'id=eq.'+id, true);
-  toast('💾 Guardado!');
-  rEquipamentosAvarias();
+  const acao=(el('eqav-acao-'+id)||{value:''}).value;
+  const orc=(el('eqav-orc-'+id)||{value:''}).value;
+  const upd={acao_gop:acao,orcamento:orc,updated_at:new Date().toISOString()};
+  if(orc&&orc.trim()) upd.estado='em_curso';
+  await sb('PATCH','cj_equipamentos_avarias',upd,'id=eq.'+id,true);
+  toast('💾 Guardado!'); rEquipamentosAvarias();
 }
 
-async function validarEquipAv(id, val){
-  const notas = (el('eqav-ncrop-'+id)||{value:''}).value;
-  await sb('PATCH','cj_equipamentos_avarias', {validacao:val, notas_crop:notas, updated_at:new Date().toISOString()}, 'id=eq.'+id, true);
-  toast(val==='aprovado'?'✅ Orçamento aprovado':'❌ Rejeitado');
-  rEquipamentosAvarias();
+async function validarEquipAv(id,val){
+  const notas=(el('eqav-ncrop-'+id)||{value:''}).value;
+  await sb('PATCH','cj_equipamentos_avarias',{validacao:val,notas_crop:notas,updated_at:new Date().toISOString()},'id=eq.'+id,true);
+  toast(val==='aprovado'?'✅ Aprovado':'❌ Rejeitado'); rEquipamentosAvarias();
 }
 
-async function resolverEquipAv(id){
-  if(!confirm('Marcar este equipamento como resolvido?')) return;
-  const notas = (el('eqav-ncrop-'+id)||{value:''}).value;
-  await sb('PATCH','cj_equipamentos_avarias', {estado:'resolvido', notas_crop:notas, updated_at:new Date().toISOString()}, 'id=eq.'+id, true);
-  toast('🔧 Marcado como resolvido!');
-  rEquipamentosAvarias();
+function abrirModalPO(avId){
+  openM('m-equip-po');
+  el('equip-po-avid').value=avId;
+  el('equip-po-input').value='';
+  setTimeout(()=>{ const i=el('equip-po-input'); if(i) i.focus(); },200);
+}
+
+async function confirmarPO(){
+  const avId=(el('equip-po-avid')||{value:''}).value;
+  const po=(el('equip-po-input')||{value:''}).value.trim();
+  closeM('m-equip-po');
+  await sb('PATCH','cj_equipamentos_avarias',{estado:'resolvido',resolved_by:who(),resolved_at:now().slice(0,10),updated_at:new Date().toISOString(),po_number:po},'id=eq.'+avId,true);
+  toast(po?'🔧 Resolvido! PO: '+po:'🔧 Resolvido — não te esqueças de preencher a PO!');
+  rEquipamentosAvarias(); loadEquipAlertsDashboard();
+}
+
+async function loadEquipAlertsDashboard(){
+  const dashCard=el('dash-equip-alerts');
+  if(!dashCard||!CU||CU.role!=='gop') return;
+  const rows=await dbGet('cj_equipamentos_avarias','estado=eq.resolvido&po_number=eq.&gop_id=eq.'+CU.gopId)||[];
+  if(!rows.length){ dashCard.style.display='none'; return; }
+  dashCard.style.display='block';
+  dashCard.innerHTML='<div style="background:#fff3cd;border:1.5px solid #ffc107;border-radius:var(--ra);padding:12px 14px;margin-bottom:14px">'+
+    '<div style="font-weight:700;font-size:.88rem;color:#856404;margin-bottom:8px">⚠️ Equipamentos sem número de PO</div>'+
+    rows.map(r=>'<div style="font-size:.82rem;color:#555;padding:4px 0;border-bottom:1px solid #ffeaa7">📍 '+sn(r.loja)+' — <strong>'+r.equip_label+'</strong></div>').join('')+
+    '<div style="font-size:.76rem;color:#856404;margin-top:8px">Acede ao separador ⚙️ Equipamentos para preencher o número de PO.</div></div>';
 }
 
 // Criar/actualizar avarias ao arquivar uma visita
