@@ -2979,14 +2979,27 @@ async function rEquipamentosAvarias(){
 
   // Filtros por tipo de equipamento
   const tiposPresentes = [...new Set(rows.map(r=>r.equip_id))];
+  const PILL = 'display:inline-block;padding:6px 13px;border-radius:99px;font-size:.78rem;font-weight:600;cursor:pointer;border:1.5px solid var(--br);background:var(--sf2);color:var(--t2);margin:0 4px 6px 0;font-family:inherit;touch-action:manipulation';
+  const PILL_ON = 'display:inline-block;padding:6px 13px;border-radius:99px;font-size:.78rem;font-weight:600;cursor:pointer;border:1.5px solid var(--ac);background:var(--ac);color:#fff;margin:0 4px 6px 0;font-family:inherit;touch-action:manipulation';
+
   const filtroEl = el('equip-av-filtro');
   if(filtroEl){
-    filtroEl.innerHTML = '<button class="ck '+((!_equipAvFiltro)?'ok':'')+'" onclick="setEquipAvFiltro(null)">Todos ('+rows.length+')</button>' +
-      tiposPresentes.map(id=>{
-        const lbl = EQUIP_LISTA.find(e=>e.id===id);
-        const cnt = rows.filter(r=>r.equip_id===id).length;
-        return '<button class="ck '+(_equipAvFiltro===id?'ok':'')+'" onclick="setEquipAvFiltro(\'' + id + '\')">'+(lbl?lbl.label:id)+' ('+cnt+')</button>';
-      }).join('');
+    filtroEl.innerHTML = '';
+    const btnTodos = document.createElement('button');
+    btnTodos.setAttribute('style', !_equipAvFiltro ? PILL_ON : PILL);
+    btnTodos.textContent = 'Todos ('+rows.length+')';
+    btnTodos.addEventListener('click', () => setEquipAvFiltro(null));
+    filtroEl.appendChild(btnTodos);
+
+    tiposPresentes.forEach(id => {
+      const lbl = EQUIP_LISTA.find(e=>e.id===id);
+      const cnt = rows.filter(r=>r.equip_id===id).length;
+      const btn = document.createElement('button');
+      btn.setAttribute('style', _equipAvFiltro===id ? PILL_ON : PILL);
+      btn.textContent = (lbl?lbl.label:id)+' ('+cnt+')';
+      btn.addEventListener('click', (function(eid){ return function(){ setEquipAvFiltro(eid); }; })(id));
+      filtroEl.appendChild(btn);
+    });
   }
 
   const rowsFiltradas = _equipAvFiltro ? rows.filter(r=>r.equip_id===_equipAvFiltro) : rows;
