@@ -101,6 +101,7 @@
   <span class="ni on" data-s="dashboard" onclick="go('dashboard')">📊 Dashboard</span>
   <span class="ni" data-s="alertas" onclick="go('alertas')" id="n-alertas" style="display:none">🔔 Alertas</span>
   <span class="ni" data-s="calendario" onclick="go('calendario')">📅 Calendário</span>
+  <span class="ni" data-s="equipamentos_avarias" onclick="go('equipamentos_avarias')" id="n-equip-av">⚙️ Equipamentos</span>
   <span class="ni" data-s="visitas" onclick="go('visitas')">🔍 Visitas</span>
   <span class="ni" data-s="historico" onclick="go('historico')">📁 Histórico</span>
 </div>
@@ -277,6 +278,14 @@
     <div id="m-cal-ev-body"></div>
     <div class="mf" id="m-cal-ev-footer"></div>
   </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ EQUIPAMENTOS AVARIAS ══ -->
+<div class="sec" id="s-equipamentos_avarias">
+  <div class="pt">Equipamentos</div>
+  <div class="ps" id="equip-av-sub">Avarias reportadas nas visitas</div>
+  <div id="equip-av-filtro" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
+  <div id="equip-av-lista"></div>
 </div>
 
 <div class="sec" id="s-visitas">
@@ -2944,6 +2953,185 @@ function delEquipFoto(id, idx){
 
 // ──────────────────────────────────────────────────────────────────────────────
 
+
+// ══════════════════════════════════════════════════════════════════════════════
+// EQUIPAMENTOS AVARIAS
+// ══════════════════════════════════════════════════════════════════════════════
+
+let _equipAvFiltro = null; // filtro activo por equipamento
+
+async function rEquipamentosAvarias(){
+  const lista = el('equip-av-lista');
+  if(lista) lista.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:10px">A carregar…</div>';
+  const isCrop = CU && CU.role === 'crop';
+  const regiao = CU && CU.region ? CU.region : (CU && CU.gopId ? gopRegion(CU.gopId) : 'sul');
+
+  let q = 'estado=neq.resolvido&order=updated_at.desc';
+  if(isCrop){
+    q += '&region=eq.'+regiao;
+    if(el('equip-av-sub')) el('equip-av-sub').textContent = 'Equipamentos avariados — '+regiao.charAt(0).toUpperCase()+regiao.slice(1);
+  } else {
+    q += '&gop_id=eq.'+CU.gopId;
+    if(el('equip-av-sub')) el('equip-av-sub').textContent = 'Os teus equipamentos avariados';
+  }
+
+  const rows = await dbGet('cj_equipamentos_avarias', q) || [];
+
+  // Filtros por tipo de equipamento
+  const tiposPresentes = [...new Set(rows.map(r=>r.equip_id))];
+  const filtroEl = el('equip-av-filtro');
+  if(filtroEl){
+    filtroEl.innerHTML = '<button class="ck '+((!_equipAvFiltro)?'ok':'')+'" onclick="setEquipAvFiltro(null)">Todos ('+rows.length+')</button>' +
+      tiposPresentes.map(id=>{
+        const lbl = EQUIP_LISTA.find(e=>e.id===id);
+        const cnt = rows.filter(r=>r.equip_id===id).length;
+        return '<button class="ck '+(_equipAvFiltro===id?'ok':'')+'" onclick="setEquipAvFiltro(\'' + id + '\')">'+(lbl?lbl.label:id)+' ('+cnt+')</button>';
+      }).join('');
+  }
+
+  const rowsFiltradas = _equipAvFiltro ? rows.filter(r=>r.equip_id===_equipAvFiltro) : rows;
+
+  if(!rowsFiltradas.length){
+    if(lista) lista.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:16px;text-align:center">✅ Sem equipamentos avariados em aberto.</div>';
+    return;
+  }
+
+  // Agrupar por tipo de equipamento
+  const grupos = {};
+  rowsFiltradas.forEach(r=>{ if(!grupos[r.equip_id]) grupos[r.equip_id]=[]; grupos[r.equip_id].push(r); });
+
+  let html = '';
+  Object.entries(grupos).forEach(([equipId, items])=>{
+    const lbl = EQUIP_LISTA.find(e=>e.id===equipId);
+    const equipNome = lbl ? lbl.label : equipId;
+    html += '<div style="margin-bottom:16px">';
+    html += '<div style="font-family:Syne,sans-serif;font-weight:800;font-size:.92rem;color:var(--ac);margin-bottom:8px;padding:8px 12px;background:var(--acl);border-radius:var(--rb)">⚙️ '+equipNome+' <span style="font-size:.75rem;font-weight:400;color:var(--t2)">('+items.length+')</span></div>';
+    items.forEach(r=>{
+      const valCor = r.validacao==='aprovado'?'var(--grn)':r.validacao==='rejeitado'?'var(--red)':'var(--org)';
+      const valLabel = r.validacao==='aprovado'?'✅ Aprovado':r.validacao==='rejeitado'?'❌ Rejeitado':'⏳ Pendente';
+      const fotos = JSON.parse(r.fotos||'[]');
+      html += '<div style="background:#fff;border-radius:var(--rb);border:1px solid var(--br);border-left:4px solid var(--red);padding:12px 14px;margin-bottom:8px">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:8px">';
+      html += '<div><div style="font-weight:700;font-size:.88rem">📍 '+sn(r.loja)+'</div>';
+      if(isCrop) html += '<div style="font-size:.75rem;color:var(--t2)">👤 '+r.gop_nome+' · '+r.data_visita+'</div>';
+      else html += '<div style="font-size:.75rem;color:var(--t2)">'+r.data_visita+'</div>';
+      html += '</div>';
+      html += '<span style="font-size:.73rem;font-weight:700;color:'+valCor+';background:#fff;border:1.5px solid '+valCor+';padding:2px 9px;border-radius:99px">'+valLabel+'</span>';
+      html += '</div>';
+      if(r.notas_gop) html += '<div style="font-size:.81rem;color:#444;margin-bottom:8px;padding:6px 8px;background:var(--sf2);border-radius:var(--rb)">📋 '+r.notas_gop+'</div>';
+      if(fotos.length) html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">'+fotos.slice(0,4).map(f=>'<img src="'+f+'" style="width:72px;height:54px;object-fit:cover;border-radius:5px">').join('')+'</div>';
+
+      // Campos editáveis pelo GOP
+      html += '<div style="margin-bottom:8px">';
+      html += '<label style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:var(--t2);display:block;margin-bottom:3px">Ação tomada / Empresa contactada</label>';
+      html += '<textarea id="eqav-acao-'+r.id+'" class="jta" style="min-height:55px;font-size:.82rem" placeholder="Ex: Chamei a UPK, aguarda peça…">'+escH(r.acao_gop||'')+'</textarea>';
+      html += '</div>';
+      html += '<div style="margin-bottom:8px">';
+      html += '<label style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:var(--t2);display:block;margin-bottom:3px">Orçamento (€)</label>';
+      html += '<input type="text" id="eqav-orc-'+r.id+'" class="fc" style="font-size:.85rem" placeholder="Ex: 350,00€" value="'+escH(r.orcamento||'')+'">';
+      html += '</div>';
+      html += '<button class="btn bg2 bsm" data-avid="'+r.id+'" data-action="guardar" style="margin-bottom:8px">💾 Guardar</button>';
+
+      // Validação CROP
+      if(isCrop){
+        html += '<div style="border-top:1px solid var(--br);padding-top:8px;margin-top:4px">';
+        html += '<label style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:var(--t2);display:block;margin-bottom:5px">🟣 Validação CROP</label>';
+        html += '<textarea id="eqav-ncrop-'+r.id+'" class="jta" style="min-height:44px;font-size:.82rem;margin-bottom:6px" placeholder="Notas da CROP…">'+escH(r.notas_crop||'')+'</textarea>';
+        html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+        html += '<button class="btn bg2 bsm" data-avid="'+r.id+'" data-action="aprovar">✅ Aprovar orçamento</button>';
+        html += '<button class="btn bp bsm" data-avid="'+r.id+'" data-action="rejeitar">❌ Rejeitar</button>';
+        html += '<button class="btn bs bsm" data-avid="'+r.id+'" data-action="resolver">🔧 Marcar resolvido</button>';
+        html += '</div>';
+        if(r.notas_crop) html += '<div style="font-size:.78rem;color:var(--t2);margin-top:5px;font-style:italic">Última nota CROP: '+escH(r.notas_crop)+'</div>';
+        html += '</div>';
+      } else {
+        // GOP vê o resultado da validação da CROP
+        if(r.validacao !== 'pendente'){
+          html += '<div style="border-top:1px solid var(--br);padding-top:8px;margin-top:4px;font-size:.79rem">';
+          html += '<span style="color:'+valCor+';font-weight:600">CROP: '+valLabel+'</span>';
+          if(r.notas_crop) html += '<div style="color:var(--t2);margin-top:2px">'+escH(r.notas_crop)+'</div>';
+          html += '</div>';
+        }
+      }
+      html += '</div>'; // fim card
+    });
+    html += '</div>'; // fim grupo
+  });
+  if(lista){
+    lista.innerHTML = html;
+    lista.onclick = function(e){
+      const btn = e.target.closest('[data-action]');
+      if(!btn) return;
+      const avId = btn.getAttribute('data-avid');
+      const action = btn.getAttribute('data-action');
+      if(action==='guardar') guardarEquipAv(avId);
+      if(action==='aprovar') validarEquipAv(avId,'aprovado');
+      if(action==='rejeitar') validarEquipAv(avId,'rejeitado');
+      if(action==='resolver') resolverEquipAv(avId);
+    };
+  }
+}
+
+function setEquipAvFiltro(id){
+  _equipAvFiltro = id;
+  rEquipamentosAvarias();
+}
+
+async function guardarEquipAv(id){
+  const acao = (el('eqav-acao-'+id)||{value:''}).value;
+  const orc  = (el('eqav-orc-'+id)||{value:''}).value;
+  const upd = {acao_gop: acao, orcamento: orc, updated_at: new Date().toISOString()};
+  if(orc && orc.trim()) upd.estado = 'em_curso';
+  await sb('PATCH','cj_equipamentos_avarias', upd, 'id=eq.'+id, true);
+  toast('💾 Guardado!');
+  rEquipamentosAvarias();
+}
+
+async function validarEquipAv(id, val){
+  const notas = (el('eqav-ncrop-'+id)||{value:''}).value;
+  await sb('PATCH','cj_equipamentos_avarias', {validacao:val, notas_crop:notas, updated_at:new Date().toISOString()}, 'id=eq.'+id, true);
+  toast(val==='aprovado'?'✅ Orçamento aprovado':'❌ Rejeitado');
+  rEquipamentosAvarias();
+}
+
+async function resolverEquipAv(id){
+  if(!confirm('Marcar este equipamento como resolvido?')) return;
+  const notas = (el('eqav-ncrop-'+id)||{value:''}).value;
+  await sb('PATCH','cj_equipamentos_avarias', {estado:'resolvido', notas_crop:notas, updated_at:new Date().toISOString()}, 'id=eq.'+id, true);
+  toast('🔧 Marcado como resolvido!');
+  rEquipamentosAvarias();
+}
+
+// Criar/actualizar avarias ao arquivar uma visita
+async function syncEquipAvarias(){
+  if(!vStore || !CU || !CU.gopId) return;
+  const regiao = CU.region || gopRegion(CU.gopId);
+  const nokItems = EQUIP_LISTA.filter(eq => vEquip[eq.id] && vEquip[eq.id].estado === 'nok');
+  for(const eq of nokItems){
+    const item = vEquip[eq.id];
+    const avId = 'eqav_'+vStore+'_'+eq.id;
+    const entry = {
+      id: avId,
+      loja: vStore,
+      gop_id: CU.gopId,
+      gop_nome: who(),
+      equip_id: eq.id,
+      equip_label: eq.label,
+      data_visita: now().slice(0,10),
+      notas_gop: item.notas||'',
+      fotos: JSON.stringify(item.fotos||[]),
+      estado: 'aberto',
+      region: regiao
+    };
+    // PATCH se existe, POST se não existe
+    const exist = await sb('PATCH','cj_equipamentos_avarias', entry, 'id=eq.'+avId+'&estado=neq.resolvido', true);
+    if(!exist || (Array.isArray(exist) && !exist.length)){
+      await sb('POST','cj_equipamentos_avarias', entry, '', true);
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // ── Alterar PIN ──────────────────────────────────────────────────────────────
 // PINs personalizados ficam em localStorage sob a chave 'cj_pin_<gopId>'.
 // Se não existir, usa o PIN padrão de GOP_PINS.
@@ -3057,7 +3245,7 @@ async function go(s){
   document.querySelectorAll('.ni').forEach(x=>x.classList.remove('on'));
   const sec=el('s-'+s);if(sec)sec.classList.add('on');
   const ni=document.querySelector('.ni[data-s="'+s+'"]');if(ni)ni.classList.add('on');
-  const fn={dash:rDash,tarefas:rTarefas,quebras:rQ,trocas:()=>{rT();rF();},avarias:rA,srm:rS,wfm:rWFM,ruturas:rRut,ferias:rFer,historico:rHistorico,operacional:rOperacional,marketing:rMkt,visitas:()=>{},dashboard:rDashboard,alertas:rAlertas,calendario:rCalendario};
+  const fn={dash:rDash,tarefas:rTarefas,quebras:rQ,trocas:()=>{rT();rF();},avarias:rA,srm:rS,wfm:rWFM,ruturas:rRut,ferias:rFer,historico:rHistorico,operacional:rOperacional,marketing:rMkt,visitas:()=>{},dashboard:rDashboard,alertas:rAlertas,calendario:rCalendario,equipamentos_avarias:rEquipamentosAvarias};
   if(fn[s])await fn[s]();
 }
 
@@ -6600,6 +6788,8 @@ async function arquivarRelatorio(){
     // Criar pendentes/alertas apenas ao arquivar, e só uma vez por visita
     if(!_pendentesGuardados){
       try{ await salvarPendentes(); _pendentesGuardados = true; }catch(e){ console.error('salvarPendentes (arquivar):', e); }
+      // Sincronizar equipamentos avariados
+      try{ await syncEquipAvarias(); }catch(e){ console.error('syncEquipAvarias:', e); }
     }
     await saveToHistory({
       loja: vStore,
