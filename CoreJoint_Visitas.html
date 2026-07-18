@@ -286,7 +286,8 @@
 <div class="sec" id="s-equipamentos_avarias">
   <div class="pt">Equipamentos</div>
   <div class="ps" id="equip-av-sub">Avarias reportadas nas visitas</div>
-  <div id="equip-av-filtro" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px"></div>
+  <div id="equip-av-filtro" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px"></div>
+  <div id="equip-av-filtro-val" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px"></div>
   <div id="equip-av-lista"></div>
   <div id="equip-av-hist"></div>
 </div>
@@ -3007,7 +3008,32 @@ async function rEquipamentosAvarias(){
     });
   }
 
-  const rowsFilt = _equipAvFiltro ? rows.filter(r=>r.equip_id===_equipAvFiltro) : rows;
+  const rowsFilt0 = _equipAvFiltro ? rows.filter(r=>r.equip_id===_equipAvFiltro) : rows;
+
+  // Filtros de validação (só para GOP)
+  if(!isCrop){
+    const filtroValEl = el('equip-av-filtro-val');
+    if(filtroValEl){
+      const FVAL = [
+        {key:'pendente',  label:'⏳ Pendente',  bg:'var(--org)'},
+        {key:'aprovado',  label:'✅ Aprovado',  bg:'var(--grn)'},
+        {key:'rejeitado', label:'❌ Rejeitado', bg:'var(--red)'},
+      ];
+      filtroValEl.innerHTML = '';
+      FVAL.forEach(f=>{
+        const cnt = rows.filter(r=>r.validacao===f.key).length;
+        if(!cnt) return;
+        const btn = document.createElement('button');
+        const ativo = _equipAvValFiltro===f.key;
+        btn.setAttribute('style', 'display:inline-block;padding:5px 12px;border-radius:99px;font-size:.78rem;font-weight:600;cursor:pointer;border:1.5px solid '+(ativo?f.bg:' var(--br)')+';background:'+(ativo?f.bg:'var(--sf2)')+';color:'+(ativo?'#fff':'var(--t2)')+';margin:0 4px 6px 0;font-family:inherit;touch-action:manipulation');
+        btn.textContent = f.label+' ('+cnt+')';
+        btn.addEventListener('click', (function(k){ return function(){ setEquipAvValFiltro(k); }; })(f.key));
+        filtroValEl.appendChild(btn);
+      });
+    }
+  }
+
+  const rowsFilt = _equipAvValFiltro ? rowsFilt0.filter(r=>r.validacao===_equipAvValFiltro) : rowsFilt0;
   if(!rowsFilt.length){
     if(lista) lista.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:16px;text-align:center">✅ Sem equipamentos avariados em aberto.</div>';
   } else {
@@ -3104,14 +3130,26 @@ async function renderEquipAvHist(isCrop, regiao){
       if(semPO) html += '<span style="font-size:.72rem;background:#fff3cd;color:#856404;padding:2px 8px;border-radius:99px;font-weight:600">⚠️ Sem PO</span>';
       else html += '<span style="font-size:.72rem;background:#d1e7dd;color:#0f5132;padding:2px 8px;border-radius:99px;font-weight:600">PO '+escH(r.po_number)+'</span>';
       if(r.orcamento) html += '<div style="font-size:.77rem;color:var(--ac);font-weight:600;margin-top:3px">'+escH(r.orcamento)+'</div>';
+      if(!isCrop) html += '<button data-avid-po="'+r.id+'" data-po-actual="'+(r.po_number||'')+'" style="margin-top:5px;font-size:.7rem;padding:3px 9px;border-radius:99px;border:1px solid var(--br);background:var(--sf2);cursor:pointer;font-family:inherit;display:block">✏️ Editar PO</button>';
       html += '</div></div>';
     });
     html += '</div>';
   });
   histEl.innerHTML = html;
+  // Event delegation para botão Editar PO
+  histEl.onclick = function(e){
+    const btn = e.target.closest('[data-avid-po]');
+    if(!btn) return;
+    const avId = btn.getAttribute('data-avid-po');
+    const poActual = btn.getAttribute('data-po-actual')||'';
+    abrirModalPO(avId, poActual);
+  };
 }
 
+let _equipAvValFiltro = null; // 'aprovado'|'rejeitado'|'pendente'|null
+
 function setEquipAvFiltro(id){ _equipAvFiltro=id; rEquipamentosAvarias(); }
+function setEquipAvValFiltro(val){ _equipAvValFiltro=(_equipAvValFiltro===val?null:val); rEquipamentosAvarias(); }
 
 async function guardarEquipAv(id){
   const acao=(el('eqav-acao-'+id)||{value:''}).value;
@@ -3128,10 +3166,10 @@ async function validarEquipAv(id,val){
   toast(val==='aprovado'?'✅ Aprovado':'❌ Rejeitado'); rEquipamentosAvarias();
 }
 
-function abrirModalPO(avId){
+function abrirModalPO(avId, poActual){
   openM('m-equip-po');
   el('equip-po-avid').value=avId;
-  el('equip-po-input').value='';
+  el('equip-po-input').value=poActual||'';
   setTimeout(()=>{ const i=el('equip-po-input'); if(i) i.focus(); },200);
 }
 
