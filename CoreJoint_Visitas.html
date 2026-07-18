@@ -3030,7 +3030,7 @@ async function rEquipamentosAvarias(){
       html += '<label style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:var(--t2);display:block;margin-bottom:3px">Orçamento (€)</label>';
       html += '<input type="text" id="eqav-orc-'+r.id+'" class="fc" style="font-size:.85rem" placeholder="Ex: 350,00€" value="'+escH(r.orcamento||'')+'">';
       html += '</div>';
-      html += '<button class="btn bg2 bsm" data-avid="'+r.id+'" data-action="guardar" style="margin-bottom:8px">💾 Guardar</button>';
+      html += '<button data-avid="'+r.id+'" data-action="guardar" style="padding:8px 14px;border-radius:var(--rb);border:none;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;background:var(--sf2);color:var(--t);border:1.5px solid var(--br);margin-bottom:8px">💾 Guardar</button>';
 
       // Validação CROP
       if(isCrop){
@@ -3038,9 +3038,9 @@ async function rEquipamentosAvarias(){
         html += '<label style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:var(--t2);display:block;margin-bottom:5px">🟣 Validação CROP</label>';
         html += '<textarea id="eqav-ncrop-'+r.id+'" class="jta" style="min-height:44px;font-size:.82rem;margin-bottom:6px" placeholder="Notas da CROP…">'+escH(r.notas_crop||'')+'</textarea>';
         html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
-        html += '<button class="btn bg2 bsm" data-avid="'+r.id+'" data-action="aprovar">✅ Aprovar orçamento</button>';
-        html += '<button class="btn bp bsm" data-avid="'+r.id+'" data-action="rejeitar">❌ Rejeitar</button>';
-        html += '<button class="btn bs bsm" data-avid="'+r.id+'" data-action="resolver">🔧 Marcar resolvido</button>';
+        html += '<button data-avid="'+r.id+'" data-action="aprovar" style="padding:8px 14px;border-radius:var(--rb);border:none;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;background:var(--grn);color:#fff">✅ Aprovar orçamento</button>';
+        html += '<button data-avid="'+r.id+'" data-action="rejeitar" style="padding:8px 14px;border-radius:var(--rb);border:none;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;background:var(--red);color:#fff">❌ Rejeitar</button>';
+        html += '<button data-avid="'+r.id+'" data-action="resolver" style="padding:8px 14px;border-radius:var(--rb);border:none;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;background:#6b7280;color:#fff">🔧 Resolvido</button>';
         html += '</div>';
         if(r.notas_crop) html += '<div style="font-size:.78rem;color:var(--t2);margin-top:5px;font-style:italic">Última nota CROP: '+escH(r.notas_crop)+'</div>';
         html += '</div>';
@@ -3119,6 +3119,7 @@ async function syncEquipAvarias(){
       equip_label: eq.label,
       data_visita: now().slice(0,10),
       notas_gop: item.notas||'',
+      acao_gop: item.notas||'',  // pré-preencher com as notas da visita
       fotos: JSON.stringify(item.fotos||[]),
       estado: 'aberto',
       region: regiao
