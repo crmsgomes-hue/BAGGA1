@@ -3115,12 +3115,17 @@ async function renderEquipAvHist(isCrop, regiao){
   } else {
     hist.forEach(r=>{ if(!grupos[r.loja]) grupos[r.loja]=[]; grupos[r.loja].push(r); });
   }
-  Object.entries(grupos).forEach(([grp, data])=>{
-    html += '<div style="margin-bottom:12px"><div style="font-weight:700;font-size:.83rem;color:var(--t2);padding:5px 10px;background:var(--sf2);border-radius:var(--rb);margin-bottom:6px">'+(isCrop?'👤 ':'📍 ')+grp+'</div>';
+  Object.entries(grupos).forEach(([grp, data], gi)=>{
+    const foldId = 'eqhist-fold-'+gi;
     const items = isCrop ? Object.entries(data).flatMap(([,rs])=>rs) : data;
+    html += '<div style="margin-bottom:8px;border:1px solid var(--br);border-radius:var(--rb);overflow:hidden">';
+    html += '<div onclick="toggleHistFolder(\''+foldId+'\')" style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:var(--sf2);cursor:pointer">';
+    html += '<span style="font-weight:700;font-size:.83rem">'+(isCrop?'👤 ':'📍 ')+grp+'</span>';
+    html += '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:.72rem;background:#fff;border-radius:99px;padding:1px 8px;color:var(--t2)">'+items.length+'</span><span style="color:var(--t2)">▾</span></div>';
+    html += '</div><div id="'+foldId+'" style="display:none;padding:0 10px">';
     items.forEach(r=>{
       const semPO = !r.po_number || !r.po_number.trim();
-      html += '<div style="display:flex;align-items:flex-start;gap:10px;padding:7px 10px;border-bottom:1px solid var(--br);font-size:.8rem"><div style="flex:1">';
+      html += '<div style="display:flex;align-items:flex-start;gap:10px;padding:7px 4px;border-bottom:1px solid var(--br);font-size:.8rem"><div style="flex:1">';
       if(isCrop) html += '<div style="font-size:.73rem;color:var(--t2)">📍 '+sn(r.loja)+'</div>';
       html += '<strong>'+r.equip_label+'</strong>';
       if(r.notas_gop) html += ' <span style="color:var(--t2)">— '+r.notas_gop+'</span>';
@@ -3130,10 +3135,10 @@ async function renderEquipAvHist(isCrop, regiao){
       if(semPO) html += '<span style="font-size:.72rem;background:#fff3cd;color:#856404;padding:2px 8px;border-radius:99px;font-weight:600">⚠️ Sem PO</span>';
       else html += '<span style="font-size:.72rem;background:#d1e7dd;color:#0f5132;padding:2px 8px;border-radius:99px;font-weight:600">PO '+escH(r.po_number)+'</span>';
       if(r.orcamento) html += '<div style="font-size:.77rem;color:var(--ac);font-weight:600;margin-top:3px">'+escH(r.orcamento)+'</div>';
-      if(!isCrop) html += '<button data-avid-po="'+r.id+'" data-po-actual="'+(r.po_number||'')+'" style="margin-top:5px;font-size:.7rem;padding:3px 9px;border-radius:99px;border:1px solid var(--br);background:var(--sf2);cursor:pointer;font-family:inherit;display:block">✏️ Editar PO</button>';
+      if(!isCrop) html += '<button data-avid-po="'+r.id+'" data-po-actual="'+(r.po_number||'')+'" style="margin-top:4px;font-size:.7rem;padding:3px 8px;border-radius:99px;border:1px solid var(--br);background:var(--sf2);cursor:pointer;font-family:inherit">✏️ Editar PO</button>';
       html += '</div></div>';
     });
-    html += '</div>';
+    html += '</div></div>';
   });
   histEl.innerHTML = html;
   // Event delegation para botão Editar PO
