@@ -959,8 +959,8 @@
           </div>
           <!-- Dossiers renderizados por JS -->
           <div id="proc-dossiers-visita"></div>
-          <!-- Adicionar novo dossiê — oculto (dossiês são fixos) -->
-          <div style="display:flex;gap:6px;margin-top:10px;display:none">
+          <!-- Adicionar novo dossiê -->
+          <div style="display:flex;gap:6px;margin-top:10px">
             <input type="text" class="fc" id="novo-dossie-input" placeholder="Nome do novo dossiê…" style="flex:1;margin:0" onkeydown="if(event.key==='Enter')adicionarDossieDireto()">
             <button class="btn bp bsm" onclick="adicionarDossieDireto()">+ Adicionar</button>
           </div>
@@ -4236,38 +4236,14 @@ function abrirNovoDossie(){
 }
 
 async function loadProcDossiers(){
-  // Dossiês fixos — estrutura definida pela gestão, não editável pelos GOPs
-  const DOSSIERS_FIXOS = [
-    { id:'d1', name:'1 — Entidades Oficiais', seps:[
-      {id:'s1_1', name:'1 — Documentação do Sistema'},
-      {id:'s1_2', name:'2 — Documentação HACCP'},
-      {id:'s1_3', name:'3 — Controlo de Pragas'},
-      {id:'s1_4', name:'4 — Higienização'},
-      {id:'s1_5', name:'5 — Boletim de Análises'},
-      {id:'s1_6', name:'6 — Calibração de Instrumentos de Medição'},
-      {id:'s1_7', name:'7 — Formações'},
-    ]},
-    { id:'d2', name:'2 — Winrest', seps:[
-      {id:'s2_1', name:'1 — Anulações'},
-      {id:'s2_2', name:'2 — Devoluções = Notas de Crédito'},
-      {id:'s2_3', name:'3 — Alteração de PVP'},
-      {id:'s2_4', name:'4 — Diferenças de Caixa'},
-      {id:'s2_5', name:'5 — Registo de TPA'},
-    ]},
-    { id:'d3',  name:'3 — Inventários',        seps:[] },
-    { id:'d6',  name:'6 — Proteção de Dados',  seps:[] },
-    { id:'d7',  name:'7 — GTP',                seps:[] },
-    { id:'d8',  name:'8 — Reclamações',        seps:[] },
-    { id:'d9',  name:'9 — Legionela',          seps:[] },
-    { id:'d10', name:'10 — Jogos Santa Casa', seps:[
-      {id:'s10_1', name:'Parte I — Raspadinhas e Lotarias'},
-      {id:'s10_2', name:'Parte II — Relatório Fecho de Terminal'},
-    ]},
-    { id:'darq_rh',  name:'ARQ — RH',                            seps:[] },
-    { id:'darq_sa',  name:'ARQ — Segurança Alimentar',           seps:[] },
-    { id:'darq_dev', name:'ARQ — Devoluções = Notas de Crédito', seps:[] },
-  ];
-  procDossiers = DOSSIERS_FIXOS;
+  try {
+    const rows = await dbGet('cj_proc_config','order=created_at.asc&limit=1');
+    if(rows && rows.length){
+      procDossiers = JSON.parse(rows[0].config || '[]');
+    } else {
+      procDossiers = [];
+    }
+  } catch(e){ procDossiers = []; }
   renderProcVisita();
 }
 
