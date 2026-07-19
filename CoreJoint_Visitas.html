@@ -1430,11 +1430,9 @@
   </div>
   <div class="mf"><button class="btn bs" onclick="closeM('m-ferias')">Cancelar</button><button class="btn bp" onclick="saveFerias()">Guardar</button></div>
 </div></div>
-<div class="mo" id="m-photo" onclick="if(event.target===this)closeM('m-photo')" style="background:rgba(0,0,0,0.92);align-items:center;justify-content:center">
-  <div style="position:relative;max-width:96vw;max-height:92vh;display:flex;flex-direction:column">
-    <button onclick="closeM('m-photo')" style="position:absolute;top:-36px;right:0;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;z-index:1">✕</button>
-    <img id="big-photo" src="" style="max-width:96vw;max-height:88vh;object-fit:contain;border-radius:6px;display:block" onclick="closeM('m-photo')">
-  </div>
+<div id="m-photo" onclick="this.style.display='none'" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.95);align-items:center;justify-content:center;cursor:zoom-out;-webkit-tap-highlight-color:transparent">
+  <img id="big-photo" src="" style="max-width:96vw;max-height:92vh;object-fit:contain;border-radius:6px;pointer-events:none;display:block">
+  <span style="position:absolute;top:12px;right:16px;color:#fff;font-size:2rem;line-height:1;pointer-events:none;text-shadow:0 1px 4px #000">✕</span>
 </div>
 <div class="mo" id="m-proc-config"><div class="md" style="max-height:88vh;overflow-y:auto">
   <div class="mh"><div class="mtt">⚙️ Configurar Procedimentos</div><button class="mx" onclick="closeM('m-proc-config')">✕</button></div>
@@ -1524,7 +1522,13 @@ function openM(id){
   }
 }
 function closeM(id){document.getElementById(id).classList.remove('open');}
-function bigPhoto(src){document.getElementById('big-photo').src=src;openM('m-photo');}
+function bigPhoto(src){
+  const lb = document.getElementById('m-photo');
+  const img = document.getElementById('big-photo');
+  if(!lb || !img || !src) return;
+  img.src = src;
+  lb.style.display = 'flex';
+}
 function el(id){return document.getElementById(id);}
 function val(id){const e=el(id);return e?(e.value||'').trim():'';}
 
