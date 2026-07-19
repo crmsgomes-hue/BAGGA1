@@ -959,7 +959,11 @@
           </div>
           <!-- Dossiers renderizados por JS -->
           <div id="proc-dossiers-visita"></div>
-
+          <!-- Adicionar novo dossiê -->
+          <div style="display:flex;gap:6px;margin-top:10px">
+            <input type="text" class="fc" id="novo-dossie-input" placeholder="Nome do novo dossiê…" style="flex:1;margin:0" onkeydown="if(event.key==='Enter')adicionarDossieDireto()">
+            <button class="btn bp bsm" onclick="adicionarDossieDireto()">+ Adicionar</button>
+          </div>
         <!-- ⑫ QUEBRA DE CAIXA -->
         <div class="ic" id="chk-quebra_caixa" style="margin-bottom:10px;border-left-color:var(--br)">
           <div style="font-size:.9rem;font-weight:700;margin-bottom:6px">💰 Quebra de Caixa</div>
@@ -1430,7 +1434,16 @@
   <div class="mh" style="margin-bottom:7px"><div class="mtt" style="color:#fff">Foto</div><button class="mx" style="color:#fff" onclick="closeM('m-photo')">✕</button></div>
   <img id="big-photo" src="" style="width:100%;border-radius:6px">
 </div></div>
-<div
+<div class="mo" id="m-proc-config"><div class="md" style="max-height:88vh;overflow-y:auto">
+  <div class="mh"><div class="mtt">⚙️ Configurar Procedimentos</div><button class="mx" onclick="closeM('m-proc-config')">✕</button></div>
+  <div style="font-size:.75rem;color:var(--t2);margin-bottom:12px">Gere os dossiers e separadores que aparecem na auditoria de todas as lojas.</div>
+  <div id="proc-config-list"></div>
+  <button class="btn bp" style="width:100%;margin-top:6px" onclick="addProcDossier()">+ Novo Dossier</button>
+  <div class="mf" style="margin-top:14px">
+    <button class="btn bs" onclick="closeM('m-proc-config')">Cancelar</button>
+    <button class="btn bp" onclick="saveProcConfig()">💾 Guardar</button>
+  </div>
+</div></div>
 
 <script>
 const SB='https://isdaegejkxgtzjcpzstr.supabase.co';
@@ -1504,7 +1517,9 @@ function openM(id){
   const el2=document.getElementById(id);
   if(!el2){console.error('Modal not found:',id);return;}
   el2.classList.add('open');
-  // m-proc-config removido
+  if(id==='m-proc-config'){
+    loadProcDossiers().then(()=>{ try{renderProcConfig();}catch(e){console.error('renderProcConfig error:',e);} });
+  }
 }
 function closeM(id){document.getElementById(id).classList.remove('open');}
 function bigPhoto(src){document.getElementById('big-photo').src=src;openM('m-photo');}
@@ -4196,53 +4211,122 @@ function getRHFTEData(){
 
 // ── PROCEDIMENTOS — DOSSIERS EDITÁVEIS ───────────────
 // Estrutura de dossiers (será guardada no Supabase / localStorage)
-// ══════════════════════════════════════════════════════════════════════════════
-// DOSSIÊS DE PROCEDIMENTOS — ESTRUTURA FIXA (não editável)
-// ══════════════════════════════════════════════════════════════════════════════
-
-const PROC_DOSSIERS_FIXOS = [
-  { id:'d1', name:'1 — Entidades Oficiais', seps:[
-    {id:'s1_1', name:'1 — Documentação do Sistema'},
-    {id:'s1_2', name:'2 — Documentação HACCP'},
-    {id:'s1_3', name:'3 — Controlo de Pragas'},
-    {id:'s1_4', name:'4 — Higienização'},
-    {id:'s1_5', name:'5 — Boletim de Análises'},
-    {id:'s1_6', name:'6 — Calibração de Instrumentos de Medição'},
-    {id:'s1_7', name:'7 — Formações'},
-  ]},
-  { id:'d2', name:'2 — Winrest', seps:[
-    {id:'s2_1', name:'1 — Anulações'},
-    {id:'s2_2', name:'2 — Devoluções = Notas de Crédito'},
-    {id:'s2_3', name:'3 — Alteração de PVP'},
-    {id:'s2_4', name:'4 — Diferenças de Caixa'},
-    {id:'s2_5', name:'5 — Registo de TPA'},
-  ]},
-  { id:'d3', name:'3 — Inventários', seps:[] },
-  { id:'d6', name:'6 — Proteção de Dados', seps:[] },
-  { id:'d7', name:'7 — GTP', seps:[] },
-  { id:'d8', name:'8 — Reclamações', seps:[] },
-  { id:'d9', name:'9 — Legionela', seps:[] },
-  { id:'d10', name:'10 — Jogos Santa Casa', seps:[
-    {id:'s10_1', name:'Parte I — Raspadinhas e Lotarias (Talão + Mapa)'},
-    {id:'s10_2', name:'Parte II — Relatório Fecho de Terminal'},
-  ]},
-  { id:'darq_rh',   name:'ARQ — RH', seps:[] },
-  { id:'darq_sa',   name:'ARQ — Segurança Alimentar', seps:[] },
-  { id:'darq_dev',  name:'ARQ — Devoluções = Notas de Crédito', seps:[] },
-];
-
-let procDossiers = PROC_DOSSIERS_FIXOS;
+let procDossiers = [];
 let procAnswers = {}; // { sepId: { state: 'ok'|'nok'|'na', obs: '' } }
 let procSelected = []; // dossierIds escolhidos pelo GOP para esta visita específica
-let procOpenDossiers = new Set();
+let procOpenDossiers = new Set(); // ids dos dossiês atualmente expandidos (para não fecharem ao marcar ✓/✗)
+let procDossierIdSeq = 100;
+let procSepIdSeq = 1000;
 
-function loadProcDossiers(){
-  procDossiers = PROC_DOSSIERS_FIXOS;
-  renderProcVisita();
-  return Promise.resolve();
+function abrirNovoDossie(){
+  alert('Botão clicado! A abrir...');
+  try{
+    openM('m-proc-config');
+  }catch(e){
+    alert('Erro ao abrir modal: '+e.message);
+    return;
+  }
+  loadProcDossiers().then(function(){
+    try{ renderProcConfig(); }catch(e){ alert('Erro ao listar: '+e.message); }
+  }).catch(function(e){
+    alert('Erro ao carregar: '+e.message);
+    procDossiers = [];
+    try{ renderProcConfig(); }catch(e2){}
+  });
 }
 
+async function loadProcDossiers(){
+  try {
+    const rows = await dbGet('cj_proc_config','order=created_at.asc&limit=1');
+    if(rows && rows.length){
+      procDossiers = JSON.parse(rows[0].config || '[]');
+    } else {
+      procDossiers = [];
+    }
+  } catch(e){ procDossiers = []; }
+  renderProcVisita();
+}
 
+async function saveProcDossiers(){
+  try {
+    const rows = await dbGet('cj_proc_config','order=created_at.asc&limit=1');
+    const payload = { config: JSON.stringify(procDossiers) };
+    if(rows && rows.length){
+      await dbUpd('cj_proc_config', rows[0].id, payload);
+    } else {
+      await dbIns('cj_proc_config',[{ id: uid(), ...payload }]);
+    }
+  } catch(e){ console.error('saveProcDossiers',e); }
+}
+
+function renderProcConfig(){
+  const el = document.getElementById('proc-config-list');
+  if(!el) return;
+  if(!procDossiers.length){
+    el.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:10px;text-align:center">Sem dossiers criados.<br>Clica em "+ Novo Dossier" para começar.</div>';
+    return;
+  }
+  el.innerHTML = procDossiers.map((d,di)=>{
+    const sepsHtml = d.seps.map((s,si)=>
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">' +
+      '<input type="text" class="fc" value="'+escH(s.name)+'" placeholder="Nome do separador" style="flex:1;margin:0;font-size:.8rem" onchange="renameProcSep(\''+d.id+'\',\''+s.id+'\',this.value)">' +
+      '<button onclick="delProcSep(\''+d.id+'\',\''+s.id+'\')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:1rem;padding:2px 4px">🗑</button>' +
+      '</div>'
+    ).join('');
+
+    return '<div style="border:1.5px solid var(--br);border-radius:var(--rb);margin-bottom:10px;padding:11px">' +
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">' +
+      '<input type="text" class="fc" value="'+escH(d.name)+'" placeholder="Nome do dossier" style="flex:1;margin:0;font-weight:700;font-size:.85rem" onchange="renameProcDossier(\''+d.id+'\',this.value)">' +
+      '<button onclick="delProcDossier(\''+d.id+'\')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:1rem;padding:2px 4px">🗑</button>' +
+      '</div>' +
+      '<div style="padding-left:8px;border-left:2px solid var(--br)">'+sepsHtml+'</div>' +
+      '<button class="btn bsm bw" onclick="addProcSep(\''+d.id+'\')" style="margin-top:6px;font-size:.75rem">+ Separador</button>' +
+      '</div>';
+  }).join('');
+}
+
+function addProcDossier(){
+  const id = 'd'+( ++procDossierIdSeq);
+  procDossiers.push({id, name:'Novo Dossier', seps:[]});
+  renderProcConfig();
+  // scroll to bottom of modal
+  setTimeout(()=>{ const el=document.getElementById('proc-config-list'); if(el) el.lastElementChild&&el.lastElementChild.scrollIntoView({behavior:'smooth'}); },50);
+}
+
+function addProcSep(dossierId){
+  const d = procDossiers.find(x=>x.id===dossierId);
+  if(d){ const id='s'+(++procSepIdSeq); d.seps.push({id, name:'Novo Separador'}); }
+  renderProcConfig();
+}
+
+function renameProcDossier(id, val){
+  const d = procDossiers.find(x=>x.id===id);
+  if(d) d.name = val;
+}
+
+function renameProcSep(dossierId, sepId, val){
+  const d = procDossiers.find(x=>x.id===dossierId);
+  if(d){ const s=d.seps.find(x=>x.id===sepId); if(s) s.name=val; }
+}
+
+function delProcDossier(id){
+  if(!confirm('Remover este dossier e todos os seus separadores?')) return;
+  procDossiers = procDossiers.filter(d=>d.id!==id);
+  renderProcConfig();
+}
+
+function delProcSep(dossierId, sepId){
+  const d = procDossiers.find(x=>x.id===dossierId);
+  if(d) d.seps = d.seps.filter(s=>s.id!==sepId);
+  renderProcConfig();
+}
+
+async function saveProcConfig(){
+  await saveProcDossiers();
+  closeM('m-proc-config');
+  renderProcVisita();
+  toast('Procedimentos guardados!');
+}
 
 function renderProcSelector(){
   const el = document.getElementById('proc-selector-visita');
@@ -4332,13 +4416,64 @@ function toggleProcDossier(id){
   if(willOpen) procOpenDossiers.add(id); else procOpenDossiers.delete(id);
 }
 
-// adicionarDossieDireto removido
+async function adicionarDossieDireto(){
+  const input = document.getElementById('novo-dossie-input');
+  if(!input) return;
+  const nome = input.value.trim();
+  if(!nome){ toast('Escreve o nome do dossiê.','e'); return; }
+  const id = 'd'+Date.now();
+  procDossiers.push({id, name:nome, seps:[]});
+  procSelected.push(id); // novo dossiê fica automaticamente selecionado nesta visita
+  input.value = '';
+  renderProcVisita();
+  await saveProcDossiers();
+  scheduleAutoSave();
+  toast('📁 Dossiê "'+nome+'" adicionado e selecionado!');
+}
 
-// função removida
+async function apagarDossieDireto(dossierId){
+  if(!confirm('Apagar este dossiê e todos os seus separadores?')) return;
+  procDossiers = procDossiers.filter(d=>d.id!==dossierId);
+  procSelected = procSelected.filter(id=>id!==dossierId);
+  renderProcVisita();
+  await saveProcDossiers();
+  scheduleAutoSave();
+  toast('Dossiê apagado.');
+}
 
-// função removida
+async function editarSeparador(dossierId, sepId){
+  const d = procDossiers.find(x=>x.id===dossierId);
+  if(!d) return;
+  const sep = d.seps.find(s=>s.id===sepId);
+  if(!sep) return;
+  const novoNome = prompt('Novo nome do separador:', sep.name);
+  if(novoNome===null) return; // cancelado
+  const nome = novoNome.trim();
+  if(!nome){ toast('O nome não pode ficar vazio.','e'); return; }
+  sep.name = nome;
+  renderProcVisita();
+  await saveProcDossiers();
+  scheduleAutoSave();
+  toast('✅ Separador renomeado!');
+}
 
-// função removida (dependia de saveProcDossiers)
+async function adicionarSeparadorDireto(dossierId){
+  const input = document.getElementById('novo-sep-'+dossierId);
+  if(!input) return;
+  const nome = input.value.trim();
+  if(!nome){ toast('Escreve o nome do separador.','e'); return; }
+  const d = procDossiers.find(x=>x.id===dossierId);
+  if(!d) return;
+  const id = 's'+Date.now();
+  d.seps.push({id, name:nome});
+  procOpenDossiers.add('pd-'+dossierId);
+  renderProcVisita();
+  // Re-open dossier after re-render
+  const pd = document.getElementById('pd-'+dossierId);
+  if(pd) pd.style.display = 'block';
+  await saveProcDossiers();
+  toast('✅ Separador "'+nome+'" adicionado!');
+}
 
 function setProcAns(sepId, state, btn){
   scheduleAutoSave();
