@@ -1504,9 +1504,7 @@ function openM(id){
   const el2=document.getElementById(id);
   if(!el2){console.error('Modal not found:',id);return;}
   el2.classList.add('open');
-  if(id==='m-proc-config'){
-    loadProcDossiers().then(()=>{ try{renderProcConfig();}catch(e){console.error('renderProcConfig error:',e);} });
-  }
+  // m-proc-config removido
 }
 function closeM(id){document.getElementById(id).classList.remove('open');}
 function bigPhoto(src){document.getElementById('big-photo').src=src;openM('m-photo');}
@@ -4241,6 +4239,7 @@ let procOpenDossiers = new Set();
 function loadProcDossiers(){
   procDossiers = PROC_DOSSIERS_FIXOS;
   renderProcVisita();
+  return Promise.resolve();
 }
 
 
@@ -4333,64 +4332,13 @@ function toggleProcDossier(id){
   if(willOpen) procOpenDossiers.add(id); else procOpenDossiers.delete(id);
 }
 
-async function adicionarDossieDireto(){
-  const input = document.getElementById('novo-dossie-input');
-  if(!input) return;
-  const nome = input.value.trim();
-  if(!nome){ toast('Escreve o nome do dossiê.','e'); return; }
-  const id = 'd'+Date.now();
-  procDossiers.push({id, name:nome, seps:[]});
-  procSelected.push(id); // novo dossiê fica automaticamente selecionado nesta visita
-  input.value = '';
-  renderProcVisita();
-  await saveProcDossiers();
-  scheduleAutoSave();
-  toast('📁 Dossiê "'+nome+'" adicionado e selecionado!');
-}
+// adicionarDossieDireto removido
 
-async function apagarDossieDireto(dossierId){
-  if(!confirm('Apagar este dossiê e todos os seus separadores?')) return;
-  procDossiers = procDossiers.filter(d=>d.id!==dossierId);
-  procSelected = procSelected.filter(id=>id!==dossierId);
-  renderProcVisita();
-  await saveProcDossiers();
-  scheduleAutoSave();
-  toast('Dossiê apagado.');
-}
+// função removida
 
-async function editarSeparador(dossierId, sepId){
-  const d = procDossiers.find(x=>x.id===dossierId);
-  if(!d) return;
-  const sep = d.seps.find(s=>s.id===sepId);
-  if(!sep) return;
-  const novoNome = prompt('Novo nome do separador:', sep.name);
-  if(novoNome===null) return; // cancelado
-  const nome = novoNome.trim();
-  if(!nome){ toast('O nome não pode ficar vazio.','e'); return; }
-  sep.name = nome;
-  renderProcVisita();
-  await saveProcDossiers();
-  scheduleAutoSave();
-  toast('✅ Separador renomeado!');
-}
+// função removida
 
-async function adicionarSeparadorDireto(dossierId){
-  const input = document.getElementById('novo-sep-'+dossierId);
-  if(!input) return;
-  const nome = input.value.trim();
-  if(!nome){ toast('Escreve o nome do separador.','e'); return; }
-  const d = procDossiers.find(x=>x.id===dossierId);
-  if(!d) return;
-  const id = 's'+Date.now();
-  d.seps.push({id, name:nome});
-  procOpenDossiers.add('pd-'+dossierId);
-  renderProcVisita();
-  // Re-open dossier after re-render
-  const pd = document.getElementById('pd-'+dossierId);
-  if(pd) pd.style.display = 'block';
-  await saveProcDossiers();
-  toast('✅ Separador "'+nome+'" adicionado!');
-}
+// função removida (dependia de saveProcDossiers)
 
 function setProcAns(sepId, state, btn){
   scheduleAutoSave();
