@@ -4236,15 +4236,64 @@ function abrirNovoDossie(){
 }
 
 async function loadProcDossiers(){
-  try {
-    const rows = await dbGet('cj_proc_config','order=created_at.asc&limit=1');
-    if(rows && rows.length){
-      procDossiers = JSON.parse(rows[0].config || '[]');
-    } else {
-      procDossiers = [];
-    }
-  } catch(e){ procDossiers = []; }
+  const DOSSIERS_FIXOS = [
+    { id:'d1', name:'1 — Entidades Oficiais', seps:[
+      {id:'s1_1', name:'1 — Documentação do Sistema'},
+      {id:'s1_2', name:'2 — Documentação HACCP'},
+      {id:'s1_3', name:'3 — Controlo de Pragas'},
+      {id:'s1_4', name:'4 — Higienização'},
+      {id:'s1_5', name:'5 — Boletim de Análises'},
+      {id:'s1_6', name:'6 — Calibração de Instrumentos de Medição'},
+      {id:'s1_7', name:'7 — Formações'},
+    ]},
+    { id:'d2', name:'2 — Winrest', seps:[
+      {id:'s2_1', name:'1 — Anulações'},
+      {id:'s2_2', name:'2 — Devoluções = Notas de Crédito'},
+      {id:'s2_3', name:'3 — Alteração de PVP'},
+      {id:'s2_4', name:'4 — Diferenças de Caixa'},
+      {id:'s2_5', name:'5 — Registo de TPA'},
+    ]},
+    { id:'d3',  name:'3 — Inventários',        seps:[] },
+    { id:'d6',  name:'6 — Proteção de Dados',  seps:[] },
+    { id:'d7',  name:'7 — GTP',                seps:[] },
+    { id:'d8',  name:'8 — Reclamações',        seps:[] },
+    { id:'d9',  name:'9 — Legionela',          seps:[] },
+    { id:'d10', name:'10 — Jogos Santa Casa', seps:[
+      {id:'s10_1', name:'Parte I — Raspadinhas e Lotarias'},
+      {id:'s10_2', name:'Parte II — Relatório Fecho de Terminal'},
+    ]},
+    { id:'darq_rh',  name:'ARQ — RH',                            seps:[] },
+    { id:'darq_sa',  name:'ARQ — Segurança Alimentar',           seps:[] },
+    { id:'darq_dev', name:'ARQ — Devoluções = Notas de Crédito', seps:[] },
+  ];
+  if(CU && CU.gopId === 'joao_martinho'){
+    try {
+      const rows = await dbGet('cj_proc_config','order=created_at.asc&limit=1');
+      if(rows && rows.length && rows[0].config){
+        procDossiers = JSON.parse(rows[0].config);
+      } else {
+        procDossiers = DOSSIERS_FIXOS;
+        await saveProcDossiers();
+      }
+    } catch(e){ procDossiers = DOSSIERS_FIXOS; }
+  } else {
+    procDossiers = DOSSIERS_FIXOS;
+  }
   renderProcVisita();
+  // Esconder botões de edição para todos exceto João Martinho
+  aplicarPermissoesProc();
+}
+
+function aplicarPermissoesProc(){
+  if(CU && CU.gopId === 'joao_martinho') return; // João Martinho pode tudo
+  // Esconder botões ✏️ (editar separador) e campos + Separador
+  document.querySelectorAll('[title="Editar nome"]').forEach(b => b.style.display='none');
+  document.querySelectorAll('[id^="novo-sep-"], .btn.bp.bsm[onclick*="adicionarSeparadorDireto"]').forEach(el => el.style.display='none');
+  // Esconder botão + Adicionar dossier no formulário
+  const addDiv = document.getElementById('proc-add-dossier-btn');
+  if(addDiv) addDiv.style.display='none';
+  const addInput = document.getElementById('novo-dossie-input');
+  if(addInput){ addInput.style.display='none'; const btn=addInput.nextElementSibling; if(btn) btn.style.display='none'; }
 }
 
 async function saveProcDossiers(){
