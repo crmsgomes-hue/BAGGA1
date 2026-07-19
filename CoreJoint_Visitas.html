@@ -4444,6 +4444,8 @@ function renderProcVisita(){
       '</div></div>' +
       '</div>';
   }).join('');
+  // Aplicar permissões após render — esconde botões de edição para todos excepto João Martinho
+  setTimeout(aplicarPermissoesProc, 0);
 }
 
 // Pastas colapsáveis genéricas no formulário da visita (RH, Procedimentos) — fechadas por
