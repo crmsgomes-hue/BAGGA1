@@ -4273,11 +4273,15 @@ async function loadProcDossiers(){
         procDossiers = JSON.parse(rows[0].config);
       } else {
         procDossiers = DOSSIERS_FIXOS;
-        await saveProcDossiers();
+        await saveProcDossiers(); // guardar base inicial na BD para todos
       }
     } catch(e){ procDossiers = DOSSIERS_FIXOS; }
   } else {
-    procDossiers = DOSSIERS_FIXOS;
+    // Todos os outros carregam a versão da BD (actualizada pelo João Martinho)
+    try {
+      const rows = await dbGet('cj_proc_config','order=created_at.asc&limit=1');
+      procDossiers = (rows && rows.length && rows[0].config) ? JSON.parse(rows[0].config) : DOSSIERS_FIXOS;
+    } catch(e){ procDossiers = DOSSIERS_FIXOS; }
   }
   renderProcVisita();
   // Esconder botões de edição para todos exceto João Martinho
