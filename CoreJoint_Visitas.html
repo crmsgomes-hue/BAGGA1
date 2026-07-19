@@ -1520,12 +1520,39 @@ function openM(id){
 }
 function closeM(id){document.getElementById(id).classList.remove('open');}
 function bigPhoto(src){
-  const lb = document.getElementById('m-photo');
-  const img = document.getElementById('big-photo');
-  if(!lb || !img || !src) return;
+  if(!src) return;
+  // Remover lightbox anterior se existir
+  var old = document.getElementById('_lb');
+  if(old) document.body.removeChild(old);
+  // Criar overlay de raiz e juntar ao body
+  var lb = document.createElement('div');
+  lb.id = '_lb';
+  lb.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.95);z-index:2147483647;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent';
+  var img = document.createElement('img');
   img.src = src;
-  lb.style.display = 'flex';
+  img.style.cssText = 'max-width:96vw;max-height:90vh;object-fit:contain;border-radius:6px;pointer-events:none;user-select:none;display:block';
+  var x = document.createElement('div');
+  x.style.cssText = 'position:absolute;top:10px;right:16px;color:#fff;font-size:2.5rem;line-height:1;font-weight:200;pointer-events:none';
+  x.textContent = '\u00D7';
+  lb.appendChild(img);
+  lb.appendChild(x);
+  lb.addEventListener('click', function(){ document.body.removeChild(lb); });
+  lb.addEventListener('touchend', function(e){ e.preventDefault(); document.body.removeChild(lb); });
+  document.body.appendChild(lb);
 }
+
+// Delegação global de toque/click em qualquer imagem com data-bp
+(function(){
+  function _openBP(e){
+    var img = e.target;
+    if(img.tagName==='IMG' && img.dataset && img.dataset.bp){
+      if(e.type==='touchend') e.preventDefault();
+      bigPhoto(img.dataset.bp);
+    }
+  }
+  document.addEventListener('click', _openBP, true);
+  document.addEventListener('touchend', _openBP, {passive:false, capture:true});
+})();
 function el(id){return document.getElementById(id);}
 function val(id){const e=el(id);return e?(e.value||'').trim():'';}
 
@@ -2930,7 +2957,7 @@ function renderEquipLista(){
 
 function renderEquipFotos(id, fotos){
   return (fotos||[]).map((src,i) =>
-    `<div style="position:relative;display:inline-block"><img src="${src}" style="width:62px;height:62px;object-fit:cover;border-radius:5px;cursor:pointer" onclick="bigPhoto('${src}')">` +
+    `<div style="position:relative;display:inline-block"><img src="${src}" style="width:62px;height:62px;object-fit:cover;border-radius:5px;cursor:pointer" data-bp="${src}">` +
     `<button onclick="delEquipFoto('${id}',${i})" style="position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;border:none;border-radius:50%;width:16px;height:16px;font-size:.6rem;cursor:pointer;font-family:inherit">✕</button></div>`
   ).join('');
 }
@@ -4011,7 +4038,7 @@ function renderPhotos(type){
   const container=el('v-'+type+'-photos');if(!container)return;
   container.innerHTML=(vPhotos[type]||[]).map((p,i)=>`
     <div class="photo-item">
-      <img src="${p.src}" onclick="bigPhoto('${p.src}')">
+      <img src="${p.src}" data-bp="${p.src}">
       <button class="photo-del" onclick="delPhoto('${type}',${i})">✕</button>
       <input class="photo-legend" type="text" placeholder="Legenda…" value="${p.legenda||''}" onchange="setCamFotoLegenda('${type}',${i},this.value)">
     </div>`).join('');
@@ -5698,6 +5725,7 @@ function renderChkPhotos(id){
     img.src = src;
     img.style.cssText = 'width:90px;height:70px;object-fit:cover;border-radius:5px;border:1.5px solid var(--br);cursor:pointer;display:block';
     img.onclick = function(){ bigPhoto(src); };
+    img.addEventListener('touchend', function(e){ e.preventDefault(); bigPhoto(src); });
     const btn = document.createElement('button');
     btn.textContent = '✕';
     btn.style.cssText = 'position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:.7rem;cursor:pointer';
