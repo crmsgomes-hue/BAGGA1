@@ -3072,6 +3072,7 @@ async function rEquipamentosAvarias(){
           html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
           html += '<button data-avid="'+r.id+'" data-action="guardar" style="padding:8px 14px;border-radius:var(--rb);border:1.5px solid var(--br);background:var(--sf2);color:var(--t);font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">💾 Guardar</button>';
           html += '<button data-avid="'+r.id+'" data-action="resolver" style="padding:8px 14px;border-radius:var(--rb);border:none;background:#6b7280;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">🔧 Resolvido</button>';
+          html += '<button data-avid="'+r.id+'" data-action="eliminar" style="padding:8px 14px;border-radius:var(--rb);border:none;background:var(--red);color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">🗑 Eliminar</button>';
           html += '</div>';
           if(r.validacao !== 'pendente'){
             const vc2 = r.validacao==='aprovado'?'var(--grn)':'var(--red)';
@@ -3095,6 +3096,7 @@ async function rEquipamentosAvarias(){
         if(ac==='aprovar')  validarEquipAv(avId,'aprovado');
         if(ac==='rejeitar') validarEquipAv(avId,'rejeitado');
         if(ac==='resolver') abrirModalPO(avId);
+        if(ac==='eliminar') eliminarEquipAv(avId);
       };
     }
   }
@@ -3155,6 +3157,13 @@ let _equipAvValFiltro = null; // 'aprovado'|'rejeitado'|'pendente'|null
 
 function setEquipAvFiltro(id){ _equipAvFiltro=id; rEquipamentosAvarias(); }
 function setEquipAvValFiltro(val){ _equipAvValFiltro=(_equipAvValFiltro===val?null:val); rEquipamentosAvarias(); }
+
+async function eliminarEquipAv(id){
+  if(!confirm('Tens a certeza que queres eliminar este registo? Esta ação não pode ser desfeita.')) return;
+  await sb('DELETE','cj_equipamentos_avarias', null, 'id=eq.'+id, true);
+  toast('🗑 Registo eliminado.');
+  rEquipamentosAvarias();
+}
 
 async function guardarEquipAv(id){
   const acao=(el('eqav-acao-'+id)||{value:''}).value;
