@@ -3093,7 +3093,7 @@ async function rEquipamentosAvarias(){
 
         if(isCrop){
           if(r.acao_gop) html += '<div style="margin-bottom:8px"><div style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:var(--t2);margin-bottom:3px">Ação tomada</div><div style="font-size:.82rem;color:#444;padding:7px 9px;background:var(--sf2);border-radius:var(--rb)">'+escH(r.acao_gop)+'</div></div>';
-          if(r.orcamento) html += '<div style="margin-bottom:10px"><div style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:var(--t2);margin-bottom:3px">Orçamento</div><div style="font-size:.88rem;font-weight:700;color:var(--ac)">'+escH(r.orcamento)+'</div></div>';
+          html += '<div style="margin-bottom:10px"><div style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:var(--t2);margin-bottom:3px">Orçamento</div><div style="font-size:.88rem;font-weight:700;color:'+(r.orcamento?'var(--ac)':'var(--t2)')+'">'+escH(r.orcamento||'— Ainda não preenchido pelo GOP')+'</div></div>';
           html += '<div style="border-top:1px solid var(--br);padding-top:10px"><div style="font-size:.74rem;font-weight:700;text-transform:uppercase;color:#7c3aed;margin-bottom:5px">🟣 Validação CROP</div>';
           html += '<textarea id="eqav-ncrop-'+r.id+'" class="jta" style="min-height:44px;font-size:.82rem;margin-bottom:8px" placeholder="Notas…">'+escH(r.notas_crop||'')+'</textarea>';
           html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
