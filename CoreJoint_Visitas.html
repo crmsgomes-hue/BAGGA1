@@ -289,6 +289,7 @@
   <div id="equip-av-filtro" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px"></div>
   <div id="equip-av-filtro-val" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px"></div>
   <div id="equip-av-lista"></div>
+  <div id="equip-av-aprovados"></div>
   <div id="equip-av-hist"></div>
 </div>
 
@@ -3017,9 +3018,15 @@ async function rEquipamentosAvarias(){
   if(lista) lista.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:10px">A carregar…</div>';
   const isCrop = CU && CU.role === 'crop';
   const regiao = CU && CU.region ? CU.region : (CU && CU.gopId ? gopRegion(CU.gopId) : 'sul');
-  let q = 'estado=in.(aberto,em_curso)&order=updated_at.desc';
+  // Lista principal: em aberto OU rejeitados (excluir aprovados — vão para secção própria)
+  let q = 'estado=in.(aberto,em_curso)&validacao=neq.aprovado&order=updated_at.desc';
   q += isCrop ? '&region=eq.'+regiao : '&gop_id=eq.'+CU.gopId;
   const rows = await dbGet('cj_equipamentos_avarias', q) || [];
+
+  // Aprovados aguardam resolução pelo GOP
+  let qApr = 'estado=in.(aberto,em_curso)&validacao=eq.aprovado&order=updated_at.desc';
+  qApr += isCrop ? '&region=eq.'+regiao : '&gop_id=eq.'+CU.gopId;
+  const rowsApr = await dbGet('cj_equipamentos_avarias', qApr) || [];
 
   // ── Filtros ───────────────────────────────────────────────────────────────
   const PILL    = 'display:inline-block;padding:6px 13px;border-radius:99px;font-size:.78rem;font-weight:600;cursor:pointer;border:1.5px solid var(--br);background:var(--sf2);color:var(--t2);margin:0 4px 6px 0;font-family:inherit;touch-action:manipulation';
@@ -3137,6 +3144,38 @@ async function rEquipamentosAvarias(){
     }
   }
   await renderEquipAvHist(isCrop, regiao);
+
+  // Secção Aprovados (orçamento aprovado, aguarda resolução pelo GOP)
+  const aprEl = el('equip-av-aprovados');
+  if(aprEl){
+    if(!rowsApr.length){
+      aprEl.innerHTML = '';
+    } else {
+      let aprHtml = '<div style="margin-top:16px"><div style="font-family:Syne,sans-serif;font-weight:800;font-size:.92rem;color:var(--grn);margin-bottom:8px;padding:8px 12px;background:#eef6ee;border-radius:var(--rb);border-left:4px solid var(--grn)">✅ Orçamentos Aprovados — aguardam resolução <span style="font-size:.75rem;font-weight:400;color:var(--t2)">('+rowsApr.length+')</span></div>';
+      rowsApr.forEach(r=>{
+        const fotos = JSON.parse(r.fotos||'[]');
+        aprHtml += '<div style="background:#fff;border-radius:var(--rb);border:1px solid var(--br);border-left:4px solid var(--grn);padding:12px 14px;margin-bottom:8px">';
+        aprHtml += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:6px"><div>';
+        aprHtml += '<div style="font-weight:700;font-size:.88rem">📍 '+sn(r.loja)+' — '+r.equip_label+'</div>';
+        if(isCrop) aprHtml += '<div style="font-size:.75rem;color:var(--t2)">👤 '+r.gop_nome+' · '+r.data_visita+'</div>';
+        aprHtml += '</div><span style="font-size:.73rem;font-weight:700;color:var(--grn);background:#eef6ee;border:1.5px solid var(--grn);padding:2px 9px;border-radius:99px">✅ Aprovado</span></div>';
+        if(r.notas_gop) aprHtml += '<div style="font-size:.81rem;color:#444;margin-bottom:6px;padding:5px 8px;background:var(--sf2);border-radius:var(--rb)">📋 '+r.notas_gop+'</div>';
+        if(r.acao_gop) aprHtml += '<div style="font-size:.81rem;color:#444;margin-bottom:6px"><span style="font-weight:600;color:var(--t2)">Ação:</span> '+escH(r.acao_gop)+'</div>';
+        if(r.orcamento) aprHtml += '<div style="font-size:.88rem;font-weight:700;color:var(--ac);margin-bottom:6px">💶 '+escH(r.orcamento)+'</div>';
+        if(r.notas_crop) aprHtml += '<div style="font-size:.78rem;color:#555;font-style:italic;margin-bottom:6px">Nota CROP: '+escH(r.notas_crop)+'</div>';
+        if(fotos.length) aprHtml += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">'+fotos.slice(0,4).map(f=>'<img src="'+f+'" style="width:60px;height:45px;object-fit:cover;border-radius:4px;cursor:pointer" onclick="bigPhoto(this.src)">').join('')+'</div>';
+        if(!isCrop) aprHtml += '<button data-avid="'+r.id+'" data-action="resolver" style="padding:8px 14px;border-radius:var(--rb);border:none;background:#6b7280;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">🔧 Marcar resolvido</button>';
+        aprHtml += '</div>';
+      });
+      aprHtml += '</div>';
+      aprEl.innerHTML = aprHtml;
+      aprEl.onclick = function(e){
+        const btn = e.target.closest('[data-action]');
+        if(!btn) return;
+        if(btn.getAttribute('data-action')==='resolver') abrirModalPO(btn.getAttribute('data-avid'));
+      };
+    }
+  }
 }
 
 async function renderEquipAvHist(isCrop, regiao){
