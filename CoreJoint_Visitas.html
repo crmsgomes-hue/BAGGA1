@@ -3251,9 +3251,7 @@ async function syncEquipAvarias(){
   const nokItems = EQUIP_LISTA.filter(eq => vEquip[eq.id] && vEquip[eq.id].estado === 'nok');
   for(const eq of nokItems){
     const item = vEquip[eq.id];
-    const avId = 'eqav_'+vStore+'_'+eq.id;
     const entry = {
-      id: avId,
       loja: vStore,
       gop_id: CU.gopId,
       gop_nome: who(),
@@ -3261,15 +3259,20 @@ async function syncEquipAvarias(){
       equip_label: eq.label,
       data_visita: now().slice(0,10),
       notas_gop: item.notas||'',
-      acao_gop: item.notas||'',  // pré-preencher com as notas da visita
+      acao_gop: item.notas||'',
       fotos: JSON.stringify(item.fotos||[]),
       estado: 'aberto',
       region: regiao
     };
-    // PATCH se existe, POST se não existe
-    const exist = await sb('PATCH','cj_equipamentos_avarias', entry, 'id=eq.'+avId+'&estado=neq.resolvido', true);
-    if(!exist || (Array.isArray(exist) && !exist.length)){
-      await sb('POST','cj_equipamentos_avarias', entry, '', true);
+    // Verificar se já existe avaria aberta/em_curso para esta loja+equipamento
+    const existing = await dbGet('cj_equipamentos_avarias',
+      'loja=eq.'+vStore+'&equip_id=eq.'+eq.id+'&estado=in.(aberto,em_curso)&select=id&limit=1');
+    if(existing && existing.length){
+      // Actualizar o registo existente
+      await sb('PATCH','cj_equipamentos_avarias', entry, 'id=eq.'+existing[0].id, true);
+    } else {
+      // Criar nova avaria com id único
+      await sb('POST','cj_equipamentos_avarias', {...entry, id: uid()}, '', true);
     }
   }
 }
