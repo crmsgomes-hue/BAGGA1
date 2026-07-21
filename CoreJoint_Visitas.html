@@ -4302,7 +4302,35 @@ async function startV(store, skipReset=false){
   const vc=el('v-tar-create');if(vc)vc.style.display=adm()?'block':'none';
 }
 function backV(){
-  forceImmediateSave(); // guardar antes de sair do formulário
+  // Guardar snapshot completo em localStorage ANTES de anular vStore
+  if(vStore){
+    _formDirty = true;
+    if(_autoSaveTimer){ clearTimeout(_autoSaveTimer); _autoSaveTimer=null; }
+    try{
+      // Snapshot rápido com os dados essenciais (inclui equipamentos)
+      const chkMeta={};
+      Object.keys(vChecklist).forEach(k=>{ chkMeta[k]={conforme:vChecklist[k].conforme,nota:vChecklist[k].nota||'',prazo:vChecklist[k].prazo||'',fotos:vChecklist[k].fotos||[]}; });
+      const snap={
+        loja:vStore, ts:new Date().toISOString(),
+        hora_inicio:(el('v-hinicio')||{value:''}).value,
+        cafe_simples:val('v-cs'), cafe_duplo:val('v-cd'),
+        crescimento_food_mes:val('v-cr-food-mes'), crescimento_food_ano:val('v-cr-food-ano'),
+        crescimento_total_mes:val('v-cr-total-mes'), crescimento_total_ano:val('v-cr-total-ano'),
+        quebra_total:val('v-quebra-total'), quebra_food:val('v-quebra-food'),
+        ebita:val('v-ebita'), staffcos:val('v-staffcos'), margem:val('v-margem'),
+        notas:val('v-nt'),
+        rut_check:JSON.stringify(vRut),
+        checklist:JSON.stringify(chkMeta),
+        haccp:JSON.stringify(vHaccp),
+        equip_lista:JSON.stringify(vEquip),
+        fotos_chegada:vChegadaPhoto||null,
+        fotos_cafe:JSON.stringify(vPhotos.cafe||[]),
+      };
+      localStorage.setItem(getAutoSaveKey(vStore), JSON.stringify(snap));
+    }catch(e){ console.warn('backV localStorage save error:', e); }
+    // Também disparar save no Supabase (async — pode completar depois)
+    runAutoSave();
+  }
   el('v-stores').style.display='block';
   el('v-form').style.display='none';
   vStore=null;
@@ -6642,17 +6670,6 @@ function forceImmediateSave(){
   if(!vStore) return;
   _formDirty = true;
   if(_autoSaveTimer){ clearTimeout(_autoSaveTimer); _autoSaveTimer=null; }
-  // Guardar vEquip directamente no localStorage enquanto vStore ainda está definido
-  try{
-    const key = getAutoSaveKey(vStore);
-    const existing = localStorage.getItem(key);
-    if(existing){
-      const snap = JSON.parse(existing);
-      snap.equip_lista = JSON.stringify(vEquip);
-      localStorage.setItem(key, JSON.stringify(snap));
-    }
-  }catch(e){}
-  // Disparar o save completo no Supabase (assíncrono)
   runAutoSave();
 }
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') forceImmediateSave(); });
@@ -6705,6 +6722,7 @@ async function doAutoSave(){
       rh_comentario: (document.getElementById('rh-comentario')||{value:''}).value,
       fotos_chegada: vChegadaPhoto||null,
       fotos_cafe: JSON.stringify(vPhotos.cafe||[]),
+      equip_lista: JSON.stringify(vEquip),
     };
 
     // Guardar localmente (cache rápida no mesmo dispositivo) — NUNCA deve bloquear o Supabase,
