@@ -3044,6 +3044,10 @@ function delEquipFoto(id, idx){
 let _equipAvFiltro = null;
 
 async function rEquipamentosAvarias(){
+  // Mostrar botão + Adicionar só para GOPs (CU já está definido aqui)
+  const addBtn = el('btn-add-avaria');
+  if(addBtn) addBtn.style.display = (CU && CU.role==='gop') ? '' : 'none';
+
   const lista = el('equip-av-lista');
   if(lista) lista.innerHTML = '<div style="color:var(--t2);font-size:.82rem;padding:10px">A carregar…</div>';
   const isCrop = CU && CU.role === 'crop';
@@ -3224,10 +3228,6 @@ let _equipAvValFiltro = null; // 'aprovado'|'rejeitado'|'pendente'|null
 
 function setEquipAvFiltro(id){ _equipAvFiltro=id; rEquipamentosAvarias(); }
 function setEquipAvValFiltro(val){ _equipAvValFiltro=(_equipAvValFiltro===val?null:val); rEquipamentosAvarias(); }
-
-  // Mostrar botão + Adicionar só para GOPs
-  const addBtn = el('btn-add-avaria');
-  if(addBtn) addBtn.style.display = (CU && CU.role==='gop') ? '' : 'none';
 
 let _addAvFotos = [];
 
