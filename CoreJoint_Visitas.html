@@ -4301,7 +4301,12 @@ async function startV(store, skipReset=false){
   }catch(e){}
   const vc=el('v-tar-create');if(vc)vc.style.display=adm()?'block':'none';
 }
-function backV(){el('v-stores').style.display='block';el('v-form').style.display='none';vStore=null;}
+function backV(){
+  forceImmediateSave(); // guardar antes de sair do formulário
+  el('v-stores').style.display='block';
+  el('v-form').style.display='none';
+  vStore=null;
+}
 async function rVRut(){
   let d=[];
   try{ d=await dbAll('cj_ruturas','estado=eq.validado')||[]; }catch(e){}
@@ -6637,6 +6642,17 @@ function forceImmediateSave(){
   if(!vStore) return;
   _formDirty = true;
   if(_autoSaveTimer){ clearTimeout(_autoSaveTimer); _autoSaveTimer=null; }
+  // Guardar vEquip directamente no localStorage enquanto vStore ainda está definido
+  try{
+    const key = getAutoSaveKey(vStore);
+    const existing = localStorage.getItem(key);
+    if(existing){
+      const snap = JSON.parse(existing);
+      snap.equip_lista = JSON.stringify(vEquip);
+      localStorage.setItem(key, JSON.stringify(snap));
+    }
+  }catch(e){}
+  // Disparar o save completo no Supabase (assíncrono)
   runAutoSave();
 }
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') forceImmediateSave(); });
