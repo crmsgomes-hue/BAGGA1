@@ -284,13 +284,44 @@
 
 <!-- ══════════════════════════════════════════════ EQUIPAMENTOS AVARIAS ══ -->
 <div class="sec" id="s-equipamentos_avarias">
-  <div class="pt">Equipamentos</div>
-  <div class="ps" id="equip-av-sub">Avarias reportadas nas visitas</div>
-  <div id="equip-av-filtro" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+    <div><div class="pt" style="margin:0">Equipamentos</div><div class="ps" id="equip-av-sub">Avarias reportadas nas visitas</div></div>
+    <button id="btn-add-avaria" onclick="abrirModalAddAvaria()" class="btn bp bsm" style="display:none">+ Adicionar</button>
+  </div>
+  <div id="equip-av-filtro" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;margin-top:10px"></div>
   <div id="equip-av-filtro-val" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px"></div>
   <div id="equip-av-lista"></div>
   <div id="equip-av-hist"></div>
 </div>
+
+<!-- MODAL: Adicionar avaria manualmente (GOP) -->
+<div class="mo" id="m-add-avaria"><div class="md" style="max-width:400px">
+  <div class="mh"><div class="mtt">⚙️ Reportar Avaria</div><button class="mx" onclick="closeM('m-add-avaria')">✕</button></div>
+  <div class="fg">
+    <label>Loja</label>
+    <select id="add-av-loja" class="fc" style="height:44px"></select>
+  </div>
+  <div class="fg">
+    <label>Equipamento</label>
+    <select id="add-av-equip" class="fc" style="height:44px"></select>
+  </div>
+  <div class="fg">
+    <label>Descrição / Observação</label>
+    <textarea id="add-av-notas" class="jta" style="min-height:80px" placeholder="Descreve o problema do equipamento…"></textarea>
+  </div>
+  <div class="fg">
+    <label>Foto (opcional)</label>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <label class="cam-btn" style="cursor:pointer">📷 Câmara<input type="file" accept="image/*" capture="environment" style="display:none" onchange="addAvFoto(this)"></label>
+      <label class="cam-btn" style="cursor:pointer;background:var(--sf2);border-color:var(--br);color:var(--t2)">📁 Galeria<input type="file" accept="image/*" style="display:none" onchange="addAvFoto(this)"></label>
+    </div>
+    <div id="add-av-foto-prev" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
+  </div>
+  <div class="mf">
+    <button class="btn bs" onclick="closeM('m-add-avaria')">Cancelar</button>
+    <button class="btn bp" onclick="guardarAddAvaria()">💾 Guardar</button>
+  </div>
+</div></div>
 
 <!-- MODAL: Número de PO -->
 <div class="mo" id="m-equip-po"><div class="md" style="max-width:340px">
@@ -3193,6 +3224,86 @@ let _equipAvValFiltro = null; // 'aprovado'|'rejeitado'|'pendente'|null
 
 function setEquipAvFiltro(id){ _equipAvFiltro=id; rEquipamentosAvarias(); }
 function setEquipAvValFiltro(val){ _equipAvValFiltro=(_equipAvValFiltro===val?null:val); rEquipamentosAvarias(); }
+
+  // Mostrar botão + Adicionar só para GOPs
+  const addBtn = el('btn-add-avaria');
+  if(addBtn) addBtn.style.display = (CU && CU.role==='gop') ? '' : 'none';
+
+let _addAvFotos = [];
+
+function abrirModalAddAvaria(){
+  _addAvFotos = [];
+  el('add-av-notas').value='';
+  el('add-av-foto-prev').innerHTML='';
+  // Popular lojas
+  const lojasSel = el('add-av-loja');
+  lojasSel.innerHTML = (STORES||[]).map(s=>'<option value="'+s+'">'+sn(s)+'</option>').join('');
+  // Popular equipamentos
+  const equipSel = el('add-av-equip');
+  equipSel.innerHTML = EQUIP_LISTA.map(e=>'<option value="'+e.id+'">'+e.label+'</option>').join('');
+  openM('m-add-avaria');
+}
+
+function addAvFoto(input){
+  const file = input.files&&input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img2 = new Image();
+    img2.onload = () => {
+      const canvas=document.createElement('canvas');
+      const MAX=900; let w=img2.width,h=img2.height;
+      if(w>MAX||h>MAX){if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img2,0,0,w,h);
+      const src=canvas.toDataURL('image/jpeg',0.75);
+      _addAvFotos.push(src);
+      const prev=el('add-av-foto-prev');
+      if(prev){
+        const div=document.createElement('div');div.style.position='relative';div.style.display='inline-block';
+        const im=document.createElement('img');im.src=src;im.style.cssText='width:70px;height:55px;object-fit:cover;border-radius:5px;cursor:pointer';
+        im.onclick=function(){bigPhoto(src);};
+        const del=document.createElement('button');
+        del.style.cssText='position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:.65rem;cursor:pointer;font-family:inherit';
+        del.textContent='✕';
+        const idx=_addAvFotos.length-1;
+        del.onclick=function(){ _addAvFotos.splice(idx,1); div.remove(); };
+        div.appendChild(im);div.appendChild(del);prev.appendChild(div);
+      }
+    };
+    img2.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+async function guardarAddAvaria(){
+  const lojaVal = (el('add-av-loja')||{value:''}).value;
+  const equipVal = (el('add-av-equip')||{value:''}).value;
+  const notas = (el('add-av-notas')||{value:''}).value.trim();
+  if(!lojaVal){ toast('Selecciona uma loja.','w'); return; }
+  if(!equipVal){ toast('Selecciona um equipamento.','w'); return; }
+  const equipLabel = (EQUIP_LISTA.find(e=>e.id===equipVal)||{label:equipVal}).label;
+  const regiao = CU.region || gopRegion(CU.gopId);
+  const entry = {
+    id: uid(),
+    loja: lojaVal,
+    gop_id: CU.gopId,
+    gop_nome: who(),
+    equip_id: equipVal,
+    equip_label: equipLabel,
+    data_visita: now().slice(0,10),
+    notas_gop: notas,
+    acao_gop: notas,
+    fotos: JSON.stringify(_addAvFotos),
+    estado: 'aberto',
+    region: regiao
+  };
+  const res = await sb('POST','cj_equipamentos_avarias', entry, '', true);
+  if(!res){ toast('Erro ao guardar. Tenta novamente.','e'); return; }
+  closeM('m-add-avaria');
+  toast('✅ Avaria registada!');
+  rEquipamentosAvarias();
+}
 
 async function eliminarEquipAv(id){
   if(!confirm('Tens a certeza que queres eliminar este registo? Esta ação não pode ser desfeita.')) return;
