@@ -3421,11 +3421,14 @@ async function verificarEspacoHistorico(){
   alertEl.innerHTML =
     '<div style="background:#fff8ee;border:1.5px solid #ffc107;border-radius:var(--ra);padding:12px 14px;margin-bottom:14px">' +
     '<div style="font-weight:700;font-size:.88rem;color:#856404;margin-bottom:6px">📦 ' + rows.length + ' relatório(s) com mais de 60 dias</div>' +
-    '<div style="font-size:.8rem;color:#555;margin-bottom:10px">Exporta os relatórios antes de libertar espaço. Os metadados ficam guardados (loja, data, GOP) mas o PDF deixa de estar disponível na app.</div>' +
+    '<div style="font-size:.8rem;color:#555;margin-bottom:10px">Exporta toda a informação organizada por região antes de libertar espaço. Recomendado fazer num computador devido ao tamanho do ficheiro.</div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-    '<button onclick="exportarVisitasPDF()" style="padding:8px 14px;border-radius:var(--rb);border:none;background:var(--ac);color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">📄 Exportar PDFs (ZIP)</button>' +
-    '<button onclick="exportarEquipamentosExcel()" style="padding:8px 14px;border-radius:var(--rb);border:none;background:var(--grn);color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">📊 Exportar Equipamentos (Excel)</button>' +
-    '<button onclick="limparHTMLAntigo()" style="padding:8px 14px;border-radius:var(--rb);border:none;background:#6b7280;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">🗑 Limpar HTML antigo</button>' +
+    '<button onclick="exportarCompletoEstruturado()" style="padding:9px 16px;border-radius:var(--rb);border:none;background:var(--ac);color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit">📦 Exportar Tudo (ZIP estruturado)</button>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
+    '<button onclick="exportarVisitasPDF()" style="padding:7px 12px;border-radius:var(--rb);border:1px solid var(--br);background:var(--sf2);color:var(--t2);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit">📄 Só PDFs (ZIP)</button>' +
+    '<button onclick="exportarEquipamentosExcel()" style="padding:7px 12px;border-radius:var(--rb);border:1px solid var(--br);background:var(--sf2);color:var(--t2);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit">📊 Só Equipamentos (Excel)</button>' +
+    '<button onclick="limparHTMLAntigo()" style="padding:7px 12px;border-radius:var(--rb);border:1px solid var(--br);background:var(--sf2);color:var(--t2);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit">🗑 Limpar espaço</button>' +
     '</div></div>';
 }
 
@@ -3541,6 +3544,161 @@ async function limparHTMLAntigo(){
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+
+async function exportarCompletoEstruturado(){
+  toast('A preparar exportação completa… pode demorar 1-2 minutos.');
+
+  // Carregar JSZip e SheetJS
+  const loadLib = (src, check) => !check ? new Promise((res,rej)=>{
+    if(document.querySelector('script[src="'+src+'"]')){res();return;}
+    const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);
+  }) : Promise.resolve();
+
+  await loadLib('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', typeof JSZip!=='undefined');
+  await loadLib('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', typeof XLSX!=='undefined');
+
+  const hoje = new Date().toISOString().slice(0,10);
+  const zip  = new JSZip();
+
+  // Helper: determinar região de um saved_by
+  function regiaoDeGOP(savedBy){
+    const nome = (savedBy||'').replace('GOP — ','').replace('GOP — Luís Serrano','Valter Costa');
+    for(const [gopId, gopNome] of Object.entries(GOP_NAMES)){
+      if(gopNome === nome) return (GOP_REGION[gopId]||'sul');
+    }
+    if(savedBy && savedBy.includes('CROP')) return savedBy.toLowerCase().includes('norte')?'norte':'sul';
+    return 'sul';
+  }
+
+  // Helper: gerar Excel como Uint8Array
+  function gerarExcel(sheets){
+    const wb = XLSX.utils.book_new();
+    sheets.forEach(({nome,dados})=>{
+      const ws = XLSX.utils.aoa_to_sheet(dados);
+      // Auto-width
+      if(dados[0]) ws['!cols'] = dados[0].map((_,i)=>{
+        const max = dados.reduce((m,r)=>Math.max(m,(r[i]||'').toString().length),10);
+        return {wch:Math.min(max+2,50)};
+      });
+      XLSX.utils.book_append_sheet(wb, ws, nome.slice(0,31));
+    });
+    return XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  }
+
+  toast('A buscar dados das visitas…');
+
+  // ══ 1. VISITAS ══════════════════════════════════════════════════════════════
+  const visitas = await dbGet('cj_historico','order=created_at.asc') || [];
+  const visitasN = visitas.filter(r=>regiaoDeGOP(r.saved_by)==='norte');
+  const visitasS = visitas.filter(r=>regiaoDeGOP(r.saved_by)==='sul');
+
+  const pastaVisN = zip.folder('Visitas/Norte');
+  const pastaVisS = zip.folder('Visitas/Sul');
+
+  const addVisita = (pasta, rows) => {
+    rows.forEach(r=>{
+      if(!r.html) return;
+      const data = (r.data||'').replace(/\//g,'-');
+      const loja = (r.loja||'').toLowerCase().replace(/ /g,'_');
+      const gop  = (r.saved_by||'').replace('GOP — ','').replace(/ /g,'_');
+      const nome = data+'_'+loja+'_'+gop+'.html';
+      pasta.file(nome, r.html);
+    });
+  };
+  addVisita(pastaVisN, visitasN);
+  addVisita(pastaVisS, visitasS);
+
+  // Índice de visitas em Excel
+  const idxCols = ['Data','Hora','Loja','GOP','Resumo'];
+  const idxN = [idxCols,...visitasN.map(r=>[r.data,r.hora,sn(r.loja),r.saved_by,r.resumo])];
+  const idxS = [idxCols,...visitasS.map(r=>[r.data,r.hora,sn(r.loja),r.saved_by,r.resumo])];
+  zip.folder('Visitas/Norte').file('_Indice_Norte.xlsx', gerarExcel([{nome:'Visitas Norte',dados:idxN}]));
+  zip.folder('Visitas/Sul').file('_Indice_Sul.xlsx',   gerarExcel([{nome:'Visitas Sul',  dados:idxS}]));
+
+  toast('A buscar equipamentos…');
+
+  // ══ 2. EQUIPAMENTOS ═════════════════════════════════════════════════════════
+  const avarias = await dbGet('cj_equipamentos_avarias','order=created_at.asc') || [];
+  const avN = avarias.filter(r=>r.region==='norte');
+  const avS = avarias.filter(r=>r.region==='sul');
+
+  const eqCols = ['Loja','Equipamento','GOP','Data Visita','Notas','Ação Tomada','Orçamento','Validação','Notas CROP','Estado','Nº PO','Resolvido em'];
+  const eqRow  = r => [sn(r.loja),r.equip_label,r.gop_nome,r.data_visita,r.notas_gop||'',r.acao_gop||'',r.orcamento||'',r.validacao||'',r.notas_crop||'',r.estado||'',r.po_number||'',r.resolved_at||''];
+
+  zip.folder('Equipamentos/Norte').file('Equipamentos_Norte.xlsx', gerarExcel([{nome:'Avarias Norte',dados:[eqCols,...avN.map(eqRow)]}]));
+  zip.folder('Equipamentos/Sul').file('Equipamentos_Sul.xlsx',   gerarExcel([{nome:'Avarias Sul',  dados:[eqCols,...avS.map(eqRow)]}]));
+
+  toast('A buscar tarefas e NCs…');
+
+  // ══ 3. TAREFAS / NCs ════════════════════════════════════════════════════════
+  const tarefas = await dbGet('cj_tarefas','order=created_at.asc') || [];
+  const gopLojas = {};
+  Object.entries(GOP_STORES).forEach(([g,ls])=>ls.forEach(l=>{ gopLojas[l]=gopLojas[l]||[]; gopLojas[l].push(g); }));
+  const regiaoLoja = (loja)=>{
+    const gs = gopLojas[loja]||[];
+    if(gs.some(g=>gopRegion(g)==='norte')) return 'norte';
+    return 'sul';
+  };
+  const tN = tarefas.filter(r=>regiaoLoja(r.loja)==='norte');
+  const tS = tarefas.filter(r=>regiaoLoja(r.loja)==='sul');
+
+  const tCols = ['Loja','Código','Descrição','Notas','Prazo','Estado','Criado por','Data criação'];
+  const tRow  = r => [sn(r.loja),r.codigo,r.descricao,r.notas||'',r.prazo||'',r.estado||'',r.criado_por||'',(r.created_at||'').slice(0,10)];
+
+  zip.folder('Tarefas_e_NCs/Norte').file('Tarefas_Norte.xlsx', gerarExcel([{nome:'NCs Norte',dados:[tCols,...tN.map(tRow)]}]));
+  zip.folder('Tarefas_e_NCs/Sul').file('Tarefas_Sul.xlsx',   gerarExcel([{nome:'NCs Sul',  dados:[tCols,...tS.map(tRow)]}]));
+
+  // ══ 4. CALENDÁRIO ═══════════════════════════════════════════════════════════
+  const eventos = await dbGet('cj_calendario','order=data_inicio.asc') || [];
+  const checks  = await dbGet('cj_calendario_checks','order=feito_em.asc') || [];
+  const evN = eventos.filter(r=>r.region==='norte');
+  const evS = eventos.filter(r=>r.region==='sul');
+  const evCols = ['Título','Descrição','Data Início','Recorrência','GOPs','Região'];
+  const evRow  = r => [r.titulo,r.descricao||'',r.data_inicio,r.recorrencia,r.gops,r.region];
+
+  const chCols = ['Evento ID','Data','GOP ID','Feito por','Data registo'];
+  const chRow  = r => [r.evento_id,r.data,r.gop_id,r.feito_por,(r.feito_em||'').slice(0,10)];
+  const chN = checks.filter(r=>{ const ev=eventos.find(e=>e.id===r.evento_id); return ev&&ev.region==='norte'; });
+  const chS = checks.filter(r=>{ const ev=eventos.find(e=>e.id===r.evento_id); return ev&&ev.region==='sul'; });
+
+  zip.folder('Calendario/Norte').file('Calendario_Norte.xlsx', gerarExcel([
+    {nome:'Eventos',dados:[evCols,...evN.map(evRow)]},
+    {nome:'Confirmações',dados:[chCols,...chN.map(chRow)]}
+  ]));
+  zip.folder('Calendario/Sul').file('Calendario_Sul.xlsx', gerarExcel([
+    {nome:'Eventos',dados:[evCols,...evS.map(evRow)]},
+    {nome:'Confirmações',dados:[chCols,...chS.map(chRow)]}
+  ]));
+
+  // ══ 5. RESUMO GERAL ═════════════════════════════════════════════════════════
+  const resumo = [
+    ['CoreJoint Visitas — Exportação Completa'],
+    ['Data exportação', hoje],
+    [''],
+    ['Secção','Norte','Sul','Total'],
+    ['Visitas',visitasN.length,visitasS.length,visitas.length],
+    ['Equipamentos avariados',avN.length,avS.length,avarias.length],
+    ['Tarefas / NCs',tN.length,tS.length,tarefas.length],
+    ['Eventos calendário',evN.length,evS.length,eventos.length],
+  ];
+  zip.file('Resumo_Geral.xlsx', gerarExcel([{nome:'Resumo',dados:resumo}]));
+
+  toast('A gerar ZIP final…');
+
+  // ══ Download ════════════════════════════════════════════════════════════════
+  const blob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}},
+    (meta)=>{ if(meta.percent%20<1) toast('A comprimir… '+Math.round(meta.percent)+'%'); });
+
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href = url; a.download = 'CoreJoint_Completo_'+hoje+'.zip';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  const tamanhoMB = (blob.size/1024/1024).toFixed(1);
+  toast('✅ Download iniciado! '+tamanhoMB+' MB — abre num computador.');
+}
 // ── Alterar PIN ──────────────────────────────────────────────────────────────
 // PINs personalizados ficam em localStorage sob a chave 'cj_pin_<gopId>'.
 // Se não existir, usa o PIN padrão de GOP_PINS.
