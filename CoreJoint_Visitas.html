@@ -3426,9 +3426,9 @@ async function verificarEspacoHistorico(){
     '<button onclick="exportarCompletoEstruturado()" style="padding:9px 16px;border-radius:var(--rb);border:none;background:var(--ac);color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit">📦 Exportar Tudo (ZIP estruturado)</button>' +
     '</div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
-    '<button onclick="exportarVisitasPDF()" style="padding:7px 12px;border-radius:var(--rb);border:1px solid var(--br);background:var(--sf2);color:var(--t2);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit">📄 Só PDFs (ZIP)</button>' +
-    '<button onclick="exportarEquipamentosExcel()" style="padding:7px 12px;border-radius:var(--rb);border:1px solid var(--br);background:var(--sf2);color:var(--t2);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit">📊 Só Equipamentos (Excel)</button>' +
-    '<button onclick="limparHTMLAntigo()" style="padding:7px 12px;border-radius:var(--rb);border:1px solid var(--br);background:var(--sf2);color:var(--t2);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit">🗑 Limpar espaço</button>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+    '<button onclick="exportarArquivoCompleto()" style="padding:8px 14px;border-radius:var(--rb);border:none;background:var(--ac);color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">📦 Exportar Arquivo Completo (ZIP)</button>' +
+    '<button onclick="limparHTMLAntigo()" style="padding:8px 14px;border-radius:var(--rb);border:none;background:#6b7280;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">🗑 Limpar espaço</button>' +
     '</div></div>';
 }
 
@@ -3450,82 +3450,180 @@ async function exportarArquivo(){
   }
 }
 
-async function exportarVisitasPDF(){
-  toast('A gerar ZIP dos relatórios… pode demorar alguns segundos.');
-  try{
-    await new Promise((res,rej)=>{
-      if(window.JSZip){ res(); return; }
-      const s=document.createElement('script');
-      s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-      s.onload=res;s.onerror=rej;document.head.appendChild(s);
+async function exportarArquivoCompleto(){
+  toast('A preparar arquivo completo… pode demorar 1-2 minutos.', 'i');
+
+  // Carregar bibliotecas
+  for(const [name, src] of [
+    ['JSZip','https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'],
+    ['XLSX','https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js']
+  ]){
+    if(!window[name]) await new Promise((res,rej)=>{
+      const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);
     });
-  }catch(e){ toast('Erro ao carregar JSZip.','e'); return; }
+  }
 
-  const regiao = CU.region||'sul';
-  // Buscar todos os registos com HTML
-  const rows = await dbGet('cj_historico',
-    'html=not.is.null&select=id,loja,data,hora,saved_by,html&order=created_at.asc') || [];
-
-  if(!rows.length){ toast('Sem relatórios com PDF disponível.','w'); return; }
-
+  const hoje = new Date().toISOString().slice(0,10);
   const zip = new JSZip();
-  const pasta = zip.folder('CoreJoint_Visitas_PDFs');
-  let count = 0;
 
-  rows.forEach(r=>{
-    if(!r.html) return;
-    const nomeGop = (r.saved_by||'GOP').replace('GOP — ','').replace(/[^a-zA-Z0-9]/g,'_');
-    const lojaClean = sn(r.loja).replace(/[^a-zA-Z0-9]/g,'_');
-    const dataClean = (r.data||r.id).replace(/\//g,'-');
-    const nome = dataClean+'_'+lojaClean+'_'+nomeGop+'.html';
-    pasta.file(nome, r.html);
-    count++;
+  // ── Determinar região de cada GOP pelo saved_by ────────────────────────────
+  function regiaoDeGOP(savedBy){
+    // savedBy = "GOP — João Martinho"
+    const nome = (savedBy||'').replace('GOP — ','').trim();
+    for(const [id, n] of Object.entries(GOP_NAMES)){
+      if(n === nome) return gopRegion(id) === 'norte' ? 'Norte' : 'Sul';
+    }
+    // Tentar por nome parcial
+    if(savedBy && (savedBy.includes('Norte')||['Marisa','Sandra','André','Maria João'].some(n=>savedBy.includes(n)))) return 'Norte';
+    return 'Sul';
+  }
+
+  function nomePastaGOP(savedBy){
+    return (savedBy||'GOP').replace('GOP — ','').replace(/ /g,'_');
+  }
+
+  function nomeFicheiro(r){
+    const data = (r.data||'').replace(/\//g,'-');
+    const loja = (r.loja||'loja');
+    return data+'_'+loja+'.html';
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 1. VISITAS — organizadas por Norte/Sul → GOP
+  // ══════════════════════════════════════════════════════════════════════════
+  toast('A buscar visitas…');
+  const visitas = await dbGet('cj_historico', 'html=not.is.null&order=created_at.asc') || [];
+
+  const pastaVis = zip.folder('Visitas');
+  const pVN = pastaVis.folder('Norte');
+  const pVS = pastaVis.folder('Sul');
+
+  visitas.forEach(r=>{
+    const regiao = regiaoDeGOP(r.saved_by);
+    const pasta = regiao === 'Norte' ? pVN : pVS;
+    const pastaGOP = pasta.folder(nomePastaGOP(r.saved_by));
+    pastaGOP.file(nomeFicheiro(r), r.html||'');
   });
 
-  toast('A comprimir '+count+' relatórios…');
-  const blob = await zip.generateAsync({type:'blob', compression:'DEFLATE', compressionOptions:{level:6}});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'CoreJoint_Relatorios_'+new Date().toISOString().slice(0,10)+'.zip';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  toast('✅ ZIP com '+count+' relatórios descarregado! Abre cada .html no browser e imprime como PDF.');
-}
+  // ══════════════════════════════════════════════════════════════════════════
+  // 2. EQUIPAMENTOS — Excel por Norte e Sul
+  // ══════════════════════════════════════════════════════════════════════════
+  toast('A buscar equipamentos…');
+  const equip = await dbGet('cj_equipamentos_avarias', 'order=created_at.asc') || [];
 
-async function exportarEquipamentosExcel(){
-  toast('A gerar Excel dos equipamentos…');
-  try{
-    if(typeof XLSX === 'undefined'){
-      await new Promise((res,rej)=>{
-        const s=document.createElement('script');
-        s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-        s.onload=res;s.onerror=rej;document.head.appendChild(s);
-      });
-    }
-  }catch(e){ toast('Erro ao carregar SheetJS.','e'); return; }
+  const pastaEq = zip.folder('Equipamentos');
 
-  const avarias = await dbGet('cj_equipamentos_avarias', 'order=created_at.asc') || [];
-  const wb = XLSX.utils.book_new();
-
-  // Aba Equipamentos Avarias
-  const cols = ['Loja','Equipamento','GOP','Data Visita','Notas GOP','Ação Tomada','Orçamento','Validação CROP','Notas CROP','Estado','Nº PO','Resolvido em','Região'];
-  const data = [cols];
-  avarias.forEach(r=>{
-    data.push([
+  function excelEquip(rows, titulo){
+    const wb = XLSX.utils.book_new();
+    const cols = ['Loja','Equipamento','GOP','Data Visita','Descrição','Ação Tomada','Orçamento (€)','Validação CROP','Notas CROP','Estado','Nº PO','Resolvido em'];
+    const data = [cols];
+    rows.forEach(r=>data.push([
       sn(r.loja), r.equip_label, r.gop_nome, r.data_visita,
       r.notas_gop||'', r.acao_gop||'', r.orcamento||'',
       r.validacao||'', r.notas_crop||'', r.estado||'',
-      r.po_number||'', r.resolved_at||'', r.region||''
-    ]);
-  });
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = cols.map((_,i)=>({wch: [12,20,18,12,30,30,12,12,30,12,12,12,8][i]||15}));
-  XLSX.utils.book_append_sheet(wb, ws, 'Equipamentos Avarias');
+      r.po_number||'', r.resolved_at||''
+    ]));
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [12,20,18,12,30,30,14,14,30,12,12,12].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb, ws, titulo);
+    return XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  }
 
-  XLSX.writeFile(wb, 'CoreJoint_Equipamentos_'+new Date().toISOString().slice(0,10)+'.xlsx');
-  toast('✅ Excel com '+avarias.length+' registos de equipamentos exportado!');
+  pastaEq.file('Norte_Equipamentos.xlsx', excelEquip(equip.filter(r=>r.region==='norte'), 'Equipamentos Norte'));
+  pastaEq.file('Sul_Equipamentos.xlsx',  excelEquip(equip.filter(r=>r.region==='sul'),  'Equipamentos Sul'));
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 3. TAREFAS & NCs — Excel por Norte e Sul
+  // ══════════════════════════════════════════════════════════════════════════
+  toast('A buscar tarefas e NCs…');
+  const tarefas = await dbGet('cj_tarefas', 'order=created_at.asc') || [];
+  const pastaTar = zip.folder('Tarefas_e_NCs');
+
+  function regiaoLoja(loja){
+    for(const [id, lojas] of Object.entries(GOP_STORES)){
+      if(lojas.includes(loja)) return gopRegion(id) === 'norte' ? 'norte' : 'sul';
+    }
+    return 'sul';
+  }
+
+  function excelTarefas(rows, titulo){
+    const wb = XLSX.utils.book_new();
+    const cols = ['Loja','Código','Descrição','Notas','Prazo','Estado','Criado por','Data'];
+    const data = [cols];
+    rows.forEach(r=>data.push([
+      sn(r.loja), r.codigo, r.descricao, r.notas||'',
+      r.prazo||'', r.estado||'', r.criado_por||'',
+      (r.created_at||'').slice(0,10)
+    ]));
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [14,16,30,30,12,12,20,12].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb, ws, titulo);
+    return XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  }
+
+  pastaTar.file('Norte_Tarefas.xlsx', excelTarefas(tarefas.filter(r=>regiaoLoja(r.loja)==='norte'), 'Tarefas Norte'));
+  pastaTar.file('Sul_Tarefas.xlsx',   excelTarefas(tarefas.filter(r=>regiaoLoja(r.loja)==='sul'),   'Tarefas Sul'));
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 4. CALENDÁRIO — Excel por Norte e Sul
+  // ══════════════════════════════════════════════════════════════════════════
+  toast('A buscar calendário…');
+  const eventos = await dbGet('cj_calendario', 'order=data_inicio.asc') || [];
+  const checks  = await dbGet('cj_calendario_checks', 'order=data.asc') || [];
+  const pastaCal = zip.folder('Calendario');
+
+  function excelCal(evRows, chkRows, titulo){
+    const wb = XLSX.utils.book_new();
+    // Eventos
+    const colsEv = ['Título','Descrição','Data Início','Recorrência','Para quem','Criado por'];
+    const dataEv = [colsEv];
+    evRows.forEach(r=>{
+      let gops = r.gops||'todos';
+      try{ const g=JSON.parse(gops); gops=g.includes('todos')?'Todos':g.map(id=>GOP_NAMES[id]||id).join(', '); }catch(e){}
+      dataEv.push([r.titulo, r.descricao||'', r.data_inicio, r.recorrencia, gops, r.criado_por]);
+    });
+    const wsEv = XLSX.utils.aoa_to_sheet(dataEv);
+    wsEv['!cols'] = [30,30,12,12,30,12].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb, wsEv, 'Eventos');
+    // Confirmações
+    const colsChk = ['Evento','Data','GOP','Feito por','Data confirmação'];
+    const dataChk = [colsChk];
+    chkRows.forEach(c=>{
+      const ev = evRows.find(e=>e.id===c.evento_id);
+      dataChk.push([ev?ev.titulo:c.evento_id, c.data, c.gop_id, c.feito_por, (c.feito_em||'').slice(0,10)]);
+    });
+    const wsChk = XLSX.utils.aoa_to_sheet(dataChk);
+    wsChk['!cols'] = [30,12,20,20,12].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb, wsChk, 'Confirmacoes');
+    return XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  }
+
+  pastaCal.file('Norte_Calendario.xlsx', excelCal(eventos.filter(r=>r.region==='norte'), checks, 'Norte'));
+  pastaCal.file('Sul_Calendario.xlsx',   excelCal(eventos.filter(r=>r.region==='sul'),   checks, 'Sul'));
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 5. Gerar e descarregar ZIP
+  // ══════════════════════════════════════════════════════════════════════════
+  toast('A comprimir… aguarda.');
+  const zipBlob = await zip.generateAsync({
+    type:'blob', compression:'DEFLATE', compressionOptions:{level:5}
+  });
+
+  const url = URL.createObjectURL(zipBlob);
+  const a = document.createElement('a');
+  a.href=url; a.download='CoreJoint_Arquivo_'+hoje+'.zip';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  const mbSize = (zipBlob.size/1024/1024).toFixed(1);
+  toast('✅ ZIP gerado ('+mbSize+' MB) com '+visitas.length+' visitas, '+equip.length+' equipamentos, '+tarefas.length+' tarefas!');
 }
+
+// Manter funções antigas como atalhos
+async function exportarVisitasPDF(){ return exportarArquivoCompleto(); }
+async function exportarEquipamentosExcel(){ return exportarArquivoCompleto(); }
+
 
 async function limparHTMLAntigo(){
   if(!confirm('Tens a certeza? O PDF deixará de estar disponível na app para os relatórios com mais de 60 dias. Garante que já exportaste o Excel antes de continuar.')) return;
