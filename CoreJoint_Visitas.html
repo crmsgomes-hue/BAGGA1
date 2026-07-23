@@ -196,6 +196,8 @@
   <div class="ps">Pendentes em aberto nas lojas</div>
   <!-- ALERTAS SISTÉMICOS — só visível para a CROP -->
   <div id="crop-alertas-sistemicos" style="display:none;margin-bottom:14px"></div>
+  <!-- ARQUIVO — alerta de registos antigos para CROP -->
+  <div id="dash-arquivo-alerta" style="display:none"></div>
   <!-- ALERTAS CALENDÁRIO -->
   <div id="dash-cal-hoje" style="display:none;margin-bottom:14px"></div>
   <!-- ALERTAS EQUIPAMENTOS SEM PO (só GOP) -->
@@ -1751,6 +1753,7 @@ async function doLogin(){
   if(CU && CU.role==='crop') loadAlertasSistemicos();
   loadCalDashHoje();
   loadEquipAlertsDashboard();
+  if(CU && CU.role==='crop') verificarEspacoHistorico();
   setTimeout(mostrarLembreteTarefas, 800);
 }
 
@@ -3386,6 +3389,100 @@ async function syncEquipAvarias(){
       await sb('POST','cj_equipamentos_avarias', {...entry, id: uid()}, '', true);
     }
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GESTÃO DE ESPAÇO — Arquivo e Limpeza do Histórico
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function verificarEspacoHistorico(){
+  // Só para CROP
+  if(!CU || CU.role !== 'crop') return;
+  const regiao = CU.region || 'sul';
+  const limite = new Date();
+  limite.setDate(limite.getDate() - 60);
+  const limitStr = limite.toISOString().slice(0,10);
+
+  // Contar registos > 60 dias com HTML
+  const rows = await dbGet('cj_historico',
+    'html=not.is.null&created_at=lt.'+limitStr+'T00:00:00Z&select=id,loja,data,hora,resumo,saved_by,created_at') || [];
+
+  const alertEl = el('dash-arquivo-alerta');
+  if(!alertEl) return;
+
+  if(!rows.length){
+    alertEl.style.display = 'none';
+    return;
+  }
+
+  alertEl.style.display = 'block';
+  alertEl.innerHTML =
+    '<div style="background:#fff8ee;border:1.5px solid #ffc107;border-radius:var(--ra);padding:12px 14px;margin-bottom:14px">' +
+    '<div style="font-weight:700;font-size:.88rem;color:#856404;margin-bottom:6px">📦 ' + rows.length + ' relatório(s) com mais de 60 dias</div>' +
+    '<div style="font-size:.8rem;color:#555;margin-bottom:10px">Exporta os dados para Excel e limpa o espaço na base de dados. Os metadados ficam guardados (loja, data, GOP) mas o PDF deixa de estar disponível na app.</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+    '<button onclick="exportarArquivo()" style="padding:8px 14px;border-radius:var(--rb);border:none;background:var(--grn);color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">⬇️ Exportar Excel</button>' +
+    '<button onclick="limparHTMLAntigo()" style="padding:8px 14px;border-radius:var(--rb);border:none;background:#6b7280;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">🗑 Limpar HTML antigo</button>' +
+    '</div></div>';
+}
+
+async function exportarArquivo(){
+  toast('A preparar exportação…');
+  const limite = new Date();
+  limite.setDate(limite.getDate() - 60);
+  const limitStr = limite.toISOString().slice(0,10);
+
+  // Buscar todos os registos do histórico (com e sem HTML) da região
+  const rows = await dbGet('cj_historico',
+    'select=id,loja,data,hora,resumo,saved_by,created_at&order=created_at.asc') || [];
+
+  // Buscar tarefas (NCs) para cruzar
+  const tarefas = await dbGet('cj_tarefas', 'select=loja,codigo,descricao,prazo,estado,created_at&order=created_at.asc') || [];
+
+  // Gerar CSV/Excel via SheetJS (incluído via CDN já no HTML)
+  if(typeof XLSX === 'undefined'){
+    // Carregar SheetJS dinamicamente
+    await new Promise((res,rej)=>{
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
+  const wb = XLSX.utils.book_new();
+
+  // Aba 1: Visitas
+  const visData = [['ID','Loja','Data','Hora','Resumo','Feita por','Data criação']];
+  rows.forEach(r => visData.push([r.id, r.loja, r.data, r.hora, r.resumo, r.saved_by, (r.created_at||'').slice(0,10)]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(visData), 'Visitas');
+
+  // Aba 2: Tarefas / NCs
+  const tData = [['Loja','Código','Descrição','Prazo','Estado','Data criação']];
+  tarefas.forEach(t => tData.push([t.loja, t.codigo, t.descricao, t.prazo, t.estado, (t.created_at||'').slice(0,10)]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(tData), 'Tarefas e NCs');
+
+  const hoje = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, 'CoreJoint_Arquivo_' + hoje + '.xlsx');
+  toast('✅ Excel exportado! Guarda-o antes de limpar.');
+}
+
+async function limparHTMLAntigo(){
+  if(!confirm('Tens a certeza? O PDF deixará de estar disponível na app para os relatórios com mais de 60 dias. Garante que já exportaste o Excel antes de continuar.')) return;
+
+  const limite = new Date();
+  limite.setDate(limite.getDate() - 60);
+  const limitStr = limite.toISOString().slice(0,10);
+
+  // Remover apenas o campo html (manter metadados)
+  const res = await sb('PATCH', 'cj_historico', {html: null},
+    'created_at=lt.'+limitStr+'T00:00:00Z&html=not.is.null', true);
+
+  toast('🗑 HTML antigo removido — espaço libertado!');
+  const alertEl = el('dash-arquivo-alerta');
+  if(alertEl) alertEl.style.display = 'none';
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
