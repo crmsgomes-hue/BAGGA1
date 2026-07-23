@@ -3421,52 +3421,107 @@ async function verificarEspacoHistorico(){
   alertEl.innerHTML =
     '<div style="background:#fff8ee;border:1.5px solid #ffc107;border-radius:var(--ra);padding:12px 14px;margin-bottom:14px">' +
     '<div style="font-weight:700;font-size:.88rem;color:#856404;margin-bottom:6px">📦 ' + rows.length + ' relatório(s) com mais de 60 dias</div>' +
-    '<div style="font-size:.8rem;color:#555;margin-bottom:10px">Exporta os dados para Excel e limpa o espaço na base de dados. Os metadados ficam guardados (loja, data, GOP) mas o PDF deixa de estar disponível na app.</div>' +
+    '<div style="font-size:.8rem;color:#555;margin-bottom:10px">Exporta os relatórios antes de libertar espaço. Os metadados ficam guardados (loja, data, GOP) mas o PDF deixa de estar disponível na app.</div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-    '<button onclick="exportarArquivo()" style="padding:8px 14px;border-radius:var(--rb);border:none;background:var(--grn);color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">⬇️ Exportar Excel</button>' +
+    '<button onclick="exportarVisitasPDF()" style="padding:8px 14px;border-radius:var(--rb);border:none;background:var(--ac);color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">📄 Exportar PDFs (ZIP)</button>' +
+    '<button onclick="exportarEquipamentosExcel()" style="padding:8px 14px;border-radius:var(--rb);border:none;background:var(--grn);color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">📊 Exportar Equipamentos (Excel)</button>' +
     '<button onclick="limparHTMLAntigo()" style="padding:8px 14px;border-radius:var(--rb);border:none;background:#6b7280;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">🗑 Limpar HTML antigo</button>' +
     '</div></div>';
 }
 
 async function exportarArquivo(){
   toast('A preparar exportação…');
-  const limite = new Date();
-  limite.setDate(limite.getDate() - 60);
-  const limitStr = limite.toISOString().slice(0,10);
 
-  // Buscar todos os registos do histórico (com e sem HTML) da região
-  const rows = await dbGet('cj_historico',
-    'select=id,loja,data,hora,resumo,saved_by,created_at&order=created_at.asc') || [];
+  // Carregar bibliotecas necessárias
+  const loadScript = (src) => new Promise((res,rej)=>{
+    if(document.querySelector('script[src="'+src+'"]')){ res(); return; }
+    const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);
+  });
 
-  // Buscar tarefas (NCs) para cruzar
-  const tarefas = await dbGet('cj_tarefas', 'select=loja,codigo,descricao,prazo,estado,created_at&order=created_at.asc') || [];
-
-  // Gerar CSV/Excel via SheetJS (incluído via CDN já no HTML)
-  if(typeof XLSX === 'undefined'){
-    // Carregar SheetJS dinamicamente
-    await new Promise((res,rej)=>{
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-      s.onload = res; s.onerror = rej;
-      document.head.appendChild(s);
-    });
+  // ── OPÇÃO: mostrar modal de escolha ─────────────────────────────────────
+  const escolha = confirm('Exportar VISITAS (ZIP de PDFs)?\n\nOK = Visitas em ZIP\nCancelar = Equipamentos em Excel');
+  if(escolha){
+    await exportarVisitasPDF();
+  } else {
+    await exportarEquipamentosExcel();
   }
+}
 
+async function exportarVisitasPDF(){
+  toast('A gerar ZIP dos relatórios… pode demorar alguns segundos.');
+  try{
+    await new Promise((res,rej)=>{
+      if(window.JSZip){ res(); return; }
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      s.onload=res;s.onerror=rej;document.head.appendChild(s);
+    });
+  }catch(e){ toast('Erro ao carregar JSZip.','e'); return; }
+
+  const regiao = CU.region||'sul';
+  // Buscar todos os registos com HTML
+  const rows = await dbGet('cj_historico',
+    'html=not.is.null&select=id,loja,data,hora,saved_by,html&order=created_at.asc') || [];
+
+  if(!rows.length){ toast('Sem relatórios com PDF disponível.','w'); return; }
+
+  const zip = new JSZip();
+  const pasta = zip.folder('CoreJoint_Visitas_PDFs');
+  let count = 0;
+
+  rows.forEach(r=>{
+    if(!r.html) return;
+    const nomeGop = (r.saved_by||'GOP').replace('GOP — ','').replace(/[^a-zA-Z0-9]/g,'_');
+    const lojaClean = sn(r.loja).replace(/[^a-zA-Z0-9]/g,'_');
+    const dataClean = (r.data||r.id).replace(/\//g,'-');
+    const nome = dataClean+'_'+lojaClean+'_'+nomeGop+'.html';
+    pasta.file(nome, r.html);
+    count++;
+  });
+
+  toast('A comprimir '+count+' relatórios…');
+  const blob = await zip.generateAsync({type:'blob', compression:'DEFLATE', compressionOptions:{level:6}});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'CoreJoint_Relatorios_'+new Date().toISOString().slice(0,10)+'.zip';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('✅ ZIP com '+count+' relatórios descarregado! Abre cada .html no browser e imprime como PDF.');
+}
+
+async function exportarEquipamentosExcel(){
+  toast('A gerar Excel dos equipamentos…');
+  try{
+    if(typeof XLSX === 'undefined'){
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        s.onload=res;s.onerror=rej;document.head.appendChild(s);
+      });
+    }
+  }catch(e){ toast('Erro ao carregar SheetJS.','e'); return; }
+
+  const avarias = await dbGet('cj_equipamentos_avarias', 'order=created_at.asc') || [];
   const wb = XLSX.utils.book_new();
 
-  // Aba 1: Visitas
-  const visData = [['ID','Loja','Data','Hora','Resumo','Feita por','Data criação']];
-  rows.forEach(r => visData.push([r.id, r.loja, r.data, r.hora, r.resumo, r.saved_by, (r.created_at||'').slice(0,10)]));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(visData), 'Visitas');
+  // Aba Equipamentos Avarias
+  const cols = ['Loja','Equipamento','GOP','Data Visita','Notas GOP','Ação Tomada','Orçamento','Validação CROP','Notas CROP','Estado','Nº PO','Resolvido em','Região'];
+  const data = [cols];
+  avarias.forEach(r=>{
+    data.push([
+      sn(r.loja), r.equip_label, r.gop_nome, r.data_visita,
+      r.notas_gop||'', r.acao_gop||'', r.orcamento||'',
+      r.validacao||'', r.notas_crop||'', r.estado||'',
+      r.po_number||'', r.resolved_at||'', r.region||''
+    ]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = cols.map((_,i)=>({wch: [12,20,18,12,30,30,12,12,30,12,12,12,8][i]||15}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Equipamentos Avarias');
 
-  // Aba 2: Tarefas / NCs
-  const tData = [['Loja','Código','Descrição','Prazo','Estado','Data criação']];
-  tarefas.forEach(t => tData.push([t.loja, t.codigo, t.descricao, t.prazo, t.estado, (t.created_at||'').slice(0,10)]));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(tData), 'Tarefas e NCs');
-
-  const hoje = new Date().toISOString().slice(0,10);
-  XLSX.writeFile(wb, 'CoreJoint_Arquivo_' + hoje + '.xlsx');
-  toast('✅ Excel exportado! Guarda-o antes de limpar.');
+  XLSX.writeFile(wb, 'CoreJoint_Equipamentos_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  toast('✅ Excel com '+avarias.length+' registos de equipamentos exportado!');
 }
 
 async function limparHTMLAntigo(){
