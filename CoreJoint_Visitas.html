@@ -103,6 +103,7 @@
   <span class="ni" data-s="alertas" onclick="go('alertas')" id="n-alertas" style="display:none">🔔 Alertas</span>
   <span class="ni" data-s="calendario" onclick="go('calendario')">📅 Calendário</span>
   <span class="ni" data-s="equipamentos_avarias" onclick="go('equipamentos_avarias')" id="n-equip-av">⚙️ Equipamentos</span>
+  <span class="ni" data-s="mapa_gops" onclick="go('mapa_gops')" id="n-mapa-gops" style="display:none">🗺️ Mapa</span>
   <span class="ni" data-s="visitas" onclick="go('visitas')">🔍 Visitas</span>
   <span class="ni" data-s="historico" onclick="go('historico')">📁 Histórico</span>
 </div>
@@ -201,11 +202,6 @@
   <div id="dash-arquivo-alerta" style="display:none"></div>
   <!-- GOPs EM VISITA AGORA (só CROP) -->
   <div id="dash-gops-em-visita" style="display:none;margin-bottom:14px"></div>
-  <!-- MAPA GOP (só CROP) -->
-  <div id="dash-mapa-gops" style="display:none;margin-bottom:14px;border-radius:var(--ra);overflow:hidden;border:1px solid var(--br)">
-    <div style="padding:10px 14px 6px;font-family:'Syne',sans-serif;font-weight:800;font-size:.88rem;color:var(--ac)">🗺️ Localização dos GOPs</div>
-    <div id="mapa-gops-leaflet" style="height:280px;width:100%"></div>
-  </div>
   <!-- ALERTAS CALENDÁRIO -->
   <div id="dash-cal-hoje" style="display:none;margin-bottom:14px"></div>
   <!-- ALERTAS EQUIPAMENTOS SEM PO (só GOP) -->
@@ -344,6 +340,18 @@
     <button class="btn bg2" onclick="confirmarPO()">✅ Confirmar</button>
   </div>
 </div></div>
+
+<!-- ════════════════════════════════════════════════════════════ MAPA GOPs ══ -->
+<div class="sec" id="s-mapa_gops">
+  <div class="pt">🗺️ Mapa de Visitas</div>
+  <div class="ps">Localização dos GOPs em visita hoje</div>
+  <div id="mapa-gops-wrap" style="margin-top:12px;border-radius:var(--rb);overflow:hidden;border:1px solid var(--br)">
+    <div id="mapa-gops-leaflet" style="height:calc(100vh - 220px);min-height:380px;width:100%"></div>
+  </div>
+  <div id="mapa-gops-legenda" style="margin-top:10px;font-size:.8rem;color:var(--t2);text-align:center">
+    Mostra GOPs com localização activa hoje. O mapa actualiza ao entrar nesta aba.
+  </div>
+</div>
 
 <div class="sec" id="s-visitas">
   <div class="pt" id="v-page-title">Visitas GOP</div><div class="ps">Auditoria de loja com câmara e tarefas</div>
@@ -1761,7 +1769,10 @@ async function doLogin(){
   if(CU && CU.role==='crop') loadAlertasSistemicos();
   loadCalDashHoje();
   loadEquipAlertsDashboard();
-  if(CU && CU.role==='crop') { verificarEspacoHistorico(); loadGopsEmVisita(); loadMapaGops(); }
+  if(CU && CU.role==='crop') {
+    const nm = el('n-mapa-gops'); if(nm) nm.style.display='';
+    verificarEspacoHistorico(); loadGopsEmVisita(); 
+  }
   setTimeout(mostrarLembreteTarefas, 800);
 }
 
@@ -4054,7 +4065,7 @@ async function go(s){
   document.querySelectorAll('.ni').forEach(x=>x.classList.remove('on'));
   const sec=el('s-'+s);if(sec)sec.classList.add('on');
   const ni=document.querySelector('.ni[data-s="'+s+'"]');if(ni)ni.classList.add('on');
-  const fn={dash:rDash,tarefas:rTarefas,quebras:rQ,trocas:()=>{rT();rF();},avarias:rA,srm:rS,wfm:rWFM,ruturas:rRut,ferias:rFer,historico:rHistorico,operacional:rOperacional,marketing:rMkt,visitas:()=>{},dashboard:rDashboard,alertas:rAlertas,calendario:rCalendario,equipamentos_avarias:rEquipamentosAvarias};
+  const fn={dash:rDash,tarefas:rTarefas,quebras:rQ,trocas:()=>{rT();rF();},avarias:rA,srm:rS,wfm:rWFM,ruturas:rRut,ferias:rFer,historico:rHistorico,operacional:rOperacional,marketing:rMkt,visitas:()=>{},dashboard:rDashboard,alertas:rAlertas,calendario:rCalendario,equipamentos_avarias:rEquipamentosAvarias,mapa_gops:loadMapaGops};
   if(fn[s])await fn[s]();
 }
 
