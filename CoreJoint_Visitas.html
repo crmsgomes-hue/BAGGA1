@@ -201,6 +201,11 @@
   <div id="dash-arquivo-alerta" style="display:none"></div>
   <!-- GOPs EM VISITA AGORA (só CROP) -->
   <div id="dash-gops-em-visita" style="display:none;margin-bottom:14px"></div>
+  <!-- MAPA GOP (só CROP) -->
+  <div id="dash-mapa-gops" style="display:none;margin-bottom:14px;border-radius:var(--ra);overflow:hidden;border:1px solid var(--br)">
+    <div style="padding:10px 14px 6px;font-family:'Syne',sans-serif;font-weight:800;font-size:.88rem;color:var(--ac)">🗺️ Localização dos GOPs</div>
+    <div id="mapa-gops-leaflet" style="height:280px;width:100%"></div>
+  </div>
   <!-- ALERTAS CALENDÁRIO -->
   <div id="dash-cal-hoje" style="display:none;margin-bottom:14px"></div>
   <!-- ALERTAS EQUIPAMENTOS SEM PO (só GOP) -->
@@ -1756,7 +1761,7 @@ async function doLogin(){
   if(CU && CU.role==='crop') loadAlertasSistemicos();
   loadCalDashHoje();
   loadEquipAlertsDashboard();
-  if(CU && CU.role==='crop') { verificarEspacoHistorico(); loadGopsEmVisita(); }
+  if(CU && CU.role==='crop') { verificarEspacoHistorico(); loadGopsEmVisita(); loadMapaGops(); }
   setTimeout(mostrarLembreteTarefas, 800);
 }
 
@@ -2590,6 +2595,72 @@ async function loadGopsEmVisita(){
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+
+let _mapaLeaflet = null;
+
+async function loadMapaGops(){
+  const mapaDiv = el('dash-mapa-gops');
+  if(!mapaDiv || !CU || CU.role !== 'crop') return;
+
+  const regiao = CU.region || 'sul';
+  const hoje = new Date().toISOString().slice(0,10);
+  const gopsRegiao = gopsDeRegiao(regiao);
+  const lojasDaRegiao = gopsRegiao.flatMap(g => GOP_STORES[g] || []);
+
+  const rascunhos = await dbGet('cj_visitas_rascunhos',
+    'select=loja,saved_by,hora_inicio,data,gps_lat,gps_lng') || [];
+
+  const comGPS = rascunhos.filter(r =>
+    (r.data||'').slice(0,10) === hoje &&
+    r.saved_by && r.saved_by.startsWith('GOP') &&
+    lojasDaRegiao.includes(r.loja) &&
+    r.gps_lat && r.gps_lng
+  );
+
+  if(!comGPS.length){ mapaDiv.style.display='none'; return; }
+  mapaDiv.style.display='block';
+
+  if(!window.L){
+    const css=document.createElement('link');css.rel='stylesheet';
+    css.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+    document.head.appendChild(css);
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+      s.onload=res;s.onerror=rej;document.head.appendChild(s);
+    });
+  }
+
+  const CORES=['#C1622D','#2563eb','#059669','#7c3aed','#db2777','#d97706','#0891b2','#65a30d','#dc2626','#6d28d9'];
+  const corMap={};
+  gopsRegiao.forEach((g,i)=>{ corMap[g]=CORES[i%CORES.length]; });
+
+  function ini(nome){ return nome.replace('GOP — ','').split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase(); }
+
+  if(_mapaLeaflet){ _mapaLeaflet.remove(); _mapaLeaflet=null; }
+  const mapEl = el('mapa-gops-leaflet');
+  if(!mapEl) return;
+  const map = L.map(mapEl,{zoomControl:true,scrollWheelZoom:false});
+  _mapaLeaflet=map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(map);
+
+  const bounds=[];
+  comGPS.forEach(r=>{
+    const lat=parseFloat(r.gps_lat), lng=parseFloat(r.gps_lng);
+    const nome=r.saved_by||'GOP';
+    const gopId=gopsRegiao.find(g=>GOP_NAMES[g]===nome.replace('GOP — ',''))||null;
+    const cor=gopId?(corMap[gopId]||'#C1622D'):'#C1622D';
+    const hora=(r.hora_inicio||'').slice(0,5);
+    const icon=L.divIcon({className:'',
+      html:'<div style="width:36px;height:36px;border-radius:50%;background:'+cor+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.75rem;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);font-family:Syne,sans-serif">'+ini(nome)+'</div>',
+      iconSize:[36,36],iconAnchor:[18,18]});
+    L.marker([lat,lng],{icon}).addTo(map)
+      .bindPopup('<b>'+escH(nome.replace('GOP — ',''))+'</b><br>📍 '+sn(r.loja)+(hora?'<br>🕐 '+hora:''));
+    bounds.push([lat,lng]);
+  });
+  if(bounds.length===1) map.setView(bounds[0],11);
+  else map.fitBounds(bounds,{padding:[30,30]});
+}
 
 async function loadCalDashHoje(){
   const container = el('dash-cal-hoje');
@@ -5458,6 +5529,17 @@ function setHoraAgora(){
 }
 
 let vChegadaPhoto = null;
+let vGpsLat = null;
+let vGpsLng = null;
+
+function captarGPS(){
+  if(!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    pos => { vGpsLat = pos.coords.latitude; vGpsLng = pos.coords.longitude; },
+    () => {}, // falha silenciosa — GPS não obrigatório
+    {timeout:10000, maximumAge:60000}
+  );
+}
 
 function delChegadaPhoto(){
   vChegadaPhoto = null;
@@ -7262,6 +7344,8 @@ async function doAutoSave(){
         fotos_chegada: snapshot.fotos_chegada,
         fotos_cafe: snapshot.fotos_cafe,
         equip_lista: snapshot.equip_lista,
+        gps_lat: vGpsLat || null,
+        gps_lng: vGpsLng || null,
         saved_by: who()
       };
       // Usar PATCH→POST em vez de on_conflict upsert (evita duplicate key silencioso)
@@ -8069,6 +8153,8 @@ async function confirmarFinalizar(){
   procAnswers = {};
   procSelected = [];
   vChegadaPhoto = null;
+  vGpsLat = null; vGpsLng = null;
+  captarGPS();
   _reportHtmlFinal = null;
   _pendentesGuardados = false;
   initVEquip();
