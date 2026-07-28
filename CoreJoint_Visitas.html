@@ -7188,6 +7188,7 @@ async function doAutoSave(){
         rh_ftes_real: snapshot.rh_ftes_real,
         fotos_chegada: snapshot.fotos_chegada,
         fotos_cafe: snapshot.fotos_cafe,
+        equip_lista: snapshot.equip_lista,
         saved_by: who()
       };
       // Usar PATCH→POST em vez de on_conflict upsert (evita duplicate key silencioso)
