@@ -509,6 +509,12 @@
             <input type="text" class="fc" id="v-hinicio" readonly placeholder="Regista automaticamente…">
             
           </div>
+          <!-- Botão de localização — pedido explícito para garantir popup no Android -->
+          <div style="margin-bottom:10px">
+            <button id="btn-gps" onclick="captarGPS()" class="cam-btn" style="background:var(--sf2);border-color:var(--br);color:var(--t2);width:100%;justify-content:center">
+              📍 Partilhar localização (para a CROP ver no mapa)
+            </button>
+          </div>
           <input type="file" id="pf-chegada" accept="image/*" capture="environment" class="pfi" onchange="handleChegadaPhoto(this)"><input type="file" id="pf-chegada-gal" accept="image/*" class="pfi" onchange="handleChegadaPhoto(this)">
           <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="cam-btn" onclick="document.getElementById('pf-chegada').click()">📷 <span>Câmara</span></button><button class="cam-btn" onclick="document.getElementById('pf-chegada-gal').click()" style="background:var(--sf2);border-color:var(--br);color:var(--t2)">📁 <span>Galeria</span></button></div>
           <div id="chegada-preview" style="margin-top:8px;display:none">
@@ -5579,9 +5585,18 @@ let vGpsLng = null;
 function captarGPS(){
   if(!navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition(
-    pos => { vGpsLat = pos.coords.latitude; vGpsLng = pos.coords.longitude; },
-    () => {}, // falha silenciosa — GPS não obrigatório
-    {timeout:10000, maximumAge:60000}
+    pos => {
+      vGpsLat = pos.coords.latitude;
+      vGpsLng = pos.coords.longitude;
+      // Actualizar botão com feedback
+      const btn = el('btn-gps');
+      if(btn){ btn.textContent = '📍 Localização activa'; btn.style.background='var(--grn)'; btn.style.color='#fff'; btn.disabled=true; }
+    },
+    err => {
+      const btn = el('btn-gps');
+      if(btn){ btn.textContent = '📍 Sem acesso à localização'; btn.style.background='var(--red)'; btn.style.color='#fff'; }
+    },
+    {timeout:15000, maximumAge:60000, enableHighAccuracy:false}
   );
 }
 
