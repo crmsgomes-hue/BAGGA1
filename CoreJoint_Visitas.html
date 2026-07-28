@@ -2610,13 +2610,17 @@ async function loadGopsEmVisita(){
 let _mapaLeaflet = null;
 
 async function loadMapaGops(){
-  const mapaDiv = el('dash-mapa-gops');
-  if(!mapaDiv || !CU || CU.role !== 'crop') return;
+  const mapEl = el('mapa-gops-leaflet');
+  if(!mapEl || !CU || CU.role !== 'crop') return;
 
   const regiao = CU.region || 'sul';
   const hoje = new Date().toISOString().slice(0,10);
   const gopsRegiao = gopsDeRegiao(regiao);
   const lojasDaRegiao = gopsRegiao.flatMap(g => GOP_STORES[g] || []);
+
+  // Mostrar mensagem enquanto carrega
+  const legenda = el('mapa-gops-legenda');
+  if(legenda) legenda.textContent = 'A carregar localização dos GOPs…';
 
   const rascunhos = await dbGet('cj_visitas_rascunhos',
     'select=loja,saved_by,hora_inicio,data,gps_lat,gps_lng') || [];
@@ -2628,49 +2632,78 @@ async function loadMapaGops(){
     r.gps_lat && r.gps_lng
   );
 
-  if(!comGPS.length){ mapaDiv.style.display='none'; return; }
-  mapaDiv.style.display='block';
+  if(!comGPS.length){
+    if(legenda) legenda.textContent = 'Nenhum GOP partilhou localização hoje. Os GOPs precisam de aceitar a permissão de localização ao iniciar a visita.';
+    // Mostrar mapa de Portugal centrado sem marcadores
+  }
 
+  // Carregar Leaflet dinamicamente
   if(!window.L){
-    const css=document.createElement('link');css.rel='stylesheet';
+    const css = document.createElement('link');
+    css.rel='stylesheet';
     css.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
     document.head.appendChild(css);
     await new Promise((res,rej)=>{
       const s=document.createElement('script');
       s.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
-      s.onload=res;s.onerror=rej;document.head.appendChild(s);
+      s.onload=res; s.onerror=rej; document.head.appendChild(s);
     });
   }
 
-  const CORES=['#C1622D','#2563eb','#059669','#7c3aed','#db2777','#d97706','#0891b2','#65a30d','#dc2626','#6d28d9'];
-  const corMap={};
-  gopsRegiao.forEach((g,i)=>{ corMap[g]=CORES[i%CORES.length]; });
-
-  function ini(nome){ return nome.replace('GOP — ','').split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase(); }
-
+  // Destruir mapa anterior se existir
   if(_mapaLeaflet){ _mapaLeaflet.remove(); _mapaLeaflet=null; }
-  const mapEl = el('mapa-gops-leaflet');
-  if(!mapEl) return;
-  const map = L.map(mapEl,{zoomControl:true,scrollWheelZoom:false});
-  _mapaLeaflet=map;
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(map);
 
-  const bounds=[];
-  comGPS.forEach(r=>{
-    const lat=parseFloat(r.gps_lat), lng=parseFloat(r.gps_lng);
-    const nome=r.saved_by||'GOP';
-    const gopId=gopsRegiao.find(g=>GOP_NAMES[g]===nome.replace('GOP — ',''))||null;
-    const cor=gopId?(corMap[gopId]||'#C1622D'):'#C1622D';
-    const hora=(r.hora_inicio||'').slice(0,5);
-    const icon=L.divIcon({className:'',
-      html:'<div style="width:36px;height:36px;border-radius:50%;background:'+cor+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.75rem;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);font-family:Syne,sans-serif">'+ini(nome)+'</div>',
-      iconSize:[36,36],iconAnchor:[18,18]});
-    L.marker([lat,lng],{icon}).addTo(map)
-      .bindPopup('<b>'+escH(nome.replace('GOP — ',''))+'</b><br>📍 '+sn(r.loja)+(hora?'<br>🕐 '+hora:''));
+  const map = L.map(mapEl, {zoomControl:true, scrollWheelZoom:true});
+  _mapaLeaflet = map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a>', maxZoom:18
+  }).addTo(map);
+
+  if(!comGPS.length){
+    // Portugal centrado sem marcadores
+    map.setView([39.6, -8.0], 6);
+    return;
+  }
+
+  const CORES = ['#C1622D','#2563eb','#059669','#7c3aed','#db2777','#d97706','#0891b2','#65a30d','#dc2626','#6d28d9'];
+  const corMap = {};
+  gopsRegiao.forEach((g,i) => { corMap[g] = CORES[i % CORES.length]; });
+
+  function ini(nome){
+    return nome.replace('GOP — ','').split(' ').slice(0,2).map(p=>p[0]||'').join('').toUpperCase();
+  }
+
+  const bounds = [];
+  comGPS.forEach(r => {
+    const lat = parseFloat(r.gps_lat);
+    const lng = parseFloat(r.gps_lng);
+    const nome = r.saved_by || 'GOP';
+    const nomeSimples = nome.replace('GOP — ','');
+    const gopId = gopsRegiao.find(g => GOP_NAMES[g] === nomeSimples) || null;
+    const cor = gopId ? (corMap[gopId] || '#C1622D') : '#C1622D';
+    const hora = (r.hora_inicio||'').slice(0,5);
+
+    const icon = L.divIcon({
+      className: '',
+      html: '<div style="width:38px;height:38px;border-radius:50%;background:'+cor+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.4);font-family:Syne,sans-serif;cursor:pointer">'+ini(nome)+'</div>',
+      iconSize: [38,38], iconAnchor: [19,19], popupAnchor: [0,-20]
+    });
+
+    L.marker([lat,lng], {icon}).addTo(map)
+      .bindPopup(
+        '<div style="font-family:sans-serif;min-width:140px">' +
+        '<div style="font-weight:700;font-size:.9rem;color:'+cor+'">'+escH(nomeSimples)+'</div>' +
+        '<div style="margin-top:4px">📍 '+sn(r.loja)+'</div>' +
+        (hora ? '<div>🕐 Chegada: '+hora+'</div>' : '') +
+        '</div>'
+      );
     bounds.push([lat,lng]);
   });
-  if(bounds.length===1) map.setView(bounds[0],11);
-  else map.fitBounds(bounds,{padding:[30,30]});
+
+  if(bounds.length === 1) map.setView(bounds[0], 12);
+  else map.fitBounds(bounds, {padding:[40,40]});
+
+  if(legenda) legenda.textContent = comGPS.length+' GOP(s) com localização activa hoje.';
 }
 
 async function loadCalDashHoje(){
