@@ -487,8 +487,8 @@ function renderInventario(main){
   if(isLastDaysOfMonth()){
     const warn = document.createElement("div");
     warn.className = "card";
-    warn.style.borderLeft = "4px solid var(--red)";
-    warn.innerHTML = `<div class="card-title" style="font-size:14px;">⚠ Não fazer contagens estes dias</div><div class="card-sub" style="margin-top:4px;">Estamos nos últimos dias do mês — evita fazer inventário agora, para não desalinhar com o fecho.</div>`;
+    warn.style.cssText = "background:var(--red); border:none;";
+    warn.innerHTML = `<div class="card-title" style="font-size:14px; color:#fff;">⚠ Não fazer contagens estes dias</div><div class="card-sub" style="margin-top:4px; color:#fff; opacity:.95;">Estamos nos últimos dias do mês — evita fazer inventário agora, para não desalinhar com o fecho.</div>`;
     main.appendChild(warn);
   }
   categoriasParaLoja(currentLoja).forEach(cat=>{
