@@ -119,11 +119,9 @@ async function uploadPhoto(dataUrl, path){
   return `${SUPA_URL}/storage/v1/object/public/${BUCKET}/${path}`;
 }
 async function upsertDaily(loja, tipo, data, foto_path, turno){
-  const filter = `loja=eq.${encodeURIComponent(loja)}&tipo=eq.${tipo}&data=eq.${data}&turno=eq.${turno}`;
-  const patched = await api("PATCH", `cj_daily_reportes?${filter}`, {foto_path, enviado_por:loja, criado_em:new Date().toISOString()});
-  if(!patched || patched.length===0){
-    await api("POST", "cj_daily_reportes", {loja, tipo, data, foto_path, turno, enviado_por:loja});
-  }
+  await api("POST", "rpc/append_daily_foto", {
+    p_loja: loja, p_tipo: tipo, p_data: data, p_turno: turno, p_foto_path: foto_path, p_por: loja
+  });
 }
 
 function weekWindow(d){
@@ -357,7 +355,7 @@ async function confirmCapture(kind, key, turno){
   const today = todayStr();
   try{
     if(kind==="daily"){
-      const path = `${slug(currentLoja)}/${key}/${turno}/${today}.jpg`;
+      const path = `${slug(currentLoja)}/${key}/${turno}/${today}_${Date.now()}.jpg`;
       const url = await uploadPhoto(pendingPhoto, path);
       await upsertDaily(currentLoja, key, today, url, turno);
     } else if(kind==="marketing"){
