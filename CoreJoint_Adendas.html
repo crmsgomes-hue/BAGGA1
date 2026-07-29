@@ -125,8 +125,8 @@ const TABLE = "cj_adendas";
 
 const STAGES = [
   {key:"impressa", label:"Imprimir", verb:"Marcar como impressa", nextField:"impressa_em", personField:"impressa_por"},
-  {key:"entregue", label:"Entregar", verb:"Marcar como entregue", nextField:"entregue_em", personField:"entregue_por"},
-  {key:"assinada", label:"Assinar", verb:"Marcar como assinada (+ foto)", nextField:"assinada_em", personField:"assinada_por", needsPhoto:true},
+  {key:"entregue", label:"Entregar", verb:"Marcar como entregue (+ foto)", nextField:"entregue_em", personField:"entregue_por", needsPhoto:true, photoField:"foto_entregue"},
+  {key:"assinada", label:"Assinar", verb:"Marcar como assinada (+ foto)", nextField:"assinada_em", personField:"assinada_por", needsPhoto:true, photoField:"foto_assinada"},
   {key:"enviada", label:"Enviar", verb:"Marcar como enviada", nextField:"enviada_em", personField:"enviada_por"}
 ];
 
@@ -276,8 +276,9 @@ function renderCard(r, stageIdx){
   }
 
   let photoHtml = "";
-  if(r.foto_assinada){
-    photoHtml = `<img class="photo-thumb" src="${r.foto_assinada}" onclick="viewPhoto('${r.foto_assinada.replace(/'/g,"")}','${(r.colaborador||'adenda').replace(/'/g,"")}')">`;
+  const fotoPrincipal = r.foto_assinada || r.foto_entregue;
+  if(fotoPrincipal){
+    photoHtml = `<img class="photo-thumb" src="${fotoPrincipal}" onclick="viewPhoto('${fotoPrincipal.replace(/'/g,"")}','${(r.colaborador||'adenda').replace(/'/g,"")}')">`;
   }
 
   const historicoId = `hist-${r.id}`;
@@ -387,7 +388,7 @@ async function commitAdvance(id, stageIdx, photoDataUrl){
     [stage.personField]: currentUser,
     updated_at: now
   };
-  if(photoDataUrl){ patch.foto_assinada = photoDataUrl; }
+  if(photoDataUrl && stage.photoField){ patch[stage.photoField] = photoDataUrl; }
   if(stageIdx === STAGES.length - 1){ patch.arquivada = true; }
 
   try{
@@ -516,13 +517,14 @@ async function saveNew(){
 let camStream = null;
 
 async function openPhotoCapture(id, stageIdx){
+  const stage = STAGES[stageIdx];
   const overlay = document.createElement("div");
   overlay.className = "overlay";
   overlay.id = "photoOverlay";
   overlay.innerHTML = `
     <div class="modal">
-      <h2>Foto da adenda assinada</h2>
-      <div class="sub">A câmara vai abrir — aponta para a adenda assinada.</div>
+      <h2>Foto — ${stage.label}</h2>
+      <div class="sub">A câmara vai abrir — aponta para o que confirma esta etapa.</div>
       <video id="camVideo" autoplay playsinline style="width:100%; border-radius:10px; margin-top:8px; background:#000;"></video>
       <canvas id="camCanvas" style="display:none;"></canvas>
       <img id="camPreview" class="cam-preview" style="display:none;">
@@ -532,7 +534,7 @@ async function openPhotoCapture(id, stageIdx){
       </div>
       <div class="modal-actions" id="confirmRow" style="display:none;">
         <button class="btn-cancel" onclick="repetirFoto()">↺ Repetir</button>
-        <button class="btn-save" id="btnSavePhoto" onclick="saveWithPhoto(${id}, ${stageIdx})">Confirmar assinatura</button>
+        <button class="btn-save" id="btnSavePhoto" onclick="saveWithPhoto(${id}, ${stageIdx})">Confirmar ${stage.label.toLowerCase()}</button>
       </div>
     </div>
   `;
