@@ -178,8 +178,16 @@ function invStatus(catKey, freq){
   const today = new Date();
   const w = windowFor(freq, today);
   const rows = invRows.filter(r=>r.categoria===catKey && inRange(r.data, w.start, w.end));
-  if(rows.length>0) return {state:"ok", latest: rows[0], window:w};
   const dow = CATEGORY_DOW[catKey];
+  if(rows.length>0){
+    let diaErrado = false;
+    if(dow){
+      const dataCerta = findWeekdayInRange(w.start, w.end, dow);
+      const dataCertaStr = isoDate(dataCerta);
+      diaErrado = !rows.some(r=>r.data===dataCertaStr);
+    }
+    return {state:"ok", latest: rows[0], window:w, diaErrado, dowLabel: dow?DOW_LABELS[dow-1]:null};
+  }
   if(dow){
     const targetDate = findWeekdayInRange(w.start, w.end, dow);
     const graceDate = new Date(targetDate); graceDate.setDate(graceDate.getDate()+1);
@@ -219,22 +227,38 @@ function render(){
   ];
   VITRINE_TURNOS.forEach(t=>{
     const rec = dailyStatus("vitrine", today, t.key);
+    const wrap = document.createElement("div");
     const btn = document.createElement("button");
     btn.className = "big-btn";
     btn.innerHTML = `<div class="icon">${t.icon}</div><div class="txt"><div class="t">${t.label}</div><div class="d">${rec ? 'Já enviaste' : 'Ainda não enviaste'}</div></div><div class="status">${rec?'✅':'⭕'}</div>`;
     btn.onclick = ()=>openCapture("daily", "vitrine", t.label, t.key);
-    main.appendChild(btn);
+    wrap.appendChild(btn);
+    if(!rec){
+      const notice = document.createElement("div");
+      notice.style.cssText = "font-size:12px; color:var(--red); margin:-6px 0 12px 4px;";
+      notice.textContent = "⚠ Se não for feito, é avisado automaticamente à chefia";
+      wrap.appendChild(notice);
+    }
+    main.appendChild(wrap);
   });
   {
     const rec = dailyStatus("vendas", today, "unico");
+    const wrap = document.createElement("div");
     const btn = document.createElement("button");
     btn.className = "big-btn";
     btn.innerHTML = `<div class="icon">🧾</div><div class="txt"><div class="t">Vendas — Final do dia</div><div class="d">${rec ? 'Já enviaste' : 'Ainda não enviaste'}</div></div><div class="status">${rec?'✅':'⭕'}</div>`;
     btn.onclick = ()=>openCapture("daily", "vendas", "Vendas — Final do dia", "unico");
-    main.appendChild(btn);
+    wrap.appendChild(btn);
+    if(!rec){
+      const notice = document.createElement("div");
+      notice.style.cssText = "font-size:12px; color:var(--red); margin:-6px 0 12px 4px;";
+      notice.textContent = "⚠ Se não for feito, é avisado automaticamente à chefia";
+      wrap.appendChild(notice);
+    }
+    main.appendChild(wrap);
   }
 
-  const dueInv = categoriasParaLoja(currentLoja).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>c.st.state!=="ok");
+  const dueInv = categoriasParaLoja(currentLoja).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>c.st.state!=="ok" || c.st.diaErrado);
   if(dueInv.length>0){
     const title = document.createElement("div");
     title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px;";
@@ -251,6 +275,14 @@ function render(){
     dueInv.forEach(c=>{
       const late = c.st.state==="late";
       const wrap = document.createElement("div");
+      if(c.st.diaErrado){
+        const card = document.createElement("div");
+        card.className = "warn-card";
+        card.textContent = `⚠ ${c.label}: enviado, mas não em ${c.st.dowLabel}-feira (dia certo) — avisado à chefia.`;
+        wrap.appendChild(card);
+        main.appendChild(wrap);
+        return;
+      }
       const btn = document.createElement("button");
       btn.className = "big-btn";
       btn.innerHTML = `<div class="icon">📦</div><div class="txt"><div class="t">${c.label}</div><div class="d">${late?'Atrasado':'Por enviar'}</div></div><div class="status">${late?'🔴':'⏳'}</div>`;
