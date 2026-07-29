@@ -70,6 +70,19 @@
   .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:20px; font-size:14px; z-index:99; opacity:0; transition:opacity .25s;}
   .toast.show{opacity:1;}
 </style>
+
+<style>
+  @media print{
+    @page{ size: A4; margin: 8mm; }
+    body > *:not(#printReport){ display:none !important; }
+    #printReport{ display:block !important; padding:0; font-family:Georgia,serif; color:#000; }
+    #printReport h1{ font-size:15px; margin:0 0 2px; }
+    #printReport h2{ font-size:10px; margin:8px 0 3px; text-transform:uppercase; letter-spacing:.03em; }
+    #printReport table{ width:100%; border-collapse:collapse; font-size:8px; margin-bottom:6px; }
+    #printReport th, #printReport td{ border:1px solid #999; padding:2px 4px; text-align:left; line-height:1.15; }
+    #printReport th{ background:#eee; }
+  }
+</style>
 </head>
 <body>
 
@@ -90,6 +103,10 @@
       <button class="newbtn" onclick="openNew()">+ Nova adenda</button>
     </div>
     <a href="CoreJoint_Hub.html" style="display:inline-block; margin-top:8px; font-size:12px; color:var(--ink-soft); text-decoration:none;">⌂ CoreJoint</a>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <button style="flex:1; background:none; border:1px solid var(--line); color:var(--ink-soft); padding:8px; border-radius:10px; font-size:12px;" onclick="openHistoricoAnual()">📅 Histórico (12 meses)</button>
+      <button style="flex:1; background:none; border:1px solid var(--line); color:var(--ink-soft); padding:8px; border-radius:10px; font-size:12px;" onclick="gerarRelatorioSemanal()">🖨️ Relatório semanal (PDF)</button>
+    </div>
     <div class="tabs">
       <div class="tab active" data-f="ativas" onclick="setFilter('ativas')">Em curso</div>
       <div class="tab" data-f="concluidas" onclick="setFilter('concluidas')">Concluídas</div>
@@ -99,6 +116,7 @@
 </div>
 
 <div id="toast" class="toast"></div>
+<div id="printReport" style="display:none;"></div>
 
 <script>
 const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
@@ -346,10 +364,7 @@ function openNew(){
       <div class="field">
         <label>Tipo de adenda</label>
         <select id="fTipo">
-          <option>Advertência</option>
           <option>Alteração de horário</option>
-          <option>Alteração de local de trabalho</option>
-          <option>Alteração de funções</option>
           <option>Outra</option>
         </select>
       </div>
@@ -481,6 +496,75 @@ async function saveWithPhoto(id, stageIdx){
 }
 
 /* ---------- INIT ---------- */
+/* ---------- HISTÓRICO 12 MESES ---------- */
+function monthKeyAd(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
+function monthLabelAd(d){ return d.toLocaleDateString('pt-PT',{month:'short'}).replace('.',''); }
+
+function openHistoricoAnual(){
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "tab";
+  back.style.cssText = "width:100%; margin-bottom:14px;";
+  back.textContent = "← Voltar";
+  back.onclick = render;
+  main.appendChild(back);
+
+  const months = [];
+  for(let i=11;i>=0;i--){
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-i);
+    months.push(d);
+  }
+
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:10px;";
+  title.textContent = `De ${monthLabelAd(months[0])} a ${monthLabelAd(months[11])}`;
+  main.appendChild(title);
+
+  let html = `<table style="width:100%; border-collapse:collapse; font-size:12px;">
+    <tr style="border-bottom:1px solid var(--line);"><th style="text-align:left; padding:6px;">Mês</th><th style="padding:6px;">Criadas</th><th style="padding:6px;">Concluídas</th></tr>`;
+  months.forEach(m=>{
+    const mk = monthKeyAd(m);
+    const criadas = rows.filter(r=>r.criado_em && r.criado_em.slice(0,7)===mk).length;
+    const concluidas = rows.filter(r=>r.enviada_em && r.enviada_em.slice(0,7)===mk).length;
+    html += `<tr style="border-bottom:1px solid var(--line);"><td style="padding:6px;">${monthLabelAd(m)} ${m.getFullYear()}</td><td style="text-align:center; padding:6px;">${criadas}</td><td style="text-align:center; padding:6px; color:var(--green);">${concluidas}</td></tr>`;
+  });
+  html += `</table>`;
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = html;
+  main.appendChild(card);
+}
+
+/* ---------- RELATÓRIO SEMANAL (PDF) ---------- */
+function gerarRelatorioSemanal(){
+  const hoje = new Date();
+  const semanaAtras = new Date(); semanaAtras.setDate(hoje.getDate()-7);
+  const ativas = rows.filter(r=>!r.arquivada);
+  const concluidasSemana = rows.filter(r=>r.enviada_em && new Date(r.enviada_em) >= semanaAtras);
+
+  let html = `<h1>CoreJoint · Adendas — Relatório Semanal</h1>
+  <div style="font-size:8px; color:#555; margin-bottom:6px;">Gerado em ${hoje.toLocaleDateString('pt-PT')}</div>`;
+
+  html += `<h2>Em curso (${ativas.length})</h2><table><tr><th>Colaborador</th><th>Tipo</th><th>Loja</th><th>Estado</th><th>Última atualização</th></tr>`;
+  ativas.forEach(r=>{
+    const idx = currentStageIndex(r);
+    const estado = STAGES[idx] ? STAGES[idx].label : "Concluída";
+    const upd = new Date(r.updated_at || r.criado_em);
+    html += `<tr><td>${r.colaborador||''}</td><td>${r.tipo||''}</td><td>${r.loja||''}</td><td>${estado}</td><td>${upd.toLocaleDateString('pt-PT')}</td></tr>`;
+  });
+  html += `</table>`;
+
+  html += `<h2>Concluídas esta semana (${concluidasSemana.length})</h2><table><tr><th>Colaborador</th><th>Tipo</th><th>Loja</th><th>Enviada em</th></tr>`;
+  concluidasSemana.forEach(r=>{
+    html += `<tr><td>${r.colaborador||''}</td><td>${r.tipo||''}</td><td>${r.loja||''}</td><td>${new Date(r.enviada_em).toLocaleDateString('pt-PT')}</td></tr>`;
+  });
+  html += `</table>`;
+
+  document.getElementById("printReport").innerHTML = html;
+  setTimeout(()=>window.print(), 100);
+}
+
 if(currentUser){ startApp(); }
 </script>
 </body>
