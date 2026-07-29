@@ -84,6 +84,7 @@ const currentLoja = params.get("loja") || "Loja não identificada";
 let dailyRows = [], invRows = [];
 let pendingPhoto = null;
 let pendingPhotoEntrada = null;
+let pendingPhotoDesperdicio = null;
 
 function toast(msg){
   const t = document.getElementById("toast");
@@ -327,6 +328,7 @@ function render(){
 function openCapture(kind, key, label, turno){
   pendingPhoto = null;
   pendingPhotoEntrada = null;
+  pendingPhotoDesperdicio = null;
   const isInv = kind==="inv";
   const overlay = document.createElement("div");
   overlay.className = "overlay"; overlay.id = "capOverlay";
@@ -347,13 +349,14 @@ function openCapture(kind, key, label, turno){
           <input id="vCnvs" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
         </div>
         <div class="field">
-          <label>Foto da entrada justificada (CNVs)</label>
+          <label>Foto da entrada justificada</label>
           <label class="filebtn" style="display:block; text-align:center;">📷 Tirar foto<input type="file" accept="image/*" capture="environment" id="capFileEntrada"></label>
           <img id="capPreviewEntrada" class="cam-preview" style="display:none;">
         </div>
         <div class="field">
-          <label>Valor de desperdício (€)</label>
-          <input id="vDesperdicio" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
+          <label>Foto do desperdício</label>
+          <label class="filebtn" style="display:block; text-align:center;">📷 Tirar foto<input type="file" accept="image/*" capture="environment" id="capFileDesperdicio"></label>
+          <img id="capPreviewDesperdicio" class="cam-preview" style="display:none;">
         </div>` : ``}
       ` : ``}
       <div class="modal-actions">
@@ -366,12 +369,15 @@ function openCapture(kind, key, label, turno){
   document.getElementById("capFile").addEventListener("change", handleCapFile);
   const entradaInput = document.getElementById("capFileEntrada");
   if(entradaInput) entradaInput.addEventListener("change", handleCapFileEntrada);
+  const desperdicioInput = document.getElementById("capFileDesperdicio");
+  if(desperdicioInput) desperdicioInput.addEventListener("change", handleCapFileDesperdicio);
 }
 function closeCapture(){
   const o = document.getElementById("capOverlay");
   if(o) o.remove();
   pendingPhoto = null;
   pendingPhotoEntrada = null;
+  pendingPhotoDesperdicio = null;
 }
 function handleCapFileEntrada(e){
   const file = e.target.files[0];
@@ -390,6 +396,28 @@ function handleCapFileEntrada(e){
       pendingPhotoEntrada = canvas.toDataURL("image/jpeg",0.7);
       const prev = document.getElementById("capPreviewEntrada");
       prev.src = pendingPhotoEntrada; prev.style.display="block";
+    };
+    img.src = evt.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function handleCapFileDesperdicio(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = evt=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const maxDim = 1280;
+      let {width,height} = img;
+      if(width>height && width>maxDim){ height=height*maxDim/width; width=maxDim; }
+      else if(height>maxDim){ width=width*maxDim/height; height=maxDim; }
+      const canvas = document.createElement("canvas");
+      canvas.width=width; canvas.height=height;
+      canvas.getContext("2d").drawImage(img,0,0,width,height);
+      pendingPhotoDesperdicio = canvas.toDataURL("image/jpeg",0.7);
+      const prev = document.getElementById("capPreviewDesperdicio");
+      prev.src = pendingPhotoDesperdicio; prev.style.display="block";
     };
     img.src = evt.target.result;
   };
@@ -443,15 +471,17 @@ async function confirmCapture(kind, key, turno){
       if(pendingPhotoEntrada){
         fotoEntradaUrl = await uploadPhoto(pendingPhotoEntrada, `${slug(currentLoja)}/inventario/${key}/entrada_${today}_${Date.now()}.jpg`);
       }
-      const desperdicioEl = document.getElementById("vDesperdicio");
-      const vDesperdicio = desperdicioEl ? parseFloat(desperdicioEl.value) : NaN;
+      let fotoDesperdicioUrl = null;
+      if(pendingPhotoDesperdicio){
+        fotoDesperdicioUrl = await uploadPhoto(pendingPhotoDesperdicio, `${slug(currentLoja)}/inventario/${key}/desperdicio_${today}_${Date.now()}.jpg`);
+      }
       const payload = {
         loja:currentLoja, categoria:key, data:today, foto_path:url,
         valor_inventario: isNaN(vInv)?null:vInv, valor_cnvs: isNaN(vCnvs)?null:vCnvs, enviado_por:currentLoja
       };
       if(key==="global"){
         payload.foto_entrada_cnvs = fotoEntradaUrl;
-        payload.valor_desperdicio = isNaN(vDesperdicio)?null:vDesperdicio;
+        payload.foto_desperdicio_cnvs = fotoDesperdicioUrl;
       }
       await api("POST", "cj_inventario_reportes", payload);
     }
