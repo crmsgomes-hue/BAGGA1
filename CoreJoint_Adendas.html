@@ -275,8 +275,9 @@ function renderCard(r, stageIdx){
   div.innerHTML = `
     <div class="card-top">
       <div>
+        <div class="card-meta" style="margin-top:0;">${r.loja ? escapeHtml(r.loja) : ''}</div>
         <div class="card-name">${escapeHtml(r.colaborador)}</div>
-        <div class="card-meta">${escapeHtml(r.tipo||'Adenda')}${r.loja ? ' · '+escapeHtml(r.loja) : ''}</div>
+        <div class="card-meta">${escapeHtml(r.tipo||'Adenda')}</div>
       </div>
       ${photoHtml || `<span class="badge ${bClass}">${dayLabel}</span>`}
     </div>
@@ -521,6 +522,10 @@ function closePhoto(){
 function tirarFoto(){
   const video = document.getElementById("camVideo");
   const canvas = document.getElementById("camCanvas");
+  if(!video.videoWidth || !video.videoHeight){
+    toast("A câmara ainda está a arrancar — espera 1 segundo e tenta outra vez.");
+    return;
+  }
   const maxDim = 1280;
   let width = video.videoWidth, height = video.videoHeight;
   if(width > height && width > maxDim){ height = height*maxDim/width; width = maxDim; }
