@@ -671,13 +671,13 @@ function openHistoricoAnual(){
 
   LOJAS.forEach(l=>{
     const semanais = categoriasParaLoja(l).filter(c=>c.freq==="semanal");
-    const outros = [...categoriasParaLoja(l).filter(c=>c.freq!=="semanal"), ...MARKETING_CATS];
+    const outros = categoriasParaLoja(l).filter(c=>c.freq!=="semanal");
     const card = document.createElement("div");
     card.className = "card";
     let html = `<div class="card-title" style="margin-bottom:8px;">${l}</div>`;
 
     if(semanais.length){
-      html += `<div style="font-size:9px; color:var(--ink-soft); margin-bottom:2px;">Semanal — últimas 12 semanas</div>`;
+      html += `<div style="font-size:9px; color:var(--ink-soft); margin-bottom:2px;">Inventário semanal — últimas 12 semanas</div>`;
       html += `<div style="display:grid; grid-template-columns:70px repeat(12,1fr); gap:2px; font-size:8px; margin-bottom:4px; color:var(--ink-soft);">
         <div></div>${weeks.map(w=>`<div style="text-align:center;">${w.start.getDate()}/${w.start.getMonth()+1}</div>`).join("")}
       </div>`;
@@ -693,7 +693,7 @@ function openHistoricoAnual(){
     }
 
     if(outros.length){
-      html += `<div style="font-size:9px; color:var(--ink-soft); margin:10px 0 2px;">Quinzenal/Mensal — últimos 12 meses</div>`;
+      html += `<div style="font-size:9px; color:var(--ink-soft); margin:10px 0 2px;">Inventário quinzenal/mensal — últimos 12 meses</div>`;
       html += `<div style="display:grid; grid-template-columns:70px repeat(12,1fr); gap:2px; font-size:9px; margin-bottom:4px; color:var(--ink-soft);">
         <div></div>${months.map(m=>`<div style="text-align:center;">${monthLabel(m)}</div>`).join("")}
       </div>`;
@@ -708,6 +708,21 @@ function openHistoricoAnual(){
         </div>`;
       });
     }
+
+    html += `<div style="font-size:9px; color:var(--ink-soft); margin:10px 0 2px;">Marketing — últimos 12 meses</div>`;
+    html += `<div style="display:grid; grid-template-columns:70px repeat(12,1fr); gap:2px; font-size:9px; margin-bottom:4px; color:var(--ink-soft);">
+      <div></div>${months.map(m=>`<div style="text-align:center;">${monthLabel(m)}</div>`).join("")}
+    </div>`;
+    MARKETING_CATS.forEach(cat=>{
+      const cells = months.map(m=>{
+        const mk = monthKey(m);
+        const has = invRows.some(r=>r.loja===l && r.categoria===cat.key && r.data && r.data.slice(0,7)===mk);
+        return `<div style="height:16px; border-radius:3px; background:${has?'var(--green)':'var(--line)'};"></div>`;
+      }).join("");
+      html += `<div style="display:grid; grid-template-columns:70px repeat(12,1fr); gap:2px; margin-bottom:2px; align-items:center;">
+        <div style="font-size:10px; font-weight:600;">${cat.label}</div>${cells}
+      </div>`;
+    });
 
     card.innerHTML = html;
     main.appendChild(card);
@@ -744,8 +759,6 @@ function generateWeeklyReport(){
   html += `</table>`;
 
   const semanais = INV_CATS.filter(c=>c.freq==="semanal");
-  const outros = [...INV_CATS.filter(c=>c.freq!=="semanal"), ...MARKETING_CATS];
-
   html += `<h2>Inventário semanal — dia em que foi feito</h2>`;
   semanais.forEach(cat=>{
     html += `<table style="margin-bottom:6px;"><tr><th style="text-align:left; width:70px;">${cat.label}</th><th style="text-align:left;">Loja</th>${days.map(d=>`<th>${d.toLocaleDateString('pt-PT',{weekday:'short'}).slice(0,3)}<br>${d.getDate()}</th>`).join("")}</tr>`;
@@ -760,18 +773,30 @@ function generateWeeklyReport(){
     html += `</table>`;
   });
 
-  html += `<h2>Inventário quinzenal/mensal + marketing — estado atual</h2><table><tr><th style="text-align:left;">Loja</th>${outros.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
+  const outros = INV_CATS.filter(c=>c.freq!=="semanal");
+
+  html += `<h2>Inventário quinzenal/mensal — estado atual</h2><table><tr><th style="text-align:left;">Loja</th>${outros.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
   LOJAS.forEach(l=>{
     const aplicaveis = categoriasParaLoja(l).map(c=>c.key);
     const cells = outros.map(c=>{
-      const isMkt = MARKETING_CATS.some(m=>m.key===c.key);
-      if(!isMkt && !aplicaveis.includes(c.key)) return "—";
+      if(!aplicaveis.includes(c.key)) return "—";
       const st = invStatus(l,c.key,c.freq);
       return st.state==="ok" ? "✔" : st.state==="late" ? "✕" : "…";
     });
     html += `<tr><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
   });
   html += `</table>`;
+
+  html += `<h2>Marketing — estado atual (prazo: 3 primeiros dias do mês)</h2><table><tr><th style="text-align:left;">Loja</th>${MARKETING_CATS.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
+  LOJAS.forEach(l=>{
+    const cells = MARKETING_CATS.map(c=>{
+      const st = invStatus(l,c.key,c.freq);
+      return st.state==="ok" ? "✔" : st.state==="late" ? "✕" : "…";
+    });
+    html += `<tr><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+  });
+  html += `</table>`;
+
 
   document.getElementById("printReport").innerHTML = html;
   setTimeout(()=>window.print(), 100);
