@@ -493,11 +493,13 @@ let admLoja = "";
 let devKit = {peca:null, tamanho:null};
 let devLoja = "";
 let devColab = "";
+let devQtd = 1;
 
 function openDevolucao(){
   devKit = {peca:null, tamanho:null};
   devLoja = "";
   devColab = "";
+  devQtd = 1;
   const main = document.getElementById("main");
   main.innerHTML = "";
   const back = document.createElement("button");
@@ -523,9 +525,17 @@ function openDevolucao(){
     <div class="field-label" style="font-weight:600; margin:14px 0 6px;">Peça</div>
     <div class="chip-row" id="devPecaChips"></div>
     <div id="devTamRow" style="margin-top:8px;"></div>
+    <div class="field-label" style="font-weight:600; margin:14px 0 6px;">Quantidade</div>
+    <div class="qty-picker">
+      <button class="stepbtn" id="devQtyMinus">－</button>
+      <span class="qbig" id="devQtyDisplay">1</span>
+      <button class="stepbtn" id="devQtyPlus">＋</button>
+    </div>
     <button class="cambtn" id="devConfirmBtn" style="width:100%; margin-top:14px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;">Registar devolução</button>
   `;
   main.appendChild(formCard);
+  formCard.querySelector("#devQtyMinus").onclick = ()=>{ devQtd = Math.max(1, devQtd-1); formCard.querySelector("#devQtyDisplay").textContent = devQtd; };
+  formCard.querySelector("#devQtyPlus").onclick = ()=>{ devQtd = devQtd+1; formCard.querySelector("#devQtyDisplay").textContent = devQtd; };
 
   const lojaRow = formCard.querySelector("#devLojaChips");
   LOJAS.forEach(l=>{
@@ -593,8 +603,13 @@ function openDevolucao(){
     card.className = "alert-card";
     card.style.borderLeftColor = urgente ? "var(--red)" : "var(--amber)";
     card.innerHTML = `
-      <div class="an">${d.peca} · ${d.tamanho} ${urgente ? '<span style="color:var(--red); font-weight:700;">⚠ há '+dias+' dias</span>' : ''}</div>
+      <div class="an">${d.peca} · ${d.tamanho} · <span id="devQtdView-${d.id}">${d.quantidade||1}</span> un. ${urgente ? '<span style="color:var(--red); font-weight:700;">⚠ há '+dias+' dias</span>' : ''}</div>
       <div class="am">${d.loja} ← ${d.colaborador||'sem nome'} · ${new Date(d.criado_em).toLocaleDateString('pt-PT')}</div>
+      <div style="display:flex; gap:6px; margin-top:8px;">
+        <button class="stepbtn" onclick="ajustarQtdDevolucao(${d.id}, -1)">－</button>
+        <button class="stepbtn" onclick="ajustarQtdDevolucao(${d.id}, 1)">＋</button>
+        <button class="stepbtn" style="width:auto; padding:0 10px; font-size:12px;" onclick="removerDevolucao(${d.id})">🗑️ Foi engano</button>
+      </div>
       <div class="chip-row" style="margin-top:8px;" data-polos></div>
     `;
     const polosRow = card.querySelector("[data-polos]");
@@ -602,11 +617,51 @@ function openDevolucao(){
       const c = document.createElement("div");
       c.className = "chip";
       c.textContent = `Recolher p/ ${polo}`;
-      c.onclick = ()=>recolherDevolucao(d.id, polo, d.peca, d.tamanho);
+      c.onclick = ()=>recolherDevolucao(d.id, polo, d.peca, d.tamanho, d.quantidade||1);
       polosRow.appendChild(c);
     });
+    const descartarChip = document.createElement("div");
+    descartarChip.className = "chip";
+    descartarChip.style.cssText = "background:var(--red); color:#fff; border-color:var(--red);";
+    descartarChip.textContent = "🚫 Não reutilizável (descartar)";
+    descartarChip.onclick = ()=>descartarDevolucao(d.id);
+    polosRow.appendChild(descartarChip);
     main.appendChild(card);
   });
+}
+
+async function ajustarQtdDevolucao(id, delta){
+  const d = devolucoes.find(x=>x.id===id);
+  if(!d) return;
+  const nova = Math.max(1, (d.quantidade||1)+delta);
+  try{
+    await api("PATCH", `cj_fardamento_devolucoes?id=eq.${id}`, {quantidade: nova});
+    d.quantidade = nova;
+    const el = document.getElementById(`devQtdView-${id}`);
+    if(el) el.textContent = nova;
+  }catch(e){ console.error(e); toast("Erro ao ajustar"); }
+}
+
+async function removerDevolucao(id){
+  if(!confirm("Remover este registo de devolução (foi um engano)?")) return;
+  try{
+    await api("DELETE", `cj_fardamento_devolucoes?id=eq.${id}`);
+    toast("Registo removido");
+    await loadStock();
+    openDevolucao();
+  }catch(e){ console.error(e); toast("Erro ao remover"); }
+}
+
+async function descartarDevolucao(id){
+  if(!confirm("Confirmar que esta peça não é reutilizável e não vai para stock?")) return;
+  try{
+    await api("PATCH", `cj_fardamento_devolucoes?id=eq.${id}`, {
+      recolhido: true, recolhido_para_polo: "DESCARTADA", recolhido_por: currentUser, recolhido_em: new Date().toISOString()
+    });
+    toast("Marcado como descartado (não reutilizável)");
+    await loadStock();
+    openDevolucao();
+  }catch(e){ console.error(e); toast("Erro ao descartar"); }
 }
 
 async function confirmarDevolucao(){
@@ -617,7 +672,7 @@ async function confirmarDevolucao(){
   try{
     await api("POST", "cj_fardamento_devolucoes", {
       loja: devLoja, peca: devKit.peca, tamanho: devKit.tamanho, colaborador,
-      registado_por: currentUser
+      quantidade: devQtd, registado_por: currentUser
     });
     toast("Devolução registada");
     await loadStock();
@@ -628,10 +683,10 @@ async function confirmarDevolucao(){
   }
 }
 
-async function recolherDevolucao(id, polo, peca, tamanho){
+async function recolherDevolucao(id, polo, peca, tamanho, quantidade){
   try{
-    await incrementStock(polo, peca, tamanho, 1, currentUser);
-    await logMovimento({polo, peca, tamanho, quantidade:1, tipo:"entrada", registado_por:currentUser, nota:"Devolução recolhida"});
+    await incrementStock(polo, peca, tamanho, quantidade||1, currentUser);
+    await logMovimento({polo, peca, tamanho, quantidade:quantidade||1, tipo:"entrada", registado_por:currentUser, nota:"Devolução recolhida"});
     await api("PATCH", `cj_fardamento_devolucoes?id=eq.${id}`, {
       recolhido: true, recolhido_para_polo: polo, recolhido_por: currentUser, recolhido_em: new Date().toISOString()
     });
