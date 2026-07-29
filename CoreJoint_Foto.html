@@ -245,12 +245,20 @@ function render(){
     }
 
     dueInv.forEach(c=>{
+      const late = c.st.state==="late";
+      const wrap = document.createElement("div");
       const btn = document.createElement("button");
       btn.className = "big-btn";
-      const late = c.st.state==="late";
       btn.innerHTML = `<div class="icon">📦</div><div class="txt"><div class="t">${c.label}</div><div class="d">${late?'Atrasado':'Por enviar'}</div></div><div class="status">${late?'🔴':'⏳'}</div>`;
       btn.onclick = ()=>openCapture("inv", c.key, c.label);
-      main.appendChild(btn);
+      wrap.appendChild(btn);
+      if(late){
+        const notice = document.createElement("div");
+        notice.style.cssText = "font-size:12px; color:var(--red); margin:-6px 0 12px 4px;";
+        notice.textContent = "⚠ Este atraso é avisado automaticamente à chefia";
+        wrap.appendChild(notice);
+      }
+      main.appendChild(wrap);
     });
   }
 
@@ -261,11 +269,20 @@ function render(){
     title.textContent = "Marketing — este mês";
     main.appendChild(title);
     dueMkt.forEach(c=>{
+      const late = c.st.state==="late";
+      const wrap = document.createElement("div");
       const btn = document.createElement("button");
       btn.className = "big-btn";
-      btn.innerHTML = `<div class="icon">🏷️</div><div class="txt"><div class="t">${c.label}</div><div class="d">Por fazer este mês</div></div><div class="status">⏳</div>`;
+      btn.innerHTML = `<div class="icon">🏷️</div><div class="txt"><div class="t">${c.label}</div><div class="d">${late?'Atrasado':'Por fazer este mês'}</div></div><div class="status">${late?'🔴':'⏳'}</div>`;
       btn.onclick = ()=>openCapture("marketing", c.key, c.label);
-      main.appendChild(btn);
+      wrap.appendChild(btn);
+      if(late){
+        const notice = document.createElement("div");
+        notice.style.cssText = "font-size:12px; color:var(--red); margin:-6px 0 12px 4px;";
+        notice.textContent = "⚠ Este atraso é avisado automaticamente à chefia";
+        wrap.appendChild(notice);
+      }
+      main.appendChild(wrap);
     });
   }
 }
