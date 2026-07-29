@@ -83,6 +83,8 @@
   <p>Vitrine, vendas e inventário — por loja, todos os dias.</p>
   <div class="loja-grid" id="lojaGrid"></div>
   <button class="mgmt-btn" onclick="enterGestao()">📊 Ver painel de gestão (todas as lojas)</button>
+  <button class="mgmt-btn" style="background:#666; margin-top:10px;" onclick="runDiagnostico()">🔧 Testar ligação (diagnóstico)</button>
+  <pre id="diagResult" style="display:none; white-space:pre-wrap; word-break:break-word; background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px; margin-top:14px; font-size:12px; max-width:420px; width:100%; text-align:left;"></pre>
 </div>
 
 <div id="app" style="display:none;">
@@ -153,6 +155,50 @@ let currentTab = "hoje";
 let dailyRows = [];
 let invRows = [];
 let pendingPhoto = null;
+
+async function runDiagnostico(){
+  const box = document.getElementById("diagResult");
+  box.style.display = "block";
+  let out = "A testar...\n";
+  box.textContent = out;
+
+  // 1. Navegador / rede básica
+  out += `\n1) Navegador: ${navigator.userAgent}\n`;
+  out += `   Online: ${navigator.onLine}\n`;
+  box.textContent = out;
+
+  // 2. Ligação à base de dados (REST)
+  try{
+    const r = await fetch(`${SUPA_URL}/rest/v1/cj_daily_reportes?select=id&limit=1`, {
+      headers:{ "apikey": SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY }
+    });
+    const t = await r.text();
+    out += `\n2) Base de dados (REST): status ${r.status}\n   ${t.slice(0,200)}\n`;
+  }catch(e){
+    out += `\n2) Base de dados (REST): FALHOU — ${e.message || e}\n`;
+  }
+  box.textContent = out;
+
+  // 3. Upload de teste para o Storage (imagem 1x1 mínima)
+  try{
+    const tinyJpeg = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAj/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=";
+    const path = `_diagnostico/teste_${Date.now()}.jpg`;
+    const blob = await (await fetch(tinyJpeg)).blob();
+    const r = await fetch(`${SUPA_URL}/storage/v1/object/${BUCKET}/${path}`, {
+      method:"POST",
+      headers:{ "apikey":SUPA_KEY, "Authorization":"Bearer "+SUPA_KEY, "Content-Type":"image/jpeg", "x-upsert":"true" },
+      body: blob
+    });
+    const t = await r.text();
+    out += `\n3) Upload de foto (Storage): status ${r.status}\n   ${t.slice(0,300)}\n`;
+  }catch(e){
+    out += `\n3) Upload de foto (Storage): FALHOU — ${e.message || e}\n`;
+  }
+  box.textContent = out;
+
+  out += `\n--- Fim do teste. Copia/tira print de tudo isto. ---`;
+  box.textContent = out;
+}
 
 function toast(msg){
   const t = document.getElementById("toast");
