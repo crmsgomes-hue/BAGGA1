@@ -790,7 +790,8 @@ function generateWeeklyReport(){
     const cells = outros.map(c=>{
       if(!aplicaveis.includes(c.key)) return "—";
       const st = invStatus(l,c.key,c.freq);
-      return st.state==="ok" ? "✔" : st.state==="late" ? "✕" : "…";
+      if(st.state==="ok") return `✔ ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}`;
+      return st.state==="late" ? "✕" : "…";
     });
     html += `<tr><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
   });
@@ -800,7 +801,8 @@ function generateWeeklyReport(){
   LOJAS.forEach(l=>{
     const cells = MARKETING_CATS.map(c=>{
       const st = invStatus(l,c.key,c.freq);
-      return st.state==="ok" ? "✔" : st.state==="late" ? "✕" : "…";
+      if(st.state==="ok") return `✔ ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}`;
+      return st.state==="late" ? "✕" : "…";
     });
     html += `<tr><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
   });
@@ -984,14 +986,16 @@ function renderGestao(){
     }
     categoriasParaLoja(l).forEach(c=>{
       const st = invStatus(l,c.key,c.freq);
-      items.push({label:c.label.slice(0,4), state:st.state});
+      const state = st.diaErrado ? "diaerrado" : st.state;
+      items.push({label:c.label.slice(0,4), state});
     });
     MARKETING_CATS.forEach(c=>{
       const st = invStatus(l,c.key,c.freq);
-      items.push({label:c.label.slice(0,4), state:st.state});
+      const state = st.diaErrado ? "diaerrado" : st.state;
+      items.push({label:c.label.slice(0,4), state});
     });
 
-    const anyLate = items.some(i=>i.state==="late");
+    const anyLate = items.some(i=>i.state==="late" || i.state==="diaerrado");
     const anyPend = items.some(i=>i.state==="pend");
     const overall = anyLate ? "late" : anyPend ? "pend" : "ok";
     const overallColor = overall==="ok" ? "var(--green)" : overall==="late" ? "var(--red)" : "var(--amber)";
