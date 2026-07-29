@@ -1175,47 +1175,29 @@ function renderGestao(){
   const main = document.getElementById("main");
   main.innerHTML = "";
 
-  const manualBtn = document.createElement("button");
-  manualBtn.className = "cambtn secondary";
-  manualBtn.style.marginBottom = "10px";
-  manualBtn.textContent = "📥 Inserir manualmente (foto do WhatsApp)";
-  manualBtn.onclick = openManualEntry;
-  main.appendChild(manualBtn);
+  const toolsTitle = document.createElement("div");
+  toolsTitle.style.cssText = "font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-bottom:8px;";
+  toolsTitle.textContent = "Ferramentas";
+  main.appendChild(toolsTitle);
 
-  const printBtn = document.createElement("button");
-  printBtn.className = "cambtn";
-  printBtn.style.marginBottom = "10px";
-  printBtn.textContent = "🖨️ Relatório semanal (PDF)";
-  printBtn.onclick = generateWeeklyReport;
-  main.appendChild(printBtn);
-
-  const histBtn = document.createElement("button");
-  histBtn.className = "cambtn secondary";
-  histBtn.style.marginBottom = "10px";
-  histBtn.textContent = "📅 Histórico de inventários (12 meses)";
-  histBtn.onclick = openHistoricoAnual;
-  main.appendChild(histBtn);
-
-  const exportBtn = document.createElement("button");
-  exportBtn.className = "cambtn secondary";
-  exportBtn.style.marginBottom = "10px";
-  exportBtn.textContent = "📥 Exportar tudo para Excel";
-  exportBtn.onclick = exportarExcel;
-  main.appendChild(exportBtn);
-
-  const galeriaBtn = document.createElement("button");
-  galeriaBtn.className = "cambtn secondary";
-  galeriaBtn.style.marginBottom = "14px";
-  galeriaBtn.textContent = "🖼️ Galeria de fotos da semana";
-  galeriaBtn.onclick = openGaleria;
-  main.appendChild(galeriaBtn);
-
-  const cnvsBtn = document.createElement("button");
-  cnvsBtn.className = "cambtn secondary";
-  cnvsBtn.style.marginBottom = "14px";
-  cnvsBtn.textContent = "📈 Evolução do CNVs (Global)";
-  cnvsBtn.onclick = openEvolucaoCnvs;
-  main.appendChild(cnvsBtn);
+  const toolsGrid = document.createElement("div");
+  toolsGrid.style.cssText = "display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:18px;";
+  const tools = [
+    {icon:"🖨️", label:"Relatório PDF", fn:generateWeeklyReport, highlight:true},
+    {icon:"📅", label:"Histórico 12m", fn:openHistoricoAnual},
+    {icon:"📥", label:"Excel", fn:exportarExcel},
+    {icon:"🖼️", label:"Galeria fotos", fn:openGaleria},
+    {icon:"📈", label:"CNVs Global", fn:openEvolucaoCnvs},
+    {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry}
+  ];
+  tools.forEach(t=>{
+    const tile = document.createElement("button");
+    tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:${t.highlight?'var(--terracotta)':'var(--card)'}; border:1px solid var(--line); border-radius:14px; padding:14px 4px; cursor:pointer;`;
+    tile.innerHTML = `<div style="font-size:22px;">${t.icon}</div><div style="font-size:10.5px; font-weight:600; text-align:center; line-height:1.2; color:${t.highlight?'#fff':'var(--ink)'};">${t.label}</div>`;
+    tile.onclick = t.fn;
+    toolsGrid.appendChild(tile);
+  });
+  main.appendChild(toolsGrid);
 
   const today = todayStr();
   const vitrineTurnosDone = (l,ds)=>VITRINE_TURNOS.filter(t=>dailyStatus(l,"vitrine",ds,t.key)).length;
@@ -1223,12 +1205,17 @@ function renderGestao(){
   const missingVendas = LOJAS.filter(l=>!dailyStatus(l,"vendas",today,"unico")).length;
   const lateInv = LOJAS.reduce((acc,l)=>acc + categoriasParaLoja(l).filter(c=>invStatus(l,c.key,c.freq).state==="late").length, 0);
 
+  const todayTitle = document.createElement("div");
+  todayTitle.style.cssText = "font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-bottom:8px;";
+  todayTitle.textContent = "Hoje, de relance";
+  main.appendChild(todayTitle);
+
   const sumRow = document.createElement("div");
-  sumRow.style.cssText = "display:flex; gap:10px; margin-bottom:16px;";
+  sumRow.style.cssText = "display:flex; gap:8px; margin-bottom:18px;";
   sumRow.innerHTML = `
-    <div class="card" style="flex:1; text-align:center; margin-bottom:0;"><div style="font-size:20px;font-weight:700;">${missingVitrine}</div><div class="card-sub">vitrine incompleta hoje</div></div>
-    <div class="card" style="flex:1; text-align:center; margin-bottom:0;"><div style="font-size:20px;font-weight:700;">${missingVendas}</div><div class="card-sub">sem vendas hoje</div></div>
-    <div class="card" style="flex:1; text-align:center; margin-bottom:0;"><div style="font-size:20px;font-weight:700; color:var(--red);">${lateInv}</div><div class="card-sub">inventários atrasados</div></div>
+    <div style="flex:1; text-align:center; background:${missingVitrine>0?'var(--amber)':'var(--green)'}; color:#fff; border-radius:14px; padding:14px 4px;"><div style="font-size:24px;font-weight:700;">${missingVitrine}</div><div style="font-size:10px; opacity:.9;">vitrine incompleta</div></div>
+    <div style="flex:1; text-align:center; background:${missingVendas>0?'var(--amber)':'var(--green)'}; color:#fff; border-radius:14px; padding:14px 4px;"><div style="font-size:24px;font-weight:700;">${missingVendas}</div><div style="font-size:10px; opacity:.9;">sem vendas</div></div>
+    <div style="flex:1; text-align:center; background:${lateInv>0?'var(--red)':'var(--green)'}; color:#fff; border-radius:14px; padding:14px 4px;"><div style="font-size:24px;font-weight:700;">${lateInv}</div><div style="font-size:10px; opacity:.9;">atrasados</div></div>
   `;
   main.appendChild(sumRow);
 
