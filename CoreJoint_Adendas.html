@@ -269,7 +269,7 @@ function renderCard(r, stageIdx){
 
   let photoHtml = "";
   if(r.foto_assinada){
-    photoHtml = `<img class="photo-thumb" src="${r.foto_assinada}" onclick="viewPhoto('${r.foto_assinada.replace(/'/g,"")}')">`;
+    photoHtml = `<img class="photo-thumb" src="${r.foto_assinada}" onclick="viewPhoto('${r.foto_assinada.replace(/'/g,"")}','${(r.colaborador||'adenda').replace(/'/g,"")}')">`;
   }
 
   div.innerHTML = `
@@ -291,8 +291,43 @@ function escapeHtml(s){
   return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 
-function viewPhoto(src){
-  window.open(src, "_blank");
+function viewPhoto(src, nome){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "photoViewOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>Adenda assinada</h2>
+      <img src="${src}" style="width:100%; border-radius:10px; margin-top:8px;">
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="document.getElementById('photoViewOverlay').remove()">Fechar</button>
+        <button class="btn-save" id="shareBtn">📤 Partilhar / Guardar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("shareBtn").onclick = ()=>partilharFoto(src, nome);
+}
+
+async function partilharFoto(src, nome){
+  try{
+    const blob = await (await fetch(src)).blob();
+    const filename = `adenda_${(nome||'assinada').replace(/\s+/g,'_')}.jpg`;
+    const file = new File([blob], filename, {type:"image/jpeg"});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:"Adenda assinada"});
+    } else {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+  }catch(e){
+    console.error(e);
+    toast("Não foi possível partilhar — tenta guardar a imagem manualmente (toca e mantém).");
+  }
 }
 
 async function advance(id, stageIdx){
@@ -441,57 +476,82 @@ async function saveNew(){
 }
 
 /* ---------- FOTO (assinatura) ---------- */
-function openPhotoCapture(id, stageIdx){
+let camStream = null;
+
+async function openPhotoCapture(id, stageIdx){
   const overlay = document.createElement("div");
   overlay.className = "overlay";
   overlay.id = "photoOverlay";
   overlay.innerHTML = `
     <div class="modal">
       <h2>Foto da adenda assinada</h2>
-      <input type="file" id="fPhoto" accept="image/*" capture="environment">
+      <div class="sub">A câmara vai abrir — aponta para a adenda assinada.</div>
+      <video id="camVideo" autoplay playsinline style="width:100%; border-radius:10px; margin-top:8px; background:#000;"></video>
+      <canvas id="camCanvas" style="display:none;"></canvas>
       <img id="camPreview" class="cam-preview" style="display:none;">
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closePhoto()">Cancelar</button>
-        <button class="btn-save" id="btnSavePhoto" onclick="saveWithPhoto(${id}, ${stageIdx})" disabled>Confirmar assinatura</button>
+        <button class="btn-save" id="btnShoot" onclick="tirarFoto()">📷 Tirar foto</button>
+      </div>
+      <div class="modal-actions" id="confirmRow" style="display:none;">
+        <button class="btn-cancel" onclick="repetirFoto()">↺ Repetir</button>
+        <button class="btn-save" id="btnSavePhoto" onclick="saveWithPhoto(${id}, ${stageIdx})">Confirmar assinatura</button>
       </div>
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fPhoto").addEventListener("change", handlePhotoSelect);
+  try{
+    camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false});
+    document.getElementById("camVideo").srcObject = camStream;
+  }catch(e){
+    console.error(e);
+    toast("Não consegui aceder à câmara: " + (e.message||e).slice(0,80));
+    closePhoto();
+  }
+}
+function pararCamara(){
+  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream = null; }
 }
 function closePhoto(){
+  pararCamara();
   const o = document.getElementById("photoOverlay");
   if(o) o.remove();
   pendingPhoto = null;
 }
-function handlePhotoSelect(e){
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = function(evt){
-    const img = new Image();
-    img.onload = function(){
-      const maxDim = 1280;
-      let {width, height} = img;
-      if(width > height && width > maxDim){ height = height*maxDim/width; width = maxDim; }
-      else if(height > maxDim){ width = width*maxDim/height; height = maxDim; }
-      const canvas = document.createElement("canvas");
-      canvas.width = width; canvas.height = height;
-      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-      pendingPhoto = canvas.toDataURL("image/jpeg", 0.7);
-      const prev = document.getElementById("camPreview");
-      prev.src = pendingPhoto;
-      prev.style.display = "block";
-      document.getElementById("btnSavePhoto").disabled = false;
-    };
-    img.src = evt.target.result;
-  };
-  reader.readAsDataURL(file);
+function tirarFoto(){
+  const video = document.getElementById("camVideo");
+  const canvas = document.getElementById("camCanvas");
+  const maxDim = 1280;
+  let width = video.videoWidth, height = video.videoHeight;
+  if(width > height && width > maxDim){ height = height*maxDim/width; width = maxDim; }
+  else if(height > maxDim){ width = width*maxDim/height; height = maxDim; }
+  canvas.width = width; canvas.height = height;
+  canvas.getContext("2d").drawImage(video, 0, 0, width, height);
+  pendingPhoto = canvas.toDataURL("image/jpeg", 0.75);
+
+  pararCamara();
+  document.getElementById("camVideo").style.display = "none";
+  const prev = document.getElementById("camPreview");
+  prev.src = pendingPhoto;
+  prev.style.display = "block";
+  document.getElementById("btnShoot").parentElement.style.display = "none";
+  document.getElementById("confirmRow").style.display = "flex";
+}
+async function repetirFoto(){
+  pendingPhoto = null;
+  document.getElementById("camPreview").style.display = "none";
+  document.getElementById("confirmRow").style.display = "none";
+  const video = document.getElementById("camVideo");
+  video.style.display = "block";
+  document.getElementById("btnShoot").parentElement.style.display = "flex";
+  camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false});
+  video.srcObject = camStream;
 }
 async function saveWithPhoto(id, stageIdx){
   if(!pendingPhoto){ toast("Tira a foto primeiro"); return; }
+  const photo = pendingPhoto;
   closePhoto();
-  await commitAdvance(id, stageIdx, pendingPhoto);
+  await commitAdvance(id, stageIdx, photo);
   pendingPhoto = null;
 }
 
