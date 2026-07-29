@@ -287,7 +287,8 @@ function render(){
       }
       const btn = document.createElement("button");
       btn.className = "big-btn";
-      btn.innerHTML = `<div class="icon">📦</div><div class="txt"><div class="t">${c.label}</div><div class="d">${late?'Atrasado':'Por enviar'}</div></div><div class="status">${late?'🔴':'⏳'}</div>`;
+      const isAmanha = c.st.targetDate && !late && isoDate(c.st.targetDate)===isoDate(new Date(Date.now()+86400000));
+      btn.innerHTML = `<div class="icon">📦</div><div class="txt"><div class="t">${c.label}</div><div class="d">${late?'Atrasado':isAmanha?'Amanhã é o dia':'Por enviar'}</div></div><div class="status">${late?'🔴':isAmanha?'🔔':'⏳'}</div>`;
       btn.onclick = ()=>openCapture("inv", c.key, c.label);
       wrap.appendChild(btn);
       if(late){
