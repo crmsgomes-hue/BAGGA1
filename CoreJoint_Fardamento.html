@@ -270,16 +270,20 @@ function renderPecaCard(polo, peca){
 }
 
 async function adjustQty(polo, peca, tamanho, delta){
-  const current = getQty(polo, peca, tamanho);
-  const novo = Math.max(0, current + delta);
   try{
-    await upsertStock(polo, peca, tamanho, novo);
-    await logMovimento({polo, peca, tamanho, quantidade:Math.abs(novo-current), tipo: delta>0 ? "entrada":"ajuste", registado_por: currentUser, nota: delta>0 ? "Reposição/contagem" : "Ajuste/contagem"});
+    const novo = await incrementStock(polo, peca, tamanho, delta, currentUser);
+    await logMovimento({polo, peca, tamanho, quantidade:Math.abs(delta), tipo: delta>0 ? "entrada":"ajuste", registado_por: currentUser, nota: delta>0 ? "Reposição/contagem" : "Ajuste/contagem"});
     await loadStock();
   }catch(e){
     console.error(e);
-    toast("Erro ao gravar");
+    toast("Erro ao gravar: " + (e.message||e).slice(0,100));
   }
+}
+
+async function incrementStock(polo, peca, tamanho, delta, who){
+  return await api("POST", "rpc/increment_fardamento_stock", {
+    p_polo: polo, p_peca: peca, p_tamanho: tamanho, p_delta: delta, p_por: who
+  });
 }
 
 async function upsertStock(polo, peca, tamanho, quantidade){
@@ -394,17 +398,15 @@ async function confirmSaida(polo, peca, tamanho){
   const colaborador = saidaColab === "__novo__" ? document.getElementById("sColabNovo").value.trim() : saidaColab;
   if(!colaborador){ toast("Escolhe ou escreve o colaborador"); return; }
   if(!saidaLoja){ toast("Escolhe a loja de destino"); return; }
-  const atual = getQty(polo, peca, tamanho);
-  const novo = Math.max(0, atual - saidaQtd);
   try{
-    await upsertStock(polo, peca, tamanho, novo);
+    await incrementStock(polo, peca, tamanho, -saidaQtd, currentUser);
     await logMovimento({polo, peca, tamanho, quantidade:saidaQtd, tipo:"saida", colaborador_destino:colaborador, loja_destino:saidaLoja, registado_por:currentUser});
     toast("Saída registada");
     closeSaida();
     await loadStock();
   }catch(e){
     console.error(e);
-    toast("Erro ao registar saída");
+    toast("Erro: " + (e.message||e).slice(0,100));
   }
 }
 
@@ -571,8 +573,7 @@ async function confirmAdmissao(){
   btn.textContent = "A processar...";
   try{
     for(const [peca, info] of items){
-      const atual = getQty(info.polo, peca, info.tamanho);
-      await upsertStock(info.polo, peca, info.tamanho, Math.max(0, atual-1));
+      await incrementStock(info.polo, peca, info.tamanho, -1, currentUser);
       await logMovimento({polo:info.polo, peca, tamanho:info.tamanho, quantidade:1, tipo:"saida", colaborador_destino:colaborador, loja_destino:admLoja, registado_por:currentUser, nota:"Admissão"});
     }
     toast(`Admissão registada — ${items.length} peças descontadas`);
