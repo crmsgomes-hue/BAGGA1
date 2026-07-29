@@ -83,6 +83,7 @@
   <p>Vitrine, vendas e inventário — por loja, todos os dias.</p>
   <div class="loja-grid" id="lojaGrid"></div>
   <button class="mgmt-btn" onclick="enterGestao()">📊 Ver painel de gestão (todas as lojas)</button>
+  <button class="mgmt-btn" style="background:var(--terracotta); margin-top:10px;" id="notifBtn" onclick="ativarNotificacoes()">🔔 Ativar notificações de pendências</button>
   <button class="mgmt-btn" style="background:#666; margin-top:10px;" onclick="runDiagnostico()">🔧 Testar ligação (diagnóstico)</button>
   <pre id="diagResult" style="display:none; white-space:pre-wrap; word-break:break-word; background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px; margin-top:14px; font-size:12px; max-width:420px; width:100%; text-align:left;"></pre>
 </div>
@@ -202,6 +203,52 @@ async function runDiagnostico(){
 
   out += `\n--- Fim do teste. Copia/tira print de tudo isto. ---`;
   box.textContent = out;
+}
+
+const VAPID_PUBLIC_KEY = "BKXMKlUz9TDhHbuUuq9qwmCIoniXhVtICtodo0bwhRxU2FrgSCdwRwQaRXHhG8IL2yl757q8jG96h4guzQfjbWA";
+
+function urlBase64ToUint8Array(base64String){
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c=>c.charCodeAt(0)));
+}
+
+async function ativarNotificacoes(){
+  const btn = document.getElementById("notifBtn");
+  if(!("serviceWorker" in navigator) || !("PushManager" in window)){
+    toast("Este browser não suporta notificações.");
+    return;
+  }
+  try{
+    btn.textContent = "A ativar...";
+    const perm = await Notification.requestPermission();
+    if(perm !== "granted"){ toast("Permissão não concedida."); btn.textContent = "🔔 Ativar notificações de pendências"; return; }
+
+    const reg = await navigator.serviceWorker.register("sw-push.js");
+    await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub){
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    const json = sub.toJSON();
+    const filter = `endpoint=eq.${encodeURIComponent(json.endpoint)}`;
+    const patched = await api("PATCH", `cj_push_subscriptions?${filter}`, {p256dh: json.keys.p256dh, auth: json.keys.auth, quem: currentUser || "gestão"});
+    if(!patched || patched.length===0){
+      await api("POST", "cj_push_subscriptions", {
+        endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth, quem: currentUser || "gestão"
+      });
+    }
+    btn.textContent = "✅ Notificações ativas";
+    toast("Notificações ativadas! Chegam por volta das 18h, se houver pendências.");
+  }catch(e){
+    console.error(e);
+    toast("Erro ao ativar: " + (e.message||e).slice(0,100));
+    btn.textContent = "🔔 Ativar notificações de pendências";
+  }
 }
 
 function toast(msg){
