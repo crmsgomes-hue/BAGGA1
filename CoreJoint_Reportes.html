@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>CoreJoint · Reportes</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --cream:#F4F1EA; --ink:#2B2723; --ink-soft:#5C564E;
@@ -814,6 +815,32 @@ function openHistoricoAnual(){
   });
 }
 
+/* ---------- EXPORTAR PARA EXCEL ---------- */
+function exportarExcel(){
+  const wb = XLSX.utils.book_new();
+
+  const dailyData = dailyRows.map(r=>({
+    Loja: r.loja, Tipo: r.tipo, Turno: r.turno, Data: r.data,
+    "Enviado por": r.enviado_por, "Criado em": r.criado_em
+  }));
+  const wsDaily = XLSX.utils.json_to_sheet(dailyData);
+  XLSX.utils.book_append_sheet(wb, wsDaily, "Diario (Vitrine-Vendas)");
+
+  const invData = invRows.map(r=>({
+    Loja: r.loja, Categoria: r.categoria, Data: r.data,
+    "Valor Inventário (€)": r.valor_inventario, "Valor CNVs (€)": r.valor_cnvs,
+    "Tem foto entrada CNVs": r.foto_entrada_cnvs ? "Sim" : "",
+    "Tem foto desperdício": r.foto_desperdicio_cnvs ? "Sim" : "",
+    "Enviado por": r.enviado_por, "Criado em": r.criado_em
+  }));
+  const wsInv = XLSX.utils.json_to_sheet(invData);
+  XLSX.utils.book_append_sheet(wb, wsInv, "Inventario e Marketing");
+
+  const fname = `CoreJoint_export_${todayStr()}.xlsx`;
+  XLSX.writeFile(wb, fname);
+  toast("Ficheiro Excel gerado");
+}
+
 function generateWeeklyReport(){
   const days = [];
   for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days.push(d); }
@@ -891,8 +918,12 @@ function generateWeeklyReport(){
 
 /* ---------- INSERÇÃO MANUAL (fotos guardadas do WhatsApp) ---------- */
 let manualPhoto = null;
+let manualFotoEntrada = null;
+let manualFotoDesperdicio = null;
 function openManualEntry(){
   manualPhoto = null;
+  manualFotoEntrada = null;
+  manualFotoDesperdicio = null;
   const overlay = document.createElement("div");
   overlay.className = "overlay"; overlay.id = "manualOverlay";
   const tipoOptions = `
@@ -943,16 +974,55 @@ function updateManualExtra(){
       <div class="field">
         <label>Valor CNVs (consumíveis) (€)</label>
         <input id="mVCnvs" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
+      </div>
+      <div class="field">
+        <label>Foto da entrada justificada (opcional)</label>
+        <label class="filebtn" style="display:block; text-align:center;">🖼️ Escolher da galeria<input type="file" accept="image/*" id="mFileEntrada"></label>
+        <img id="mPreviewEntrada" class="cam-preview" style="display:none;">
+      </div>
+      <div class="field">
+        <label>Foto do desperdício (opcional)</label>
+        <label class="filebtn" style="display:block; text-align:center;">🖼️ Escolher da galeria<input type="file" accept="image/*" id="mFileDesperdicio"></label>
+        <img id="mPreviewDesperdicio" class="cam-preview" style="display:none;">
       </div>` : ``}
     `;
+    if(key==="global"){
+      document.getElementById("mFileEntrada").addEventListener("change", (e)=>handleManualExtraFile(e, "mPreviewEntrada", (url)=>manualFotoEntrada=url));
+      document.getElementById("mFileDesperdicio").addEventListener("change", (e)=>handleManualExtraFile(e, "mPreviewDesperdicio", (url)=>manualFotoDesperdicio=url));
+    }
   } else {
     extra.innerHTML = "";
   }
+}
+function handleManualExtraFile(e, previewId, setter){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = evt=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const maxDim = 1280;
+      let {width,height} = img;
+      if(width>height && width>maxDim){ height=height*maxDim/width; width=maxDim; }
+      else if(height>maxDim){ width=width*maxDim/height; height=maxDim; }
+      const canvas = document.createElement("canvas");
+      canvas.width=width; canvas.height=height;
+      canvas.getContext("2d").drawImage(img,0,0,width,height);
+      const dataUrl = canvas.toDataURL("image/jpeg",0.7);
+      setter(dataUrl);
+      const prev = document.getElementById(previewId);
+      prev.src = dataUrl; prev.style.display="block";
+    };
+    img.src = evt.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 function closeManualEntry(){
   const o = document.getElementById("manualOverlay");
   if(o) o.remove();
   manualPhoto = null;
+  manualFotoEntrada = null;
+  manualFotoDesperdicio = null;
 }
 function handleManualFile(e){
   const file = e.target.files[0];
@@ -994,7 +1064,12 @@ async function confirmManualEntry(){
       const vCnvs = cnvsEl ? parseFloat(cnvsEl.value) : NaN;
       const path = `${slug(loja)}/inventario/${key}/${data}.jpg`;
       const url = await uploadPhoto(manualPhoto, path);
-      await insertInv(loja, key, data, url, isNaN(vInv)?null:vInv, isNaN(vCnvs)?null:vCnvs, "Gestão (WhatsApp)");
+      let fotoEntradaUrl = null, fotoDesperdicioUrl = null;
+      if(key==="global"){
+        if(manualFotoEntrada) fotoEntradaUrl = await uploadPhoto(manualFotoEntrada, `${slug(loja)}/inventario/${key}/entrada_${data}_${Date.now()}.jpg`);
+        if(manualFotoDesperdicio) fotoDesperdicioUrl = await uploadPhoto(manualFotoDesperdicio, `${slug(loja)}/inventario/${key}/desperdicio_${data}_${Date.now()}.jpg`);
+      }
+      await insertInv(loja, key, data, url, isNaN(vInv)?null:vInv, isNaN(vCnvs)?null:vCnvs, "Gestão (WhatsApp)", fotoEntradaUrl, fotoDesperdicioUrl);
     }
     toast("Inserido!");
     closeManualEntry();
@@ -1026,10 +1101,17 @@ function renderGestao(){
 
   const histBtn = document.createElement("button");
   histBtn.className = "cambtn secondary";
-  histBtn.style.marginBottom = "14px";
+  histBtn.style.marginBottom = "10px";
   histBtn.textContent = "📅 Histórico de inventários (12 meses)";
   histBtn.onclick = openHistoricoAnual;
   main.appendChild(histBtn);
+
+  const exportBtn = document.createElement("button");
+  exportBtn.className = "cambtn secondary";
+  exportBtn.style.marginBottom = "14px";
+  exportBtn.textContent = "📥 Exportar tudo para Excel";
+  exportBtn.onclick = exportarExcel;
+  main.appendChild(exportBtn);
 
   const today = todayStr();
   const vitrineTurnosDone = (l,ds)=>VITRINE_TURNOS.filter(t=>dailyStatus(l,"vitrine",ds,t.key)).length;
