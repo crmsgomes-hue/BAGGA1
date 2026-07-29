@@ -459,6 +459,7 @@ function openAlertas(){
 
 /* ---------- NOVA ADMISSÃO (kit completo, desconta tudo de uma vez) ---------- */
 let admKit = {}; // peca -> {tamanho, polo}
+let lastAdmLoja = "";
 let admColab = "";
 let admLoja = "";
 
@@ -507,11 +508,12 @@ function openAdmissao(){
   const admLojaRow = peopleCard.querySelector("#admLojaChips");
   LOJAS.forEach(l=>{
     const c = document.createElement("div");
-    c.className = "chip";
+    c.className = "chip" + (l===lastAdmLoja ? " sel" : "");
     c.textContent = l;
     c.onclick = ()=>{ admLoja = l; admLojaRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel")); c.classList.add("sel"); };
     admLojaRow.appendChild(c);
   });
+  if(lastAdmLoja) admLoja = lastAdmLoja;
 
   // Peças do kit
   Object.keys(PECAS).forEach(peca=>{
@@ -570,6 +572,32 @@ function renderAdmPolos(peca, tam, container){
   });
 }
 
+function renderAdmSucesso(colaborador, nPecas){
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const card = document.createElement("div");
+  card.className = "card";
+  card.style.textAlign = "center";
+  card.innerHTML = `
+    <div style="font-size:40px; margin-bottom:8px;">✅</div>
+    <div class="field-label" style="font-weight:600; font-size:16px; color:var(--ink);">Admissão de ${colaborador} registada</div>
+    <div class="field-label" style="margin-top:4px;">${nPecas} peças descontadas do stock</div>
+  `;
+  main.appendChild(card);
+
+  const nextBtn = document.createElement("button");
+  nextBtn.className = "copybtn";
+  nextBtn.textContent = "👤+ Registar outra admissão";
+  nextBtn.onclick = openAdmissao;
+  main.appendChild(nextBtn);
+
+  const backBtn = document.createElement("button");
+  backBtn.className = "backbtn";
+  backBtn.textContent = "← Voltar ao stock";
+  backBtn.onclick = render;
+  main.appendChild(backBtn);
+}
+
 async function confirmAdmissao(){
   const colaborador = admColab === "__novo__" ? document.getElementById("admColabNovo").value.trim() : admColab;
   if(!colaborador){ toast("Escolhe ou escreve o colaborador"); return; }
@@ -587,9 +615,9 @@ async function confirmAdmissao(){
       await incrementStock(info.polo, peca, info.tamanho, -1, currentUser);
       await logMovimento({polo:info.polo, peca, tamanho:info.tamanho, quantidade:1, tipo:"saida", colaborador_destino:colaborador, loja_destino:admLoja, registado_por:currentUser, nota:"Admissão"});
     }
-    toast(`Admissão registada — ${items.length} peças descontadas`);
+    lastAdmLoja = admLoja;
     await loadStock();
-    render();
+    renderAdmSucesso(colaborador, items.length);
   }catch(e){
     console.error(e);
     toast("Erro: " + (e.message||e).slice(0,120));
