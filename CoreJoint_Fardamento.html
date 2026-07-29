@@ -74,9 +74,15 @@
 
   .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:20px; font-size:14px; z-index:99; opacity:0; transition:opacity .25s;}
   .toast.show{opacity:1;}
+
+  body.dark{ --cream:#1c1a18; --ink:#EDE8E1; --ink-soft:#B8B0A5; --terracotta:#E08A52; --terracotta-dark:#F0A876; --line:#3a3632; --card:#2A2724; }
+  body.dark input, body.dark select, body.dark textarea{ background:#2A2724; color:#EDE8E1; border-color:#3a3632; }
+  body.dark video{ background:#000; }
 </style>
 </head>
 <body>
+<button id="darkToggle" onclick="toggleDark()" style="position:fixed; top:8px; right:8px; z-index:500; width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--card,#fff); font-size:16px; cursor:pointer;">🌙</button>
+
 
 <div id="login">
   <h1>CoreJoint · Fardamento</h1>
@@ -570,11 +576,13 @@ function openDevolucao(){
   }
 
   devolucoes.forEach(d=>{
+    const dias = Math.floor((Date.now() - new Date(d.criado_em).getTime())/86400000);
+    const urgente = dias>=7;
     const card = document.createElement("div");
     card.className = "alert-card";
-    card.style.borderLeftColor = "var(--amber)";
+    card.style.borderLeftColor = urgente ? "var(--red)" : "var(--amber)";
     card.innerHTML = `
-      <div class="an">${d.peca} · ${d.tamanho}</div>
+      <div class="an">${d.peca} · ${d.tamanho} ${urgente ? '<span style="color:var(--red); font-weight:700;">⚠ há '+dias+' dias</span>' : ''}</div>
       <div class="am">${d.loja} ← ${d.colaborador||'sem nome'} · ${new Date(d.criado_em).toLocaleDateString('pt-PT')}</div>
       <div class="chip-row" style="margin-top:8px;" data-polos></div>
     `;
@@ -898,6 +906,16 @@ function openHistorico(){
 
 /* ---------- INIT ---------- */
 if(currentUser){ startApp(); }
+
+function toggleDark(){
+  document.body.classList.toggle("dark");
+  localStorage.setItem("cj_dark_mode", document.body.classList.contains("dark") ? "1" : "0");
+  document.getElementById("darkToggle").textContent = document.body.classList.contains("dark") ? "☀️" : "🌙";
+}
+if(localStorage.getItem("cj_dark_mode")==="1"){
+  document.body.classList.add("dark");
+  setTimeout(()=>{ const b=document.getElementById("darkToggle"); if(b) b.textContent="☀️"; }, 0);
+}
 </script>
 </body>
 </html>
