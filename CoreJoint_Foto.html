@@ -81,7 +81,7 @@ function categoriasParaLoja(loja){
 
 const params = new URLSearchParams(location.search);
 const currentLoja = params.get("loja") || "Loja não identificada";
-let dailyRows = [], invRows = [];
+let dailyRows = [], invRows = [], adendasRows = [];
 let pendingPhoto = null;
 let pendingPhotoEntrada = null;
 let pendingPhotoDesperdicio = null;
@@ -206,6 +206,7 @@ async function loadAll(){
     const f = `&loja=eq.${encodeURIComponent(currentLoja)}`;
     dailyRows = await api("GET", `cj_daily_reportes?select=*${f}&order=data.desc`);
     invRows = await api("GET", `cj_inventario_reportes?select=*${f}&order=data.desc`);
+    adendasRows = await api("GET", `cj_adendas?select=*${f}&arquivada=eq.false&order=criado_em.desc`);
     render();
   }catch(e){ console.error(e); toast("Erro a carregar"); }
 }
@@ -324,6 +325,137 @@ function render(){
       main.appendChild(wrap);
     });
   }
+
+  renderAdendasSection(main);
+}
+
+const ADENDA_STAGES = [
+  {key:"impressa", label:"Imprimir", verb:"Marcar como impressa", nextField:"impressa_em", personField:"impressa_por"},
+  {key:"entregue", label:"Entregar", verb:"Marcar como entregue", nextField:"entregue_em", personField:"entregue_por"},
+  {key:"assinada", label:"Assinar", verb:"Marcar como assinada (+ foto)", nextField:"assinada_em", personField:"assinada_por", needsPhoto:true},
+  {key:"copia_entregue", label:"Entreguei cópia ao colaborador", verb:"Confirmo que entreguei uma cópia", nextField:"copia_entregue_em", personField:"copia_entregue_por"}
+];
+
+function adendaStageIndex(r){
+  for(let i=0;i<ADENDA_STAGES.length;i++){
+    if(!r[ADENDA_STAGES[i].nextField]) return i;
+  }
+  return ADENDA_STAGES.length;
+}
+
+function renderAdendasSection(main){
+  const pendentes = adendasRows.filter(r=>adendaStageIndex(r) < ADENDA_STAGES.length);
+  if(pendentes.length===0) return;
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px;";
+  title.textContent = "Adendas desta loja";
+  main.appendChild(title);
+
+  pendentes.forEach(r=>{
+    const idx = adendaStageIndex(r);
+    const stage = ADENDA_STAGES[idx];
+    const wrap = document.createElement("div");
+    const btn = document.createElement("button");
+    btn.className = "big-btn";
+    btn.innerHTML = `<div class="icon">📋</div><div class="txt"><div class="t">${escapeHtml(r.colaborador)}</div><div class="d">${escapeHtml(r.tipo||'Adenda')} — ${stage.label}</div></div><div class="status">⏳</div>`;
+    btn.onclick = ()=> stage.needsPhoto ? openAdendaPhotoCapture(r.id, idx) : confirmAdendaStage(r.id, idx);
+    wrap.appendChild(btn);
+    main.appendChild(wrap);
+  });
+}
+function escapeHtml(s){
+  if(!s) return "";
+  return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+async function confirmAdendaStage(id, stageIdx){
+  const stage = ADENDA_STAGES[stageIdx];
+  const now = new Date().toISOString();
+  try{
+    await api("PATCH", `cj_adendas?id=eq.${id}`, {[stage.nextField]: now, [stage.personField]: currentLoja, updated_at: now});
+    toast("Atualizado");
+    await loadAll();
+  }catch(e){ console.error(e); toast("Erro: " + (e.message||e).slice(0,100)); }
+}
+
+let adendaCamStream = null, adendaPendingPhoto = null;
+function openAdendaPhotoCapture(id, stageIdx){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay"; overlay.id = "adendaPhotoOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>Foto da assinatura</h2>
+      <div class="sub">A câmara vai abrir — aponta para a adenda assinada.</div>
+      <video id="adendaCamVideo" autoplay playsinline style="width:100%; border-radius:10px; margin-top:8px; background:#000;"></video>
+      <canvas id="adendaCamCanvas" style="display:none;"></canvas>
+      <img id="adendaCamPreview" class="cam-preview" style="display:none;">
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeAdendaPhoto()">Cancelar</button>
+        <button class="btn-save" id="adendaBtnShoot" onclick="tirarFotoAdenda()">📷 Tirar foto</button>
+      </div>
+      <div class="modal-actions" id="adendaConfirmRow" style="display:none;">
+        <button class="btn-cancel" onclick="repetirFotoAdenda()">↺ Repetir</button>
+        <button class="btn-save" onclick="saveAdendaPhoto(${id}, ${stageIdx})">Confirmar assinatura</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  iniciarCamaraAdenda();
+}
+async function iniciarCamaraAdenda(){
+  try{
+    adendaCamStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false});
+    document.getElementById("adendaCamVideo").srcObject = adendaCamStream;
+  }catch(e){
+    toast("Não consegui aceder à câmara: " + (e.message||e).slice(0,80));
+    closeAdendaPhoto();
+  }
+}
+function pararCamaraAdenda(){
+  if(adendaCamStream){ adendaCamStream.getTracks().forEach(t=>t.stop()); adendaCamStream=null; }
+}
+function closeAdendaPhoto(){
+  pararCamaraAdenda();
+  const o = document.getElementById("adendaPhotoOverlay");
+  if(o) o.remove();
+  adendaPendingPhoto = null;
+}
+function tirarFotoAdenda(){
+  const video = document.getElementById("adendaCamVideo");
+  const canvas = document.getElementById("adendaCamCanvas");
+  if(!video.videoWidth || !video.videoHeight){ toast("A câmara ainda está a arrancar — espera um segundo."); return; }
+  const maxDim = 1280;
+  let width=video.videoWidth, height=video.videoHeight;
+  if(width>height && width>maxDim){ height=height*maxDim/width; width=maxDim; }
+  else if(height>maxDim){ width=width*maxDim/height; height=maxDim; }
+  canvas.width=width; canvas.height=height;
+  canvas.getContext("2d").drawImage(video,0,0,width,height);
+  adendaPendingPhoto = canvas.toDataURL("image/jpeg",0.75);
+  pararCamaraAdenda();
+  document.getElementById("adendaCamVideo").style.display="none";
+  const prev = document.getElementById("adendaCamPreview");
+  prev.src = adendaPendingPhoto; prev.style.display="block";
+  document.getElementById("adendaBtnShoot").parentElement.style.display="none";
+  document.getElementById("adendaConfirmRow").style.display="flex";
+}
+async function repetirFotoAdenda(){
+  adendaPendingPhoto = null;
+  document.getElementById("adendaCamPreview").style.display="none";
+  document.getElementById("adendaConfirmRow").style.display="none";
+  const video = document.getElementById("adendaCamVideo");
+  video.style.display="block";
+  document.getElementById("adendaBtnShoot").parentElement.style.display="flex";
+  await iniciarCamaraAdenda();
+}
+async function saveAdendaPhoto(id, stageIdx){
+  if(!adendaPendingPhoto){ toast("Tira a foto primeiro"); return; }
+  const photo = adendaPendingPhoto;
+  closeAdendaPhoto();
+  const now = new Date().toISOString();
+  try{
+    await api("PATCH", `cj_adendas?id=eq.${id}`, {assinada_em: now, assinada_por: currentLoja, foto_assinada: photo, updated_at: now});
+    toast("Assinatura registada");
+    await loadAll();
+  }catch(e){ console.error(e); toast("Erro: " + (e.message||e).slice(0,100)); }
 }
 
 function openCapture(kind, key, label, turno){
