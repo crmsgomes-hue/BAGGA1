@@ -457,52 +457,91 @@ function handleCapFile(e){
 async function confirmCapture(kind, key, turno){
   if(!pendingPhoto){ toast("Tira a foto primeiro"); return; }
   const today = todayStr();
+  const item = {
+    kind, key, turno, today, loja: currentLoja,
+    foto: pendingPhoto,
+    fotoEntrada: pendingPhotoEntrada || null,
+    fotoDesperdicio: pendingPhotoDesperdicio || null,
+    vInv: kind==="inv" ? document.getElementById("vInv").value : null,
+    vCnvs: (kind==="inv" && document.getElementById("vCnvs")) ? document.getElementById("vCnvs").value : null
+  };
   try{
-    if(kind==="daily"){
-      const path = `${slug(currentLoja)}/${key}/${turno}/${today}_${Date.now()}.jpg`;
-      const url = await uploadPhoto(pendingPhoto, path);
-      await upsertDaily(currentLoja, key, today, url, turno);
-    } else if(kind==="marketing"){
-      const path = `${slug(currentLoja)}/marketing/${key}/${today}.jpg`;
-      const url = await uploadPhoto(pendingPhoto, path);
-      await api("POST", "cj_inventario_reportes", {
-        loja:currentLoja, categoria:key, data:today, foto_path:url,
-        valor_inventario:null, valor_cnvs:null, enviado_por:currentLoja
-      });
-    } else {
-      const vInv = parseFloat(document.getElementById("vInv").value);
-      const cnvsEl = document.getElementById("vCnvs");
-      const vCnvs = cnvsEl ? parseFloat(cnvsEl.value) : NaN;
-      const path = `${slug(currentLoja)}/inventario/${key}/${today}.jpg`;
-      const url = await uploadPhoto(pendingPhoto, path);
-      let fotoEntradaUrl = null;
-      if(pendingPhotoEntrada){
-        fotoEntradaUrl = await uploadPhoto(pendingPhotoEntrada, `${slug(currentLoja)}/inventario/${key}/entrada_${today}_${Date.now()}.jpg`);
-      }
-      let fotoDesperdicioUrl = null;
-      if(pendingPhotoDesperdicio){
-        fotoDesperdicioUrl = await uploadPhoto(pendingPhotoDesperdicio, `${slug(currentLoja)}/inventario/${key}/desperdicio_${today}_${Date.now()}.jpg`);
-      }
-      const payload = {
-        loja:currentLoja, categoria:key, data:today, foto_path:url,
-        valor_inventario: isNaN(vInv)?null:vInv, valor_cnvs: isNaN(vCnvs)?null:vCnvs, enviado_por:currentLoja
-      };
-      if(key==="global"){
-        payload.foto_entrada_cnvs = fotoEntradaUrl;
-        payload.foto_desperdicio_cnvs = fotoDesperdicioUrl;
-      }
-      await api("POST", "cj_inventario_reportes", payload);
-    }
+    await enviarItem(item);
     toast("Registado! Obrigado 🙌");
     closeCapture();
     await loadAll();
   }catch(e){
     console.error(e);
-    toast("Erro: " + (e.message||e).slice(0,120));
+    guardarNaFila(item);
+    toast("Sem ligação — guardado no telemóvel, vai ser enviado sozinho assim que voltar a internet.");
+    closeCapture();
   }
 }
 
+async function enviarItem(item){
+  const {kind, key, turno, today, loja, foto, fotoEntrada, fotoDesperdicio, vInv, vCnvs} = item;
+  if(kind==="daily"){
+    const path = `${slug(loja)}/${key}/${turno}/${today}_${Date.now()}.jpg`;
+    const url = await uploadPhoto(foto, path);
+    await upsertDaily(loja, key, today, url, turno);
+  } else if(kind==="marketing"){
+    const path = `${slug(loja)}/marketing/${key}/${today}.jpg`;
+    const url = await uploadPhoto(foto, path);
+    await api("POST", "cj_inventario_reportes", {
+      loja, categoria:key, data:today, foto_path:url,
+      valor_inventario:null, valor_cnvs:null, enviado_por:loja
+    });
+  } else {
+    const vInvN = parseFloat(vInv);
+    const vCnvsN = parseFloat(vCnvs);
+    const path = `${slug(loja)}/inventario/${key}/${today}.jpg`;
+    const url = await uploadPhoto(foto, path);
+    let fotoEntradaUrl = null;
+    if(fotoEntrada) fotoEntradaUrl = await uploadPhoto(fotoEntrada, `${slug(loja)}/inventario/${key}/entrada_${today}_${Date.now()}.jpg`);
+    let fotoDesperdicioUrl = null;
+    if(fotoDesperdicio) fotoDesperdicioUrl = await uploadPhoto(fotoDesperdicio, `${slug(loja)}/inventario/${key}/desperdicio_${today}_${Date.now()}.jpg`);
+    const payload = {
+      loja, categoria:key, data:today, foto_path:url,
+      valor_inventario: isNaN(vInvN)?null:vInvN, valor_cnvs: isNaN(vCnvsN)?null:vCnvsN, enviado_por:loja
+    };
+    if(key==="global"){
+      payload.foto_entrada_cnvs = fotoEntradaUrl;
+      payload.foto_desperdicio_cnvs = fotoDesperdicioUrl;
+    }
+    await api("POST", "cj_inventario_reportes", payload);
+  }
+}
+
+function guardarNaFila(item){
+  try{
+    const fila = JSON.parse(localStorage.getItem("cj_fila_envio") || "[]");
+    fila.push(item);
+    localStorage.setItem("cj_fila_envio", JSON.stringify(fila));
+  }catch(e){ console.error(e); }
+}
+
+async function tentarReenviarFila(){
+  let fila = [];
+  try{ fila = JSON.parse(localStorage.getItem("cj_fila_envio") || "[]"); }catch(e){ return; }
+  if(fila.length===0) return;
+  const restantes = [];
+  for(const item of fila){
+    try{
+      await enviarItem(item);
+    }catch(e){
+      restantes.push(item);
+    }
+  }
+  localStorage.setItem("cj_fila_envio", JSON.stringify(restantes));
+  if(restantes.length < fila.length){
+    toast(`${fila.length - restantes.length} envio(s) pendente(s) foram enviados agora`);
+    await loadAll();
+  }
+}
+window.addEventListener("online", tentarReenviarFila);
+
 loadAll();
+tentarReenviarFila();
 setInterval(loadAll, 30000);
 
 function toggleDark(){
