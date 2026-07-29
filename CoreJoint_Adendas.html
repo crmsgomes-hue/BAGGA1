@@ -125,7 +125,7 @@ const TABLE = "cj_adendas";
 
 const STAGES = [
   {key:"impressa", label:"Imprimir", verb:"Marcar como impressa", nextField:"impressa_em", personField:"impressa_por"},
-  {key:"entregue", label:"Entregar", verb:"Marcar como entregue (+ foto)", nextField:"entregue_em", personField:"entregue_por", needsPhoto:true, photoField:"foto_entregue"},
+  {key:"entregue", label:"Entregar", verb:"Marcar como entregue", nextField:"entregue_em", personField:"entregue_por", needsConfirm:true},
   {key:"assinada", label:"Assinar", verb:"Marcar como assinada (+ foto)", nextField:"assinada_em", personField:"assinada_por", needsPhoto:true, photoField:"foto_assinada"},
   {key:"enviada", label:"Enviar", verb:"Marcar como enviada", nextField:"enviada_em", personField:"enviada_por"}
 ];
@@ -377,15 +377,47 @@ async function advance(id, stageIdx){
     openPhotoCapture(id, stageIdx);
     return;
   }
+  if(stage.needsConfirm){
+    openConfirmEntrega(id, stageIdx, row);
+    return;
+  }
   await commitAdvance(id, stageIdx, null);
 }
 
-async function commitAdvance(id, stageIdx, photoDataUrl){
+function openConfirmEntrega(id, stageIdx, row){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "confirmEntregaOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>Confirmação de entrega</h2>
+      <div class="sub" style="margin-bottom:18px;">Passa o telemóvel a <b>${escapeHtml(row.colaborador)}</b> para confirmar.</div>
+      <div style="background:var(--cream); border-radius:12px; padding:20px; text-align:center; margin-bottom:18px;">
+        <div style="font-family:'Fraunces',Georgia,serif; font-size:20px; font-weight:600; margin-bottom:6px;">${escapeHtml(row.colaborador)}</div>
+        <div style="font-size:13px; color:var(--ink-soft);">Confirmo que recebi em mão a adenda: <b>${escapeHtml(row.tipo||'Adenda')}</b></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="document.getElementById('confirmEntregaOverlay').remove()">Cancelar</button>
+        <button class="btn-save" onclick="confirmarEntregaColaborador(${id}, ${stageIdx})">✔ Confirmo que recebi</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+async function confirmarEntregaColaborador(id, stageIdx){
+  const o = document.getElementById("confirmEntregaOverlay");
+  if(o) o.remove();
+  await commitAdvance(id, stageIdx, null, true);
+}
+
+async function commitAdvance(id, stageIdx, photoDataUrl, confirmadoPeloColaborador){
   const stage = STAGES[stageIdx];
+  const row = rows.find(r=>r.id===id);
   const now = new Date().toISOString();
   const patch = {
     [stage.nextField]: now,
-    [stage.personField]: currentUser,
+    [stage.personField]: confirmadoPeloColaborador ? (row?.colaborador || currentUser) + " (confirmado pelo próprio)" : currentUser,
     updated_at: now
   };
   if(photoDataUrl && stage.photoField){ patch[stage.photoField] = photoDataUrl; }
