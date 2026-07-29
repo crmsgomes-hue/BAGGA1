@@ -831,30 +831,39 @@ function renderGestao(){
   main.appendChild(t1);
 
   LOJAS.forEach(l=>{
-    const vCount = vitrineTurnosDone(l,today);
-    const vd = !!dailyStatus(l,"vendas",today,"unico");
-    const invStates = categoriasParaLoja(l).map(c=>({...invStatus(l,c.key,c.freq), label:c.label}));
-    const invLate = invStates.filter(s=>s.state==="late").length;
+    const items = [];
+    VITRINE_TURNOS.forEach(t=>{
+      const done = !!dailyStatus(l,"vitrine",today,t.key);
+      items.push({label:t.label.slice(0,3), state: done?"ok":"late"});
+    });
+    {
+      const done = !!dailyStatus(l,"vendas",today,"unico");
+      items.push({label:"Vend", state: done?"ok":"late"});
+    }
+    categoriasParaLoja(l).forEach(c=>{
+      const st = invStatus(l,c.key,c.freq);
+      items.push({label:c.label.slice(0,4), state:st.state});
+    });
+    MARKETING_CATS.forEach(c=>{
+      const st = invStatus(l,c.key,c.freq);
+      items.push({label:c.label.slice(0,4), state:st.state});
+    });
+
+    const anyLate = items.some(i=>i.state==="late");
+    const anyPend = items.some(i=>i.state==="pend");
+    const overall = anyLate ? "late" : anyPend ? "pend" : "ok";
+    const overallColor = overall==="ok" ? "var(--green)" : overall==="late" ? "var(--red)" : "var(--amber)";
 
     const card = document.createElement("div");
     card.className = "card";
-    card.style.paddingBottom = "12px";
+    card.style.cssText = "padding:14px 16px; border-left:5px solid " + overallColor + ";";
+    const squares = items.map(i=>{
+      const bg = i.state==="ok" ? "var(--green)" : i.state==="late" ? "var(--red)" : "var(--amber)";
+      return `<div style="width:40px; height:36px; border-radius:6px; background:${bg}; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#fff; text-align:center; line-height:1.1; padding:2px;">${i.label}</div>`;
+    }).join("");
     card.innerHTML = `
-      <div class="card-top">
-        <div class="card-title">${l}</div>
-        ${invLate>0 ? `<div class="status-badge late">${invLate} atrasado${invLate>1?'s':''}</div>` : (vCount<3 || !vd) ? `<div class="status-badge pend">Diário incompleto</div>` : `<div class="status-badge ok">✔ Em dia</div>`}
-      </div>
-      <div style="display:flex; gap:14px; margin-top:8px; font-size:13px;">
-        <div>🪟 Vitrine ${vCount}/3</div>
-        <div>🧾 Vendas ${vd?'<span class="icon-ok">✔</span>':'<span class="icon-late">✕</span>'}</div>
-      </div>
-      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;">
-        ${invStates.map(s=>{
-          const cls = s.state==="ok"?"icon-ok":s.state==="late"?"icon-late":"icon-pend";
-          const icon = s.state==="ok"?"✔":s.state==="late"?"✕":"…";
-          return `<span style="font-size:11px; background:var(--cream); border:1px solid var(--line); border-radius:8px; padding:3px 7px;">${s.label} <span class="${cls}">${icon}</span></span>`;
-        }).join("")}
-      </div>
+      <div class="card-title" style="margin-bottom:8px;">${l}</div>
+      <div style="display:flex; flex-wrap:wrap; gap:5px;">${squares}</div>
     `;
     main.appendChild(card);
   });
