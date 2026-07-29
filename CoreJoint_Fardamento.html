@@ -223,6 +223,17 @@ function updateBell(){
 function render(){
   const main = document.getElementById("main");
   main.innerHTML = "";
+  const allOpen = Object.keys(PECAS).every(p=>openPecas[p]);
+  const toggleBtn = document.createElement("button");
+  toggleBtn.className = allOpen ? "backbtn" : "copybtn";
+  toggleBtn.style.marginBottom = "10px";
+  toggleBtn.style.marginTop = "0";
+  toggleBtn.textContent = allOpen ? "Fechar tudo" : "📋 Contagem rápida (abrir tudo)";
+  toggleBtn.onclick = ()=>{
+    Object.keys(PECAS).forEach(p=> openPecas[p] = !allOpen);
+    render();
+  };
+  main.appendChild(toggleBtn);
   Object.keys(PECAS).forEach(peca=>{
     main.appendChild(renderPecaCard(currentPolo, peca));
   });
