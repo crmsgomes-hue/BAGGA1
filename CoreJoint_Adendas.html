@@ -429,6 +429,14 @@ function openNew(){
     <div class="modal">
       <h2>Nova adenda</h2>
       <div class="field">
+        <label>Loja</label>
+        <select id="fLoja" onchange="toggleLojaOutra()">
+          ${LOJAS.map(l=>`<option>${l}</option>`).join("")}
+          <option value="__outra__">Outra...</option>
+        </select>
+        <input id="fLojaOutra" placeholder="Nome da loja" style="display:none; margin-top:8px;">
+      </div>
+      <div class="field">
         <label>Colaborador</label>
         <div class="chip-row" id="colabChips"></div>
         <input id="fColabNovo" placeholder="Nome do novo colaborador" style="display:none; margin-top:8px;">
@@ -439,14 +447,6 @@ function openNew(){
           <option>Alteração de horário</option>
           <option>Outra</option>
         </select>
-      </div>
-      <div class="field">
-        <label>Loja</label>
-        <select id="fLoja" onchange="toggleLojaOutra()">
-          ${LOJAS.map(l=>`<option>${l}</option>`).join("")}
-          <option value="__outra__">Outra...</option>
-        </select>
-        <input id="fLojaOutra" placeholder="Nome da loja" style="display:none; margin-top:8px;">
       </div>
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeNew()">Cancelar</button>
