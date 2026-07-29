@@ -161,6 +161,7 @@ let currentTab = "hoje";
 let dailyRows = [];
 let invRows = [];
 let pendingPhoto = null;
+let pendingPhotoEntrada = null;
 
 async function runDiagnostico(){
   const box = document.getElementById("diagResult");
@@ -543,6 +544,7 @@ function renderMarketing(main){
 /* ---------- CAPTURA / MODAL ---------- */
 function openCapture(kind, tipoOrCat, turno){
   pendingPhoto = null;
+  pendingPhotoEntrada = null;
   const isInv = kind==="inv";
   const isMkt = kind==="marketing";
   const catObj = isInv ? INV_CATS.find(c=>c.key===tipoOrCat) : isMkt ? MARKETING_CATS.find(c=>c.key===tipoOrCat) : null;
@@ -566,6 +568,15 @@ function openCapture(kind, tipoOrCat, turno){
           <label>Valor CNVs (consumíveis) (€)</label>
           <input id="vCnvs" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
         </div>
+        <div class="field">
+          <label>Foto da entrada justificada (CNVs)</label>
+          <label class="filebtn" style="display:block; text-align:center;">Tirar / escolher foto<input type="file" accept="image/*" capture="environment" id="capFileEntrada"></label>
+          <img id="capPreviewEntrada" class="cam-preview" style="display:none;">
+        </div>
+        <div class="field">
+          <label>Valor de desperdício (€)</label>
+          <input id="vDesperdicio" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
+        </div>
         ` : ``}
       ` : ``}
       <div class="modal-actions">
@@ -576,11 +587,14 @@ function openCapture(kind, tipoOrCat, turno){
   `;
   document.body.appendChild(overlay);
   document.getElementById("capFile").addEventListener("change", handleCapFile);
+  const entradaInput = document.getElementById("capFileEntrada");
+  if(entradaInput) entradaInput.addEventListener("change", handleCapFileEntrada);
 }
 function closeCapture(){
   const o = document.getElementById("capOverlay");
   if(o) o.remove();
   pendingPhoto = null;
+  pendingPhotoEntrada = null;
 }
 function handleCapFile(e){
   const file = e.target.files[0];
@@ -605,6 +619,28 @@ function handleCapFile(e){
   };
   reader.readAsDataURL(file);
 }
+function handleCapFileEntrada(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = evt=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const maxDim = 1280;
+      let {width,height} = img;
+      if(width>height && width>maxDim){ height=height*maxDim/width; width=maxDim; }
+      else if(height>maxDim){ width=width*maxDim/height; height=maxDim; }
+      const canvas = document.createElement("canvas");
+      canvas.width=width; canvas.height=height;
+      canvas.getContext("2d").drawImage(img,0,0,width,height);
+      pendingPhotoEntrada = canvas.toDataURL("image/jpeg",0.7);
+      const prev = document.getElementById("capPreviewEntrada");
+      prev.src = pendingPhotoEntrada; prev.style.display="block";
+    };
+    img.src = evt.target.result;
+  };
+  reader.readAsDataURL(file);
+}
 
 async function confirmCapture(kind, tipoOrCat, turno){
   if(!pendingPhoto){ toast("Tira a foto primeiro"); return; }
@@ -623,9 +659,15 @@ async function confirmCapture(kind, tipoOrCat, turno){
       const vInv = parseFloat(document.getElementById("vInv").value);
       const cnvsEl = document.getElementById("vCnvs");
       const vCnvs = cnvsEl ? parseFloat(cnvsEl.value) : NaN;
+      const desperdicioEl = document.getElementById("vDesperdicio");
+      const vDesperdicio = desperdicioEl ? parseFloat(desperdicioEl.value) : NaN;
       const path = `${slug(currentLoja)}/inventario/${tipoOrCat}/${today}.jpg`;
       const url = await uploadPhoto(pendingPhoto, path);
-      await insertInv(currentLoja, tipoOrCat, today, url, isNaN(vInv)?null:vInv, isNaN(vCnvs)?null:vCnvs, who);
+      let fotoEntradaUrl = null;
+      if(pendingPhotoEntrada){
+        fotoEntradaUrl = await uploadPhoto(pendingPhotoEntrada, `${slug(currentLoja)}/inventario/${tipoOrCat}/entrada_${today}_${Date.now()}.jpg`);
+      }
+      await insertInv(currentLoja, tipoOrCat, today, url, isNaN(vInv)?null:vInv, isNaN(vCnvs)?null:vCnvs, who, fotoEntradaUrl, isNaN(vDesperdicio)?null:vDesperdicio);
     }
     toast("Registado!");
     closeCapture();
@@ -642,8 +684,11 @@ async function upsertDaily(loja, tipo, data, foto_path, enviado_por, turno){
     p_loja: loja, p_tipo: tipo, p_data: data, p_turno: turno, p_foto_path: foto_path, p_por: enviado_por
   });
 }
-async function insertInv(loja, categoria, data, foto_path, valor_inventario, valor_cnvs, enviado_por){
-  await api("POST", "cj_inventario_reportes", {loja, categoria, data, foto_path, valor_inventario, valor_cnvs, enviado_por});
+async function insertInv(loja, categoria, data, foto_path, valor_inventario, valor_cnvs, enviado_por, foto_entrada_cnvs, valor_desperdicio){
+  const payload = {loja, categoria, data, foto_path, valor_inventario, valor_cnvs, enviado_por};
+  if(foto_entrada_cnvs !== undefined) payload.foto_entrada_cnvs = foto_entrada_cnvs;
+  if(valor_desperdicio !== undefined) payload.valor_desperdicio = valor_desperdicio;
+  await api("POST", "cj_inventario_reportes", payload);
 }
 
 /* ---------- RELATÓRIO SEMANAL (PDF via impressão) ---------- */
