@@ -414,8 +414,16 @@ function invStatus(loja, catKey, freq){
   const today = new Date();
   const w = windowFor(freq, today);
   const rows = invRows.filter(r=>r.loja===loja && r.categoria===catKey && inRange(r.data, w.start, w.end));
-  if(rows.length>0) return {state:"ok", latest: rows[0], window:w};
   const dow = CATEGORY_DOW[catKey];
+  if(rows.length>0){
+    let diaErrado = false, dataCerta = null;
+    if(dow){
+      dataCerta = findWeekdayInRange(w.start, w.end, dow);
+      const dataCertaStr = isoDate(dataCerta);
+      diaErrado = !rows.some(r=>r.data===dataCertaStr);
+    }
+    return {state:"ok", latest: rows[0], window:w, diaErrado, dowLabel: dow?DOW_LABELS[dow-1]:null};
+  }
   if(dow){
     const targetDate = findWeekdayInRange(w.start, w.end, dow);
     const graceDate = new Date(targetDate); graceDate.setDate(graceDate.getDate()+1);
@@ -484,9 +492,9 @@ function renderInventario(main){
     const st = invStatus(currentLoja, cat.key, cat.freq);
     const card = document.createElement("div");
     card.className = "card";
-    const badgeClass = st.state==="ok"?"ok":st.state==="late"?"late":"pend";
-    const badgeIcon = st.state==="ok"?"✔":st.state==="late"?"⚠":"⏳";
-    const badgeText = st.state==="ok"?"Enviado":st.state==="late"?"Atrasado":"Pendente";
+    const badgeClass = st.diaErrado ? "pend" : st.state==="ok"?"ok":st.state==="late"?"late":"pend";
+    const badgeIcon = st.diaErrado ? "⚠" : st.state==="ok"?"✔":st.state==="late"?"⚠":"⏳";
+    const badgeText = st.diaErrado ? "Dia errado" : st.state==="ok"?"Enviado":st.state==="late"?"Atrasado":"Pendente";
     const prazoTxt = st.dowLabel ? `${st.dowLabel}-feira` : `até ${st.window.end.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}`;
     card.innerHTML = `
       <div class="card-top">
@@ -494,6 +502,7 @@ function renderInventario(main){
         <div class="status-badge ${badgeClass}">${badgeIcon} ${badgeText}</div>
       </div>
       <div class="card-sub">Prazo ${prazoTxt}</div>
+      ${st.diaErrado ? `<div class="card-sub" style="color:var(--red);">Foi enviado, mas não no dia certo (${st.dowLabel}-feira) — é avisado à chefia.</div>` : ``}
       <button class="cambtn" onclick="openCapture('inv','${cat.key}')">${st.latest ? 'Enviar nova contagem' : '📸 Enviar foto + valores'}</button>
       ${st.latest ? `<div class="card-sub" style="margin-top:8px; text-decoration:underline; cursor:pointer;" data-toggle-det="${cat.key}">Ver último envio</div><div id="det-${cat.key}" style="display:none; margin-top:6px; font-size:13px; color:var(--ink-soft);">Enviado em ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')} · Inventário: ${st.latest.valor_inventario ?? '-'} €${cat.key==="global" ? ' · CNVs: ' + (st.latest.valor_cnvs ?? '-') + ' €' : ''}</div>` : ``}
     `;
