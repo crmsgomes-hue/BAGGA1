@@ -26,7 +26,7 @@
   header h1{font-size:19px; color:var(--terracotta-dark);}
   .who{font-size:11px; color:var(--ink-soft);}
   .switch{background:none; border:1px solid var(--line); color:var(--ink-soft); font-size:12px; padding:7px 11px; border-radius:10px;}
-  .tabs{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;}
+  .tabs{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px;}
   .tab{padding:10px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:14px; font-weight:700; color:var(--ink-soft); text-align:center;}
   .tab.active{background:var(--ink); color:#fff; border-color:var(--ink);}
 
@@ -136,6 +136,11 @@ const INV_CATS = [
   {key:"cafe", label:"Café", freq:"semanal"},
   {key:"tabaco", label:"Tabaco", freq:"quinzenal"},
   {key:"global", label:"Global", freq:"mensal3"}
+];
+const MARKETING_CATS = [
+  {key:"cavalete", label:"Cavalete", freq:"mensal"},
+  {key:"toalhetes", label:"Toalhetes", freq:"mensal"},
+  {key:"orelhas", label:"Orelhas", freq:"mensal"}
 ];
 // Exceções conhecidas por loja (ajustar à medida que se confirma mais informação)
 const JSC_LOJAS = ["Almeirim", "Ponte de Sor"]; // só estas confirmadas com JSC por agora
@@ -276,7 +281,7 @@ function doSwitch(){
 function buildLojaTabs(){
   const row = document.getElementById("tabsRow");
   row.innerHTML = "";
-  [["hoje","Hoje"],["inventario","Inventário"]].forEach(([k,label])=>{
+  [["hoje","Hoje"],["inventario","Inventário"],["marketing","Marketing"]].forEach(([k,label])=>{
     const t = document.createElement("div");
     t.className = "tab" + (currentTab===k ? " active":"");
     t.textContent = label;
@@ -289,7 +294,7 @@ async function loadAll(){
   try{
     const lojaFilter = mode==="loja" ? `&loja=eq.${encodeURIComponent(currentLoja)}` : "";
     dailyRows = await api("GET", `cj_daily_reportes?select=*${lojaFilter}&order=data.desc`);
-    invRows = await api("GET", `cj_inventario_reportes?select=*${lojaFilter}&order=data.desc`);
+    invRows = await api("GET", `cj_inventario_reportes?select=*${lojaFilter}&order=data.desc&limit=5000`);
     render();
   }catch(e){ console.error(e); toast("Erro a carregar dados"); }
 }
@@ -312,6 +317,11 @@ function month3Window(d){
   const end = new Date(d.getFullYear(), d.getMonth(), 21);
   return {start, end};
 }
+function monthWindow(d){
+  const start = new Date(d.getFullYear(), d.getMonth(), 1);
+  const end = new Date(d.getFullYear(), d.getMonth()+1, 0);
+  return {start, end};
+}
 function isLastDaysOfMonth(threshold=3){
   const d = new Date();
   const lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
@@ -321,6 +331,7 @@ function isLastDaysOfMonth(threshold=3){
 function windowFor(freq, d){
   if(freq==="semanal") return weekWindow(d);
   if(freq==="quinzenal") return biweekWindow(d);
+  if(freq==="mensal") return monthWindow(d);
   return month3Window(d);
 }
 function inRange(dateStr, start, end){
@@ -363,7 +374,9 @@ function render(){
   if(mode==="gestao"){ renderGestao(); return; }
   const main = document.getElementById("main");
   main.innerHTML = "";
-  if(currentTab==="hoje") renderHoje(main); else renderInventario(main);
+  if(currentTab==="hoje") renderHoje(main);
+  else if(currentTab==="marketing") renderMarketing(main);
+  else renderInventario(main);
 }
 
 function renderHoje(main){
@@ -434,13 +447,35 @@ function renderInventario(main){
   });
 }
 
+function renderMarketing(main){
+  MARKETING_CATS.forEach(cat=>{
+    const st = invStatus(currentLoja, cat.key, cat.freq);
+    const card = document.createElement("div");
+    card.className = "card";
+    const badgeClass = st.state==="ok"?"ok":st.state==="late"?"late":"pend";
+    const badgeIcon = st.state==="ok"?"✔":st.state==="late"?"⚠":"⏳";
+    const badgeText = st.state==="ok"?"Feito este mês":st.state==="late"?"Atrasado":"Por fazer";
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="card-title">${cat.label}</div>
+        <div class="status-badge ${badgeClass}">${badgeIcon} ${badgeText}</div>
+      </div>
+      <div class="card-sub">Mensal — qualquer dia do mês</div>
+      <button class="cambtn" onclick="openCapture('marketing','${cat.key}')">${st.latest ? 'Substituir foto' : '📸 Tirar foto'}</button>
+      ${st.latest ? `<div class="card-sub" style="margin-top:8px;">Última foto: ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')}</div>` : ``}
+    `;
+    main.appendChild(card);
+  });
+}
+
 /* ---------- CAPTURA / MODAL ---------- */
 function openCapture(kind, tipoOrCat, turno){
   pendingPhoto = null;
   const isInv = kind==="inv";
-  const catObj = isInv ? INV_CATS.find(c=>c.key===tipoOrCat) : null;
+  const isMkt = kind==="marketing";
+  const catObj = isInv ? INV_CATS.find(c=>c.key===tipoOrCat) : isMkt ? MARKETING_CATS.find(c=>c.key===tipoOrCat) : null;
   const turnoLabel = turno && turno!=="unico" ? " — " + VITRINE_TURNOS.find(t=>t.key===turno)?.label : "";
-  const title = isInv ? catObj.label : (tipoOrCat==="vitrine" ? "Vitrine" : "Vendas") + turnoLabel;
+  const title = (isInv || isMkt) ? catObj.label : (tipoOrCat==="vitrine" ? "Vitrine" : "Vendas") + turnoLabel;
   const overlay = document.createElement("div");
   overlay.className = "overlay"; overlay.id = "capOverlay";
   overlay.innerHTML = `
@@ -508,6 +543,10 @@ async function confirmCapture(kind, tipoOrCat, turno){
       const path = `${slug(currentLoja)}/${tipoOrCat}/${turno}/${today}.jpg`;
       const url = await uploadPhoto(pendingPhoto, path);
       await upsertDaily(currentLoja, tipoOrCat, today, url, who, turno);
+    } else if(kind==="marketing"){
+      const path = `${slug(currentLoja)}/marketing/${tipoOrCat}/${today}.jpg`;
+      const url = await uploadPhoto(pendingPhoto, path);
+      await insertInv(currentLoja, tipoOrCat, today, url, null, null, who);
     } else {
       const vInv = parseFloat(document.getElementById("vInv").value);
       const cnvsEl = document.getElementById("vCnvs");
@@ -538,6 +577,53 @@ async function insertInv(loja, categoria, data, foto_path, valor_inventario, val
 }
 
 /* ---------- RELATÓRIO SEMANAL (PDF via impressão) ---------- */
+/* ---------- HISTÓRICO ANUAL (12 meses) ---------- */
+function monthKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
+function monthLabel(d){ return d.toLocaleDateString('pt-PT',{month:'short'}).replace('.',''); }
+
+function openHistoricoAnual(){
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = render;
+  main.appendChild(back);
+
+  const months = [];
+  for(let i=11;i>=0;i--){
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-i);
+    months.push(d);
+  }
+
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:14px;";
+  title.textContent = `De ${monthLabel(months[0])} a ${monthLabel(months[11])} — ✔ = pelo menos 1 envio nesse mês`;
+  main.appendChild(title);
+
+  LOJAS.forEach(l=>{
+    const cats = [...categoriasParaLoja(l), ...MARKETING_CATS];
+    const card = document.createElement("div");
+    card.className = "card";
+    let rowsHtml = `<div style="display:grid; grid-template-columns:70px repeat(12,1fr); gap:2px; font-size:9px; margin-bottom:4px; color:var(--ink-soft);">
+      <div></div>${months.map(m=>`<div style="text-align:center;">${monthLabel(m)}</div>`).join("")}
+    </div>`;
+    cats.forEach(cat=>{
+      const cells = months.map(m=>{
+        const mk = monthKey(m);
+        const has = invRows.some(r=>r.loja===l && r.categoria===cat.key && r.data && r.data.slice(0,7)===mk);
+        return `<div style="height:16px; border-radius:3px; background:${has?'var(--green)':'var(--line)'};"></div>`;
+      }).join("");
+      rowsHtml += `<div style="display:grid; grid-template-columns:70px repeat(12,1fr); gap:2px; margin-bottom:2px; align-items:center;">
+        <div style="font-size:10px; font-weight:600;">${cat.label}</div>${cells}
+      </div>`;
+    });
+    card.innerHTML = `<div class="card-title" style="margin-bottom:8px;">${l}</div>${rowsHtml}`;
+    main.appendChild(card);
+  });
+}
+
 function generateWeeklyReport(){
   const days = [];
   for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days.push(d); }
@@ -713,10 +799,17 @@ function renderGestao(){
 
   const printBtn = document.createElement("button");
   printBtn.className = "cambtn";
-  printBtn.style.marginBottom = "14px";
+  printBtn.style.marginBottom = "10px";
   printBtn.textContent = "🖨️ Relatório semanal (PDF)";
   printBtn.onclick = generateWeeklyReport;
   main.appendChild(printBtn);
+
+  const histBtn = document.createElement("button");
+  histBtn.className = "cambtn secondary";
+  histBtn.style.marginBottom = "14px";
+  histBtn.textContent = "📅 Histórico de inventários (12 meses)";
+  histBtn.onclick = openHistoricoAnual;
+  main.appendChild(histBtn);
 
   const today = todayStr();
   const vitrineTurnosDone = (l,ds)=>VITRINE_TURNOS.filter(t=>dailyStatus(l,"vitrine",ds,t.key)).length;
