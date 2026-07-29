@@ -402,7 +402,8 @@ function invStatus(loja, catKey, freq){
   const dow = CATEGORY_DOW[catKey];
   if(dow){
     const targetDate = findWeekdayInRange(w.start, w.end, dow);
-    return {state: today>targetDate ? "late" : "pend", latest:null, window:w, targetDate, dowLabel:DOW_LABELS[dow-1]};
+    const graceDate = new Date(targetDate); graceDate.setDate(graceDate.getDate()+1);
+    return {state: today>graceDate ? "late" : "pend", latest:null, window:w, targetDate, dowLabel:DOW_LABELS[dow-1]};
   }
   return {state: today>w.end ? "late" : "pend", latest:null, window:w};
 }
