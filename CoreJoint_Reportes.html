@@ -162,6 +162,7 @@ let dailyRows = [];
 let invRows = [];
 let pendingPhoto = null;
 let pendingPhotoEntrada = null;
+let pendingPhotoDesperdicio = null;
 
 async function runDiagnostico(){
   const box = document.getElementById("diagResult");
@@ -545,6 +546,7 @@ function renderMarketing(main){
 function openCapture(kind, tipoOrCat, turno){
   pendingPhoto = null;
   pendingPhotoEntrada = null;
+  pendingPhotoDesperdicio = null;
   const isInv = kind==="inv";
   const isMkt = kind==="marketing";
   const catObj = isInv ? INV_CATS.find(c=>c.key===tipoOrCat) : isMkt ? MARKETING_CATS.find(c=>c.key===tipoOrCat) : null;
@@ -569,13 +571,14 @@ function openCapture(kind, tipoOrCat, turno){
           <input id="vCnvs" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
         </div>
         <div class="field">
-          <label>Foto da entrada justificada (CNVs)</label>
+          <label>Foto da entrada justificada</label>
           <label class="filebtn" style="display:block; text-align:center;">Tirar / escolher foto<input type="file" accept="image/*" capture="environment" id="capFileEntrada"></label>
           <img id="capPreviewEntrada" class="cam-preview" style="display:none;">
         </div>
         <div class="field">
-          <label>Valor de desperdício (€)</label>
-          <input id="vDesperdicio" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
+          <label>Foto do desperdício</label>
+          <label class="filebtn" style="display:block; text-align:center;">Tirar / escolher foto<input type="file" accept="image/*" capture="environment" id="capFileDesperdicio"></label>
+          <img id="capPreviewDesperdicio" class="cam-preview" style="display:none;">
         </div>
         ` : ``}
       ` : ``}
@@ -589,12 +592,15 @@ function openCapture(kind, tipoOrCat, turno){
   document.getElementById("capFile").addEventListener("change", handleCapFile);
   const entradaInput = document.getElementById("capFileEntrada");
   if(entradaInput) entradaInput.addEventListener("change", handleCapFileEntrada);
+  const desperdicioInput = document.getElementById("capFileDesperdicio");
+  if(desperdicioInput) desperdicioInput.addEventListener("change", handleCapFileDesperdicio);
 }
 function closeCapture(){
   const o = document.getElementById("capOverlay");
   if(o) o.remove();
   pendingPhoto = null;
   pendingPhotoEntrada = null;
+  pendingPhotoDesperdicio = null;
 }
 function handleCapFile(e){
   const file = e.target.files[0];
@@ -641,6 +647,28 @@ function handleCapFileEntrada(e){
   };
   reader.readAsDataURL(file);
 }
+function handleCapFileDesperdicio(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = evt=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const maxDim = 1280;
+      let {width,height} = img;
+      if(width>height && width>maxDim){ height=height*maxDim/width; width=maxDim; }
+      else if(height>maxDim){ width=width*maxDim/height; height=maxDim; }
+      const canvas = document.createElement("canvas");
+      canvas.width=width; canvas.height=height;
+      canvas.getContext("2d").drawImage(img,0,0,width,height);
+      pendingPhotoDesperdicio = canvas.toDataURL("image/jpeg",0.7);
+      const prev = document.getElementById("capPreviewDesperdicio");
+      prev.src = pendingPhotoDesperdicio; prev.style.display="block";
+    };
+    img.src = evt.target.result;
+  };
+  reader.readAsDataURL(file);
+}
 
 async function confirmCapture(kind, tipoOrCat, turno){
   if(!pendingPhoto){ toast("Tira a foto primeiro"); return; }
@@ -659,15 +687,17 @@ async function confirmCapture(kind, tipoOrCat, turno){
       const vInv = parseFloat(document.getElementById("vInv").value);
       const cnvsEl = document.getElementById("vCnvs");
       const vCnvs = cnvsEl ? parseFloat(cnvsEl.value) : NaN;
-      const desperdicioEl = document.getElementById("vDesperdicio");
-      const vDesperdicio = desperdicioEl ? parseFloat(desperdicioEl.value) : NaN;
       const path = `${slug(currentLoja)}/inventario/${tipoOrCat}/${today}.jpg`;
       const url = await uploadPhoto(pendingPhoto, path);
       let fotoEntradaUrl = null;
       if(pendingPhotoEntrada){
         fotoEntradaUrl = await uploadPhoto(pendingPhotoEntrada, `${slug(currentLoja)}/inventario/${tipoOrCat}/entrada_${today}_${Date.now()}.jpg`);
       }
-      await insertInv(currentLoja, tipoOrCat, today, url, isNaN(vInv)?null:vInv, isNaN(vCnvs)?null:vCnvs, who, fotoEntradaUrl, isNaN(vDesperdicio)?null:vDesperdicio);
+      let fotoDesperdicioUrl = null;
+      if(pendingPhotoDesperdicio){
+        fotoDesperdicioUrl = await uploadPhoto(pendingPhotoDesperdicio, `${slug(currentLoja)}/inventario/${tipoOrCat}/desperdicio_${today}_${Date.now()}.jpg`);
+      }
+      await insertInv(currentLoja, tipoOrCat, today, url, isNaN(vInv)?null:vInv, isNaN(vCnvs)?null:vCnvs, who, fotoEntradaUrl, fotoDesperdicioUrl);
     }
     toast("Registado!");
     closeCapture();
@@ -684,10 +714,10 @@ async function upsertDaily(loja, tipo, data, foto_path, enviado_por, turno){
     p_loja: loja, p_tipo: tipo, p_data: data, p_turno: turno, p_foto_path: foto_path, p_por: enviado_por
   });
 }
-async function insertInv(loja, categoria, data, foto_path, valor_inventario, valor_cnvs, enviado_por, foto_entrada_cnvs, valor_desperdicio){
+async function insertInv(loja, categoria, data, foto_path, valor_inventario, valor_cnvs, enviado_por, foto_entrada, foto_desperdicio){
   const payload = {loja, categoria, data, foto_path, valor_inventario, valor_cnvs, enviado_por};
-  if(foto_entrada_cnvs !== undefined) payload.foto_entrada_cnvs = foto_entrada_cnvs;
-  if(valor_desperdicio !== undefined) payload.valor_desperdicio = valor_desperdicio;
+  if(foto_entrada !== undefined) payload.foto_entrada_cnvs = foto_entrada;
+  if(foto_desperdicio !== undefined) payload.foto_desperdicio_cnvs = foto_desperdicio;
   await api("POST", "cj_inventario_reportes", payload);
 }
 
@@ -754,8 +784,9 @@ function openHistoricoAnual(){
       outros.forEach(cat=>{
         const cells = months.map(m=>{
           const mk = monthKey(m);
-          const has = invRows.some(r=>r.loja===l && r.categoria===cat.key && r.data && r.data.slice(0,7)===mk);
-          return `<div style="height:16px; border-radius:3px; background:${has?'var(--green)':'var(--line)'};"></div>`;
+          const row = invRows.find(r=>r.loja===l && r.categoria===cat.key && r.data && r.data.slice(0,7)===mk);
+          const dia = row ? new Date(row.data+"T00:00:00").getDate() : "";
+          return `<div style="height:16px; border-radius:3px; background:${row?'var(--green)':'var(--line)'}; display:flex; align-items:center; justify-content:center; font-size:8px; color:#fff; font-weight:700;">${dia}</div>`;
         }).join("");
         html += `<div style="display:grid; grid-template-columns:70px repeat(12,1fr); gap:2px; margin-bottom:2px; align-items:center;">
           <div style="font-size:10px; font-weight:600;">${cat.label}</div>${cells}
