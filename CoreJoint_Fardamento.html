@@ -670,6 +670,7 @@ function openDisponibilidade(){
 }
 
 /* ---------- HISTÓRICO (para onde foram as peças) ---------- */
+let histView = "data";
 function openHistorico(){
   const main = document.getElementById("main");
   main.innerHTML = "";
@@ -683,6 +684,39 @@ function openHistorico(){
     main.innerHTML += '<div class="empty">Ainda não há saídas registadas.</div>';
     return;
   }
+
+  const toggleRow = document.createElement("div");
+  toggleRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px;";
+  toggleRow.innerHTML = `
+    <button style="flex:1; padding:9px; border-radius:10px; border:1px solid var(--line); background:${histView==='data'?'var(--ink)':'#fff'}; color:${histView==='data'?'#fff':'var(--ink)'}; font-size:13px; font-weight:600;" id="histTabData">Por data</button>
+    <button style="flex:1; padding:9px; border-radius:10px; border:1px solid var(--line); background:${histView==='colab'?'var(--ink)':'#fff'}; color:${histView==='colab'?'#fff':'var(--ink)'}; font-size:13px; font-weight:600;" id="histTabColab">Por colaborador</button>
+  `;
+  main.appendChild(toggleRow);
+  toggleRow.querySelector("#histTabData").onclick = ()=>{ histView="data"; openHistorico(); };
+  toggleRow.querySelector("#histTabColab").onclick = ()=>{ histView="colab"; openHistorico(); };
+
+  if(histView==="colab"){
+    const porColab = {};
+    movimentos.forEach(m=>{
+      const nome = m.colaborador_destino || "sem nome";
+      if(!porColab[nome]) porColab[nome] = [];
+      porColab[nome].push(m);
+    });
+    Object.keys(porColab).sort().forEach(nome=>{
+      const items = porColab[nome];
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.cssText = "background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:10px;";
+      let itemsHtml = items.map(m=>{
+        const dt = new Date(m.criado_em);
+        return `<div style="font-size:12px; padding:4px 0; border-bottom:1px solid var(--line);">${m.peca} · ${m.tamanho} (${m.quantidade}) — ${dt.toLocaleDateString('pt-PT')} · ${m.loja_destino||''}</div>`;
+      }).join("");
+      card.innerHTML = `<div style="font-family:'Fraunces',Georgia,serif; font-weight:600; margin-bottom:6px;">${nome} · ${items.length} peça${items.length>1?'s':''}</div>${itemsHtml}`;
+      main.appendChild(card);
+    });
+    return;
+  }
+
   const title = document.createElement("div");
   title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:10px;";
   title.textContent = `Últimas ${movimentos.length} saídas`;
