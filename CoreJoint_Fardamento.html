@@ -235,6 +235,17 @@ function updateBell(){
 function render(){
   const main = document.getElementById("main");
   main.innerHTML = "";
+
+  const totalGeral = POLOS.reduce((acc,polo)=> acc + stockRows.filter(r=>r.polo===polo).reduce((a,r)=>a+r.quantidade,0), 0);
+  const totalPolo = stockRows.filter(r=>r.polo===currentPolo).reduce((a,r)=>a+r.quantidade,0);
+  const totalCard = document.createElement("div");
+  totalCard.style.cssText = "display:flex; gap:10px; margin-bottom:12px;";
+  totalCard.innerHTML = `
+    <div class="card" style="flex:1; text-align:center; margin-bottom:0; padding:10px;"><div style="font-size:20px; font-weight:700;">${totalPolo}</div><div class="card-sub" style="font-size:11px;">peças em ${currentPolo}</div></div>
+    <div class="card" style="flex:1; text-align:center; margin-bottom:0; padding:10px;"><div style="font-size:20px; font-weight:700;">${totalGeral}</div><div class="card-sub" style="font-size:11px;">total nos 3 polos</div></div>
+  `;
+  main.appendChild(totalCard);
+
   const allOpen = Object.keys(PECAS).every(p=>openPecas[p]);
   const toggleBtn = document.createElement("button");
   toggleBtn.className = allOpen ? "backbtn" : "copybtn";
