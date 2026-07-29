@@ -768,6 +768,49 @@ function openGaleria(){
   });
 }
 
+/* ---------- EVOLUÇÃO CNVS (Global) ---------- */
+function openEvolucaoCnvs(){
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = render;
+  main.appendChild(back);
+
+  const months = [];
+  for(let i=11;i>=0;i--){ const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-i); months.push(d); }
+
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:14px;";
+  title.textContent = "Valor CNVs (€) enviado no Global, por mês";
+  main.appendChild(title);
+
+  LOJAS.forEach(l=>{
+    const valores = months.map(m=>{
+      const mk = monthKey(m);
+      const row = invRows.find(r=>r.loja===l && r.categoria==="global" && r.data && r.data.slice(0,7)===mk);
+      return row ? (row.valor_cnvs ?? null) : null;
+    });
+    if(valores.every(v=>v===null)) return;
+    const maxV = Math.max(...valores.filter(v=>v!==null), 1);
+    const card = document.createElement("div");
+    card.className = "card";
+    let html = `<div class="card-title" style="margin-bottom:8px;">${l}</div><div style="display:flex; align-items:flex-end; gap:4px; height:80px;">`;
+    valores.forEach((v,i)=>{
+      const h = v!==null ? Math.max(6, (v/maxV)*70) : 4;
+      html += `<div style="flex:1; display:flex; flex-direction:column; align-items:center;">
+        <div style="width:100%; height:${h}px; background:${v!==null?'var(--terracotta)':'var(--line)'}; border-radius:3px 3px 0 0;" title="${monthLabel(months[i])}: ${v!==null?v+'€':'sem envio'}"></div>
+        <div style="font-size:7px; color:var(--ink-soft); margin-top:2px;">${monthLabel(months[i])}</div>
+      </div>`;
+    });
+    html += `</div>`;
+    card.innerHTML = html;
+    main.appendChild(card);
+  });
+}
+
 function openHistoricoAnual(){
   const main = document.getElementById("main");
   main.innerHTML = "";
@@ -1160,6 +1203,13 @@ function renderGestao(){
   galeriaBtn.textContent = "🖼️ Galeria de fotos da semana";
   galeriaBtn.onclick = openGaleria;
   main.appendChild(galeriaBtn);
+
+  const cnvsBtn = document.createElement("button");
+  cnvsBtn.className = "cambtn secondary";
+  cnvsBtn.style.marginBottom = "14px";
+  cnvsBtn.textContent = "📈 Evolução do CNVs (Global)";
+  cnvsBtn.onclick = openEvolucaoCnvs;
+  main.appendChild(cnvsBtn);
 
   const today = todayStr();
   const vitrineTurnosDone = (l,ds)=>VITRINE_TURNOS.filter(t=>dailyStatus(l,"vitrine",ds,t.key)).length;
