@@ -225,7 +225,16 @@ async function ativarNotificacoes(){
     const perm = await Notification.requestPermission();
     if(perm !== "granted"){ toast("Permissão não concedida."); btn.textContent = "🔔 Ativar notificações de pendências"; return; }
 
-    const reg = await navigator.serviceWorker.register("sw-push.js");
+    // limpar registo antigo (scope raiz) que podia entrar em conflito com o sw.js de outras apps
+    const existingRegs = await navigator.serviceWorker.getRegistrations();
+    for(const r of existingRegs){
+      if(r.scope.endsWith("/BAGGA1/") || r.scope === location.origin + "/BAGGA1/"){
+        const oldSub = await r.pushManager.getSubscription().catch(()=>null);
+        if(oldSub) await oldSub.unsubscribe().catch(()=>{});
+      }
+    }
+
+    const reg = await navigator.serviceWorker.register("push/sw-push.js", {scope: "push/"});
     await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
     if(!sub){
