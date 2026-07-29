@@ -499,12 +499,14 @@ function renderInventario(main){
     const badgeIcon = st.diaErrado ? "⚠" : st.state==="ok"?"✔":st.state==="late"?"⚠":"⏳";
     const badgeText = st.diaErrado ? "Dia errado" : st.state==="ok"?"Enviado":st.state==="late"?"Atrasado":"Pendente";
     const prazoTxt = st.dowLabel ? `${st.dowLabel}-feira` : `até ${st.window.end.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}`;
+    const isAmanha = st.targetDate && st.state==="pend" && isoDate(st.targetDate)===isoDate(new Date(Date.now()+86400000));
     card.innerHTML = `
       <div class="card-top">
         <div class="card-title">${cat.label}</div>
         <div class="status-badge ${badgeClass}">${badgeIcon} ${badgeText}</div>
       </div>
       <div class="card-sub">Prazo ${prazoTxt}</div>
+      ${isAmanha ? `<div class="card-sub" style="color:var(--amber);">🔔 Amanhã é o dia — não te esqueças</div>` : ``}
       ${st.diaErrado ? `<div class="card-sub" style="color:var(--red);">Foi enviado, mas não no dia certo (${st.dowLabel}-feira) — é avisado à chefia.</div>` : ``}
       <button class="cambtn" onclick="openCapture('inv','${cat.key}')">${st.latest ? 'Enviar nova contagem' : '📸 Enviar foto + valores'}</button>
       ${st.latest ? `<div class="card-sub" style="margin-top:8px; text-decoration:underline; cursor:pointer;" data-toggle-det="${cat.key}">Ver último envio</div><div id="det-${cat.key}" style="display:none; margin-top:6px; font-size:13px; color:var(--ink-soft);">Enviado em ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')} · Inventário: ${st.latest.valor_inventario ?? '-'} €${cat.key==="global" ? ' · CNVs: ' + (st.latest.valor_cnvs ?? '-') + ' €' : ''}</div>` : ``}
@@ -726,6 +728,45 @@ async function insertInv(loja, categoria, data, foto_path, valor_inventario, val
 /* ---------- HISTÓRICO ANUAL (12 meses) ---------- */
 function monthKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
 function monthLabel(d){ return d.toLocaleDateString('pt-PT',{month:'short'}).replace('.',''); }
+
+/* ---------- GALERIA DE FOTOS DA SEMANA ---------- */
+function openGaleria(){
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = render;
+  main.appendChild(back);
+
+  const days = [];
+  for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days.push(isoDate(d)); }
+
+  const recentes = dailyRows.filter(r=>days.includes(r.data) && r.fotos && r.fotos.length>0)
+    .sort((a,b)=> new Date(b.criado_em) - new Date(a.criado_em));
+
+  if(recentes.length===0){
+    main.innerHTML += '<div class="empty">Sem fotos nos últimos 7 dias.</div>';
+    return;
+  }
+
+  LOJAS.forEach(l=>{
+    const rowsLoja = recentes.filter(r=>r.loja===l);
+    if(rowsLoja.length===0) return;
+    const card = document.createElement("div");
+    card.className = "card";
+    let html = `<div class="card-title" style="margin-bottom:8px;">${l}</div><div style="display:flex; flex-wrap:wrap; gap:6px;">`;
+    rowsLoja.forEach(r=>{
+      (r.fotos||[]).forEach(url=>{
+        html += `<img src="${url}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;" onclick="window.open('${url}','_blank')" title="${r.tipo} ${r.turno} · ${r.data}">`;
+      });
+    });
+    html += `</div>`;
+    card.innerHTML = html;
+    main.appendChild(card);
+  });
+}
 
 function openHistoricoAnual(){
   const main = document.getElementById("main");
@@ -1108,10 +1149,17 @@ function renderGestao(){
 
   const exportBtn = document.createElement("button");
   exportBtn.className = "cambtn secondary";
-  exportBtn.style.marginBottom = "14px";
+  exportBtn.style.marginBottom = "10px";
   exportBtn.textContent = "📥 Exportar tudo para Excel";
   exportBtn.onclick = exportarExcel;
   main.appendChild(exportBtn);
+
+  const galeriaBtn = document.createElement("button");
+  galeriaBtn.className = "cambtn secondary";
+  galeriaBtn.style.marginBottom = "14px";
+  galeriaBtn.textContent = "🖼️ Galeria de fotos da semana";
+  galeriaBtn.onclick = openGaleria;
+  main.appendChild(galeriaBtn);
 
   const today = todayStr();
   const vitrineTurnosDone = (l,ds)=>VITRINE_TURNOS.filter(t=>dailyStatus(l,"vitrine",ds,t.key)).length;
@@ -1157,6 +1205,7 @@ function renderGestao(){
     const anyPend = items.some(i=>i.state==="pend");
     const overall = anyLate ? "late" : anyPend ? "pend" : "ok";
     const overallColor = overall==="ok" ? "var(--green)" : overall==="late" ? "var(--red)" : "var(--amber)";
+    const streak = calcStreak(l);
 
     const card = document.createElement("div");
     card.className = "card";
@@ -1166,12 +1215,29 @@ function renderGestao(){
       return `<div style="width:40px; height:36px; border-radius:6px; background:${bg}; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#fff; text-align:center; line-height:1.1; padding:2px;">${i.label}</div>`;
     }).join("");
     card.innerHTML = `
-      <div class="card-title" style="margin-bottom:8px;">${l}</div>
+      <div class="card-top" style="margin-bottom:8px;">
+        <div class="card-title">${l}</div>
+        ${streak>=2 ? `<div class="status-badge ok">🔥 ${streak} dias</div>` : ``}
+      </div>
       <div style="display:flex; flex-wrap:wrap; gap:5px;">${squares}</div>
     `;
     main.appendChild(card);
   });
 }
+
+function calcStreak(loja){
+  let streak = 0;
+  for(let i=0;i<60;i++){
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const ds = isoDate(d);
+    const turnosOk = VITRINE_TURNOS.every(t=>dailyStatus(loja,"vitrine",ds,t.key));
+    const vendasOk = !!dailyStatus(loja,"vendas",ds,"unico");
+    if(turnosOk && vendasOk) streak++;
+    else break;
+  }
+  return streak;
+}
+
 
 /* ---------- INIT ---------- */
 buildLojaGrid();
