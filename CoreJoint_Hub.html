@@ -21,6 +21,7 @@
   a.card .txt .t{font-family:'Fraunces',Georgia,serif; font-size:18px; font-weight:600;}
   a.card .txt .d{font-size:13px; color:var(--ink-soft); margin-top:2px;}
   a.card .arrow{margin-left:auto; color:var(--terracotta); font-size:20px;}
+  .badge-count{background:var(--terracotta); color:#fff; font-size:12px; font-weight:700; border-radius:12px; padding:3px 9px; margin-left:8px; white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -32,18 +33,56 @@
   <a class="card" href="CoreJoint_Reportes.html">
     <div class="icon">📸</div>
     <div class="txt"><div class="t">Reportes</div><div class="d">Vitrine, vendas e inventário por loja</div></div>
+    <span id="badge-reportes"></span>
     <div class="arrow">›</div>
   </a>
   <a class="card" href="CoreJoint_Fardamento.html">
     <div class="icon">👕</div>
     <div class="txt"><div class="t">Fardamento</div><div class="d">Stock nos 3 polos, saídas e alertas</div></div>
+    <span id="badge-fardamento"></span>
     <div class="arrow">›</div>
   </a>
   <a class="card" href="CoreJoint_Adendas.html">
     <div class="icon">📋</div>
     <div class="txt"><div class="t">Adendas</div><div class="d">Controlo de impressão, entrega e assinatura</div></div>
+    <span id="badge-adendas"></span>
     <div class="arrow">›</div>
   </a>
 </main>
+<script>
+const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
+const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k";
+async function api(path){
+  const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, { headers:{ "apikey":SUPA_KEY, "Authorization":"Bearer "+SUPA_KEY } });
+  if(!res.ok) return [];
+  return res.json();
+}
+function setBadge(id, n){
+  if(n>0) document.getElementById(id).innerHTML = `<span class="badge-count">${n}</span>`;
+}
+(async ()=>{
+  try{
+    const today = new Date().toISOString().slice(0,10);
+    const daily = await api(`cj_daily_reportes?select=loja,tipo,turno&data=eq.${today}`);
+    const LOJAS = ["Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim","Carregado","Ponte de Sor","Torres MCH","Torres MH"];
+    let reportesPend = 0;
+    LOJAS.forEach(l=>{
+      const turnos = ["manha","almoco","lanche"].filter(t=>daily.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t)).length;
+      if(turnos<3) reportesPend++;
+      if(!daily.some(r=>r.loja===l && r.tipo==="vendas" && r.turno==="unico")) reportesPend++;
+    });
+    setBadge("badge-reportes", reportesPend);
+  }catch(e){}
+  try{
+    const stock = await api("cj_fardamento_stock?select=quantidade&quantidade=lt.5");
+    const dev = await api("cj_fardamento_devolucoes?select=id&recolhido=eq.false");
+    setBadge("badge-fardamento", stock.length + dev.length);
+  }catch(e){}
+  try{
+    const adendas = await api("cj_adendas?select=id&arquivada=eq.false");
+    setBadge("badge-adendas", adendas.length);
+  }catch(e){}
+})();
+</script>
 </body>
 </html>
