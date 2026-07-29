@@ -41,9 +41,15 @@
   .btn-save:disabled{opacity:.5;}
   .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:14px; font-size:13px; z-index:99; opacity:0; transition:opacity .25s; max-width:90vw; white-space:pre-wrap; word-break:break-word; text-align:center;}
   .toast.show{opacity:1;}
+
+  body.dark{ --cream:#1c1a18; --ink:#EDE8E1; --ink-soft:#B8B0A5; --terracotta:#E08A52; --terracotta-dark:#F0A876; --line:#3a3632; --card:#2A2724; }
+  body.dark input, body.dark select, body.dark textarea{ background:#2A2724; color:#EDE8E1; border-color:#3a3632; }
+  body.dark video{ background:#000; }
 </style>
 </head>
 <body>
+<button id="darkToggle" onclick="toggleDark()" style="position:fixed; top:8px; right:8px; z-index:500; width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--card,#fff); font-size:16px; cursor:pointer;">🌙</button>
+
 <header>
   <h1 id="titleLoja">Foto do dia</h1>
   <p id="dateSub"></p>
@@ -498,6 +504,16 @@ async function confirmCapture(kind, key, turno){
 
 loadAll();
 setInterval(loadAll, 30000);
+
+function toggleDark(){
+  document.body.classList.toggle("dark");
+  localStorage.setItem("cj_dark_mode", document.body.classList.contains("dark") ? "1" : "0");
+  document.getElementById("darkToggle").textContent = document.body.classList.contains("dark") ? "☀️" : "🌙";
+}
+if(localStorage.getItem("cj_dark_mode")==="1"){
+  document.body.classList.add("dark");
+  setTimeout(()=>{ const b=document.getElementById("darkToggle"); if(b) b.textContent="☀️"; }, 0);
+}
 </script>
 </body>
 </html>
