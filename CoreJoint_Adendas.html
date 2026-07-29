@@ -124,12 +124,12 @@ const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const TABLE = "cj_adendas";
 
 const STAGES = [
-  {key:"impressa", label:"Imprimir", verb:"Marcar como impressa", nextField:"impressa_em", personField:"impressa_por", actor:"gerente"},
-  {key:"entregue", label:"Entregar", verb:"Marcar como entregue", nextField:"entregue_em", personField:"entregue_por", actor:"gerente"},
-  {key:"assinada", label:"Assinar", verb:"Marcar como assinada (+ foto)", nextField:"assinada_em", personField:"assinada_por", needsPhoto:true, photoField:"foto_assinada", actor:"gerente"},
-  {key:"copia_entregue", label:"Entreguei cópia ao colaborador", verb:"Confirmo que entreguei uma cópia", nextField:"copia_entregue_em", personField:"copia_entregue_por", actor:"gerente"},
-  {key:"recolhida", label:"Recolher da loja", verb:"Marcar como recolhida", nextField:"recolhida_em", personField:"recolhida_por", actor:"gop"},
-  {key:"enviada", label:"Entregar ao RH", verb:"Marcar como entregue ao RH", nextField:"enviada_em", personField:"enviada_por", actor:"gop"}
+  {key:"impressa", label:"Imprimir", verb:"Marcar como impressa", nextField:"impressa_em", personField:"impressa_por"},
+  {key:"entregue", label:"Entregar", verb:"Marcar como entregue", nextField:"entregue_em", personField:"entregue_por"},
+  {key:"assinada", label:"Assinar", verb:"Marcar como assinada (+ foto)", nextField:"assinada_em", personField:"assinada_por", needsPhoto:true, photoField:"foto_assinada"},
+  {key:"copia_entregue", label:"Entreguei cópia ao colaborador", verb:"Confirmo que entreguei uma cópia", nextField:"copia_entregue_em", personField:"copia_entregue_por"},
+  {key:"recolhida", label:"Recolher da loja", verb:"Marcar como recolhida", nextField:"recolhida_em", personField:"recolhida_por"},
+  {key:"enviada", label:"Entregar ao RH", verb:"Marcar como entregue ao RH", nextField:"enviada_em", personField:"enviada_por"}
 ];
 
 const LOJAS = [
@@ -257,13 +257,9 @@ function renderCard(r, stageIdx){
 
   let actionsHtml = "";
   if(stage){
-    if(stage.actor === "gerente"){
-      actionsHtml = `<div class="card-meta" style="margin-top:8px; color:var(--amber); font-weight:600;">⏳ Aguarda o gerente: ${stage.label}</div>`;
-    } else {
-      actionsHtml = `<div class="card-actions">
-        <button class="btn-advance" onclick="advance(${r.id}, ${stageIdx})">${stage.verb}</button>
-      </div>`;
-    }
+    actionsHtml = `<div class="card-actions">
+      <button class="btn-advance" onclick="advance(${r.id}, ${stageIdx})">${stage.verb}</button>
+    </div>`;
   } else {
     actionsHtml = `<div class="card-meta" style="margin-top:8px;">✅ Concluída — entregue ao RH em ${new Date(r.enviada_em).toLocaleDateString('pt-PT')} por ${r.enviada_por||''}</div>`;
   }
