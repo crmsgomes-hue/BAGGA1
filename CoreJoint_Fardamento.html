@@ -260,14 +260,17 @@ function renderPecaCard(polo, peca){
     const qty = getQty(polo, peca, tam);
     const row = document.createElement("div");
     row.className = "size-row";
+    row.style.flexWrap = "wrap";
     row.innerHTML = `
       <div class="size-tag">${tam}</div>
-      <button class="stepbtn" data-act="dec10">－10</button>
-      <button class="stepbtn" data-act="dec1">－1</button>
-      <span class="qty-num ${qty<LOW_THRESHOLD?'low':''}">${qty}</span>
-      <button class="stepbtn" data-act="inc1">＋1</button>
-      <button class="stepbtn" data-act="inc10">＋10</button>
+      <span class="qty-num ${qty<LOW_THRESHOLD?'low':''}" style="flex:1; text-align:center; font-size:18px;">${qty}</span>
       <button class="saida-btn" data-act="saida">Saída</button>
+      <div style="width:100%; display:flex; gap:6px; justify-content:flex-end; margin-top:6px;">
+        <button class="stepbtn" data-act="dec10">－10</button>
+        <button class="stepbtn" data-act="dec1">－1</button>
+        <button class="stepbtn" data-act="inc1">＋1</button>
+        <button class="stepbtn" data-act="inc10">＋10</button>
+      </div>
     `;
     row.querySelector('[data-act="dec10"]').onclick = ()=>adjustQty(polo,peca,tam,-10);
     row.querySelector('[data-act="dec1"]').onclick = ()=>adjustQty(polo,peca,tam,-1);
