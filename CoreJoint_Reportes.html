@@ -603,7 +603,7 @@ async function confirmCapture(kind, tipoOrCat, turno){
   const who = currentUser || currentLoja;
   try{
     if(kind==="daily"){
-      const path = `${slug(currentLoja)}/${tipoOrCat}/${turno}/${today}.jpg`;
+      const path = `${slug(currentLoja)}/${tipoOrCat}/${turno}/${today}_${Date.now()}.jpg`;
       const url = await uploadPhoto(pendingPhoto, path);
       await upsertDaily(currentLoja, tipoOrCat, today, url, who, turno);
     } else if(kind==="marketing"){
@@ -629,11 +629,9 @@ async function confirmCapture(kind, tipoOrCat, turno){
 function slug(s){ return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_").toLowerCase(); }
 
 async function upsertDaily(loja, tipo, data, foto_path, enviado_por, turno){
-  const filter = `loja=eq.${encodeURIComponent(loja)}&tipo=eq.${tipo}&data=eq.${data}&turno=eq.${turno}`;
-  const patched = await api("PATCH", `cj_daily_reportes?${filter}`, {foto_path, enviado_por, criado_em:new Date().toISOString()});
-  if(!patched || patched.length===0){
-    await api("POST", "cj_daily_reportes", {loja, tipo, data, foto_path, enviado_por, turno});
-  }
+  await api("POST", "rpc/append_daily_foto", {
+    p_loja: loja, p_tipo: tipo, p_data: data, p_turno: turno, p_foto_path: foto_path, p_por: enviado_por
+  });
 }
 async function insertInv(loja, categoria, data, foto_path, valor_inventario, valor_cnvs, enviado_por){
   await api("POST", "cj_inventario_reportes", {loja, categoria, data, foto_path, valor_inventario, valor_cnvs, enviado_por});
@@ -659,30 +657,59 @@ function openHistoricoAnual(){
     const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-i);
     months.push(d);
   }
+  // últimas 12 semanas (segunda a domingo)
+  const weeks = [];
+  for(let i=11;i>=0;i--){
+    const d = new Date(); d.setDate(d.getDate() - i*7);
+    weeks.push(weekWindow(d));
+  }
 
   const title = document.createElement("div");
   title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:14px;";
-  title.textContent = `De ${monthLabel(months[0])} a ${monthLabel(months[11])} — ✔ = pelo menos 1 envio nesse mês`;
+  title.textContent = "✔ = pelo menos 1 envio nesse período";
   main.appendChild(title);
 
   LOJAS.forEach(l=>{
-    const cats = [...categoriasParaLoja(l), ...MARKETING_CATS];
+    const semanais = categoriasParaLoja(l).filter(c=>c.freq==="semanal");
+    const outros = [...categoriasParaLoja(l).filter(c=>c.freq!=="semanal"), ...MARKETING_CATS];
     const card = document.createElement("div");
     card.className = "card";
-    let rowsHtml = `<div style="display:grid; grid-template-columns:70px repeat(12,1fr); gap:2px; font-size:9px; margin-bottom:4px; color:var(--ink-soft);">
-      <div></div>${months.map(m=>`<div style="text-align:center;">${monthLabel(m)}</div>`).join("")}
-    </div>`;
-    cats.forEach(cat=>{
-      const cells = months.map(m=>{
-        const mk = monthKey(m);
-        const has = invRows.some(r=>r.loja===l && r.categoria===cat.key && r.data && r.data.slice(0,7)===mk);
-        return `<div style="height:16px; border-radius:3px; background:${has?'var(--green)':'var(--line)'};"></div>`;
-      }).join("");
-      rowsHtml += `<div style="display:grid; grid-template-columns:70px repeat(12,1fr); gap:2px; margin-bottom:2px; align-items:center;">
-        <div style="font-size:10px; font-weight:600;">${cat.label}</div>${cells}
+    let html = `<div class="card-title" style="margin-bottom:8px;">${l}</div>`;
+
+    if(semanais.length){
+      html += `<div style="font-size:9px; color:var(--ink-soft); margin-bottom:2px;">Semanal — últimas 12 semanas</div>`;
+      html += `<div style="display:grid; grid-template-columns:70px repeat(12,1fr); gap:2px; font-size:8px; margin-bottom:4px; color:var(--ink-soft);">
+        <div></div>${weeks.map(w=>`<div style="text-align:center;">${w.start.getDate()}/${w.start.getMonth()+1}</div>`).join("")}
       </div>`;
-    });
-    card.innerHTML = `<div class="card-title" style="margin-bottom:8px;">${l}</div>${rowsHtml}`;
+      semanais.forEach(cat=>{
+        const cells = weeks.map(w=>{
+          const has = invRows.some(r=>r.loja===l && r.categoria===cat.key && inRange(r.data, w.start, w.end));
+          return `<div style="height:16px; border-radius:3px; background:${has?'var(--green)':'var(--line)'};"></div>`;
+        }).join("");
+        html += `<div style="display:grid; grid-template-columns:70px repeat(12,1fr); gap:2px; margin-bottom:2px; align-items:center;">
+          <div style="font-size:10px; font-weight:600;">${cat.label}</div>${cells}
+        </div>`;
+      });
+    }
+
+    if(outros.length){
+      html += `<div style="font-size:9px; color:var(--ink-soft); margin:10px 0 2px;">Quinzenal/Mensal — últimos 12 meses</div>`;
+      html += `<div style="display:grid; grid-template-columns:70px repeat(12,1fr); gap:2px; font-size:9px; margin-bottom:4px; color:var(--ink-soft);">
+        <div></div>${months.map(m=>`<div style="text-align:center;">${monthLabel(m)}</div>`).join("")}
+      </div>`;
+      outros.forEach(cat=>{
+        const cells = months.map(m=>{
+          const mk = monthKey(m);
+          const has = invRows.some(r=>r.loja===l && r.categoria===cat.key && r.data && r.data.slice(0,7)===mk);
+          return `<div style="height:16px; border-radius:3px; background:${has?'var(--green)':'var(--line)'};"></div>`;
+        }).join("");
+        html += `<div style="display:grid; grid-template-columns:70px repeat(12,1fr); gap:2px; margin-bottom:2px; align-items:center;">
+          <div style="font-size:10px; font-weight:600;">${cat.label}</div>${cells}
+        </div>`;
+      });
+    }
+
+    card.innerHTML = html;
     main.appendChild(card);
   });
 }
@@ -716,11 +743,29 @@ function generateWeeklyReport(){
   });
   html += `</table>`;
 
-  html += `<h2>Inventário — estado do período atual</h2><table><tr><th style="text-align:left;">Loja</th>${INV_CATS.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
+  const semanais = INV_CATS.filter(c=>c.freq==="semanal");
+  const outros = [...INV_CATS.filter(c=>c.freq!=="semanal"), ...MARKETING_CATS];
+
+  html += `<h2>Inventário semanal — dia em que foi feito</h2>`;
+  semanais.forEach(cat=>{
+    html += `<table style="margin-bottom:6px;"><tr><th style="text-align:left; width:70px;">${cat.label}</th><th style="text-align:left;">Loja</th>${days.map(d=>`<th>${d.toLocaleDateString('pt-PT',{weekday:'short'}).slice(0,3)}<br>${d.getDate()}</th>`).join("")}</tr>`;
+    LOJAS.filter(l=>categoriasParaLoja(l).some(c=>c.key===cat.key)).forEach(l=>{
+      const cells = days.map(d=>{
+        const ds = isoDate(d);
+        const feito = invRows.some(r=>r.loja===l && r.categoria===cat.key && r.data===ds);
+        return feito ? "✔" : "";
+      });
+      html += `<tr><td></td><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+    });
+    html += `</table>`;
+  });
+
+  html += `<h2>Inventário quinzenal/mensal + marketing — estado atual</h2><table><tr><th style="text-align:left;">Loja</th>${outros.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
   LOJAS.forEach(l=>{
     const aplicaveis = categoriasParaLoja(l).map(c=>c.key);
-    const cells = INV_CATS.map(c=>{
-      if(!aplicaveis.includes(c.key)) return "—";
+    const cells = outros.map(c=>{
+      const isMkt = MARKETING_CATS.some(m=>m.key===c.key);
+      if(!isMkt && !aplicaveis.includes(c.key)) return "—";
       const st = invStatus(l,c.key,c.freq);
       return st.state==="ok" ? "✔" : st.state==="late" ? "✕" : "…";
     });
@@ -828,7 +873,7 @@ async function confirmManualEntry(){
   const [kind, key, turno] = val.split(":");
   try{
     if(kind==="daily"){
-      const path = `${slug(loja)}/${key}/${turno}/${data}.jpg`;
+      const path = `${slug(loja)}/${key}/${turno}/${data}_${Date.now()}.jpg`;
       const url = await uploadPhoto(manualPhoto, path);
       await upsertDaily(loja, key, data, url, "Gestão (WhatsApp)", turno);
     } else {
