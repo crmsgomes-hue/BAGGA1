@@ -92,8 +92,9 @@
         <h1>Fardamento</h1>
         <div class="who" id="whoLabel"></div>
       </div>
-      <div style="display:flex; gap:8px;">
+      <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; max-width:180px;">
         <button class="bell" id="admBtn" onclick="openAdmissao()" style="font-size:11px; font-weight:700;">👤+</button>
+        <button class="bell" id="devBtn" onclick="openDevolucao()" style="font-size:16px;">↩</button>
         <button class="bell" id="dispoBtn" onclick="openDisponibilidade()">🔍</button>
         <button class="bell" id="histBtn" onclick="openHistorico()">📜</button>
         <button class="bell" id="bellBtn" onclick="openAlertas()">🔔<span class="dot"></span></button>
@@ -128,6 +129,7 @@ const LOW_THRESHOLD = 5;
 
 let stockRows = [];
 let movimentos = [];
+let devolucoes = [];
 let currentUser = localStorage.getItem("cj_fard_user") || "";
 let currentPolo = POLOS[0];
 let openPecas = {};
@@ -190,6 +192,7 @@ async function loadStock(){
   try{
     stockRows = await api("GET", "cj_fardamento_stock?select=*");
     movimentos = await api("GET", "cj_fardamento_movimentos?select=*&tipo=eq.saida&order=criado_em.desc&limit=200");
+    devolucoes = await api("GET", "cj_fardamento_devolucoes?select=*&recolhido=eq.false&order=criado_em.desc");
     updateBell();
     render();
   }catch(e){
@@ -218,6 +221,9 @@ function allAlerts(){
 
 function updateBell(){
   document.getElementById("bellBtn").classList.toggle("has-alert", allAlerts().length>0);
+  const devBtn = document.getElementById("devBtn");
+  if(devolucoes.length>0){ devBtn.style.background = "var(--amber)"; devBtn.style.color = "#fff"; }
+  else { devBtn.style.background = "#fff"; devBtn.style.color = "var(--ink)"; }
 }
 
 function render(){
@@ -465,6 +471,159 @@ let admKit = {}; // peca -> {tamanho, polo}
 let lastAdmLoja = "";
 let admColab = "";
 let admLoja = "";
+
+/* ---------- DEVOLUÇÕES (farda entregue na loja, à espera de recolha para o polo) ---------- */
+let devKit = {peca:null, tamanho:null};
+let devLoja = "";
+let devColab = "";
+
+function openDevolucao(){
+  devKit = {peca:null, tamanho:null};
+  devLoja = "";
+  devColab = "";
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "backbtn";
+  back.textContent = "← Voltar ao stock";
+  back.onclick = render;
+  main.appendChild(back);
+
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:10px;";
+  title.textContent = "Devoluções — farda entregue na loja, por recolher";
+  main.appendChild(title);
+
+  const formCard = document.createElement("div");
+  formCard.className = "card";
+  const knownColabs = [...new Set(movimentos.map(m=>m.colaborador_destino).filter(Boolean))].sort();
+  formCard.innerHTML = `
+    <div class="field-label" style="font-weight:600; margin-bottom:6px;">Loja onde ficou a farda</div>
+    <div class="chip-row" id="devLojaChips"></div>
+    <div class="field-label" style="font-weight:600; margin:14px 0 6px;">Colaborador</div>
+    <div class="chip-row" id="devColabChips"></div>
+    <input id="devColabNovo" placeholder="Nome do colaborador" style="display:none; margin-top:8px; width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);">
+    <div class="field-label" style="font-weight:600; margin:14px 0 6px;">Peça</div>
+    <div class="chip-row" id="devPecaChips"></div>
+    <div id="devTamRow" style="margin-top:8px;"></div>
+    <button class="cambtn" id="devConfirmBtn" style="width:100%; margin-top:14px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;">Registar devolução</button>
+  `;
+  main.appendChild(formCard);
+
+  const lojaRow = formCard.querySelector("#devLojaChips");
+  LOJAS.forEach(l=>{
+    const c = document.createElement("div");
+    c.className = "chip";
+    c.textContent = l;
+    c.onclick = ()=>{ devLoja = l; lojaRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel")); c.classList.add("sel"); };
+    lojaRow.appendChild(c);
+  });
+  const colabRow = formCard.querySelector("#devColabChips");
+  knownColabs.forEach(name=>{
+    const c = document.createElement("div");
+    c.className = "chip";
+    c.textContent = name;
+    c.onclick = ()=>{ devColab = name; colabRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel")); c.classList.add("sel"); formCard.querySelector("#devColabNovo").style.display="none"; };
+    colabRow.appendChild(c);
+  });
+  const novoChip = document.createElement("div");
+  novoChip.className = "chip";
+  novoChip.textContent = "+ Novo";
+  novoChip.onclick = ()=>{ devColab = "__novo__"; colabRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel")); novoChip.classList.add("sel"); formCard.querySelector("#devColabNovo").style.display="block"; };
+  colabRow.appendChild(novoChip);
+
+  const pecaRow = formCard.querySelector("#devPecaChips");
+  Object.keys(PECAS).forEach(peca=>{
+    const c = document.createElement("div");
+    c.className = "chip";
+    c.textContent = peca;
+    c.onclick = ()=>{
+      devKit.peca = peca; devKit.tamanho = null;
+      pecaRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel"));
+      c.classList.add("sel");
+      const tamRow = formCard.querySelector("#devTamRow");
+      tamRow.innerHTML = "";
+      const rowDiv = document.createElement("div");
+      rowDiv.className = "chip-row";
+      PECAS[peca].forEach(tam=>{
+        const tc = document.createElement("div");
+        tc.className = "chip";
+        tc.textContent = tam;
+        tc.onclick = ()=>{ devKit.tamanho = tam; rowDiv.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel")); tc.classList.add("sel"); };
+        rowDiv.appendChild(tc);
+      });
+      tamRow.appendChild(rowDiv);
+    };
+    pecaRow.appendChild(c);
+  });
+
+  formCard.querySelector("#devConfirmBtn").onclick = confirmarDevolucao;
+
+  const pendTitle = document.createElement("div");
+  pendTitle.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px;";
+  pendTitle.textContent = `Por recolher (${devolucoes.length})`;
+  main.appendChild(pendTitle);
+
+  if(devolucoes.length===0){
+    main.innerHTML += '<div class="empty">Sem devoluções por recolher.</div>';
+    return;
+  }
+
+  devolucoes.forEach(d=>{
+    const card = document.createElement("div");
+    card.className = "alert-card";
+    card.style.borderLeftColor = "var(--amber)";
+    card.innerHTML = `
+      <div class="an">${d.peca} · ${d.tamanho}</div>
+      <div class="am">${d.loja} ← ${d.colaborador||'sem nome'} · ${new Date(d.criado_em).toLocaleDateString('pt-PT')}</div>
+      <div class="chip-row" style="margin-top:8px;" data-polos></div>
+    `;
+    const polosRow = card.querySelector("[data-polos]");
+    POLOS.forEach(polo=>{
+      const c = document.createElement("div");
+      c.className = "chip";
+      c.textContent = `Recolher p/ ${polo}`;
+      c.onclick = ()=>recolherDevolucao(d.id, polo, d.peca, d.tamanho);
+      polosRow.appendChild(c);
+    });
+    main.appendChild(card);
+  });
+}
+
+async function confirmarDevolucao(){
+  const colaborador = devColab === "__novo__" ? document.getElementById("devColabNovo").value.trim() : devColab;
+  if(!devLoja){ toast("Escolhe a loja"); return; }
+  if(!colaborador){ toast("Escolhe ou escreve o colaborador"); return; }
+  if(!devKit.peca || !devKit.tamanho){ toast("Escolhe a peça e o tamanho"); return; }
+  try{
+    await api("POST", "cj_fardamento_devolucoes", {
+      loja: devLoja, peca: devKit.peca, tamanho: devKit.tamanho, colaborador,
+      registado_por: currentUser
+    });
+    toast("Devolução registada");
+    await loadStock();
+    openDevolucao();
+  }catch(e){
+    console.error(e);
+    toast("Erro: " + (e.message||e).slice(0,100));
+  }
+}
+
+async function recolherDevolucao(id, polo, peca, tamanho){
+  try{
+    await incrementStock(polo, peca, tamanho, 1, currentUser);
+    await logMovimento({polo, peca, tamanho, quantidade:1, tipo:"entrada", registado_por:currentUser, nota:"Devolução recolhida"});
+    await api("PATCH", `cj_fardamento_devolucoes?id=eq.${id}`, {
+      recolhido: true, recolhido_para_polo: polo, recolhido_por: currentUser, recolhido_em: new Date().toISOString()
+    });
+    toast(`Recolhido para ${polo}`);
+    await loadStock();
+    openDevolucao();
+  }catch(e){
+    console.error(e);
+    toast("Erro: " + (e.message||e).slice(0,100));
+  }
+}
 
 function openAdmissao(){
   admKit = {};
