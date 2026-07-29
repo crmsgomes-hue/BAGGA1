@@ -262,6 +262,14 @@ function renderCard(r, stageIdx){
     actionsHtml = `<div class="card-meta" style="margin-top:8px;">✅ Concluída — enviada em ${new Date(r.enviada_em).toLocaleDateString('pt-PT')} por ${r.enviada_por||''}</div>`;
   }
 
+  let alertHtml = "";
+  if(stage && d>=3){
+    const alertText = stageIdx===2
+      ? `⚠ Pendente de foto/assinatura há ${d} dias — é preciso ir atrás disto`
+      : `⚠ Parada em "${stage.label}" há ${d} dias — é preciso ir atrás disto`;
+    alertHtml = `<div style="background:var(--red); color:#fff; font-weight:600; font-size:13px; padding:8px 12px; border-radius:8px; margin-top:8px;">${alertText}</div>`;
+  }
+
   let undoHtml = "";
   if(stageIdx>0){
     undoHtml = `<button class="btn-undo" onclick="undo(${r.id}, ${stageIdx-1})">↩ desfazer última etapa</button>`;
@@ -272,6 +280,20 @@ function renderCard(r, stageIdx){
     photoHtml = `<img class="photo-thumb" src="${r.foto_assinada}" onclick="viewPhoto('${r.foto_assinada.replace(/'/g,"")}','${(r.colaborador||'adenda').replace(/'/g,"")}')">`;
   }
 
+  const historicoId = `hist-${r.id}`;
+  const criadaRow = `<div style="display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:1px solid var(--line);">
+    <span>Criada</span>
+    <span>${new Date(r.criado_em).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${r.criado_por?' · '+escapeHtml(r.criado_por):''}</span>
+  </div>`;
+  const historicoRows = criadaRow + STAGES.map(s=>{
+    const dt = r[s.nextField];
+    const por = r[s.personField];
+    return `<div style="display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:1px solid var(--line);">
+      <span>${s.label}</span>
+      <span style="color:${dt?'var(--ink)':'var(--ink-soft)'};">${dt ? new Date(dt).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) + (por?' · '+escapeHtml(por):'') : '—'}</span>
+    </div>`;
+  }).join("");
+
   div.innerHTML = `
     <div class="card-top">
       <div>
@@ -281,9 +303,23 @@ function renderCard(r, stageIdx){
       </div>
       ${photoHtml || `<span class="badge ${bClass}">${dayLabel}</span>`}
     </div>
+    ${alertHtml}
     ${actionsHtml}
+    <div class="card-meta" style="margin-top:8px; text-decoration:underline; cursor:pointer;" data-toggle-hist="${r.id}">Ver histórico completo</div>
+    <div id="${historicoId}" style="display:none; margin-top:6px;">${historicoRows}</div>
     ${undoHtml}
   `;
+  setTimeout(()=>{
+    const t = div.querySelector(`[data-toggle-hist="${r.id}"]`);
+    const h = div.querySelector(`#${historicoId}`);
+    if(t && h){
+      t.onclick = ()=>{
+        const showing = h.style.display !== "none";
+        h.style.display = showing ? "none" : "block";
+        t.textContent = showing ? "Ver histórico completo" : "Ocultar histórico";
+      };
+    }
+  }, 0);
   return div;
 }
 
