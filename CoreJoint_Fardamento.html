@@ -93,6 +93,7 @@
         <div class="who" id="whoLabel"></div>
       </div>
       <div style="display:flex; gap:8px;">
+        <button class="bell" id="dispoBtn" onclick="openDisponibilidade()">🔍</button>
         <button class="bell" id="histBtn" onclick="openHistorico()">📜</button>
         <button class="bell" id="bellBtn" onclick="openAlertas()">🔔<span class="dot"></span></button>
       </div>
@@ -440,6 +441,46 @@ function openAlertas(){
     navigator.clipboard.writeText(text).then(()=>toast("Lista copiada")).catch(()=>toast("Não foi possível copiar"));
   };
   main.appendChild(btn);
+}
+
+/* ---------- DISPONIBILIDADE (comparar os 3 polos) ---------- */
+function openDisponibilidade(){
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "backbtn";
+  back.textContent = "← Voltar ao stock";
+  back.onclick = render;
+  main.appendChild(back);
+
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:10px;";
+  title.textContent = "Onde há stock — os 3 polos lado a lado";
+  main.appendChild(title);
+
+  Object.keys(PECAS).forEach(peca=>{
+    const card = document.createElement("div");
+    card.className = "peca-card open";
+    let rowsHtml = `<div style="display:grid; grid-template-columns:56px repeat(${POLOS.length},1fr); gap:6px; font-size:10px; color:var(--ink-soft); margin-bottom:6px; padding:0 12px;">
+      <div></div>${POLOS.map(p=>`<div style="text-align:center; font-weight:700;">${p}</div>`).join("")}
+    </div>`;
+    PECAS[peca].forEach(tam=>{
+      const cells = POLOS.map(polo=>{
+        const q = getQty(polo, peca, tam);
+        const bg = q===0 ? "var(--red)" : q<LOW_THRESHOLD ? "var(--amber)" : "var(--green)";
+        return `<button data-polo="${polo}" data-peca="${peca}" data-tam="${tam}" style="border:none; border-radius:6px; background:${bg}; color:#fff; font-weight:700; font-size:12px; height:30px;" ${q===0?'disabled':''}>${q}</button>`;
+      }).join("");
+      rowsHtml += `<div style="display:grid; grid-template-columns:56px repeat(${POLOS.length},1fr); gap:6px; align-items:center; margin-bottom:5px; padding:0 12px;">
+        <div style="font-size:12px; font-weight:600;">${tam}</div>${cells}
+      </div>`;
+    });
+    card.innerHTML = `<div class="peca-head" style="cursor:default;"><div class="pn">${peca}</div></div>${rowsHtml}`;
+    main.appendChild(card);
+  });
+
+  main.querySelectorAll("button[data-polo]").forEach(btn=>{
+    btn.onclick = ()=>openSaida(btn.dataset.polo, btn.dataset.peca, btn.dataset.tam);
+  });
 }
 
 /* ---------- HISTÓRICO (para onde foram as peças) ---------- */
