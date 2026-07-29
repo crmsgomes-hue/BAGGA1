@@ -253,7 +253,7 @@ async function ativarNotificacoes(){
       });
     }
     btn.textContent = "✅ Notificações ativas";
-    toast("Notificações ativadas! Chegam por volta das 18h, se houver pendências.");
+    toast("Notificações ativadas! Chegam ao longo do dia (9h, 15h e nos momentos-chave), se houver pendências.");
   }catch(e){
     console.error(e);
     toast("Erro ao ativar: " + (e.message||e).slice(0,100));
