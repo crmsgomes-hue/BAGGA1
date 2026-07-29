@@ -93,6 +93,7 @@
         <div class="who" id="whoLabel"></div>
       </div>
       <div style="display:flex; gap:8px;">
+        <button class="bell" id="admBtn" onclick="openAdmissao()" style="font-size:11px; font-weight:700;">👤+</button>
         <button class="bell" id="dispoBtn" onclick="openDisponibilidade()">🔍</button>
         <button class="bell" id="histBtn" onclick="openHistorico()">📜</button>
         <button class="bell" id="bellBtn" onclick="openAlertas()">🔔<span class="dot"></span></button>
@@ -441,6 +442,148 @@ function openAlertas(){
     navigator.clipboard.writeText(text).then(()=>toast("Lista copiada")).catch(()=>toast("Não foi possível copiar"));
   };
   main.appendChild(btn);
+}
+
+/* ---------- NOVA ADMISSÃO (kit completo, desconta tudo de uma vez) ---------- */
+let admKit = {}; // peca -> {tamanho, polo}
+let admColab = "";
+let admLoja = "";
+
+function openAdmissao(){
+  admKit = {};
+  admColab = "";
+  admLoja = "";
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "backbtn";
+  back.textContent = "← Cancelar admissão";
+  back.onclick = render;
+  main.appendChild(back);
+
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:10px;";
+  title.textContent = "Nova admissão — monta o kit";
+  main.appendChild(title);
+
+  // Colaborador + loja
+  const peopleCard = document.createElement("div");
+  peopleCard.className = "card";
+  const knownColabs = [...new Set(movimentos.map(m=>m.colaborador_destino).filter(Boolean))].sort();
+  peopleCard.innerHTML = `
+    <div class="field-label" style="font-weight:600; margin-bottom:6px;">Colaborador</div>
+    <div class="chip-row" id="admColabChips"></div>
+    <input id="admColabNovo" placeholder="Nome do novo colaborador" style="display:none; margin-top:8px; width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);">
+    <div class="field-label" style="font-weight:600; margin:14px 0 6px;">Loja de destino</div>
+    <div class="chip-row" id="admLojaChips"></div>
+  `;
+  main.appendChild(peopleCard);
+  const admColabRow = peopleCard.querySelector("#admColabChips");
+  knownColabs.forEach(name=>{
+    const c = document.createElement("div");
+    c.className = "chip";
+    c.textContent = name;
+    c.onclick = ()=>{ admColab = name; admColabRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel")); c.classList.add("sel"); peopleCard.querySelector("#admColabNovo").style.display="none"; };
+    admColabRow.appendChild(c);
+  });
+  const admColabNovoChip = document.createElement("div");
+  admColabNovoChip.className = "chip";
+  admColabNovoChip.textContent = "+ Novo";
+  admColabNovoChip.onclick = ()=>{ admColab = "__novo__"; admColabRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel")); admColabNovoChip.classList.add("sel"); peopleCard.querySelector("#admColabNovo").style.display="block"; };
+  admColabRow.appendChild(admColabNovoChip);
+  const admLojaRow = peopleCard.querySelector("#admLojaChips");
+  LOJAS.forEach(l=>{
+    const c = document.createElement("div");
+    c.className = "chip";
+    c.textContent = l;
+    c.onclick = ()=>{ admLoja = l; admLojaRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel")); c.classList.add("sel"); };
+    admLojaRow.appendChild(c);
+  });
+
+  // Peças do kit
+  Object.keys(PECAS).forEach(peca=>{
+    const card = document.createElement("div");
+    card.className = "card";
+    card.id = `admPeca-${peca}`;
+    card.innerHTML = `<div class="field-label" style="font-weight:600; margin-bottom:6px;">${peca}</div><div class="chip-row" data-tam-row></div><div data-polo-row style="margin-top:8px;"></div>`;
+    main.appendChild(card);
+    const tamRow = card.querySelector("[data-tam-row]");
+    PECAS[peca].forEach(tam=>{
+      const c = document.createElement("div");
+      c.className = "chip";
+      c.textContent = tam;
+      c.onclick = ()=>{
+        tamRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel"));
+        if(admKit[peca]?.tamanho === tam){
+          delete admKit[peca];
+          c.classList.remove("sel");
+          card.querySelector("[data-polo-row]").innerHTML = "";
+          return;
+        }
+        c.classList.add("sel");
+        admKit[peca] = {tamanho: tam, polo: null};
+        renderAdmPolos(peca, tam, card.querySelector("[data-polo-row]"));
+      };
+      tamRow.appendChild(c);
+    });
+  });
+
+  const confirmBar = document.createElement("button");
+  confirmBar.className = "cambtn";
+  confirmBar.style.marginTop = "10px";
+  confirmBar.id = "admConfirmBtn";
+  confirmBar.textContent = "Confirmar admissão";
+  confirmBar.onclick = confirmAdmissao;
+  main.appendChild(confirmBar);
+}
+
+function renderAdmPolos(peca, tam, container){
+  container.innerHTML = "";
+  const best = POLOS.reduce((a,b)=> getQty(b,peca,tam) > getQty(a,peca,tam) ? b : a, POLOS[0]);
+  POLOS.forEach(polo=>{
+    const q = getQty(polo, peca, tam);
+    const btn = document.createElement("button");
+    const isBest = polo===best && q>0;
+    btn.style.cssText = `margin-right:6px; margin-bottom:6px; padding:8px 12px; border-radius:8px; border:none; font-size:12px; font-weight:700; color:#fff; background:${q===0?'var(--red)':q<LOW_THRESHOLD?'var(--amber)':'var(--green)'};`;
+    btn.textContent = `${polo}: ${q}`;
+    if(isBest && !admKit[peca].polo){ admKit[peca].polo = polo; }
+    btn.onclick = ()=>{
+      admKit[peca].polo = polo;
+      container.querySelectorAll("button").forEach(b=>b.style.outline="none");
+      btn.style.outline = "3px solid var(--ink)";
+    };
+    if(admKit[peca].polo === polo){ btn.style.outline = "3px solid var(--ink)"; }
+    container.appendChild(btn);
+  });
+}
+
+async function confirmAdmissao(){
+  const colaborador = admColab === "__novo__" ? document.getElementById("admColabNovo").value.trim() : admColab;
+  if(!colaborador){ toast("Escolhe ou escreve o colaborador"); return; }
+  if(!admLoja){ toast("Escolhe a loja de destino"); return; }
+  const items = Object.entries(admKit);
+  if(items.length===0){ toast("Escolhe pelo menos uma peça"); return; }
+  const semStock = items.filter(([peca,info])=>!info.polo || getQty(info.polo,peca,info.tamanho)===0);
+  if(semStock.length>0){ toast("Sem stock para: " + semStock.map(([p])=>p).join(", ")); return; }
+
+  const btn = document.getElementById("admConfirmBtn");
+  btn.disabled = true;
+  btn.textContent = "A processar...";
+  try{
+    for(const [peca, info] of items){
+      const atual = getQty(info.polo, peca, info.tamanho);
+      await upsertStock(info.polo, peca, info.tamanho, Math.max(0, atual-1));
+      await logMovimento({polo:info.polo, peca, tamanho:info.tamanho, quantidade:1, tipo:"saida", colaborador_destino:colaborador, loja_destino:admLoja, registado_por:currentUser, nota:"Admissão"});
+    }
+    toast(`Admissão registada — ${items.length} peças descontadas`);
+    await loadStock();
+    render();
+  }catch(e){
+    console.error(e);
+    toast("Erro: " + (e.message||e).slice(0,120));
+    btn.disabled = false;
+    btn.textContent = "Confirmar admissão";
+  }
 }
 
 /* ---------- DISPONIBILIDADE (comparar os 3 polos) ---------- */
