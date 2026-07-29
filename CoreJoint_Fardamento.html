@@ -349,6 +349,15 @@ function openSaida(polo, peca, tamanho){
       colabRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel"));
       c.classList.add("sel");
       document.getElementById("sColabNovo").style.display = "none";
+      // preenche automaticamente a loja mais recente desta pessoa
+      const ultimaLoja = movimentos.find(m=>m.colaborador_destino===name)?.loja_destino;
+      if(ultimaLoja){
+        saidaLoja = ultimaLoja;
+        const chipRow = document.getElementById("sLojaChips");
+        chipRow.querySelectorAll(".chip").forEach(x=>{
+          x.classList.toggle("sel", x.textContent===ultimaLoja);
+        });
+      }
     };
     colabRow.appendChild(c);
   });
