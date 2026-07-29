@@ -69,6 +69,10 @@
   .cam-preview{width:100%; border-radius:10px; margin-top:8px; max-height:220px; object-fit:contain; background:#eee;}
   .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:20px; font-size:14px; z-index:99; opacity:0; transition:opacity .25s;}
   .toast.show{opacity:1;}
+
+  body.dark{ --cream:#1c1a18; --ink:#EDE8E1; --ink-soft:#B8B0A5; --terracotta:#E08A52; --terracotta-dark:#F0A876; --line:#3a3632; --card:#2A2724; }
+  body.dark input, body.dark select, body.dark textarea{ background:#2A2724; color:#EDE8E1; border-color:#3a3632; }
+  body.dark video{ background:#000; }
 </style>
 
 <style>
@@ -85,6 +89,8 @@
 </style>
 </head>
 <body>
+<button id="darkToggle" onclick="toggleDark()" style="position:fixed; top:8px; right:8px; z-index:500; width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--card,#fff); font-size:16px; cursor:pointer;">🌙</button>
+
 
 <div id="login">
   <h1>CoreJoint · Adendas</h1>
@@ -223,6 +229,16 @@ function render(){
   const list = filter==="ativas" ? active : done;
 
   if(filter==="ativas"){
+    if(active.length>0){
+      const summary = document.createElement("div");
+      summary.style.cssText = "display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;";
+      STAGES.forEach((stage, idx)=>{
+        const n = active.filter(r=>currentStageIndex(r)===idx).length;
+        if(n===0) return;
+        summary.innerHTML += `<span style="font-size:11px; font-weight:600; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:4px 10px;">${n} ${stage.label}</span>`;
+      });
+      main.appendChild(summary);
+    }
     // group by stage
     STAGES.forEach((stage, idx)=>{
       const inStage = active.filter(r=>currentStageIndex(r)===idx);
@@ -703,6 +719,16 @@ function gerarRelatorioSemanal(){
 }
 
 if(currentUser){ startApp(); }
+
+function toggleDark(){
+  document.body.classList.toggle("dark");
+  localStorage.setItem("cj_dark_mode", document.body.classList.contains("dark") ? "1" : "0");
+  document.getElementById("darkToggle").textContent = document.body.classList.contains("dark") ? "☀️" : "🌙";
+}
+if(localStorage.getItem("cj_dark_mode")==="1"){
+  document.body.classList.add("dark");
+  setTimeout(()=>{ const b=document.getElementById("darkToggle"); if(b) b.textContent="☀️"; }, 0);
+}
 </script>
 </body>
 </html>
