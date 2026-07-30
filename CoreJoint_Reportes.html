@@ -839,6 +839,121 @@ function monthKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padSta
 function monthLabel(d){ return d.toLocaleDateString('pt-PT',{month:'short'}).replace('.',''); }
 
 /* ---------- GALERIA DE FOTOS DA SEMANA ---------- */
+/* ---------- SONDAGENS RÁPIDAS ---------- */
+let sondagemOpcoes = [];
+let sondagemLojaAlvo = "";
+
+async function openSondagens(){
+  currentView = openSondagens;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = render;
+  main.appendChild(back);
+
+  sondagemOpcoes = [];
+  sondagemLojaAlvo = "";
+
+  const formCard = document.createElement("div");
+  formCard.className = "card";
+  formCard.innerHTML = `
+    <div class="field-label" style="font-weight:600; margin-bottom:6px;">Pergunta</div>
+    <input id="sondPergunta" placeholder="Ex: Já receberam a nova coleção?" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:14px;">
+    <div class="field-label" style="font-weight:600; margin-bottom:6px;">Opções de resposta</div>
+    <div class="chip-row" id="sondOpcoesChips"></div>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <input id="sondNovaOpcao" placeholder="Escreve uma opção..." style="flex:1; padding:9px; border-radius:8px; border:1px solid var(--line);">
+      <button class="cambtn secondary" style="width:auto; padding:9px 14px;" id="sondAddOpcaoBtn">+ Adicionar</button>
+    </div>
+    <div class="field-label" style="font-weight:600; margin:14px 0 6px;">A quem se destina</div>
+    <select id="sondLojaAlvo" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);">
+      <option value="">Todas as lojas</option>
+      ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+    </select>
+    <button class="cambtn" style="width:100%; margin-top:14px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;" id="sondCriarBtn">📊 Criar e enviar sondagem</button>
+  `;
+  main.appendChild(formCard);
+
+  const chipsWrap = formCard.querySelector("#sondOpcoesChips");
+  function renderOpcoes(){
+    chipsWrap.innerHTML = "";
+    sondagemOpcoes.forEach((op, i)=>{
+      const c = document.createElement("div");
+      c.className = "chip sel";
+      c.textContent = op + " ✕";
+      c.onclick = ()=>{ sondagemOpcoes.splice(i,1); renderOpcoes(); };
+      chipsWrap.appendChild(c);
+    });
+  }
+  formCard.querySelector("#sondAddOpcaoBtn").onclick = ()=>{
+    const inp = document.getElementById("sondNovaOpcao");
+    const v = inp.value.trim();
+    if(v){ sondagemOpcoes.push(v); inp.value = ""; renderOpcoes(); }
+  };
+  formCard.querySelector("#sondCriarBtn").onclick = criarSondagem;
+
+  // Sondagens ativas + resultados
+  const sondagens = await api("GET", "cj_sondagens?select=*&order=criado_em.desc");
+  const respostas = await api("GET", "cj_sondagens_respostas?select=*");
+
+  if(sondagens.length>0){
+    const t = document.createElement("div");
+    t.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px;";
+    t.textContent = "Sondagens";
+    main.appendChild(t);
+
+    sondagens.forEach(s=>{
+      const respostasDesta = respostas.filter(r=>r.sondagem_id===s.id);
+      const lojasAlvo = s.loja_alvo ? [s.loja_alvo] : LOJAS;
+      const responderam = respostasDesta.length;
+      const card = document.createElement("div");
+      card.className = "card";
+      let contagem = {};
+      s.opcoes.forEach(op=>contagem[op]=0);
+      respostasDesta.forEach(r=>{ contagem[r.opcao] = (contagem[r.opcao]||0)+1; });
+      let resultadosHtml = Object.entries(contagem).map(([op,n])=>`<div style="display:flex; justify-content:space-between; font-size:13px; padding:3px 0;"><span>${op}</span><span style="font-weight:700;">${n}</span></div>`).join("");
+      const faltam = lojasAlvo.filter(l=>!respostasDesta.some(r=>r.loja===l));
+      card.innerHTML = `
+        <div class="card-title" style="margin-bottom:4px;">${escapeHtmlLocal(s.pergunta)}</div>
+        <div class="card-sub" style="margin-bottom:8px;">${responderam}/${lojasAlvo.length} lojas responderam · ${s.ativa?'ativa':'encerrada'}</div>
+        ${resultadosHtml}
+        ${faltam.length ? `<div class="card-sub" style="margin-top:8px; color:var(--amber);">Faltam: ${faltam.join(", ")}</div>` : ``}
+        ${s.ativa ? `<button class="cambtn secondary" style="width:100%; margin-top:10px;" onclick="encerrarSondagem(${s.id})">Encerrar sondagem</button>` : ``}
+      `;
+      main.appendChild(card);
+    });
+  }
+}
+function escapeHtmlLocal(s){
+  if(!s) return "";
+  return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+async function criarSondagem(){
+  const pergunta = document.getElementById("sondPergunta").value.trim();
+  const loja = document.getElementById("sondLojaAlvo").value;
+  if(!pergunta){ toast("Escreve a pergunta"); return; }
+  if(sondagemOpcoes.length<2){ toast("Adiciona pelo menos 2 opções"); return; }
+  try{
+    await api("POST", "cj_sondagens", {pergunta, opcoes: sondagemOpcoes, loja_alvo: loja || null, criado_por: currentUser});
+    mostrarSucesso("Sondagem criada!");
+    openSondagens();
+  }catch(e){
+    console.error(e);
+    toast("Erro: " + (e.message||e).slice(0,100));
+  }
+}
+async function encerrarSondagem(id){
+  if(!confirm("Encerrar esta sondagem? As lojas deixam de a ver.")) return;
+  try{
+    await api("PATCH", `cj_sondagens?id=eq.${id}`, {ativa:false});
+    toast("Sondagem encerrada");
+    openSondagens();
+  }catch(e){ console.error(e); toast("Erro ao encerrar"); }
+}
+
 function openAgendamentosGlobal(){
   currentView = openAgendamentosGlobal;
   const main = document.getElementById("main");
@@ -1465,7 +1580,8 @@ function renderGestao(){
     {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry},
     {icon:"🖥️", label:"Modo apresentação", fn:openModoApresentacao},
     {icon:"📅", label:"Quem marcou o Global", fn:openAgendamentosGlobal},
-    {icon:"🗓️", label:"Relatório mensal (PDF)", fn:generateMonthlyReport}
+    {icon:"🗓️", label:"Relatório mensal (PDF)", fn:generateMonthlyReport},
+    {icon:"📊", label:"Sondagem rápida", fn:openSondagens}
   ];
   tools.forEach(t=>{
     const tile = document.createElement("button");
