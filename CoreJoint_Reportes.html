@@ -906,7 +906,7 @@ function openHistoricoAnual(){
 }
 
 /* ---------- EXPORTAR PARA EXCEL ---------- */
-function exportarExcel(){
+async function exportarExcel(){
   const wb = XLSX.utils.book_new();
 
   const dailyData = dailyRows.map(r=>({
@@ -927,6 +927,16 @@ function exportarExcel(){
   XLSX.utils.book_append_sheet(wb, wsInv, "Inventario e Marketing");
 
   const fname = `CoreJoint_export_${todayStr()}.xlsx`;
+  const wbout = XLSX.write(wb, {bookType:"xlsx", type:"array"});
+  const blob = new Blob([wbout], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  const file = new File([blob], fname, {type: blob.type});
+
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({files:[file], title:"CoreJoint — Exportação"});
+      return;
+    }catch(e){ /* utilizador cancelou ou falhou — cai para download */ }
+  }
   XLSX.writeFile(wb, fname);
   toast("Ficheiro Excel gerado");
 }
@@ -1249,15 +1259,18 @@ function renderGestao(){
     const overall = anyLate ? "late" : anyPend ? "pend" : "ok";
     const overallColor = overall==="ok" ? "var(--green)" : overall==="late" ? "var(--red)" : "var(--amber)";
     const streak = calcStreak(l);
+    const ultimaAtividade = ultimaAtividadeDias(l);
 
     const card = document.createElement("div");
     card.className = "card";
-    card.style.cssText = "padding:14px 16px; border-left:5px solid " + overallColor + ";";
+    card.style.cssText = "padding:14px 16px; border-left:5px solid " + overallColor + "; cursor:pointer;";
+    card.onclick = ()=>openLojaDetalhe(l);
     const squares = items.map(i=>{
       const bg = i.state==="ok" ? "var(--green)" : i.state==="late" ? "var(--red)" : "var(--amber)";
       return `<div style="width:40px; height:36px; border-radius:6px; background:${bg}; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#fff; text-align:center; line-height:1.1; padding:2px;">${i.label}</div>`;
     }).join("");
     card.innerHTML = `
+      ${ultimaAtividade>=3 ? `<div style="background:var(--red); color:#fff; font-size:11px; font-weight:700; padding:5px 10px; border-radius:8px; margin-bottom:8px;">⚠ Sem qualquer envio há ${ultimaAtividade} dias</div>` : ``}
       <div class="card-top" style="margin-bottom:8px;">
         <div class="card-title">${l}</div>
         ${streak>=2 ? `<div class="status-badge ok">🔥 ${streak} dias</div>` : ``}
@@ -1266,6 +1279,39 @@ function renderGestao(){
     `;
     main.appendChild(card);
   });
+}
+
+function ultimaAtividadeDias(loja){
+  const datas = [];
+  dailyRows.filter(r=>r.loja===loja).forEach(r=>datas.push(r.criado_em || r.data));
+  invRows.filter(r=>r.loja===loja).forEach(r=>datas.push(r.criado_em || r.data));
+  if(datas.length===0) return 999;
+  const maisRecente = datas.map(d=>new Date(d)).sort((a,b)=>b-a)[0];
+  return Math.floor((Date.now() - maisRecente.getTime())/86400000);
+}
+
+function openLojaDetalhe(loja){
+  const prevMode = mode, prevLoja = currentLoja, prevTab = currentTab;
+  mode = "loja";
+  currentLoja = loja;
+  currentTab = "hoje";
+  document.getElementById("titleH1").textContent = loja + " (vista de gestão)";
+  document.getElementById("whoLabel").textContent = "";
+  buildLojaTabs();
+  render();
+  const main = document.getElementById("main");
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel de gestão";
+  back.onclick = ()=>{
+    mode = prevMode; currentLoja = prevLoja; currentTab = prevTab;
+    document.getElementById("titleH1").textContent = "Painel de gestão";
+    document.getElementById("whoLabel").textContent = "Todas as lojas";
+    document.getElementById("tabsRow").innerHTML = "";
+    render();
+  };
+  main.insertBefore(back, main.firstChild);
 }
 
 function calcStreak(loja){
