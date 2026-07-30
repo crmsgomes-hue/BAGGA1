@@ -734,8 +734,8 @@ function openAdmissao(){
       c.className = "chip";
       c.textContent = nome;
       c.onclick = ()=>{
-        admissoesAnteriores[nome].forEach(m=>{ admKit[m.peca] = {tamanho: m.tamanho, polo: null}; });
-        toast(`Tamanhos de ${nome} copiados — confirma o polo de cada peça`);
+        admissoesAnteriores[nome].forEach(m=>{ admKit[m.peca] = {tamanho: null, polo: null}; });
+        toast(`Peças de ${nome} copiadas — escolhe o tamanho de cada uma para esta pessoa`);
         openAdmissao();
       };
       copyRow.appendChild(c);
@@ -782,7 +782,8 @@ function openAdmissao(){
     const card = document.createElement("div");
     card.className = "card";
     card.id = `admPeca-${peca}`;
-    card.innerHTML = `<div class="field-label" style="font-weight:600; margin-bottom:6px;">${peca}</div><div class="chip-row" data-tam-row></div><div data-polo-row style="margin-top:8px;"></div>`;
+    const jaIncluida = admKit[peca] !== undefined;
+    card.innerHTML = `<div class="field-label" style="font-weight:600; margin-bottom:6px;">${peca} ${jaIncluida ? '<span style="color:var(--terracotta);">· incluída — escolhe o tamanho</span>' : ''}</div><div class="chip-row" data-tam-row></div><div data-polo-row style="margin-top:8px;"></div>`;
     main.appendChild(card);
     const tamRow = card.querySelector("[data-tam-row]");
     PECAS[peca].forEach(tam=>{
