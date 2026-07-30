@@ -163,6 +163,7 @@ const LOJAS = [
 let rows = [];
 let selectedColab = "";
 let filter = "ativas";
+let currentView = ()=>render();
 let currentUser = localStorage.getItem("cj_adendas_user") || "";
 let pendingPhoto = null;
 
@@ -191,7 +192,7 @@ async function api(method, path, body){
 async function loadRows(){
   try{
     rows = await api("GET", `${TABLE}?select=*&order=criado_em.desc`);
-    render();
+    currentView();
   }catch(e){
     console.error(e);
     toast("Erro a carregar dados");
@@ -239,6 +240,7 @@ function currentStageIndex(row){
 }
 
 function render(){
+  currentView = render;
   const main = document.getElementById("main");
   main.innerHTML = "";
   const searchEl = document.getElementById("searchColab");
@@ -687,6 +689,7 @@ function monthKeyAd(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padS
 function monthLabelAd(d){ return d.toLocaleDateString('pt-PT',{month:'short'}).replace('.',''); }
 
 function openHistoricoAnual(){
+  currentView = openHistoricoAnual;
   const main = document.getElementById("main");
   main.innerHTML = "";
   const back = document.createElement("button");
