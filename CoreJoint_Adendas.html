@@ -76,6 +76,12 @@
   body.dark{ --cream:#1c1a18; --ink:#EDE8E1; --ink-soft:#B8B0A5; --terracotta:#E08A52; --terracotta-dark:#F0A876; --line:#3a3632; --card:#2A2724; }
   body.dark input, body.dark select, body.dark textarea{ background:#2A2724; color:#EDE8E1; border-color:#3a3632; }
   body.dark video{ background:#000; }
+
+  #successOverlay{ position:fixed; inset:0; z-index:1000; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.35); }
+  #successOverlay .box{ background:var(--green,#3F7D5C); color:#fff; border-radius:20px; padding:32px 40px; text-align:center; animation:successPop .25s ease-out; }
+  #successOverlay .check{ font-size:48px; line-height:1; margin-bottom:8px; }
+  #successOverlay .msg{ font-size:16px; font-weight:600; }
+  @keyframes successPop{ 0%{ transform:scale(.7); opacity:0; } 100%{ transform:scale(1); opacity:1; } }
 </style>
 
 <style>
@@ -92,6 +98,8 @@
 </style>
 </head>
 <body>
+<div id="successOverlay"><div class="box"><div class="check">✔</div><div class="msg" id="successMsg">Guardado!</div></div></div>
+
 <div id="offlineBanner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:900; background:var(--red,#B44435); color:#fff; text-align:center; padding:8px; font-size:13px; font-weight:600;">📴 Sem ligação — o que fizeres fica guardado e envia-se sozinho quando a internet voltar</div>
 
 <button id="helpToggle" onclick="toggleHelp()" style="position:fixed; top:8px; right:52px; z-index:500; width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--card,#fff); font-size:16px; cursor:pointer;">❓</button>
@@ -171,6 +179,12 @@ let filter = "ativas";
 let currentView = ()=>render();
 let currentUser = localStorage.getItem("cj_adendas_user") || "";
 let pendingPhoto = null;
+window.addEventListener("beforeunload", function(e){
+  if(pendingPhoto){
+    e.preventDefault();
+    e.returnValue = "";
+  }
+});
 
 function toast(msg){
   const t = document.getElementById("toast");
@@ -362,10 +376,15 @@ function renderCard(r, stageIdx){
 
   let assinaturaHtml = "";
   if(r.assinada_em){
-    if(r.assinatura_digital){
+    if(r.assinatura_digital === "DISPENSADA"){
+      assinaturaHtml = `<div class="card-meta" style="margin-top:8px; color:var(--ink-soft);">✍️ Assinatura digital dispensada</div>`;
+    } else if(r.assinatura_digital){
       assinaturaHtml = `<div class="card-meta" style="margin-top:8px;">✍️ Assinatura digital guardada <span style="text-decoration:underline; cursor:pointer;" onclick="viewPhoto('${r.assinatura_digital.replace(/'/g,"")}','${(r.colaborador||'adenda').replace(/'/g,"")}')">(ver)</span></div>`;
     } else {
-      assinaturaHtml = `<button class="btn-undo" style="margin-top:8px;" onclick="abrirAssinaturaDigital(${r.id})">✍️ Adicionar assinatura digital (extra ao papel)</button>`;
+      assinaturaHtml = `<div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
+        <button class="btn-undo" style="flex:1;" onclick="abrirAssinaturaDigital(${r.id})">✍️ Adicionar assinatura digital</button>
+        <span style="font-size:12px; color:var(--ink-soft); text-decoration:underline; cursor:pointer; white-space:nowrap;" onclick="dispensarAssinaturaDigital(${r.id})">Dispensar</span>
+      </div>`;
     }
   }
 
@@ -505,6 +524,17 @@ async function marcarTodasEtapa(stageIdx, itens){
   }catch(e){
     console.error(e);
     toast("Erro ao marcar todas — tenta uma a uma");
+  }
+}
+
+async function dispensarAssinaturaDigital(id){
+  try{
+    await api("PATCH", `${TABLE}?id=eq.${id}`, {assinatura_digital: "DISPENSADA", updated_at: new Date().toISOString()});
+    toast("Dispensada");
+    await loadRows();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao dispensar");
   }
 }
 
@@ -715,7 +745,7 @@ async function saveNew(){
       colaborador, tipo, loja,
       criado_em: now, criado_por: currentUser, updated_at: now
     });
-    toast("Adenda criada");
+    mostrarSucesso("Adenda criada!");
     closeNew();
     await loadRows();
   }catch(e){
@@ -905,6 +935,14 @@ function atualizarEstadoLigacao(){
 window.addEventListener("online", atualizarEstadoLigacao);
 window.addEventListener("offline", atualizarEstadoLigacao);
 atualizarEstadoLigacao();
+
+function mostrarSucesso(msg){
+  const o = document.getElementById("successOverlay");
+  if(!o) return;
+  document.getElementById("successMsg").textContent = msg || "Guardado!";
+  o.style.display = "flex";
+  setTimeout(()=>{ o.style.display = "none"; }, 1300);
+}
 </script>
 </body>
 </html>
