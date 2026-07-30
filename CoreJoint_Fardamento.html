@@ -136,6 +136,7 @@ const LOW_THRESHOLD = 5;
 let stockRows = [];
 let currentView = ()=>render();
 let movimentos = [];
+let movimentosEntrada = [];
 let devolucoes = [];
 let currentUser = localStorage.getItem("cj_fard_user") || "";
 let currentPolo = POLOS[0];
@@ -199,6 +200,7 @@ async function loadStock(){
   try{
     stockRows = await api("GET", "cj_fardamento_stock?select=*");
     movimentos = await api("GET", "cj_fardamento_movimentos?select=*&tipo=eq.saida&order=criado_em.desc&limit=200");
+    movimentosEntrada = await api("GET", "cj_fardamento_movimentos?select=*&tipo=eq.entrada&order=criado_em.desc&limit=200");
     devolucoes = await api("GET", "cj_fardamento_devolucoes?select=*&recolhido=eq.false&order=criado_em.desc");
     updateBell();
     currentView();
@@ -461,10 +463,34 @@ function openAlertas(){
   back.onclick = render;
   main.appendChild(back);
 
-  if(alerts.length===0){
+  // Padrão: peças com reposição frequente (3+ nos últimos 30 dias) — sugerir aumentar base
+  const trintaDiasAtras = Date.now() - 30*86400000;
+  const contagemReposicoes = {};
+  movimentosEntrada.filter(m=>new Date(m.criado_em).getTime()>=trintaDiasAtras).forEach(m=>{
+    const chave = `${m.polo}|${m.peca}|${m.tamanho}`;
+    contagemReposicoes[chave] = (contagemReposicoes[chave]||0)+1;
+  });
+  const padroes = Object.entries(contagemReposicoes).filter(([,n])=>n>=3);
+  if(padroes.length>0){
+    const patTitle = document.createElement("div");
+    patTitle.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:10px;";
+    patTitle.textContent = "Padrão detetado — considera aumentar a base";
+    main.appendChild(patTitle);
+    padroes.forEach(([chave,n])=>{
+      const [polo,peca,tam] = chave.split("|");
+      const c = document.createElement("div");
+      c.className = "alert-card";
+      c.style.borderLeftColor = "var(--terracotta)";
+      c.innerHTML = `<div class="an">📈 ${peca} · ${tam}</div><div class="am">${polo} — reposto ${n}x nos últimos 30 dias. Vale a pena aumentar o stock mínimo desta combinação.</div>`;
+      main.appendChild(c);
+    });
+  }
+
+  if(alerts.length===0 && padroes.length===0){
     main.innerHTML += '<div class="empty">Sem alertas — stock acima do mínimo em todos os polos.</div>';
     return;
   }
+  if(alerts.length===0) return;
   const title = document.createElement("div");
   title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:10px;";
   title.textContent = `${alerts.length} combinações abaixo de ${LOW_THRESHOLD} unidades`;
