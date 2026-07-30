@@ -82,9 +82,17 @@
   body.dark{ --cream:#1c1a18; --ink:#EDE8E1; --ink-soft:#B8B0A5; --terracotta:#E08A52; --terracotta-dark:#F0A876; --line:#3a3632; --card:#2A2724; }
   body.dark input, body.dark select, body.dark textarea{ background:#2A2724; color:#EDE8E1; border-color:#3a3632; }
   body.dark video{ background:#000; }
+
+  #successOverlay{ position:fixed; inset:0; z-index:1000; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.35); }
+  #successOverlay .box{ background:var(--green,#3F7D5C); color:#fff; border-radius:20px; padding:32px 40px; text-align:center; animation:successPop .25s ease-out; }
+  #successOverlay .check{ font-size:48px; line-height:1; margin-bottom:8px; }
+  #successOverlay .msg{ font-size:16px; font-weight:600; }
+  @keyframes successPop{ 0%{ transform:scale(.7); opacity:0; } 100%{ transform:scale(1); opacity:1; } }
 </style>
 </head>
 <body>
+<div id="successOverlay"><div class="box"><div class="check">✔</div><div class="msg" id="successMsg">Guardado!</div></div></div>
+
 <div id="offlineBanner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:900; background:var(--red,#B44435); color:#fff; text-align:center; padding:8px; font-size:13px; font-weight:600;">📴 Sem ligação — o que fizeres fica guardado e envia-se sozinho quando a internet voltar</div>
 
 <button id="helpToggle" onclick="toggleHelp()" style="position:fixed; top:8px; left:52px; z-index:500; width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--card,#fff); font-size:16px; cursor:pointer;">❓</button>
@@ -200,6 +208,12 @@ let currentTab = "hoje";
 let dailyRows = [];
 let invRows = [];
 let pendingPhoto = null;
+window.addEventListener("beforeunload", function(e){
+  if(pendingPhoto){
+    e.preventDefault();
+    e.returnValue = "";
+  }
+});
 let pendingPhotoEntrada = null;
 let pendingPhotoDesperdicio = null;
 
@@ -797,7 +811,7 @@ async function confirmCapture(kind, tipoOrCat, turno){
       }
       await insertInv(currentLoja, tipoOrCat, today, url, isNaN(vInv)?null:vInv, isNaN(vCnvs)?null:vCnvs, who, fotoEntradaUrl, fotoDesperdicioUrl);
     }
-    toast("Registado!");
+    mostrarSucesso("Registado!");
     closeCapture();
     await loadAll();
   }catch(e){
@@ -1001,6 +1015,21 @@ function openHistoricoAnual(){
   back.textContent = "← Voltar ao painel";
   back.onclick = render;
   main.appendChild(back);
+
+  const hoje = new Date();
+  const mesAtualLabel = hoje.toLocaleDateString('pt-PT',{month:'long'});
+  const anoAtual = hoje.getFullYear();
+  const yoyCard = document.createElement("div");
+  yoyCard.className = "card";
+  let yoyHtml = `<div class="card-title" style="margin-bottom:8px; text-transform:capitalize;">📊 ${mesAtualLabel} — este ano vs. ano passado</div>`;
+  LOJAS.forEach(l=>{
+    const nEste = invRows.filter(r=>r.loja===l && r.data && new Date(r.data).getFullYear()===anoAtual && new Date(r.data).getMonth()===hoje.getMonth()).length;
+    const nAno = invRows.filter(r=>r.loja===l && r.data && new Date(r.data).getFullYear()===anoAtual-1 && new Date(r.data).getMonth()===hoje.getMonth()).length;
+    const seta = nAno===0 ? "" : nEste>nAno ? " 🔼" : nEste<nAno ? " 🔽" : " ➡";
+    yoyHtml += `<div style="display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:1px solid var(--line);"><span>${l}</span><span>${nEste} vs ${nAno}${seta}</span></div>`;
+  });
+  yoyCard.innerHTML = yoyHtml;
+  main.appendChild(yoyCard);
 
   const months = [];
   for(let i=11;i>=0;i--){
@@ -1594,6 +1623,14 @@ function atualizarEstadoLigacao(){
 window.addEventListener("online", atualizarEstadoLigacao);
 window.addEventListener("offline", atualizarEstadoLigacao);
 atualizarEstadoLigacao();
+
+function mostrarSucesso(msg){
+  const o = document.getElementById("successOverlay");
+  if(!o) return;
+  document.getElementById("successMsg").textContent = msg || "Guardado!";
+  o.style.display = "flex";
+  setTimeout(()=>{ o.style.display = "none"; }, 1300);
+}
 </script>
 </body>
 </html>
