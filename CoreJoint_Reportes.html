@@ -82,6 +82,8 @@
 </style>
 </head>
 <body>
+<div id="offlineBanner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:900; background:var(--red,#B44435); color:#fff; text-align:center; padding:8px; font-size:13px; font-weight:600;">📴 Sem ligação — o que fizeres fica guardado e envia-se sozinho quando a internet voltar</div>
+
 <button id="helpToggle" onclick="toggleHelp()" style="position:fixed; top:8px; right:52px; z-index:500; width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--card,#fff); font-size:16px; cursor:pointer;">❓</button>
 <div id="helpOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:600; align-items:flex-end; justify-content:center;">
   <div style="background:var(--cream,#fff); width:100%; max-width:480px; border-radius:18px 18px 0 0; padding:22px 20px 28px; max-height:80vh; overflow-y:auto; font-size:14px; line-height:1.5;">
@@ -179,6 +181,7 @@ function categoriasParaLoja(loja){
 }
 
 let mode = null; // 'loja' | 'gestao'
+let agendamentos = [];
 let currentView = ()=>render();
 let currentLoja = localStorage.getItem("cj_rep_loja") || null;
 let currentUser = localStorage.getItem("cj_rep_user") || "";
@@ -378,6 +381,7 @@ async function loadAll(){
     const lojaFilter = mode==="loja" ? `&loja=eq.${encodeURIComponent(currentLoja)}` : "";
     dailyRows = await api("GET", `cj_daily_reportes?select=*${lojaFilter}&order=data.desc`);
     invRows = await api("GET", `cj_inventario_reportes?select=*${lojaFilter}&order=data.desc&limit=5000`);
+    agendamentos = await api("GET", `cj_global_agendamento?select=*${lojaFilter}`);
     currentView();
   }catch(e){ console.error(e); toast("Erro a carregar dados"); }
 }
@@ -760,6 +764,43 @@ function monthKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padSta
 function monthLabel(d){ return d.toLocaleDateString('pt-PT',{month:'short'}).replace('.',''); }
 
 /* ---------- GALERIA DE FOTOS DA SEMANA ---------- */
+function openAgendamentosGlobal(){
+  currentView = openAgendamentosGlobal;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = render;
+  main.appendChild(back);
+
+  const mes = new Date().toISOString().slice(0,7);
+  const mesLabel = new Date().toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:14px; text-transform:capitalize;";
+  title.textContent = `Inventário Global — ${mesLabel}`;
+  main.appendChild(title);
+
+  LOJAS.forEach(l=>{
+    const ag = agendamentos.find(a=>a.loja===l && a.mes===mes);
+    const jaEnviado = invRows.some(r=>r.loja===l && r.categoria==="global" && r.data && r.data.slice(0,7)===mes);
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.cssText = "display:flex; justify-content:space-between; align-items:center;";
+    let statusHtml;
+    if(jaEnviado){
+      statusHtml = `<span class="status-badge ok">✔ Já enviado</span>`;
+    } else if(ag){
+      statusHtml = `<span class="status-badge pend">📅 ${new Date(ag.data_agendada+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}</span>`;
+    } else {
+      statusHtml = `<span class="status-badge late">✕ Não marcou</span>`;
+    }
+    card.innerHTML = `<div class="card-title">${l}</div>${statusHtml}`;
+    main.appendChild(card);
+  });
+}
+
 function openModoApresentacao(){
   currentView = openModoApresentacao;
   const main = document.getElementById("main");
@@ -1272,7 +1313,8 @@ function renderGestao(){
     {icon:"🖼️", label:"Galeria fotos", fn:openGaleria},
     {icon:"📈", label:"CNVs Global", fn:openEvolucaoCnvs},
     {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry},
-    {icon:"🖥️", label:"Modo apresentação", fn:openModoApresentacao}
+    {icon:"🖥️", label:"Modo apresentação", fn:openModoApresentacao},
+    {icon:"📅", label:"Quem marcou o Global", fn:openAgendamentosGlobal}
   ];
   tools.forEach(t=>{
     const tile = document.createElement("button");
@@ -1425,6 +1467,15 @@ function toggleHelp(){
   const o = document.getElementById("helpOverlay");
   o.style.display = o.style.display==="none" ? "flex" : "none";
 }
+
+function atualizarEstadoLigacao(){
+  const b = document.getElementById("offlineBanner");
+  if(!b) return;
+  b.style.display = navigator.onLine ? "none" : "block";
+}
+window.addEventListener("online", atualizarEstadoLigacao);
+window.addEventListener("offline", atualizarEstadoLigacao);
+atualizarEstadoLigacao();
 </script>
 </body>
 </html>
