@@ -89,6 +89,8 @@
 </style>
 </head>
 <body>
+<div id="offlineBanner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:900; background:var(--red,#B44435); color:#fff; text-align:center; padding:8px; font-size:13px; font-weight:600;">📴 Sem ligação — o que fizeres fica guardado e envia-se sozinho quando a internet voltar</div>
+
 <button id="helpToggle" onclick="toggleHelp()" style="position:fixed; top:8px; right:52px; z-index:500; width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--card,#fff); font-size:16px; cursor:pointer;">❓</button>
 <div id="helpOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:600; align-items:flex-end; justify-content:center;">
   <div style="background:var(--cream,#fff); width:100%; max-width:480px; border-radius:18px 18px 0 0; padding:22px 20px 28px; max-height:80vh; overflow-y:auto; font-size:14px; line-height:1.5;">
@@ -270,7 +272,15 @@ function render(){
       if(inStage.length===0) return;
       const h = document.createElement("div");
       h.className="section-title";
-      h.textContent = `${stage.label} · ${inStage.length}`;
+      h.style.cssText = "display:flex; justify-content:space-between; align-items:center;";
+      h.innerHTML = `<span>${stage.label} · ${inStage.length}</span>`;
+      if(!stage.needsPhoto && inStage.length>1){
+        const btnAll = document.createElement("button");
+        btnAll.style.cssText = "font-size:11px; font-weight:600; background:var(--terracotta); color:#fff; border:none; border-radius:10px; padding:5px 10px;";
+        btnAll.textContent = `☑ Marcar todas (${inStage.length})`;
+        btnAll.onclick = ()=>marcarTodasEtapa(idx, inStage);
+        h.appendChild(btnAll);
+      }
       main.appendChild(h);
       inStage.sort((a,b)=> new Date(a.updated_at) - new Date(b.updated_at));
       inStage.forEach(r=>main.appendChild(renderCard(r, idx)));
@@ -461,6 +471,28 @@ async function confirmarEntregaColaborador(id, stageIdx){
   const o = document.getElementById("confirmEntregaOverlay");
   if(o) o.remove();
   await commitAdvance(id, stageIdx, null, true);
+}
+
+async function marcarTodasEtapa(stageIdx, itens){
+  if(!confirm(`Marcar "${STAGES[stageIdx].label}" para ${itens.length} adenda(s) de uma vez?`)) return;
+  const stage = STAGES[stageIdx];
+  const now = new Date().toISOString();
+  try{
+    for(const r of itens){
+      const patch = {
+        [stage.nextField]: now,
+        [stage.personField]: currentUser,
+        updated_at: now
+      };
+      if(stageIdx === STAGES.length - 1){ patch.arquivada = true; }
+      await api("PATCH", `${TABLE}?id=eq.${r.id}`, patch);
+    }
+    toast(`${itens.length} adenda(s) atualizadas`);
+    await loadRows();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao marcar todas — tenta uma a uma");
+  }
 }
 
 async function commitAdvance(id, stageIdx, photoDataUrl, confirmadoPeloColaborador){
@@ -770,6 +802,15 @@ function toggleHelp(){
   const o = document.getElementById("helpOverlay");
   o.style.display = o.style.display==="none" ? "flex" : "none";
 }
+
+function atualizarEstadoLigacao(){
+  const b = document.getElementById("offlineBanner");
+  if(!b) return;
+  b.style.display = navigator.onLine ? "none" : "block";
+}
+window.addEventListener("online", atualizarEstadoLigacao);
+window.addEventListener("offline", atualizarEstadoLigacao);
+atualizarEstadoLigacao();
 </script>
 </body>
 </html>
