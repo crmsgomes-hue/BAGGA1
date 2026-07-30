@@ -110,6 +110,14 @@
   <div class="loja-grid" id="lojaGrid"></div>
   <button class="mgmt-btn" onclick="enterGestao()">📊 Ver painel de gestão (todas as lojas)</button>
   <button class="mgmt-btn" style="background:var(--terracotta); margin-top:10px;" id="notifBtn" onclick="ativarNotificacoes()">🔔 Ativar notificações de pendências</button>
+  <div style="width:100%; max-width:420px; margin-top:10px; text-align:left; background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 14px;">
+    <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Que tipos de aviso queres receber?</div>
+    <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:6px;"><input type="checkbox" id="prefVitrineVendas" checked> Vitrine / Vendas</label>
+    <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:6px;"><input type="checkbox" id="prefInventario" checked> Inventário / Marketing</label>
+    <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:6px;"><input type="checkbox" id="prefFardamento" checked> Fardamento</label>
+    <label style="display:flex; align-items:center; gap:8px; font-size:13px;"><input type="checkbox" id="prefAdendas" checked> Adendas</label>
+    <button class="mgmt-btn" style="background:#666; margin-top:10px; padding:9px;" onclick="guardarPreferencias()">Guardar preferências</button>
+  </div>
   <button class="mgmt-btn" style="background:#666; margin-top:10px;" onclick="runDiagnostico()">🔧 Testar ligação (diagnóstico)</button>
   <pre id="diagResult" style="display:none; white-space:pre-wrap; word-break:break-word; background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px; margin-top:14px; font-size:12px; max-width:420px; width:100%; text-align:left;"></pre>
 </div>
@@ -276,10 +284,11 @@ async function ativarNotificacoes(){
     }
     const json = sub.toJSON();
     const filter = `endpoint=eq.${encodeURIComponent(json.endpoint)}`;
-    const patched = await api("PATCH", `cj_push_subscriptions?${filter}`, {p256dh: json.keys.p256dh, auth: json.keys.auth, quem: currentUser || "gestão"});
+    const prefs = lerPreferenciasForm();
+    const patched = await api("PATCH", `cj_push_subscriptions?${filter}`, {p256dh: json.keys.p256dh, auth: json.keys.auth, quem: currentUser || "gestão", preferencias: prefs});
     if(!patched || patched.length===0){
       await api("POST", "cj_push_subscriptions", {
-        endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth, quem: currentUser || "gestão"
+        endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth, quem: currentUser || "gestão", preferencias: prefs
       });
     }
     btn.textContent = "✅ Notificações ativas";
@@ -288,6 +297,32 @@ async function ativarNotificacoes(){
     console.error(e);
     toast("Erro ao ativar: " + (e.message||e).slice(0,100));
     btn.textContent = "🔔 Ativar notificações de pendências";
+  }
+}
+
+function lerPreferenciasForm(){
+  return {
+    vitrine_vendas: document.getElementById("prefVitrineVendas").checked,
+    inventario: document.getElementById("prefInventario").checked,
+    fardamento: document.getElementById("prefFardamento").checked,
+    adendas: document.getElementById("prefAdendas").checked
+  };
+}
+
+async function guardarPreferencias(){
+  try{
+    if(!("serviceWorker" in navigator)){ toast("Ativa primeiro as notificações"); return; }
+    const reg = await navigator.serviceWorker.getRegistration("push/");
+    if(!reg){ toast("Ativa primeiro as notificações"); return; }
+    const sub = await reg.pushManager.getSubscription();
+    if(!sub){ toast("Ativa primeiro as notificações"); return; }
+    const endpoint = sub.toJSON().endpoint;
+    const filter = `endpoint=eq.${encodeURIComponent(endpoint)}`;
+    await api("PATCH", `cj_push_subscriptions?${filter}`, {preferencias: lerPreferenciasForm()});
+    toast("Preferências guardadas");
+  }catch(e){
+    console.error(e);
+    toast("Erro ao guardar preferências");
   }
 }
 
@@ -1055,6 +1090,66 @@ async function exportarExcel(){
   toast("Ficheiro Excel gerado");
 }
 
+function generateMonthlyReport(){
+  const hoje = new Date();
+  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const fimMes = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0);
+  const diasNoMes = [];
+  for(let d=new Date(inicioMes); d<=fimMes; d.setDate(d.getDate()+1)){ diasNoMes.push(isoDate(new Date(d))); }
+  const mesLabel = hoje.toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
+
+  let html = `<h1>CoreJoint · Relatório Mensal</h1><div style="font-size:8px; color:#555; margin-bottom:6px; text-transform:capitalize;">${mesLabel} · Gerado em ${hoje.toLocaleDateString('pt-PT')}</div>`;
+
+  html += `<h2>Vitrine e Vendas — % de dias completos no mês</h2><table><tr><th style="text-align:left;">Loja</th><th>Vitrine completa</th><th>Vendas</th></tr>`;
+  LOJAS.forEach(l=>{
+    const vitOk = diasNoMes.filter(ds=>VITRINE_TURNOS.every(t=>dailyStatus(l,"vitrine",ds,t.key))).length;
+    const vendOk = diasNoMes.filter(ds=>dailyStatus(l,"vendas",ds,"unico")).length;
+    const pctVit = Math.round(vitOk/diasNoMes.length*100);
+    const pctVend = Math.round(vendOk/diasNoMes.length*100);
+    html += `<tr><td class="name">${l}</td><td>${pctVit}%</td><td>${pctVend}%</td></tr>`;
+  });
+  html += `</table>`;
+
+  const semanais = INV_CATS.filter(c=>c.freq==="semanal");
+  html += `<h2>Inventário semanal — quantas vezes enviado no mês (JSC/Café/Laranja)</h2><table><tr><th style="text-align:left;">Loja</th>${semanais.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
+  LOJAS.forEach(l=>{
+    const aplicaveis = categoriasParaLoja(l).map(c=>c.key);
+    const cells = semanais.map(c=>{
+      if(!aplicaveis.includes(c.key)) return "—";
+      const n = invRows.filter(r=>r.loja===l && r.categoria===c.key && r.data>=isoDate(inicioMes) && r.data<=isoDate(fimMes)).length;
+      return n;
+    });
+    html += `<tr><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+  });
+  html += `</table>`;
+
+  const outros = INV_CATS.filter(c=>c.freq!=="semanal");
+  html += `<h2>Tabaco / Global — feito este mês?</h2><table><tr><th style="text-align:left;">Loja</th>${outros.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
+  LOJAS.forEach(l=>{
+    const aplicaveis = categoriasParaLoja(l).map(c=>c.key);
+    const cells = outros.map(c=>{
+      if(!aplicaveis.includes(c.key)) return "—";
+      const feito = invRows.some(r=>r.loja===l && r.categoria===c.key && r.data>=isoDate(inicioMes) && r.data<=isoDate(fimMes));
+      return feito ? "✔" : "✕";
+    });
+    html += `<tr><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+  });
+  html += `</table>`;
+
+  html += `<h2>Marketing — feito nos primeiros 3 dias do mês?</h2><table><tr><th style="text-align:left;">Loja</th>${MARKETING_CATS.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
+  LOJAS.forEach(l=>{
+    const cells = MARKETING_CATS.map(c=>{
+      const feito = invRows.some(r=>r.loja===l && r.categoria===c.key && r.data>=isoDate(inicioMes) && r.data<=isoDate(fimMes));
+      return feito ? "✔" : "✕";
+    });
+    html += `<tr><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+  });
+  html += `</table>`;
+
+  document.getElementById("printReport").innerHTML = html;
+  setTimeout(()=>window.print(), 100);
+}
+
 function generateWeeklyReport(){
   const days = [];
   for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days.push(d); }
@@ -1314,7 +1409,8 @@ function renderGestao(){
     {icon:"📈", label:"CNVs Global", fn:openEvolucaoCnvs},
     {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry},
     {icon:"🖥️", label:"Modo apresentação", fn:openModoApresentacao},
-    {icon:"📅", label:"Quem marcou o Global", fn:openAgendamentosGlobal}
+    {icon:"📅", label:"Quem marcou o Global", fn:openAgendamentosGlobal},
+    {icon:"🗓️", label:"Relatório mensal (PDF)", fn:generateMonthlyReport}
   ];
   tools.forEach(t=>{
     const tile = document.createElement("button");
