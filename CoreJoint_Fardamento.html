@@ -716,32 +716,6 @@ function openAdmissao(){
   title.textContent = "Nova admissão — monta o kit";
   main.appendChild(title);
 
-  // Copiar kit de admissão anterior
-  const admissoesAnteriores = {};
-  movimentos.filter(m=>m.nota==="Admissão").forEach(m=>{
-    if(!admissoesAnteriores[m.colaborador_destino]) admissoesAnteriores[m.colaborador_destino] = [];
-    admissoesAnteriores[m.colaborador_destino].push(m);
-  });
-  const nomesAnteriores = Object.keys(admissoesAnteriores);
-  if(nomesAnteriores.length>0){
-    const copyCard = document.createElement("div");
-    copyCard.className = "card";
-    copyCard.innerHTML = `<div class="field-label" style="font-weight:600; margin-bottom:6px;">Copiar tamanhos de uma admissão anterior (ex: mesmo cargo)</div><div class="chip-row" id="copyKitChips"></div>`;
-    main.appendChild(copyCard);
-    const copyRow = copyCard.querySelector("#copyKitChips");
-    nomesAnteriores.slice(0,8).forEach(nome=>{
-      const c = document.createElement("div");
-      c.className = "chip";
-      c.textContent = nome;
-      c.onclick = ()=>{
-        admissoesAnteriores[nome].forEach(m=>{ admKit[m.peca] = {tamanho: null, polo: null}; });
-        toast(`Peças de ${nome} copiadas — escolhe o tamanho de cada uma para esta pessoa`);
-        openAdmissao();
-      };
-      copyRow.appendChild(c);
-    });
-  }
-
   // Colaborador + loja
   const peopleCard = document.createElement("div");
   peopleCard.className = "card";
@@ -782,8 +756,7 @@ function openAdmissao(){
     const card = document.createElement("div");
     card.className = "card";
     card.id = `admPeca-${peca}`;
-    const jaIncluida = admKit[peca] !== undefined;
-    card.innerHTML = `<div class="field-label" style="font-weight:600; margin-bottom:6px;">${peca} ${jaIncluida ? '<span style="color:var(--terracotta);">· incluída — escolhe o tamanho</span>' : ''}</div><div class="chip-row" data-tam-row></div><div data-polo-row style="margin-top:8px;"></div>`;
+    card.innerHTML = `<div class="field-label" style="font-weight:600; margin-bottom:6px;">${peca}</div><div class="chip-row" data-tam-row></div><div data-polo-row style="margin-top:8px;"></div>`;
     main.appendChild(card);
     const tamRow = card.querySelector("[data-tam-row]");
     PECAS[peca].forEach(tam=>{
