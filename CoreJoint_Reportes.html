@@ -253,6 +253,29 @@ function urlBase64ToUint8Array(base64String){
   return Uint8Array.from([...rawData].map(c=>c.charCodeAt(0)));
 }
 
+async function verificarNotificacoesAtivas(){
+  try{
+    if(!("serviceWorker" in navigator)) return;
+    const reg = await navigator.serviceWorker.getRegistration("push/");
+    if(!reg) return;
+    const sub = await reg.pushManager.getSubscription();
+    const btn = document.getElementById("notifBtn");
+    if(sub && btn){
+      btn.textContent = "✅ Notificações ativas";
+      try{
+        const rows = await api("GET", `cj_push_subscriptions?endpoint=eq.${encodeURIComponent(sub.toJSON().endpoint)}&select=preferencias`);
+        if(rows && rows[0] && rows[0].preferencias){
+          const p = rows[0].preferencias;
+          if("vitrine_vendas" in p) document.getElementById("prefVitrineVendas").checked = p.vitrine_vendas;
+          if("inventario" in p) document.getElementById("prefInventario").checked = p.inventario;
+          if("fardamento" in p) document.getElementById("prefFardamento").checked = p.fardamento;
+          if("adendas" in p) document.getElementById("prefAdendas").checked = p.adendas;
+        }
+      }catch(e){}
+    }
+  }catch(e){ /* silencioso */ }
+}
+
 async function ativarNotificacoes(){
   const btn = document.getElementById("notifBtn");
   if(!("serviceWorker" in navigator) || !("PushManager" in window)){
@@ -1543,6 +1566,7 @@ function calcStreak(loja){
 /* ---------- INIT ---------- */
 buildLojaGrid();
 enterGestao();
+verificarNotificacoesAtivas();
 
 function toggleDark(){
   document.body.classList.toggle("dark");
