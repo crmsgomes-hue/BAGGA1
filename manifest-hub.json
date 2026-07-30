@@ -4,7 +4,7 @@
   "description": "Gestão Operacional · Bagga",
   "id": "corejoint-hub-gestao",
   "start_url": "./CoreJoint_Hub.html?pwa=gestao",
-  "scope": "./",
+  "scope": "./CoreJoint_Hub.html",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F4F1EA",
