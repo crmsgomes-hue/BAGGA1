@@ -302,7 +302,7 @@ async function ativarNotificacoes(){
   try{
     btn.textContent = "A ativar...";
     const perm = await Notification.requestPermission();
-    if(perm !== "granted"){ toast("Permissão não concedida."); btn.textContent = "🔔 Ativar notificações de pendências"; return; }
+    if(perm !== "granted"){ toast(`Permissão devolvida pelo telemóvel: "${perm}" (esperava-se "granted"). Notification.permission = ${Notification.permission}`); btn.textContent = "🔔 Ativar notificações de pendências"; return; }
 
     // limpar registo antigo (scope raiz) que podia entrar em conflito com o sw.js de outras apps
     const existingRegs = await navigator.serviceWorker.getRegistrations();
