@@ -447,18 +447,24 @@ async function partilharFoto(src, nome){
     const filename = `adenda_${(nome||'assinada').replace(/\s+/g,'_')}.jpg`;
     const file = new File([blob], filename, {type:"image/jpeg"});
     if(navigator.canShare && navigator.canShare({files:[file]})){
-      await navigator.share({files:[file], title:"Adenda assinada"});
-    } else {
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      try{
+        await navigator.share({files:[file], title:"Adenda assinada"});
+        return;
+      }catch(shareErr){
+        if(shareErr && shareErr.name === "AbortError") return; // utilizador cancelou, sem erro
+        // partilha falhou a sério — cai para download direto
+      }
     }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast("Foto guardada no telemóvel");
   }catch(e){
     console.error(e);
-    toast("Não foi possível partilhar — tenta guardar a imagem manualmente (toca e mantém).");
+    toast("Não foi possível partilhar — mas a foto continua guardada no histórico da adenda, dá para veres sempre que quiseres.");
   }
 }
 
