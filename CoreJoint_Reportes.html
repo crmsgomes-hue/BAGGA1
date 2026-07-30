@@ -500,22 +500,27 @@ function renderInventario(main){
   categoriasParaLoja(currentLoja).forEach(cat=>{
     const st = invStatus(currentLoja, cat.key, cat.freq);
     const card = document.createElement("div");
+    const problema = st.diaErrado || st.state==="late";
     card.className = "card";
+    if(problema){ card.style.cssText = "background:var(--red); border:none;"; }
     const badgeClass = st.diaErrado ? "pend" : st.state==="ok"?"ok":st.state==="late"?"late":"pend";
     const badgeIcon = st.diaErrado ? "⚠" : st.state==="ok"?"✔":st.state==="late"?"⚠":"⏳";
     const badgeText = st.diaErrado ? "Dia errado" : st.state==="ok"?"Enviado":st.state==="late"?"Atrasado":"Pendente";
     const prazoTxt = st.dowLabel ? `${st.dowLabel}-feira` : `até ${st.window.end.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}`;
     const isAmanha = st.targetDate && st.state==="pend" && isoDate(st.targetDate)===isoDate(new Date(Date.now()+86400000));
+    const titleColor = problema ? "#fff" : "var(--ink)";
+    const subColor = problema ? "rgba(255,255,255,.9)" : "var(--ink-soft)";
     card.innerHTML = `
       <div class="card-top">
-        <div class="card-title">${cat.label}</div>
-        <div class="status-badge ${badgeClass}">${badgeIcon} ${badgeText}</div>
+        <div class="card-title" style="color:${titleColor};">${cat.label}</div>
+        <div class="status-badge ${badgeClass}" style="${problema ? 'background:#fff; color:var(--red);' : ''}">${badgeIcon} ${badgeText}</div>
       </div>
-      <div class="card-sub">Prazo ${prazoTxt}</div>
-      ${isAmanha ? `<div class="card-sub" style="color:var(--amber);">🔔 Amanhã é o dia — não te esqueças</div>` : ``}
-      ${st.diaErrado ? `<div class="card-sub" style="color:var(--red);">Foi enviado, mas não no dia certo (${st.dowLabel}-feira) — é avisado à chefia.</div>` : ``}
-      <button class="cambtn" onclick="openCapture('inv','${cat.key}')">${st.latest ? 'Enviar nova contagem' : '📸 Enviar foto + valores'}</button>
-      ${st.latest ? `<div class="card-sub" style="margin-top:8px; text-decoration:underline; cursor:pointer;" data-toggle-det="${cat.key}">Ver último envio</div><div id="det-${cat.key}" style="display:none; margin-top:6px; font-size:13px; color:var(--ink-soft);">Enviado em ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')} · Inventário: ${st.latest.valor_inventario ?? '-'} €${cat.key==="global" ? ' · CNVs: ' + (st.latest.valor_cnvs ?? '-') + ' €' : ''}</div>` : ``}
+      <div class="card-sub" style="color:${subColor};">Prazo ${prazoTxt}</div>
+      ${isAmanha ? `<div class="card-sub" style="color:var(--amber); font-weight:700;">🔔 Amanhã é o dia — não te esqueças</div>` : ``}
+      ${st.diaErrado ? `<div style="background:rgba(0,0,0,.15); color:#fff; font-weight:700; font-size:13px; padding:8px 10px; border-radius:8px; margin-top:8px;">⚠ Enviaste, mas NÃO no dia certo (${st.dowLabel}-feira). A chefia já foi avisada.</div>` : ``}
+      ${st.state==="late" && !st.diaErrado ? `<div style="background:rgba(0,0,0,.15); color:#fff; font-weight:700; font-size:13px; padding:8px 10px; border-radius:8px; margin-top:8px;">⚠ Ainda NÃO foi feito. Está atrasado e a chefia já foi avisada.</div>` : ``}
+      <button class="cambtn" style="${problema ? 'background:#fff; color:var(--red);' : ''}" onclick="openCapture('inv','${cat.key}')">${st.latest ? 'Enviar nova contagem' : '📸 Enviar foto + valores'}</button>
+      ${st.latest ? `<div class="card-sub" style="margin-top:8px; text-decoration:underline; cursor:pointer; color:${subColor};" data-toggle-det="${cat.key}">Ver último envio</div><div id="det-${cat.key}" style="display:none; margin-top:6px; font-size:13px; color:${subColor};">Enviado em ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')} · Inventário: ${st.latest.valor_inventario ?? '-'} €${cat.key==="global" ? ' · CNVs: ' + (st.latest.valor_cnvs ?? '-') + ' €' : ''}</div>` : ``}
     `;
     main.appendChild(card);
     if(st.latest){
