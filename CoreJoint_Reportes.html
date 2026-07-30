@@ -179,6 +179,7 @@ function categoriasParaLoja(loja){
 }
 
 let mode = null; // 'loja' | 'gestao'
+let currentView = ()=>render();
 let currentLoja = localStorage.getItem("cj_rep_loja") || null;
 let currentUser = localStorage.getItem("cj_rep_user") || "";
 let currentTab = "hoje";
@@ -377,7 +378,7 @@ async function loadAll(){
     const lojaFilter = mode==="loja" ? `&loja=eq.${encodeURIComponent(currentLoja)}` : "";
     dailyRows = await api("GET", `cj_daily_reportes?select=*${lojaFilter}&order=data.desc`);
     invRows = await api("GET", `cj_inventario_reportes?select=*${lojaFilter}&order=data.desc&limit=5000`);
-    render();
+    currentView();
   }catch(e){ console.error(e); toast("Erro a carregar dados"); }
 }
 
@@ -468,6 +469,7 @@ const VITRINE_TURNOS = [
 
 /* ---------- RENDER: LOJA ---------- */
 function render(){
+  currentView = render;
   if(mode==="gestao"){ renderGestao(); return; }
   const main = document.getElementById("main");
   main.innerHTML = "";
@@ -758,7 +760,54 @@ function monthKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padSta
 function monthLabel(d){ return d.toLocaleDateString('pt-PT',{month:'short'}).replace('.',''); }
 
 /* ---------- GALERIA DE FOTOS DA SEMANA ---------- */
+function openModoApresentacao(){
+  currentView = openModoApresentacao;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  document.querySelector("header").style.display = "none";
+
+  const exitBtn = document.createElement("button");
+  exitBtn.className = "cambtn secondary";
+  exitBtn.style.marginBottom = "14px";
+  exitBtn.textContent = "← Sair do modo apresentação";
+  exitBtn.onclick = ()=>{ document.querySelector("header").style.display = ""; render(); };
+  main.appendChild(exitBtn);
+
+  const grid = document.createElement("div");
+  grid.style.cssText = "display:grid; gap:14px;";
+  const today = todayStr();
+  LOJAS.forEach(l=>{
+    const items = [];
+    VITRINE_TURNOS.forEach(t=>{
+      const done = !!dailyStatus(l,"vitrine",today,t.key);
+      items.push({label:t.label.slice(0,3), state: done?"ok":"late"});
+    });
+    { const done = !!dailyStatus(l,"vendas",today,"unico"); items.push({label:"Vend", state: done?"ok":"late"}); }
+    categoriasParaLoja(l).forEach(c=>{
+      const st = invStatus(l,c.key,c.freq);
+      items.push({label:c.label.slice(0,4), state: st.diaErrado ? "diaerrado" : st.state});
+    });
+    MARKETING_CATS.forEach(c=>{
+      const st = invStatus(l,c.key,c.freq);
+      items.push({label:c.label.slice(0,4), state: st.diaErrado ? "diaerrado" : st.state});
+    });
+    const anyLate = items.some(i=>i.state==="late"||i.state==="diaerrado");
+    const anyPend = items.some(i=>i.state==="pend");
+    const overallColor = anyLate ? "var(--red)" : anyPend ? "var(--amber)" : "var(--green)";
+    const card = document.createElement("div");
+    card.style.cssText = `background:var(--card); border-left:8px solid ${overallColor}; border-radius:16px; padding:18px;`;
+    const squares = items.map(i=>{
+      const bg = i.state==="ok" ? "var(--green)" : i.state==="late" ? "var(--red)" : "var(--amber)";
+      return `<div style="min-width:52px; height:48px; border-radius:8px; background:${bg}; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; padding:2px;">${i.label}</div>`;
+    }).join("");
+    card.innerHTML = `<div style="font-family:'Fraunces',Georgia,serif; font-size:22px; font-weight:700; margin-bottom:10px;">${l}</div><div style="display:flex; flex-wrap:wrap; gap:6px;">${squares}</div>`;
+    grid.appendChild(card);
+  });
+  main.appendChild(grid);
+}
+
 function openGaleria(){
+  currentView = openGaleria;
   const main = document.getElementById("main");
   main.innerHTML = "";
   const back = document.createElement("button");
@@ -798,6 +847,7 @@ function openGaleria(){
 
 /* ---------- EVOLUÇÃO CNVS (Global) ---------- */
 function openEvolucaoCnvs(){
+  currentView = openEvolucaoCnvs;
   const main = document.getElementById("main");
   main.innerHTML = "";
   const back = document.createElement("button");
@@ -840,6 +890,7 @@ function openEvolucaoCnvs(){
 }
 
 function openHistoricoAnual(){
+  currentView = openHistoricoAnual;
   const main = document.getElementById("main");
   main.innerHTML = "";
   const back = document.createElement("button");
@@ -1220,7 +1271,8 @@ function renderGestao(){
     {icon:"📥", label:"Excel", fn:exportarExcel},
     {icon:"🖼️", label:"Galeria fotos", fn:openGaleria},
     {icon:"📈", label:"CNVs Global", fn:openEvolucaoCnvs},
-    {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry}
+    {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry},
+    {icon:"🖥️", label:"Modo apresentação", fn:openModoApresentacao}
   ];
   tools.forEach(t=>{
     const tile = document.createElement("button");
