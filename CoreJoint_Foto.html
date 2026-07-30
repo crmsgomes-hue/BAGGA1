@@ -117,7 +117,7 @@ function categoriasParaLoja(loja){
 
 const params = new URLSearchParams(location.search);
 const currentLoja = params.get("loja") || "Loja não identificada";
-let dailyRows = [], invRows = [], agendamentos = [], sondagensPendentes = [];
+let dailyRows = [], invRows = [], agendamentos = [], sondagensPendentes = [], formulariosPendentes = [];
 let pendingPhoto = null;
 window.addEventListener("beforeunload", function(e){
   if(pendingPhoto){
@@ -307,6 +307,12 @@ async function loadAll(){
       (!s.loja_alvo || s.loja_alvo===currentLoja) &&
       !minhasRespostas.some(r=>r.sondagem_id===s.id)
     );
+    const todosFormularios = await api("GET", "cj_formularios?select=*&ativa=eq.true");
+    const minhasRespostasForm = await api("GET", `cj_formularios_respostas?select=*${f}`);
+    formulariosPendentes = todosFormularios.filter(fm=>
+      (!fm.loja_alvo || fm.loja_alvo===currentLoja) &&
+      !minhasRespostasForm.some(r=>r.formulario_id===fm.id)
+    );
     render();
   }catch(e){ console.error(e); toast("Erro a carregar"); }
 }
@@ -334,6 +340,14 @@ function render(){
     card.querySelectorAll("[data-op]").forEach(btn=>{
       btn.onclick = ()=>responderSondagem(s.id, btn.getAttribute("data-op"));
     });
+    main.appendChild(card);
+  });
+
+  formulariosPendentes.forEach(fm=>{
+    const card = document.createElement("div");
+    card.style.cssText = "background:var(--terracotta,#C1622E); color:#fff; border-radius:16px; padding:18px; margin-bottom:14px;";
+    card.innerHTML = `<div style="font-size:11px; text-transform:uppercase; letter-spacing:.05em; opacity:.85; margin-bottom:6px;">📝 Formulário</div><div style="font-weight:700; font-size:16px; margin-bottom:12px;">${fm.titulo}</div><button style="background:#fff; color:var(--ink,#2B2723); border:none; border-radius:10px; padding:12px 20px; font-size:14px; font-weight:600;">Responder (${fm.perguntas.length} pergunta${fm.perguntas.length>1?'s':''})</button>`;
+    card.querySelector("button").onclick = ()=>abrirFormularioResposta(fm);
     main.appendChild(card);
   });
 
@@ -591,6 +605,57 @@ function handleCapFile(e){
   };
   reader.readAsDataURL(file);
 }
+function abrirFormularioResposta(fm){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "formRespOverlay";
+  let camposHtml = fm.perguntas.map(p=>{
+    if(p.tipo==="escolha"){
+      return `<div class="field"><label>${p.texto}</label><select id="fresp-${p.id}" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);">
+        <option value="">Escolhe...</option>
+        ${p.opcoes.map(o=>`<option>${o}</option>`).join("")}
+      </select></div>`;
+    }
+    if(p.tipo==="numero"){
+      return `<div class="field"><label>${p.texto}</label><input id="fresp-${p.id}" type="number" inputmode="decimal" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);"></div>`;
+    }
+    return `<div class="field"><label>${p.texto}</label><input id="fresp-${p.id}" type="text" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);"></div>`;
+  }).join("");
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>${fm.titulo}</h2>
+      ${camposHtml}
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="document.getElementById('formRespOverlay').remove()">Cancelar</button>
+        <button class="btn-save" onclick="submeterFormulario(${fm.id})">Enviar respostas</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.__perguntas = fm.perguntas;
+}
+
+async function submeterFormulario(formularioId){
+  const overlay = document.getElementById("formRespOverlay");
+  const perguntas = overlay.__perguntas;
+  const respostas = {};
+  for(const p of perguntas){
+    const el = document.getElementById(`fresp-${p.id}`);
+    const v = el ? el.value.trim() : "";
+    if(!v){ toast(`Responde a: ${p.texto}`); return; }
+    respostas[p.id] = v;
+  }
+  try{
+    await api("POST", "cj_formularios_respostas", {formulario_id: formularioId, loja: currentLoja, respostas});
+    overlay.remove();
+    mostrarSucesso("Formulário enviado!");
+    await loadAll();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao enviar: " + (e.message||e).slice(0,100));
+  }
+}
+
 async function responderSondagem(sondagemId, opcao){
   try{
     await api("POST", "cj_sondagens_respostas", {sondagem_id: sondagemId, loja: currentLoja, opcao});
