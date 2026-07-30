@@ -994,6 +994,173 @@ async function encerrarSondagem(id){
   }catch(e){ console.error(e); toast("Erro ao encerrar"); }
 }
 
+/* ---------- FORMULÁRIOS (várias perguntas, tipos diferentes) ---------- */
+let formPerguntas = [];
+
+async function openFormularios(){
+  currentView = openFormularios;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = render;
+  main.appendChild(back);
+
+  formPerguntas = [];
+
+  const formCard = document.createElement("div");
+  formCard.className = "card";
+  formCard.innerHTML = `
+    <div class="field-label" style="font-weight:600; margin-bottom:6px;">Título do formulário</div>
+    <input id="formTitulo" placeholder="Ex: Checklist de abertura" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:14px;">
+    <div class="field-label" style="font-weight:600; margin-bottom:6px;">Perguntas</div>
+    <div id="formPerguntasList"></div>
+    <div style="background:var(--cream); border-radius:10px; padding:12px; margin-top:8px;">
+      <input id="formNovaPergunta" placeholder="Escreve a pergunta..." style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:8px;">
+      <select id="formNovoTipo" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:8px;">
+        <option value="texto">Resposta de texto</option>
+        <option value="numero">Número</option>
+        <option value="escolha">Escolha (opções)</option>
+      </select>
+      <input id="formNovasOpcoes" placeholder="Opções separadas por vírgula (só se for Escolha)" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:8px; display:none;">
+      <button class="cambtn secondary" style="width:100%;" id="formAddPerguntaBtn">+ Adicionar pergunta</button>
+    </div>
+    <div class="field-label" style="font-weight:600; margin:14px 0 6px;">A quem se destina</div>
+    <select id="formLojaAlvo" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);">
+      <option value="">Todas as lojas</option>
+      ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+    </select>
+    <button class="cambtn" style="width:100%; margin-top:14px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;" id="formCriarBtn">📝 Criar e enviar formulário</button>
+  `;
+  main.appendChild(formCard);
+
+  const tipoSel = formCard.querySelector("#formNovoTipo");
+  const opcoesInp = formCard.querySelector("#formNovasOpcoes");
+  tipoSel.onchange = ()=>{ opcoesInp.style.display = tipoSel.value==="escolha" ? "block" : "none"; };
+
+  const listWrap = formCard.querySelector("#formPerguntasList");
+  function renderPerguntas(){
+    listWrap.innerHTML = formPerguntas.map((p,i)=>
+      `<div style="display:flex; justify-content:space-between; align-items:center; background:var(--cream); border-radius:8px; padding:8px 10px; margin-bottom:6px; font-size:13px;">
+        <span>${i+1}. ${escapeHtmlLocal(p.texto)} <span style="color:var(--ink-soft);">(${p.tipo}${p.opcoes?': '+p.opcoes.join(', '):''})</span></span>
+        <span style="cursor:pointer;" data-del="${i}">✕</span>
+      </div>`
+    ).join("");
+    listWrap.querySelectorAll("[data-del]").forEach(el=>{
+      el.onclick = ()=>{ formPerguntas.splice(parseInt(el.getAttribute("data-del")),1); renderPerguntas(); };
+    });
+  }
+  formCard.querySelector("#formAddPerguntaBtn").onclick = ()=>{
+    const texto = document.getElementById("formNovaPergunta").value.trim();
+    const tipo = tipoSel.value;
+    if(!texto){ toast("Escreve a pergunta"); return; }
+    const p = {id: "p"+Date.now(), texto, tipo};
+    if(tipo==="escolha"){
+      const ops = document.getElementById("formNovasOpcoes").value.split(",").map(o=>o.trim()).filter(Boolean);
+      if(ops.length<2){ toast("Escreve pelo menos 2 opções separadas por vírgula"); return; }
+      p.opcoes = ops;
+    }
+    formPerguntas.push(p);
+    document.getElementById("formNovaPergunta").value = "";
+    document.getElementById("formNovasOpcoes").value = "";
+    renderPerguntas();
+  };
+  formCard.querySelector("#formCriarBtn").onclick = criarFormulario;
+
+  const formularios = await api("GET", "cj_formularios?select=*&order=criado_em.desc");
+  const todasRespostas = await api("GET", "cj_formularios_respostas?select=*");
+
+  if(formularios.length>0){
+    const t = document.createElement("div");
+    t.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px;";
+    t.textContent = "Formulários (histórico completo)";
+    main.appendChild(t);
+
+    window.__formulariosCache = window.__formulariosCache || {};
+
+    formularios.forEach(f=>{
+      const respostasDeste = todasRespostas.filter(r=>r.formulario_id===f.id);
+      window.__formulariosCache[f.id] = {formulario: f, respostas: respostasDeste};
+      const lojasAlvo = f.loja_alvo ? [f.loja_alvo] : LOJAS;
+      const faltam = lojasAlvo.filter(l=>!respostasDeste.some(r=>r.loja===l));
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="card-title" style="margin-bottom:4px;">${escapeHtmlLocal(f.titulo)}</div>
+        <div class="card-sub" style="margin-bottom:8px;">${respostasDeste.length}/${lojasAlvo.length} lojas responderam · ${f.ativa?'ativo':'encerrado'} · ${new Date(f.criado_em).toLocaleDateString('pt-PT')}</div>
+        ${faltam.length ? `<div class="card-sub" style="color:var(--amber); margin-bottom:8px;">Faltam: ${faltam.join(", ")}</div>` : ``}
+        <div style="display:flex; gap:8px;">
+          <button class="cambtn secondary" style="flex:1; padding:9px;" onclick="exportarFormularioPDF(${f.id})">🖨️ PDF</button>
+          <button class="cambtn secondary" style="flex:1; padding:9px;" onclick="exportarFormularioExcel(${f.id})">📥 Excel</button>
+        </div>
+        ${f.ativa ? `<button class="cambtn secondary" style="width:100%; margin-top:8px;" onclick="encerrarFormulario(${f.id})">Encerrar formulário</button>` : ``}
+      `;
+      main.appendChild(card);
+    });
+  }
+}
+
+async function criarFormulario(){
+  const titulo = document.getElementById("formTitulo").value.trim();
+  const loja = document.getElementById("formLojaAlvo").value;
+  if(!titulo){ toast("Escreve o título"); return; }
+  if(formPerguntas.length===0){ toast("Adiciona pelo menos 1 pergunta"); return; }
+  try{
+    await api("POST", "cj_formularios", {titulo, perguntas: formPerguntas, loja_alvo: loja || null, criado_por: currentUser});
+    mostrarSucesso("Formulário criado!");
+    openFormularios();
+  }catch(e){
+    console.error(e);
+    toast("Erro: " + (e.message||e).slice(0,100));
+  }
+}
+async function encerrarFormulario(id){
+  if(!confirm("Encerrar este formulário? As lojas deixam de o ver.")) return;
+  try{
+    await api("PATCH", `cj_formularios?id=eq.${id}`, {ativa:false});
+    toast("Formulário encerrado");
+    openFormularios();
+  }catch(e){ console.error(e); toast("Erro ao encerrar"); }
+}
+
+function exportarFormularioPDF(id){
+  const data = window.__formulariosCache && window.__formulariosCache[id];
+  if(!data) return;
+  const { formulario: f, respostas } = data;
+  const lojasAlvo = f.loja_alvo ? [f.loja_alvo] : LOJAS;
+  let html = `<h1>CoreJoint · Formulário</h1><div style="font-size:8px; color:#555; margin-bottom:6px;">${f.titulo} · Criado em ${new Date(f.criado_em).toLocaleDateString('pt-PT')} · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
+  html += `<table><tr><th style="text-align:left;">Loja</th>${f.perguntas.map(p=>`<th>${p.texto}</th>`).join("")}</tr>`;
+  lojasAlvo.forEach(l=>{
+    const r = respostas.find(x=>x.loja===l);
+    const cells = f.perguntas.map(p=> r && r.respostas[p.id]!==undefined ? r.respostas[p.id] : "—");
+    html += `<tr><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+  });
+  html += `</table>`;
+  document.getElementById("printReport").innerHTML = html;
+  setTimeout(()=>window.print(), 100);
+}
+
+function exportarFormularioExcel(id){
+  const data = window.__formulariosCache && window.__formulariosCache[id];
+  if(!data) return;
+  const { formulario: f, respostas } = data;
+  const lojasAlvo = f.loja_alvo ? [f.loja_alvo] : LOJAS;
+  const wb = XLSX.utils.book_new();
+  const rows = lojasAlvo.map(l=>{
+    const r = respostas.find(x=>x.loja===l);
+    const row = { Loja: l };
+    f.perguntas.forEach(p=>{ row[p.texto] = r && r.respostas[p.id]!==undefined ? r.respostas[p.id] : ""; });
+    row["Respondido em"] = r ? r.respondido_em : "";
+    return row;
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, "Formulario");
+  XLSX.writeFile(wb, `CoreJoint_formulario_${id}.xlsx`);
+  toast("Ficheiro Excel gerado");
+}
+
 function openAgendamentosGlobal(){
   currentView = openAgendamentosGlobal;
   const main = document.getElementById("main");
@@ -1621,7 +1788,8 @@ function renderGestao(){
     {icon:"🖥️", label:"Modo apresentação", fn:openModoApresentacao},
     {icon:"📅", label:"Quem marcou o Global", fn:openAgendamentosGlobal},
     {icon:"🗓️", label:"Relatório mensal (PDF)", fn:generateMonthlyReport},
-    {icon:"📊", label:"Sondagem rápida", fn:openSondagens}
+    {icon:"📊", label:"Sondagem rápida", fn:openSondagens},
+    {icon:"📝", label:"Formulário", fn:openFormularios}
   ];
   tools.forEach(t=>{
     const tile = document.createElement("button");
