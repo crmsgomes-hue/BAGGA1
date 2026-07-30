@@ -971,12 +971,45 @@ function openHistorico(){
   const toggleRow = document.createElement("div");
   toggleRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px;";
   toggleRow.innerHTML = `
-    <button style="flex:1; padding:9px; border-radius:10px; border:1px solid var(--line); background:${histView==='data'?'var(--ink)':'#fff'}; color:${histView==='data'?'#fff':'var(--ink)'}; font-size:13px; font-weight:600;" id="histTabData">Por data</button>
-    <button style="flex:1; padding:9px; border-radius:10px; border:1px solid var(--line); background:${histView==='colab'?'var(--ink)':'#fff'}; color:${histView==='colab'?'#fff':'var(--ink)'}; font-size:13px; font-weight:600;" id="histTabColab">Por colaborador</button>
+    <button style="flex:1; padding:9px; border-radius:10px; border:1px solid var(--line); background:${histView==='data'?'var(--ink)':'#fff'}; color:${histView==='data'?'#fff':'var(--ink)'}; font-size:12px; font-weight:600;" id="histTabData">Por data</button>
+    <button style="flex:1; padding:9px; border-radius:10px; border:1px solid var(--line); background:${histView==='colab'?'var(--ink)':'#fff'}; color:${histView==='colab'?'#fff':'var(--ink)'}; font-size:12px; font-weight:600;" id="histTabColab">Por colaborador</button>
+    <button style="flex:1; padding:9px; border-radius:10px; border:1px solid var(--line); background:${histView==='admissoes'?'var(--ink)':'#fff'}; color:${histView==='admissoes'?'#fff':'var(--ink)'}; font-size:12px; font-weight:600;" id="histTabAdm">Admissões</button>
   `;
   main.appendChild(toggleRow);
   toggleRow.querySelector("#histTabData").onclick = ()=>{ histView="data"; openHistorico(); };
   toggleRow.querySelector("#histTabColab").onclick = ()=>{ histView="colab"; openHistorico(); };
+  toggleRow.querySelector("#histTabAdm").onclick = ()=>{ histView="admissoes"; openHistorico(); };
+
+  if(histView==="admissoes"){
+    const admissoes = movimentos.filter(m=>m.nota==="Admissão");
+    if(admissoes.length===0){
+      main.innerHTML += '<div class="empty">Ainda não há admissões registadas.</div>';
+      return;
+    }
+    const meses = {};
+    admissoes.forEach(m=>{
+      const d = new Date(m.criado_em);
+      const mk = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+      if(!meses[mk]) meses[mk] = {};
+      if(!meses[mk][m.polo]) meses[mk][m.polo] = new Set();
+      meses[mk][m.polo].add(m.colaborador_destino);
+    });
+    Object.keys(meses).sort().reverse().forEach(mk=>{
+      const [ano,mes] = mk.split("-");
+      const label = new Date(ano, mes-1, 1).toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
+      const card = document.createElement("div");
+      card.className = "card";
+      let linhas = POLOS.map(polo=>{
+        const n = meses[mk][polo] ? meses[mk][polo].size : 0;
+        if(n===0) return "";
+        return `<div style="display:flex; justify-content:space-between; font-size:13px; padding:4px 0; border-bottom:1px solid var(--line);"><span>${polo}</span><span style="font-weight:700;">${n} admissã${n>1?'ões':'o'}</span></div>`;
+      }).join("");
+      const total = Object.values(meses[mk]).reduce((a,s)=>a+s.size,0);
+      card.innerHTML = `<div style="font-family:'Fraunces',Georgia,serif; font-weight:600; margin-bottom:6px; text-transform:capitalize;">${label} · ${total} no total</div>${linhas}`;
+      main.appendChild(card);
+    });
+    return;
+  }
 
   if(histView==="colab"){
     const porColab = {};
