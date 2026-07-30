@@ -902,11 +902,14 @@ async function openSondagens(){
   if(sondagens.length>0){
     const t = document.createElement("div");
     t.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px;";
-    t.textContent = "Sondagens";
+    t.textContent = "Sondagens (histórico completo)";
     main.appendChild(t);
+
+    window.__sondagensCache = window.__sondagensCache || {};
 
     sondagens.forEach(s=>{
       const respostasDesta = respostas.filter(r=>r.sondagem_id===s.id);
+      window.__sondagensCache[s.id] = {sondagem: s, respostas: respostasDesta};
       const lojasAlvo = s.loja_alvo ? [s.loja_alvo] : LOJAS;
       const responderam = respostasDesta.length;
       const card = document.createElement("div");
@@ -918,10 +921,14 @@ async function openSondagens(){
       const faltam = lojasAlvo.filter(l=>!respostasDesta.some(r=>r.loja===l));
       card.innerHTML = `
         <div class="card-title" style="margin-bottom:4px;">${escapeHtmlLocal(s.pergunta)}</div>
-        <div class="card-sub" style="margin-bottom:8px;">${responderam}/${lojasAlvo.length} lojas responderam · ${s.ativa?'ativa':'encerrada'}</div>
+        <div class="card-sub" style="margin-bottom:8px;">${responderam}/${lojasAlvo.length} lojas responderam · ${s.ativa?'ativa':'encerrada'} · ${new Date(s.criado_em).toLocaleDateString('pt-PT')}</div>
         ${resultadosHtml}
         ${faltam.length ? `<div class="card-sub" style="margin-top:8px; color:var(--amber);">Faltam: ${faltam.join(", ")}</div>` : ``}
-        ${s.ativa ? `<button class="cambtn secondary" style="width:100%; margin-top:10px;" onclick="encerrarSondagem(${s.id})">Encerrar sondagem</button>` : ``}
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button class="cambtn secondary" style="flex:1; padding:9px;" onclick="exportarSondagemPDF(${s.id})">🖨️ PDF</button>
+          <button class="cambtn secondary" style="flex:1; padding:9px;" onclick="exportarSondagemExcel(${s.id})">📥 Excel</button>
+        </div>
+        ${s.ativa ? `<button class="cambtn secondary" style="width:100%; margin-top:8px;" onclick="encerrarSondagem(${s.id})">Encerrar sondagem</button>` : ``}
       `;
       main.appendChild(card);
     });
@@ -945,6 +952,39 @@ async function criarSondagem(){
     toast("Erro: " + (e.message||e).slice(0,100));
   }
 }
+function exportarSondagemPDF(id){
+  const data = window.__sondagensCache && window.__sondagensCache[id];
+  if(!data) return;
+  const { sondagem: s, respostas } = data;
+  const lojasAlvo = s.loja_alvo ? [s.loja_alvo] : LOJAS;
+  let html = `<h1>CoreJoint · Sondagem</h1><div style="font-size:8px; color:#555; margin-bottom:6px;">Criada em ${new Date(s.criado_em).toLocaleDateString('pt-PT')} · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
+  html += `<h2>${s.pergunta}</h2>`;
+  html += `<table><tr><th style="text-align:left;">Loja</th><th>Resposta</th></tr>`;
+  lojasAlvo.forEach(l=>{
+    const r = respostas.find(x=>x.loja===l);
+    html += `<tr><td class="name">${l}</td><td>${r ? r.opcao : '— sem resposta —'}</td></tr>`;
+  });
+  html += `</table>`;
+  document.getElementById("printReport").innerHTML = html;
+  setTimeout(()=>window.print(), 100);
+}
+
+function exportarSondagemExcel(id){
+  const data = window.__sondagensCache && window.__sondagensCache[id];
+  if(!data) return;
+  const { sondagem: s, respostas } = data;
+  const lojasAlvo = s.loja_alvo ? [s.loja_alvo] : LOJAS;
+  const wb = XLSX.utils.book_new();
+  const rows = lojasAlvo.map(l=>{
+    const r = respostas.find(x=>x.loja===l);
+    return { Loja: l, Resposta: r ? r.opcao : "— sem resposta —", "Respondido em": r ? r.respondido_em : "" };
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, "Sondagem");
+  XLSX.writeFile(wb, `CoreJoint_sondagem_${id}.xlsx`);
+  toast("Ficheiro Excel gerado");
+}
+
 async function encerrarSondagem(id){
   if(!confirm("Encerrar esta sondagem? As lojas deixam de a ver.")) return;
   try{
