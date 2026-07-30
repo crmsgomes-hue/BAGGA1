@@ -48,6 +48,22 @@
 </style>
 </head>
 <body>
+<button id="helpToggle" onclick="toggleHelp()" style="position:fixed; top:8px; right:52px; z-index:500; width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--card,#fff); font-size:16px; cursor:pointer;">❓</button>
+<div id="helpOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:600; align-items:flex-end; justify-content:center;">
+  <div style="background:var(--cream,#fff); width:100%; max-width:480px; border-radius:18px 18px 0 0; padding:22px 20px 28px; max-height:80vh; overflow-y:auto; font-size:14px; line-height:1.5;">
+    
+      <h2 style="margin-bottom:10px;">Como usar este link</h2>
+      <p>Este link é só desta loja — não precisas de login.</p>
+      <p><b>Vitrine:</b> tira a foto de manhã, ao almoço e ao lanche.</p>
+      <p><b>Vendas:</b> tira a foto no final do dia.</p>
+      <p><b>Inventário:</b> só aparece quando estiver pendente ou atrasado — toca para tirar a foto e preencher os valores.</p>
+      <p><b>Marketing:</b> Cavalete, Toalhetes, Orelhas — só nos primeiros dias do mês.</p>
+      <p>Se ficares sem internet, a foto fica guardada e é enviada sozinha assim que a ligação voltar.</p>
+    
+    <button onclick="toggleHelp()" style="width:100%; margin-top:14px; background:var(--ink,#333); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;">Fechar</button>
+  </div>
+</div>
+
 <button id="darkToggle" onclick="toggleDark()" style="position:fixed; top:8px; right:8px; z-index:500; width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--card,#fff); font-size:16px; cursor:pointer;">🌙</button>
 
 <header>
@@ -549,6 +565,11 @@ function toggleDark(){
 if(localStorage.getItem("cj_dark_mode")==="1"){
   document.body.classList.add("dark");
   setTimeout(()=>{ const b=document.getElementById("darkToggle"); if(b) b.textContent="☀️"; }, 0);
+}
+
+function toggleHelp(){
+  const o = document.getElementById("helpOverlay");
+  o.style.display = o.style.display==="none" ? "flex" : "none";
 }
 </script>
 </body>
