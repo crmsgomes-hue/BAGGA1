@@ -144,6 +144,7 @@
       <button style="flex:1; background:none; border:1px solid var(--line); color:var(--ink-soft); padding:8px; border-radius:10px; font-size:12px;" onclick="openHistoricoAnual()">📅 Histórico (12 meses)</button>
       <button style="flex:1; background:none; border:1px solid var(--line); color:var(--ink-soft); padding:8px; border-radius:10px; font-size:12px;" onclick="gerarRelatorioSemanal()">🖨️ Relatório semanal (PDF)</button>
     </div>
+    <button style="width:100%; background:none; border:1px solid var(--line); color:var(--ink-soft); padding:8px; border-radius:10px; font-size:12px; margin-top:8px;" onclick="openGaleriaAdendas()">🖼️ Galeria de fotos das adendas</button>
     <div class="tabs">
       <div class="tab active" data-f="ativas" onclick="setFilter('ativas')">Em curso</div>
       <div class="tab" data-f="concluidas" onclick="setFilter('concluidas')">Concluídas</div>
@@ -849,6 +850,59 @@ async function saveWithPhoto(id, stageIdx){
 /* ---------- HISTÓRICO 12 MESES ---------- */
 function monthKeyAd(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
 function monthLabelAd(d){ return d.toLocaleDateString('pt-PT',{month:'short'}).replace('.',''); }
+
+function openGaleriaAdendas(){
+  currentView = openGaleriaAdendas;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar";
+  back.onclick = render;
+  main.appendChild(back);
+
+  const searchDiv = document.createElement("input");
+  searchDiv.placeholder = "🔎 Procurar por colaborador ou loja...";
+  searchDiv.style.cssText = "width:100%; padding:9px 12px; border-radius:10px; border:1px solid var(--line); font-size:14px; margin-bottom:14px;";
+  main.appendChild(searchDiv);
+
+  const listDiv = document.createElement("div");
+  main.appendChild(listDiv);
+
+  function renderLista(){
+    const termo = searchDiv.value.trim().toLowerCase();
+    const comFoto = rows.filter(r => r.foto_assinada || r.assinatura_digital && r.assinatura_digital !== "DISPENSADA");
+    const filtrados = termo ? comFoto.filter(r =>
+      (r.colaborador||"").toLowerCase().includes(termo) || (r.loja||"").toLowerCase().includes(termo)
+    ) : comFoto;
+    filtrados.sort((a,b)=> new Date(b.assinada_em||b.criado_em) - new Date(a.assinada_em||a.criado_em));
+
+    if(filtrados.length===0){
+      listDiv.innerHTML = '<div class="empty">Sem fotos encontradas.</div>';
+      return;
+    }
+    listDiv.innerHTML = "";
+    filtrados.forEach(r=>{
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.cssText = "display:flex; gap:12px; align-items:center;";
+      const fotoPrincipal = r.foto_assinada || r.assinatura_digital;
+      card.innerHTML = `
+        <img src="${fotoPrincipal}" style="width:64px; height:64px; object-fit:cover; border-radius:10px; border:1px solid var(--line); cursor:pointer; flex:none;">
+        <div style="flex:1;">
+          <div style="font-weight:600;">${escapeHtml(r.colaborador)}</div>
+          <div class="card-sub">${escapeHtml(r.loja||'')} · ${escapeHtml(r.tipo||'Adenda')}</div>
+          <div class="card-sub">${r.assinada_em ? new Date(r.assinada_em).toLocaleDateString('pt-PT') : ''}</div>
+        </div>
+      `;
+      card.querySelector("img").onclick = ()=>viewPhoto(fotoPrincipal.replace(/'/g,""), r.colaborador||'adenda');
+      listDiv.appendChild(card);
+    });
+  }
+  searchDiv.oninput = renderLista;
+  renderLista();
+}
 
 function openHistoricoAnual(){
   currentView = openHistoricoAnual;
