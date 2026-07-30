@@ -286,7 +286,7 @@ function render(){
       if(c.st.diaErrado){
         const card = document.createElement("div");
         card.className = "warn-card";
-        card.textContent = `⚠ ${c.label}: enviado, mas não em ${c.st.dowLabel}-feira (dia certo) — avisado à chefia.`;
+        card.innerHTML = `⚠ <b>${c.label}</b>: enviaste, mas NÃO em ${c.st.dowLabel}-feira (dia certo). A chefia já foi avisada.`;
         wrap.appendChild(card);
         main.appendChild(wrap);
         return;
@@ -294,15 +294,12 @@ function render(){
       const btn = document.createElement("button");
       btn.className = "big-btn";
       const isAmanha = c.st.targetDate && !late && isoDate(c.st.targetDate)===isoDate(new Date(Date.now()+86400000));
-      btn.innerHTML = `<div class="icon">📦</div><div class="txt"><div class="t">${c.label}</div><div class="d">${late?'Atrasado':isAmanha?'Amanhã é o dia':'Por enviar'}</div></div><div class="status">${late?'🔴':isAmanha?'🔔':'⏳'}</div>`;
+      if(late){ btn.style.cssText = "background:var(--red); border:none;"; }
+      const textColor = late ? "#fff" : "var(--ink)";
+      const subColor = late ? "rgba(255,255,255,.9)" : "var(--ink-soft)";
+      btn.innerHTML = `<div class="icon">📦</div><div class="txt"><div class="t" style="color:${textColor};">${c.label}</div><div class="d" style="color:${subColor}; font-weight:${late?'700':'400'};">${late?'⚠ ATRASADO — a chefia já foi avisada':isAmanha?'Amanhã é o dia':'Por enviar'}</div></div><div class="status">${late?'🔴':isAmanha?'🔔':'⏳'}</div>`;
       btn.onclick = ()=>openCapture("inv", c.key, c.label);
       wrap.appendChild(btn);
-      if(late){
-        const notice = document.createElement("div");
-        notice.style.cssText = "font-size:12px; color:var(--red); margin:-6px 0 12px 4px;";
-        notice.textContent = "⚠ Este atraso é avisado automaticamente à chefia";
-        wrap.appendChild(notice);
-      }
       main.appendChild(wrap);
     });
   }
