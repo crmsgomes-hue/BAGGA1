@@ -71,6 +71,7 @@
 <header>
   <h1 id="titleLoja">Foto do dia</h1>
   <p id="dateSub"></p>
+  <button id="notifBtnLoja" onclick="ativarNotificacoesLoja()" style="background:var(--terracotta,#C1622E); color:#fff; border:none; padding:10px 16px; border-radius:20px; font-size:13px; font-weight:600; margin-top:8px;">🔔 Ativar avisos desta loja</button>
 </header>
 <main id="main"></main>
 <div id="toast" class="toast"></div>
@@ -223,6 +224,58 @@ function invStatus(catKey, freq){
 }
 function dailyStatus(tipo, dateStr, turno){
   return dailyRows.find(r=>r.tipo===tipo && r.data===dateStr && r.turno===turno) || null;
+}
+
+const VAPID_PUBLIC_KEY = "BKXMKlUz9TDhHbuUuq9qwmCIoniXhVtICtodo0bwhRxU2FrgSCdwRwQaRXHhG8IL2yl757q8jG96h4guzQfjbWA";
+function urlBase64ToUint8Array(base64String){
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c=>c.charCodeAt(0)));
+}
+async function ativarNotificacoesLoja(){
+  const btn = document.getElementById("notifBtnLoja");
+  if(!("serviceWorker" in navigator) || !("PushManager" in window)){
+    toast("Este telemóvel/browser não suporta notificações.");
+    return;
+  }
+  try{
+    btn.textContent = "A ativar...";
+    const perm = await Notification.requestPermission();
+    if(perm !== "granted"){ toast("Permissão não concedida."); btn.textContent = "🔔 Ativar avisos desta loja"; return; }
+
+    const existingRegs = await navigator.serviceWorker.getRegistrations();
+    for(const r of existingRegs){
+      if(r.scope.endsWith("/BAGGA1/") || r.scope === location.origin + "/BAGGA1/"){
+        const oldSub = await r.pushManager.getSubscription().catch(()=>null);
+        if(oldSub) await oldSub.unsubscribe().catch(()=>{});
+      }
+    }
+
+    const reg = await navigator.serviceWorker.register("push/sw-push.js", {scope: "push/"});
+    await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub){
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    const json = sub.toJSON();
+    const filter = `endpoint=eq.${encodeURIComponent(json.endpoint)}`;
+    const patched = await api("PATCH", `cj_push_subscriptions?${filter}`, {p256dh: json.keys.p256dh, auth: json.keys.auth, quem: currentLoja, loja: currentLoja});
+    if(!patched || patched.length===0){
+      await api("POST", "cj_push_subscriptions", {
+        endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth, quem: currentLoja, loja: currentLoja
+      });
+    }
+    btn.textContent = "✅ Avisos ativos para " + currentLoja;
+    toast("A partir de agora recebem avisos só desta loja.");
+  }catch(e){
+    console.error(e);
+    toast("Erro ao ativar: " + (e.message||e).slice(0,100));
+    btn.textContent = "🔔 Ativar avisos desta loja";
+  }
 }
 
 async function loadAll(){
