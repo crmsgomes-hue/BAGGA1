@@ -117,8 +117,10 @@
 <div id="login">
   <h1>CoreJoint · Fardamento</h1>
   <p>Stock de fardamento nos polos de Caldas, Santarém e Torres.</p>
-  <input id="loginName" placeholder="O teu nome" autocomplete="off">
-  <button onclick="doLogin()">Entrar</button>
+  <div style="display:flex; flex-direction:column; gap:10px; width:100%; max-width:280px;">
+    <button onclick="doLoginAs('Cristina')" style="padding:16px; font-size:17px; font-weight:600; border-radius:14px; border:none; background:var(--terracotta,#C1622E); color:#fff;">Cristina</button>
+    <button onclick="doLoginAs('João')" style="padding:16px; font-size:17px; font-weight:600; border-radius:14px; border:none; background:var(--ink,#2B2723); color:#fff;">João (GOP)</button>
+  </div>
 </div>
 
 <div id="app" style="display:none;">
@@ -197,9 +199,7 @@ async function api(method, path, body){
   return res.status === 204 ? null : res.json();
 }
 
-function doLogin(){
-  const name = document.getElementById("loginName").value.trim();
-  if(!name){ toast("Escreve o teu nome"); return; }
+function doLoginAs(name){
   currentUser = name;
   localStorage.setItem("cj_fard_user", name);
   startApp();
