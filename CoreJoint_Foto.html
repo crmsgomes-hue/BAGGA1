@@ -48,6 +48,8 @@
 </style>
 </head>
 <body>
+<div id="offlineBanner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:900; background:var(--red,#B44435); color:#fff; text-align:center; padding:8px; font-size:13px; font-weight:600;">📴 Sem ligação — o que fizeres fica guardado e envia-se sozinho quando a internet voltar</div>
+
 <button id="helpToggle" onclick="toggleHelp()" style="position:fixed; top:8px; right:52px; z-index:500; width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--card,#fff); font-size:16px; cursor:pointer;">❓</button>
 <div id="helpOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:600; align-items:flex-end; justify-content:center;">
   <div style="background:var(--cream,#fff); width:100%; max-width:480px; border-radius:18px 18px 0 0; padding:22px 20px 28px; max-height:80vh; overflow-y:auto; font-size:14px; line-height:1.5;">
@@ -103,7 +105,7 @@ function categoriasParaLoja(loja){
 
 const params = new URLSearchParams(location.search);
 const currentLoja = params.get("loja") || "Loja não identificada";
-let dailyRows = [], invRows = [];
+let dailyRows = [], invRows = [], agendamentos = [];
 let pendingPhoto = null;
 let pendingPhotoEntrada = null;
 let pendingPhotoDesperdicio = null;
@@ -228,6 +230,7 @@ async function loadAll(){
     const f = `&loja=eq.${encodeURIComponent(currentLoja)}`;
     dailyRows = await api("GET", `cj_daily_reportes?select=*${f}&order=data.desc`);
     invRows = await api("GET", `cj_inventario_reportes?select=*${f}&order=data.desc`);
+    agendamentos = await api("GET", `cj_global_agendamento?select=*${f}`);
     render();
   }catch(e){ console.error(e); toast("Erro a carregar"); }
 }
@@ -316,6 +319,36 @@ function render(){
       btn.innerHTML = `<div class="icon">📦</div><div class="txt"><div class="t" style="color:${textColor};">${c.label}</div><div class="d" style="color:${subColor}; font-weight:${late?'700':'400'};">${late?'⚠ ATRASADO — a chefia já foi avisada':isAmanha?'Amanhã é o dia':'Por enviar'}</div></div><div class="status">${late?'🔴':isAmanha?'🔔':'⏳'}</div>`;
       btn.onclick = ()=>openCapture("inv", c.key, c.label);
       wrap.appendChild(btn);
+      if(c.key==="global"){
+        const mes = new Date().toISOString().slice(0,7);
+        const ag = agendamentos.find(a=>a.mes===mes);
+        const agRow = document.createElement("div");
+        agRow.style.cssText = "margin:6px 0 12px 4px;";
+        if(ag){
+          agRow.innerHTML = `<div style="font-size:12px; color:var(--ink-soft);">📅 Agendado para ${new Date(ag.data_agendada+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} <span style="text-decoration:underline; cursor:pointer;" id="mudarAgendamento">(mudar)</span></div>`;
+        } else {
+          agRow.innerHTML = `<div style="font-size:12px; color:var(--ink-soft); margin-bottom:4px;">📅 Marcar o dia em que vais fazer:</div><div class="chip-row" id="agDiasChips"></div>`;
+        }
+        wrap.appendChild(agRow);
+        setTimeout(()=>{
+          const chipsWrap = document.getElementById("agDiasChips");
+          if(chipsWrap){
+            const win = c.st.window;
+            const d = new Date(win.start);
+            while(d<=win.end){
+              const ds = isoDate(d);
+              const chip = document.createElement("div");
+              chip.className = "chip";
+              chip.textContent = d.getDate();
+              chip.onclick = ()=>agendarGlobal(mes, ds);
+              chipsWrap.appendChild(chip);
+              d.setDate(d.getDate()+1);
+            }
+          }
+          const mudar = document.getElementById("mudarAgendamento");
+          if(mudar) mudar.onclick = ()=>{ agendamentos = agendamentos.filter(a=>a.mes!==mes); render(); };
+        }, 0);
+      }
       main.appendChild(wrap);
     });
   }
@@ -467,6 +500,21 @@ function handleCapFile(e){
   };
   reader.readAsDataURL(file);
 }
+async function agendarGlobal(mes, dataIso){
+  try{
+    const filtro = `loja=eq.${encodeURIComponent(currentLoja)}&mes=eq.${mes}`;
+    const patched = await api("PATCH", `cj_global_agendamento?${filtro}`, {data_agendada:dataIso, criado_por:currentLoja});
+    if(!patched || patched.length===0){
+      await api("POST", "cj_global_agendamento", {loja:currentLoja, mes, data_agendada:dataIso, criado_por:currentLoja});
+    }
+    toast("Dia marcado!");
+    await loadAll();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao marcar: " + (e.message||e).slice(0,100));
+  }
+}
+
 async function confirmCapture(kind, key, turno){
   if(!pendingPhoto){ toast("Tira a foto primeiro"); return; }
   const today = todayStr();
@@ -571,6 +619,15 @@ function toggleHelp(){
   const o = document.getElementById("helpOverlay");
   o.style.display = o.style.display==="none" ? "flex" : "none";
 }
+
+function atualizarEstadoLigacao(){
+  const b = document.getElementById("offlineBanner");
+  if(!b) return;
+  b.style.display = navigator.onLine ? "none" : "block";
+}
+window.addEventListener("online", atualizarEstadoLigacao);
+window.addEventListener("offline", atualizarEstadoLigacao);
+atualizarEstadoLigacao();
 </script>
 </body>
 </html>
