@@ -1335,7 +1335,12 @@ function calcStreak(loja){
 
 /* ---------- INIT ---------- */
 buildLojaGrid();
-if(currentLoja){ enterLoja(); }
+const urlParams = new URLSearchParams(location.search);
+if(urlParams.get("gestao")==="1"){
+  enterGestao();
+} else if(currentLoja){
+  enterLoja();
+}
 
 function toggleDark(){
   document.body.classList.toggle("dark");
