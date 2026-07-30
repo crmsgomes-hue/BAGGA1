@@ -264,6 +264,15 @@ function render(){
     if(done.length===0){
       main.innerHTML = '<div class="empty">Ainda não há adendas concluídas.</div>';
     } else {
+      const now = new Date();
+      const esteMs = done.filter(r=>{
+        const d = new Date(r.enviada_em);
+        return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+      }).length;
+      const summary = document.createElement("div");
+      summary.style.cssText = "font-size:13px; font-weight:600; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin-bottom:14px;";
+      summary.textContent = `📊 ${esteMs} concluída${esteMs!==1?'s':''} este mês · ${done.length} no total`;
+      main.appendChild(summary);
       done.sort((a,b)=> new Date(b.enviada_em) - new Date(a.enviada_em));
       done.forEach(r=>main.appendChild(renderCard(r, STAGES.length)));
     }
