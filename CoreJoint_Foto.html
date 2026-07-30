@@ -117,7 +117,7 @@ function categoriasParaLoja(loja){
 
 const params = new URLSearchParams(location.search);
 const currentLoja = params.get("loja") || "Loja não identificada";
-let dailyRows = [], invRows = [], agendamentos = [];
+let dailyRows = [], invRows = [], agendamentos = [], sondagensPendentes = [];
 let pendingPhoto = null;
 window.addEventListener("beforeunload", function(e){
   if(pendingPhoto){
@@ -301,6 +301,12 @@ async function loadAll(){
     dailyRows = await api("GET", `cj_daily_reportes?select=*${f}&order=data.desc`);
     invRows = await api("GET", `cj_inventario_reportes?select=*${f}&order=data.desc`);
     agendamentos = await api("GET", `cj_global_agendamento?select=*${f}`);
+    const todasSondagens = await api("GET", "cj_sondagens?select=*&ativa=eq.true");
+    const minhasRespostas = await api("GET", `cj_sondagens_respostas?select=*${f}`);
+    sondagensPendentes = todasSondagens.filter(s=>
+      (!s.loja_alvo || s.loja_alvo===currentLoja) &&
+      !minhasRespostas.some(r=>r.sondagem_id===s.id)
+    );
     render();
   }catch(e){ console.error(e); toast("Erro a carregar"); }
 }
@@ -315,6 +321,21 @@ function render(){
     main.innerHTML = '<div class="empty">Este link não está associado a nenhuma loja. Pede o link correto.</div>';
     return;
   }
+
+  sondagensPendentes.forEach(s=>{
+    const card = document.createElement("div");
+    card.style.cssText = "background:var(--terracotta,#C1622E); color:#fff; border-radius:16px; padding:18px; margin-bottom:14px;";
+    let html = `<div style="font-size:11px; text-transform:uppercase; letter-spacing:.05em; opacity:.85; margin-bottom:6px;">📊 Sondagem rápida</div><div style="font-weight:700; font-size:16px; margin-bottom:12px;">${s.pergunta}</div><div style="display:flex; flex-direction:column; gap:8px;">`;
+    s.opcoes.forEach(op=>{
+      html += `<button data-op="${op.replace(/"/g,'&quot;')}" style="background:#fff; color:var(--ink,#2B2723); border:none; border-radius:10px; padding:12px; font-size:14px; font-weight:600; text-align:left;">${op}</button>`;
+    });
+    html += `</div>`;
+    card.innerHTML = html;
+    card.querySelectorAll("[data-op]").forEach(btn=>{
+      btn.onclick = ()=>responderSondagem(s.id, btn.getAttribute("data-op"));
+    });
+    main.appendChild(card);
+  });
 
   const today = todayStr();
   const VITRINE_TURNOS = [
@@ -570,6 +591,17 @@ function handleCapFile(e){
   };
   reader.readAsDataURL(file);
 }
+async function responderSondagem(sondagemId, opcao){
+  try{
+    await api("POST", "cj_sondagens_respostas", {sondagem_id: sondagemId, loja: currentLoja, opcao});
+    mostrarSucesso("Resposta enviada!");
+    await loadAll();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao responder: " + (e.message||e).slice(0,100));
+  }
+}
+
 async function agendarGlobal(mes, dataIso){
   try{
     const filtro = `loja=eq.${encodeURIComponent(currentLoja)}&mes=eq.${mes}`;
