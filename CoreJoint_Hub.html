@@ -8,9 +8,11 @@
   :root{
     --cream:#F4F1EA; --ink:#2B2723; --ink-soft:#5C564E;
     --terracotta:#C1622E; --terracotta-dark:#9C4C22; --line:#E4DDD0; --card:#FFFFFF;
+    --red:#B44435; --amber:#C08A2E; --green:#3F7D5C;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   body{margin:0; font-family:'Source Sans 3',-apple-system,Segoe UI,Roboto,sans-serif; background:var(--cream); color:var(--ink); min-height:100vh;}
+  body.dark{ --cream:#1c1a18; --ink:#EDE8E1; --ink-soft:#B8B0A5; --terracotta:#E08A52; --terracotta-dark:#F0A876; --line:#3a3632; --card:#2A2724; }
   h1,h2{font-family:'Fraunces',Georgia,serif; font-weight:600; margin:0;}
   header{padding:36px 24px 10px; text-align:center;}
   header h1{font-size:30px; color:var(--terracotta-dark);}
@@ -22,14 +24,22 @@
   a.card .txt .d{font-size:13px; color:var(--ink-soft); margin-top:2px;}
   a.card .arrow{margin-left:auto; color:var(--terracotta); font-size:20px;}
   .badge-count{background:var(--terracotta); color:#fff; font-size:12px; font-weight:700; border-radius:12px; padding:3px 9px; margin-left:8px; white-space:nowrap;}
+  .attn-title{font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-bottom:2px;}
+  .attn-item{display:flex; align-items:center; gap:12px; background:var(--card); border-left:5px solid var(--red); border-radius:12px; padding:12px 14px; text-decoration:none; color:var(--ink); font-size:13px;}
+  .attn-item.amber{border-left-color:var(--amber);}
+  .attn-item .arrow{margin-left:auto; color:var(--ink-soft);}
+  .all-clear{background:var(--green); color:#fff; border-radius:14px; padding:16px; text-align:center; font-weight:600;}
 </style>
 </head>
 <body>
+<button id="darkToggle" onclick="toggleDark()" style="position:fixed; top:8px; right:8px; z-index:500; width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--card,#fff); font-size:16px; cursor:pointer;">🌙</button>
 <header>
   <h1>CoreJoint</h1>
   <p>As tuas ferramentas de gestão, num só sítio.</p>
 </header>
 <main>
+  <div id="attnSection"></div>
+
   <a class="card" href="CoreJoint_Reportes.html">
     <div class="icon">📸</div>
     <div class="txt"><div class="t">Reportes</div><div class="d">Vitrine, vendas e inventário por loja</div></div>
@@ -50,6 +60,16 @@
   </a>
 </main>
 <script>
+function toggleDark(){
+  document.body.classList.toggle("dark");
+  localStorage.setItem("cj_dark_mode", document.body.classList.contains("dark") ? "1" : "0");
+  document.getElementById("darkToggle").textContent = document.body.classList.contains("dark") ? "☀️" : "🌙";
+}
+if(localStorage.getItem("cj_dark_mode")==="1"){
+  document.body.classList.add("dark");
+  document.getElementById("darkToggle").textContent = "☀️";
+}
+
 const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k";
 async function api(path){
@@ -60,28 +80,115 @@ async function api(path){
 function setBadge(id, n){
   if(n>0) document.getElementById(id).innerHTML = `<span class="badge-count">${n}</span>`;
 }
+
+const LOJAS = ["Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim","Carregado","Ponte de Sor","Torres MCH","Torres MH"];
+const INV_CATS = [
+  { key: "raspadinhas", label: "JSC", freq: "semanal" },
+  { key: "laranja", label: "Laranja", freq: "semanal" },
+  { key: "cafe", label: "Café", freq: "semanal" },
+  { key: "tabaco", label: "Tabaco", freq: "quinzenal" },
+  { key: "global", label: "Global", freq: "mensal3" },
+];
+const MARKETING_CATS = [
+  { key: "cavalete", label: "Cavalete", freq: "mensal_inicio" },
+  { key: "toalhetes", label: "Toalhetes", freq: "mensal_inicio" },
+  { key: "orelhas", label: "Orelhas", freq: "mensal_inicio" },
+];
+const JSC_LOJAS = ["Almeirim", "Ponte de Sor"];
+const TABACO_EXCLUIR = ["Caldas da Rainha"];
+const CATEGORY_DOW = { raspadinhas: 1, cafe: 2, laranja: 3, tabaco: 4 };
+
+function categoriasParaLoja(loja){
+  return INV_CATS.filter(c=>{
+    if(c.key==="raspadinhas") return JSC_LOJAS.includes(loja);
+    if(c.key==="tabaco") return !TABACO_EXCLUIR.includes(loja);
+    return true;
+  });
+}
+function weekWindow(d){ const day=(d.getDay()+6)%7; const start=new Date(d); start.setDate(d.getDate()-day); const end=new Date(start); end.setDate(start.getDate()+6); return {start,end}; }
+function biweekWindow(d){ const day=d.getDate(); const start = day<=15 ? new Date(d.getFullYear(),d.getMonth(),1) : new Date(d.getFullYear(),d.getMonth(),16); const end = day<=15 ? new Date(d.getFullYear(),d.getMonth(),15) : new Date(d.getFullYear(),d.getMonth()+1,0); return {start,end}; }
+function month3Window(d){ return {start:new Date(d.getFullYear(),d.getMonth(),15), end:new Date(d.getFullYear(),d.getMonth(),21)}; }
+function monthWindow(d){ return {start:new Date(d.getFullYear(),d.getMonth(),1), end:new Date(d.getFullYear(),d.getMonth()+1,0)}; }
+function monthStartWindow(d){ return {start:new Date(d.getFullYear(),d.getMonth(),1), end:new Date(d.getFullYear(),d.getMonth(),3)}; }
+function windowFor(freq,d){
+  if(freq==="semanal") return weekWindow(d);
+  if(freq==="quinzenal") return biweekWindow(d);
+  if(freq==="mensal_inicio") return monthStartWindow(d);
+  if(freq==="mensal") return monthWindow(d);
+  return month3Window(d);
+}
+function findWeekdayInRange(start,end,dow){ let d=new Date(start); while((((d.getDay()+6)%7)+1)!==dow && d<=end) d.setDate(d.getDate()+1); return d>end?end:d; }
+function inRange(dateStr,start,end){ const d=new Date(dateStr+"T00:00:00"); return d>=start && d<=end; }
+
+function addAttn(list, href, icon, texto, urgente){
+  list.push({href, icon, texto, urgente});
+}
+
 (async ()=>{
+  const attn = [];
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0,10);
+
   try{
-    const today = new Date().toISOString().slice(0,10);
-    const daily = await api(`cj_daily_reportes?select=loja,tipo,turno&data=eq.${today}`);
-    const LOJAS = ["Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim","Carregado","Ponte de Sor","Torres MCH","Torres MH"];
+    const daily = await api(`cj_daily_reportes?select=loja,tipo,turno&data=eq.${todayStr}`);
     let reportesPend = 0;
+    const semVitrine = [], semVendas = [];
     LOJAS.forEach(l=>{
       const turnos = ["manha","almoco","lanche"].filter(t=>daily.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t)).length;
-      if(turnos<3) reportesPend++;
-      if(!daily.some(r=>r.loja===l && r.tipo==="vendas" && r.turno==="unico")) reportesPend++;
+      if(turnos<3){ reportesPend++; semVitrine.push(l); }
+      if(!daily.some(r=>r.loja===l && r.tipo==="vendas" && r.turno==="unico")){ reportesPend++; semVendas.push(l); }
     });
     setBadge("badge-reportes", reportesPend);
+    if(semVitrine.length) addAttn(attn, "CoreJoint_Reportes.html", "🌇", `${semVitrine.length} loja(s) sem vitrine completa hoje`, true);
+    if(semVendas.length) addAttn(attn, "CoreJoint_Reportes.html", "🧾", `${semVendas.length} loja(s) sem vendas hoje`, true);
+
+    const invRows = await api("cj_inventario_reportes?select=loja,categoria,data");
+    let atrasadosN = 0;
+    LOJAS.forEach(loja=>{
+      [...categoriasParaLoja(loja), ...MARKETING_CATS].forEach(cat=>{
+        const w = windowFor(cat.freq, today);
+        const rowsCat = invRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end));
+        if(rowsCat.length>0) return;
+        const dow = CATEGORY_DOW[cat.key];
+        let late = false;
+        if(dow){ const target = findWeekdayInRange(w.start,w.end,dow); late = today>target; }
+        else { late = today>w.end; }
+        if(late) atrasadosN++;
+      });
+    });
+    if(atrasadosN>0) addAttn(attn, "CoreJoint_Reportes.html", "📦", `${atrasadosN} inventário(s)/marketing atrasado(s)`, true);
   }catch(e){}
+
   try{
     const stock = await api("cj_fardamento_stock?select=quantidade&quantidade=lt.5");
     const dev = await api("cj_fardamento_devolucoes?select=id&recolhido=eq.false");
     setBadge("badge-fardamento", stock.length + dev.length);
+    if(stock.length) addAttn(attn, "CoreJoint_Fardamento.html", "👕", `${stock.length} combinação(ões) de fardamento com stock baixo`, false);
+    if(dev.length) addAttn(attn, "CoreJoint_Fardamento.html", "↩", `${dev.length} devolução(ões) por recolher`, false);
   }catch(e){}
+
   try{
-    const adendas = await api("cj_adendas?select=id&arquivada=eq.false");
+    const adendas = await api("cj_adendas?select=id,updated_at,criado_em&arquivada=eq.false");
     setBadge("badge-adendas", adendas.length);
+    const paradas = adendas.filter(r=>{
+      const ref = r.updated_at || r.criado_em;
+      const dias = Math.floor((Date.now() - new Date(ref).getTime())/86400000);
+      return dias>=3;
+    });
+    if(paradas.length) addAttn(attn, "CoreJoint_Adendas.html", "📋", `${paradas.length} adenda(s) parada(s) há 3+ dias`, true);
   }catch(e){}
+
+  const section = document.getElementById("attnSection");
+  if(attn.length===0){
+    section.innerHTML = `<div class="all-clear">✔ Tudo em dia — nada precisa da tua atenção agora.</div>`;
+    return;
+  }
+  let html = `<div class="attn-title">🔥 Precisa de atenção agora (${attn.length})</div>`;
+  attn.sort((a,b)=> (b.urgente?1:0) - (a.urgente?1:0));
+  attn.forEach(a=>{
+    html += `<a class="attn-item ${a.urgente?'':'amber'}" href="${a.href}"><span>${a.icon}</span><span>${a.texto}</span><span class="arrow">›</span></a>`;
+  });
+  section.innerHTML = html;
 })();
 </script>
 </body>
