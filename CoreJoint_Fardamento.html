@@ -134,6 +134,7 @@ const LOJAS = [
 const LOW_THRESHOLD = 5;
 
 let stockRows = [];
+let currentView = ()=>render();
 let movimentos = [];
 let devolucoes = [];
 let currentUser = localStorage.getItem("cj_fard_user") || "";
@@ -200,7 +201,7 @@ async function loadStock(){
     movimentos = await api("GET", "cj_fardamento_movimentos?select=*&tipo=eq.saida&order=criado_em.desc&limit=200");
     devolucoes = await api("GET", "cj_fardamento_devolucoes?select=*&recolhido=eq.false&order=criado_em.desc");
     updateBell();
-    render();
+    currentView();
   }catch(e){
     console.error(e);
     toast("Erro a carregar stock");
@@ -233,6 +234,7 @@ function updateBell(){
 }
 
 function render(){
+  currentView = render;
   const main = document.getElementById("main");
   main.innerHTML = "";
 
@@ -449,6 +451,7 @@ async function confirmSaida(polo, peca, tamanho){
 
 /* ---------- ALERTAS ---------- */
 function openAlertas(){
+  currentView = openAlertas;
   const alerts = allAlerts();
   const main = document.getElementById("main");
   main.innerHTML = "";
@@ -496,6 +499,7 @@ let devColab = "";
 let devQtd = 1;
 
 function openDevolucao(){
+  currentView = openDevolucao;
   devKit = {peca:null, tamanho:null};
   devLoja = "";
   devColab = "";
@@ -700,6 +704,7 @@ async function recolherDevolucao(id, polo, peca, tamanho, quantidade){
 }
 
 function openAdmissao(){
+  currentView = openAdmissao;
   admKit = {};
   admColab = "";
   admLoja = "";
@@ -864,6 +869,7 @@ async function confirmAdmissao(){
 
 /* ---------- DISPONIBILIDADE (comparar os 3 polos) ---------- */
 function openDisponibilidade(){
+  currentView = openDisponibilidade;
   const main = document.getElementById("main");
   main.innerHTML = "";
   const back = document.createElement("button");
@@ -905,6 +911,7 @@ function openDisponibilidade(){
 /* ---------- HISTÓRICO (para onde foram as peças) ---------- */
 let histView = "data";
 function openHistorico(){
+  currentView = openHistorico;
   const main = document.getElementById("main");
   main.innerHTML = "";
   const back = document.createElement("button");
