@@ -2063,10 +2063,28 @@ function renderGestao(){
   main.appendChild(sumRow);
 
   const t1 = document.createElement("div");
-  t1.className="section-title"; t1.textContent="Por loja";
+  t1.className="section-title"; t1.textContent="Por loja (piores primeiro)";
   main.appendChild(t1);
 
-  LOJAS.forEach(l=>{
+  function severidadeLoja(l){
+    let score = 0;
+    VITRINE_TURNOS.forEach(t=>{
+      const done = !!dailyStatus(l,"vitrine",today,t.key);
+      if(turnoSquareState(done, TURNO_HORA_LIMITE[t.key])==="late") score += 2;
+    });
+    if(turnoSquareState(!!dailyStatus(l,"vendas",today,"unico"), VENDAS_HORA_LIMITE)==="late") score += 2;
+    [...categoriasParaLoja(l), ...MARKETING_CATS].forEach(c=>{
+      const st = invStatus(l,c.key,c.freq);
+      if(st.state==="late") score += 3;
+      if(st.diaErrado) score += 1;
+    });
+    const ultima = ultimaAtividadeDias(l);
+    if(ultima!==null && ultima>=3) score += 5;
+    return score;
+  }
+  const lojasOrdenadas = [...LOJAS].sort((a,b)=> severidadeLoja(b) - severidadeLoja(a));
+
+  lojasOrdenadas.forEach(l=>{
     const items = [];
     VITRINE_TURNOS.forEach(t=>{
       const done = !!dailyStatus(l,"vitrine",today,t.key);
