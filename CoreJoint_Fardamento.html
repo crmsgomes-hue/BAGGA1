@@ -282,6 +282,22 @@ function render(){
   `;
   main.appendChild(totalCard);
 
+  const alertasCount = allAlerts().length;
+  const devCount = devolucoes.length;
+  if(alertasCount>0 || devCount>0){
+    const quickSummary = document.createElement("div");
+    quickSummary.style.cssText = "display:flex; gap:8px; margin-bottom:12px;";
+    let html = "";
+    if(alertasCount>0){
+      html += `<div class="card" style="flex:1; text-align:center; margin-bottom:0; padding:10px; background:var(--red); cursor:pointer;" onclick="openAlertas()"><div style="font-size:20px; font-weight:700; color:#fff;">${alertasCount}</div><div style="font-size:11px; color:#fff;">stock baixo</div></div>`;
+    }
+    if(devCount>0){
+      html += `<div class="card" style="flex:1; text-align:center; margin-bottom:0; padding:10px; background:var(--amber); cursor:pointer;" onclick="openDevolucao()"><div style="font-size:20px; font-weight:700; color:#fff;">${devCount}</div><div style="font-size:11px; color:#fff;">por recolher</div></div>`;
+    }
+    quickSummary.innerHTML = html;
+    main.appendChild(quickSummary);
+  }
+
   const allOpen = Object.keys(PECAS).every(p=>openPecas[p]);
   const toggleBtn = document.createElement("button");
   toggleBtn.className = allOpen ? "backbtn" : "copybtn";
