@@ -18,6 +18,10 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:14px;overflow-x:hidden}
 body.dark{--bg:#1c1a18;--sf:#2A2724;--sf2:#242220;--br:#3a3632;--tx:#EDE8E1;--t2:#B8B0A5;--t3:#8a8178;--ac:#E08A52;--ac2:#F0A876;--acl:#3a2c24;}
+body.dark .al-w{background:#3a2f1a;color:#f0c078;}
+body.dark .al-d{background:#3a201d;color:#f08a7a;}
+body.dark .al-g{background:#1e2e22;color:#8fc79a;}
+body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
 #HD{display:flex;align-items:center;padding:0 14px;height:50px;background:var(--sf);border-bottom:1px solid var(--br);position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.06)}
 .hlog{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:var(--ac)}
 .hbtn{margin-left:auto;background:var(--sf2);border:1.5px solid var(--br);color:var(--t2);cursor:pointer;font-size:.85rem;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
@@ -40,6 +44,10 @@ body.dark{--bg:#1c1a18;--sf:#2A2724;--sf2:#242220;--br:#3a3632;--tx:#EDE8E1;--t2
 .al .al-sub{font-size:.79rem; opacity:.9;}
 .al .al-btn{margin-top:2px; font-size:.75rem; font-weight:700; text-decoration:underline;}
 .all-clear{background:var(--grn);color:#fff;border-radius:var(--rb);padding:14px;text-align:center;font-weight:700;font-size:.85rem;margin-bottom:8px;}
+.spin-wrap{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:30px 0;}
+.spin{width:28px;height:28px;border:3px solid var(--br);border-top-color:var(--ac);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin-msg{font-size:.78rem; color:var(--t2);}
 .card{background:var(--sf);border:1px solid var(--br);border-radius:var(--ra);padding:15px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--tx);}
 .card .icon{font-size:1.7rem;flex-shrink:0;width:40px;text-align:center;}
 .card .ct{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;}
@@ -59,7 +67,7 @@ body.dark{--bg:#1c1a18;--sf:#2A2724;--sf2:#242220;--br:#3a3632;--tx:#EDE8E1;--t2
   <div class="ps">As tuas ferramentas de gestão, num só sítio.</div>
 
   <div id="statsGrid" class="g4"></div>
-  <div id="attnSection"></div>
+  <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
 
   <div class="sec-label">Apps</div>
   <a class="card" href="CoreJoint_Reportes.html">
