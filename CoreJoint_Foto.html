@@ -231,6 +231,12 @@ function findWeekdayInRange(start, end, dow){
   while((((d.getDay()+6)%7)+1) !== dow && d<=end){ d.setDate(d.getDate()+1); }
   return d>end ? end : d;
 }
+function isSemanaDoGlobal(d){
+  const w = weekWindow(d);
+  const globalStart = new Date(d.getFullYear(), d.getMonth(), 15);
+  const globalEnd = new Date(d.getFullYear(), d.getMonth(), 21);
+  return w.start <= globalEnd && w.end >= globalStart;
+}
 function invStatus(catKey, freq){
   const today = new Date();
   const w = windowFor(freq, today);
@@ -244,6 +250,9 @@ function invStatus(catKey, freq){
       diaErrado = !rows.some(r=>r.data===dataCertaStr);
     }
     return {state:"ok", latest: rows[0], window:w, diaErrado, dowLabel: dow?DOW_LABELS[dow-1]:null};
+  }
+  if(dow && isSemanaDoGlobal(today)){
+    return {state:"pausado", latest:null, window:w, dowLabel:DOW_LABELS[dow-1]};
   }
   if(dow){
     const targetDate = findWeekdayInRange(w.start, w.end, dow);
@@ -403,7 +412,7 @@ function render(){
     main.appendChild(wrap);
   }
 
-  const dueInv = categoriasParaLoja(currentLoja).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>c.st.state!=="ok" || c.st.diaErrado);
+  const dueInv = categoriasParaLoja(currentLoja).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado);
   if(dueInv.length>0){
     const title = document.createElement("div");
     title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px;";
