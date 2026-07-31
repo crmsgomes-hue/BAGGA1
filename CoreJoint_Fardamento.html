@@ -130,13 +130,13 @@
         <h1>Fardamento</h1>
         <div class="who" id="whoLabel"></div>
       </div>
-      <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; max-width:180px;">
-        <button class="bell" id="admBtn" onclick="openAdmissao()" style="font-size:11px; font-weight:700;">👤+</button>
-        <button class="bell" id="devBtn" onclick="openDevolucao()" style="font-size:16px;">↩</button>
-        <button class="bell" id="dispoBtn" onclick="openDisponibilidade()">🔍</button>
-        <button class="bell" id="histBtn" onclick="openHistorico()">📜</button>
-        <button class="bell" id="bellBtn" onclick="openAlertas()">🔔<span class="dot"></span></button>
-      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr; gap:6px; margin-top:10px;">
+      <button class="bell" id="admBtn" onclick="openAdmissao()" style="width:100%; height:44px; font-size:15px;" title="Nova Admissão">👤+</button>
+      <button class="bell" id="devBtn" onclick="openDevolucao()" style="width:100%; height:44px; font-size:18px;" title="Devoluções">↩</button>
+      <button class="bell" id="dispoBtn" onclick="openDisponibilidade()" style="width:100%; height:44px; font-size:18px;" title="Disponibilidade">🔍</button>
+      <button class="bell" id="histBtn" onclick="openHistorico()" style="width:100%; height:44px; font-size:18px;" title="Histórico">📜</button>
+      <button class="bell" id="bellBtn" onclick="openAlertas()" style="width:100%; height:44px; font-size:18px;" title="Alertas">🔔<span class="dot"></span></button>
     </div>
     <a href="CoreJoint_Hub.html" style="display:inline-block; margin-top:2px; font-size:12px; color:var(--ink-soft); text-decoration:none;">⌂ CoreJoint</a>
     <div class="polo-grid" id="poloGrid"></div>
