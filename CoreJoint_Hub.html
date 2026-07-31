@@ -24,12 +24,14 @@ body.dark{--bg:#1c1a18;--sf:#2A2724;--sf2:#242220;--br:#3a3632;--tx:#EDE8E1;--t2
 #MN{flex:1;padding:14px;max-width:600px;margin:0 auto;width:100%}
 .pt{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:2px}
 .ps{font-size:.76rem;color:var(--t2);margin-bottom:14px}
-.ic{background:var(--sf);border:1px solid var(--br);border-radius:var(--rb);padding:13px;margin-bottom:8px;border-left:4px solid var(--br);display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--tx);}
-.ic.crit{border-left-color:var(--red)}
-.ic.pend{border-left-color:var(--org)}
-.ic-ico{font-size:1.3rem;flex-shrink:0}
-.ic-title{font-size:.86rem;font-weight:600;line-height:1.35}
-.ic-arrow{margin-left:auto;color:var(--t3);font-size:1rem;flex-shrink:0}
+.al{padding:10px 13px;border-radius:var(--rb);margin-bottom:10px;font-size:.8rem;border-left:3px solid;display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-decoration:none;}
+.al-w{background:#fdf6e9;border-color:var(--org);color:#6b4d12}
+.al-d{background:#fbeeec;border-color:var(--red);color:var(--red)}
+.al-g{background:#eef3ea;border-color:var(--grn);color:var(--grn)}
+.al-i{background:#eff6ff;border-color:var(--blu);color:var(--blu)}
+.al strong{font-size:.85rem;}
+.al .al-sub{font-size:.79rem; opacity:.9;}
+.al .al-btn{margin-top:2px; font-size:.75rem; font-weight:700; text-decoration:underline;}
 .all-clear{background:var(--grn);color:#fff;border-radius:var(--rb);padding:14px;text-align:center;font-weight:700;font-size:.85rem;margin-bottom:8px;}
 .card{background:var(--sf);border:1px solid var(--br);border-radius:var(--ra);padding:15px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--tx);}
 .card .icon{font-size:1.7rem;flex-shrink:0;width:40px;text-align:center;}
@@ -132,8 +134,8 @@ function windowFor(freq,d){
 function findWeekdayInRange(start,end,dow){ let d=new Date(start); while((((d.getDay()+6)%7)+1)!==dow && d<=end) d.setDate(d.getDate()+1); return d>end?end:d; }
 function inRange(dateStr,start,end){ const d=new Date(dateStr+"T00:00:00"); return d>=start && d<=end; }
 
-function addAttn(list, href, icon, texto, urgente){
-  list.push({href, icon, texto, urgente});
+function addAttn(list, href, titulo, sub, urgente){
+  list.push({href, titulo, sub, urgente});
 }
 
 (async ()=>{
@@ -151,8 +153,8 @@ function addAttn(list, href, icon, texto, urgente){
       if(!daily.some(r=>r.loja===l && r.tipo==="vendas" && r.turno==="unico")){ reportesPend++; semVendas.push(l); }
     });
     setBadge("badge-reportes", reportesPend);
-    if(semVitrine.length) addAttn(attn, "CoreJoint_Reportes.html", "🌇", `${semVitrine.length} loja(s) sem vitrine completa hoje`, true);
-    if(semVendas.length) addAttn(attn, "CoreJoint_Reportes.html", "🧾", `${semVendas.length} loja(s) sem vendas hoje`, true);
+    if(semVitrine.length) addAttn(attn, "CoreJoint_Reportes.html", `🌇 ${semVitrine.length} loja(s) sem vitrine completa hoje`, semVitrine.slice(0,4).join(", ") + (semVitrine.length>4?" e mais...":""), true);
+    if(semVendas.length) addAttn(attn, "CoreJoint_Reportes.html", `🧾 ${semVendas.length} loja(s) sem vendas hoje`, semVendas.slice(0,4).join(", ") + (semVendas.length>4?" e mais...":""), true);
 
     const invRows = await api("cj_inventario_reportes?select=loja,categoria,data");
     let atrasadosN = 0;
@@ -168,15 +170,15 @@ function addAttn(list, href, icon, texto, urgente){
         if(late) atrasadosN++;
       });
     });
-    if(atrasadosN>0) addAttn(attn, "CoreJoint_Reportes.html", "📦", `${atrasadosN} inventário(s)/marketing atrasado(s)`, true);
+    if(atrasadosN>0) addAttn(attn, "CoreJoint_Reportes.html", `📦 ${atrasadosN} inventário(s)/marketing atrasado(s)`, "Toca para ver quais lojas e categorias", true);
   }catch(e){}
 
   try{
     const stock = await api("cj_fardamento_stock?select=quantidade&quantidade=lt.5");
     const dev = await api("cj_fardamento_devolucoes?select=id&recolhido=eq.false");
     setBadge("badge-fardamento", stock.length + dev.length);
-    if(stock.length) addAttn(attn, "CoreJoint_Fardamento.html", "👕", `${stock.length} combinação(ões) de fardamento com stock baixo`, false);
-    if(dev.length) addAttn(attn, "CoreJoint_Fardamento.html", "↩", `${dev.length} devolução(ões) por recolher`, false);
+    if(stock.length) addAttn(attn, "CoreJoint_Fardamento.html", `👕 ${stock.length} combinação(ões) de fardamento com stock baixo`, "Toca para ver quais peças e tamanhos", false);
+    if(dev.length) addAttn(attn, "CoreJoint_Fardamento.html", `↩ ${dev.length} devolução(ões) por recolher`, "Toca para ver em que lojas", false);
   }catch(e){}
 
   try{
@@ -187,7 +189,7 @@ function addAttn(list, href, icon, texto, urgente){
       const dias = Math.floor((Date.now() - new Date(ref).getTime())/86400000);
       return dias>=3;
     });
-    if(paradas.length) addAttn(attn, "CoreJoint_Adendas.html", "📋", `${paradas.length} adenda(s) parada(s) há 3+ dias`, true);
+    if(paradas.length) addAttn(attn, "CoreJoint_Adendas.html", `📋 ${paradas.length} adenda(s) parada(s) há 3+ dias`, "Toca para ver quais precisam de ação", true);
   }catch(e){}
 
   const section = document.getElementById("attnSection");
@@ -198,7 +200,11 @@ function addAttn(list, href, icon, texto, urgente){
   let html = `<div class="sec-label">🔥 Precisa de atenção agora (${attn.length})</div>`;
   attn.sort((a,b)=> (b.urgente?1:0) - (a.urgente?1:0));
   attn.forEach(a=>{
-    html += `<a class="ic ${a.urgente?'crit':'pend'}" href="${a.href}"><span class="ic-ico">${a.icon}</span><span class="ic-title">${a.texto}</span><span class="ic-arrow">›</span></a>`;
+    html += `<a class="al ${a.urgente?'al-d':'al-w'}" href="${a.href}">
+      <div><strong>${a.titulo}</strong></div>
+      <div class="al-sub">${a.sub}</div>
+      <div class="al-btn">Ver →</div>
+    </a>`;
   });
   section.innerHTML = html;
 })();
