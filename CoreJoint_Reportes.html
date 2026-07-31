@@ -1955,14 +1955,16 @@ function renderGestao(){
       const state = st.diaErrado ? "diaerrado" : st.state;
       items.push({label:c.label.slice(0,4), state});
     });
+    const itemsMarketing = [];
     MARKETING_CATS.forEach(c=>{
       const st = invStatus(l,c.key,c.freq);
       const state = st.diaErrado ? "diaerrado" : st.state;
-      items.push({label:c.label.slice(0,4), state});
+      itemsMarketing.push({label:c.label.slice(0,4), state});
     });
 
-    const anyLate = items.some(i=>i.state==="late" || i.state==="diaerrado");
-    const anyPend = items.some(i=>i.state==="pend");
+    const todosItems = [...items, ...itemsMarketing];
+    const anyLate = todosItems.some(i=>i.state==="late" || i.state==="diaerrado");
+    const anyPend = todosItems.some(i=>i.state==="pend");
     const overall = anyLate ? "late" : anyPend ? "pend" : "ok";
     const overallColor = overall==="ok" ? "var(--green)" : overall==="late" ? "var(--red)" : "var(--amber)";
     const streak = calcStreak(l);
@@ -1972,10 +1974,14 @@ function renderGestao(){
     card.className = "card";
     card.style.cssText = "padding:14px 16px; border-left:5px solid " + overallColor + "; cursor:pointer;";
     card.onclick = ()=>openLojaDetalhe(l);
-    const squares = items.map(i=>{
+    const squareHtml = (i, small)=>{
       const bg = i.state==="ok" ? "var(--green)" : i.state==="late" ? "var(--red)" : "var(--amber)";
-      return `<div style="width:40px; height:36px; border-radius:6px; background:${bg}; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#fff; text-align:center; line-height:1.1; padding:2px;">${i.label}</div>`;
-    }).join("");
+      const size = small ? "32px" : "40px";
+      const h = small ? "28px" : "36px";
+      return `<div style="width:${size}; height:${h}; border-radius:6px; background:${bg}; display:flex; align-items:center; justify-content:center; font-size:${small?'8px':'9px'}; font-weight:700; color:#fff; text-align:center; line-height:1.1; padding:2px;">${i.label}</div>`;
+    };
+    const squares = items.map(i=>squareHtml(i,false)).join("");
+    const squaresMkt = itemsMarketing.map(i=>squareHtml(i,true)).join("");
     card.innerHTML = `
       ${ultimaAtividade>=3 ? `<div style="background:var(--red); color:#fff; font-size:11px; font-weight:700; padding:5px 10px; border-radius:8px; margin-bottom:8px;">⚠ Sem qualquer envio há ${ultimaAtividade} dias</div>` : ``}
       <div class="card-top" style="margin-bottom:8px;">
@@ -1983,6 +1989,8 @@ function renderGestao(){
         ${streak>=2 ? `<div class="status-badge ok">🔥 ${streak} dias</div>` : ``}
       </div>
       <div style="display:flex; flex-wrap:wrap; gap:5px;">${squares}</div>
+      <div style="font-size:9px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin:8px 0 4px;">Marketing (mensal)</div>
+      <div style="display:flex; flex-wrap:wrap; gap:4px; opacity:.85;">${squaresMkt}</div>
     `;
     main.appendChild(card);
   });
