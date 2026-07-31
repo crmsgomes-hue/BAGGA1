@@ -2000,7 +2000,7 @@ function ultimaAtividadeDias(loja){
   const datas = [];
   dailyRows.filter(r=>r.loja===loja).forEach(r=>datas.push(r.criado_em || r.data));
   invRows.filter(r=>r.loja===loja).forEach(r=>datas.push(r.criado_em || r.data));
-  if(datas.length===0) return 999;
+  if(datas.length===0) return null;
   const maisRecente = datas.map(d=>new Date(d)).sort((a,b)=>b-a)[0];
   return Math.floor((Date.now() - maisRecente.getTime())/86400000);
 }
