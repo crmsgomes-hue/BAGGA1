@@ -51,7 +51,7 @@
   .hdot.ok{background:var(--green);} .hdot.no{background:var(--red);}
 
   input[type=file]{display:none;}
-  .empty{color:var(--ink-soft); font-size:14px; padding:24px 10px; text-align:center;}
+  .empty{color:var(--ink-soft); font-size:14px; padding:24px 10px; text-align:center; background:var(--card,var(--sf)); border:1px dashed var(--line,var(--br)); border-radius:12px;}
 
   /* dashboard gestão */
   .dash-table{width:100%; border-collapse:collapse; font-size:12px;}
@@ -455,6 +455,7 @@ function enterGestao(){
   document.getElementById("titleH1").textContent = "Painel de gestão";
   document.getElementById("whoLabel").textContent = "Todas as lojas";
   document.getElementById("tabsRow").innerHTML = "";
+  document.getElementById("main").innerHTML = '<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:40px 0;"><div style="width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--terracotta);border-radius:50%;animation:cjspin .8s linear infinite;"></div><div style="font-size:13px; color:var(--ink-soft);">A carregar…</div></div><style>@keyframes cjspin{to{transform:rotate(360deg)}}</style>';
   loadAll();
   setInterval(loadAll, 30000);
 }
@@ -2029,7 +2030,7 @@ function openLojaDetalhe(loja){
   const back = document.createElement("button");
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
-  back.textContent = "← Voltar ao painel de gestão";
+  back.textContent = "← Voltar ao painel";
   back.onclick = ()=>{
     mode = prevMode; currentLoja = prevLoja; currentTab = prevTab;
     document.getElementById("titleH1").textContent = "Painel de gestão";
