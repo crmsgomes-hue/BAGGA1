@@ -504,6 +504,12 @@ function month3Window(d){
   const end = new Date(d.getFullYear(), d.getMonth(), 21);
   return {start, end};
 }
+function isSemanaDoGlobal(d){
+  const w = weekWindow(d);
+  const globalStart = new Date(d.getFullYear(), d.getMonth(), 15);
+  const globalEnd = new Date(d.getFullYear(), d.getMonth(), 21);
+  return w.start <= globalEnd && w.end >= globalStart;
+}
 function monthWindow(d){
   const start = new Date(d.getFullYear(), d.getMonth(), 1);
   const end = new Date(d.getFullYear(), d.getMonth()+1, 0);
@@ -554,6 +560,9 @@ function invStatus(loja, catKey, freq){
       diaErrado = !rows.some(r=>r.data===dataCertaStr);
     }
     return {state:"ok", latest: rows[0], window:w, diaErrado, dowLabel: dow?DOW_LABELS[dow-1]:null};
+  }
+  if(dow && isSemanaDoGlobal(today)){
+    return {state:"pausado", latest:null, window:w, dowLabel:DOW_LABELS[dow-1]};
   }
   if(dow){
     const targetDate = findWeekdayInRange(w.start, w.end, dow);
@@ -625,10 +634,11 @@ function renderInventario(main){
     const card = document.createElement("div");
     const problema = st.diaErrado || st.state==="late";
     card.className = "card";
+    if(st.state==="pausado"){ card.style.cssText = "opacity:.55;"; }
     if(problema){ card.style.cssText = "background:var(--red); border:none;"; }
-    const badgeClass = st.diaErrado ? "pend" : st.state==="ok"?"ok":st.state==="late"?"late":"pend";
-    const badgeIcon = st.diaErrado ? "⚠" : st.state==="ok"?"✔":st.state==="late"?"⚠":"⏳";
-    const badgeText = st.diaErrado ? "Dia errado" : st.state==="ok"?"Enviado":st.state==="late"?"Atrasado":"Pendente";
+    const badgeClass = st.diaErrado ? "pend" : st.state==="ok"?"ok":st.state==="late"?"late":st.state==="pausado"?"pend":"pend";
+    const badgeIcon = st.diaErrado ? "⚠" : st.state==="ok"?"✔":st.state==="late"?"⚠":st.state==="pausado"?"⏸":"⏳";
+    const badgeText = st.diaErrado ? "Dia errado" : st.state==="ok"?"Enviado":st.state==="late"?"Atrasado":st.state==="pausado"?"Pausado (semana Global)":"Pendente";
     const prazoTxt = st.dowLabel ? `${st.dowLabel}-feira` : `até ${st.window.end.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}`;
     const isAmanha = st.targetDate && st.state==="pend" && isoDate(st.targetDate)===isoDate(new Date(Date.now()+86400000));
     const titleColor = problema ? "#fff" : "var(--ink)";
@@ -638,11 +648,11 @@ function renderInventario(main){
         <div class="card-title" style="color:${titleColor};">${cat.label}</div>
         <div class="status-badge ${badgeClass}" style="${problema ? 'background:#fff; color:var(--red);' : ''}">${badgeIcon} ${badgeText}</div>
       </div>
-      <div class="card-sub" style="color:${subColor};">Prazo ${prazoTxt}</div>
+      <div class="card-sub" style="color:${subColor};">${st.state==="pausado" ? "Não se faz esta semana — é a semana do Global" : `Prazo ${prazoTxt}`}</div>
       ${isAmanha ? `<div class="card-sub" style="color:var(--amber); font-weight:700;">🔔 Amanhã é o dia — não te esqueças</div>` : ``}
       ${st.diaErrado ? `<div style="background:rgba(0,0,0,.15); color:#fff; font-weight:700; font-size:13px; padding:8px 10px; border-radius:8px; margin-top:8px;">⚠ Enviaste, mas NÃO no dia certo (${st.dowLabel}-feira). A chefia já foi avisada.</div>` : ``}
       ${st.state==="late" && !st.diaErrado ? `<div style="background:rgba(0,0,0,.15); color:#fff; font-weight:700; font-size:13px; padding:8px 10px; border-radius:8px; margin-top:8px;">⚠ Ainda NÃO foi feito. Está atrasado e a chefia já foi avisada.</div>` : ``}
-      <button class="cambtn" style="${problema ? 'background:#fff; color:var(--red);' : ''}" onclick="openCapture('inv','${cat.key}')">${st.latest ? 'Enviar nova contagem' : '📸 Enviar foto + valores'}</button>
+      ${st.state!=="pausado" ? `<button class="cambtn" style="${problema ? 'background:#fff; color:var(--red);' : ''}" onclick="openCapture('inv','${cat.key}')">${st.latest ? 'Enviar nova contagem' : '📸 Enviar foto + valores'}</button>` : ``}
       ${st.latest ? `<div class="card-sub" style="margin-top:8px; text-decoration:underline; cursor:pointer; color:${subColor};" data-toggle-det="${cat.key}">Ver último envio</div><div id="det-${cat.key}" style="display:none; margin-top:6px; font-size:13px; color:${subColor};">Enviado em ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')} · Inventário: ${st.latest.valor_inventario ?? '-'} €${cat.key==="global" ? ' · CNVs: ' + (st.latest.valor_cnvs ?? '-') + ' €' : ''}<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">${(st.latest.fotos && st.latest.fotos.length ? st.latest.fotos : [st.latest.foto_path]).filter(Boolean).map(f=>`<img src="${fotoUrl(f)}" style="width:56px; height:56px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;" onclick="bigPhoto('${fotoUrl(f)}')">`).join("")}</div></div>` : ``}
     `;
     main.appendChild(card);
@@ -1321,7 +1331,7 @@ function openModoApresentacao(){
     const card = document.createElement("div");
     card.style.cssText = `background:var(--card); border-left:8px solid ${overallColor}; border-radius:16px; padding:18px;`;
     const squares = items.map(i=>{
-      const bg = i.state==="ok" ? "var(--green)" : i.state==="late" ? "var(--red)" : "var(--amber)";
+      const bg = i.state==="ok" ? "var(--green)" : i.state==="late" ? "var(--red)" : i.state==="pausado" ? "var(--line)" : "var(--amber)";
       return `<div style="min-width:52px; height:48px; border-radius:8px; background:${bg}; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; padding:2px;">${i.label}</div>`;
     }).join("");
     card.innerHTML = `<div style="font-family:'Syne',sans-serif; font-size:22px; font-weight:700; margin-bottom:10px;">${l}</div><div style="display:flex; flex-wrap:wrap; gap:6px;">${squares}</div>`;
@@ -1677,6 +1687,7 @@ function generateWeeklyReport(){
       if(!aplicaveis.includes(c.key)) return "—";
       const st = invStatus(l,c.key,c.freq);
       if(st.state==="ok") return `✔ ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}`;
+      if(st.state==="pausado") return "⏸";
       return st.state==="late" ? "✕" : "…";
     });
     html += `<tr><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
@@ -1975,7 +1986,7 @@ function renderGestao(){
     card.style.cssText = "padding:14px 16px; border-left:5px solid " + overallColor + "; cursor:pointer;";
     card.onclick = ()=>openLojaDetalhe(l);
     const squareHtml = (i, small)=>{
-      const bg = i.state==="ok" ? "var(--green)" : i.state==="late" ? "var(--red)" : "var(--amber)";
+      const bg = i.state==="ok" ? "var(--green)" : i.state==="late" ? "var(--red)" : i.state==="pausado" ? "var(--line)" : "var(--amber)";
       const size = small ? "32px" : "40px";
       const h = small ? "28px" : "36px";
       return `<div style="width:${size}; height:${h}; border-radius:6px; background:${bg}; display:flex; align-items:center; justify-content:center; font-size:${small?'8px':'9px'}; font-weight:700; color:#fff; text-align:center; line-height:1.1; padding:2px;">${i.label}</div>`;
