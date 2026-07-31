@@ -8,6 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>CoreJoint · Reportes</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --cream:#F4F1EA; --ink:#2B2723; --ink-soft:#5C564E;
@@ -15,8 +16,8 @@
     --line:#E4DDD0; --green:#3F7D5C; --amber:#C08A2E; --red:#B44435; --card:#FFFFFF;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  body{margin:0; font-family:'Source Sans 3',-apple-system,Segoe UI,Roboto,sans-serif; background:var(--cream); color:var(--ink); padding-bottom:50px;}
-  h1,h2,h3{font-family:'Fraunces',Georgia,serif; font-weight:600; margin:0;}
+  body{margin:0; font-family:'DM Sans',-apple-system,Segoe UI,Roboto,sans-serif; background:var(--cream); color:var(--ink); padding-bottom:50px;}
+  h1,h2,h3{font-family:'Syne',sans-serif; font-weight:800; letter-spacing:-.5px; margin:0;}
 
   #login{min-height:100vh; padding:26px 18px; display:flex; flex-direction:column; align-items:center;}
   #login h1{font-size:24px; color:var(--terracotta-dark); text-align:center;}
@@ -35,7 +36,7 @@
   .tab.active{background:var(--ink); color:#fff; border-color:var(--ink);}
 
   main{padding:14px 16px 60px; max-width:640px; margin:0 auto;}
-  .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:12px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.06);}
   .card-top{display:flex; justify-content:space-between; align-items:center;}
   .card-title{font-size:16px; font-weight:600;}
   .status-badge{font-size:12px; font-weight:700; padding:4px 10px; border-radius:12px;}
@@ -1238,7 +1239,7 @@ function openModoApresentacao(){
       const bg = i.state==="ok" ? "var(--green)" : i.state==="late" ? "var(--red)" : "var(--amber)";
       return `<div style="min-width:52px; height:48px; border-radius:8px; background:${bg}; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; padding:2px;">${i.label}</div>`;
     }).join("");
-    card.innerHTML = `<div style="font-family:'Fraunces',Georgia,serif; font-size:22px; font-weight:700; margin-bottom:10px;">${l}</div><div style="display:flex; flex-wrap:wrap; gap:6px;">${squares}</div>`;
+    card.innerHTML = `<div style="font-family:'Syne',sans-serif; font-size:22px; font-weight:700; margin-bottom:10px;">${l}</div><div style="display:flex; flex-wrap:wrap; gap:6px;">${squares}</div>`;
     grid.appendChild(card);
   });
   main.appendChild(grid);
