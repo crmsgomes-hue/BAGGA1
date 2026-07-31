@@ -2,75 +2,75 @@
 <html lang="pt-PT">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>CoreJoint</title>
 <link rel="manifest" href="manifest-hub.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta name="theme-color" content="#C1622E">
+<meta name="theme-color" content="#C1622D">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="CoreJoint">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --cream:#F4F1EA; --ink:#2B2723; --ink-soft:#5C564E;
-    --terracotta:#C1622E; --terracotta-dark:#9C4C22; --line:#E4DDD0; --card:#FFFFFF;
-    --red:#B44435; --amber:#C08A2E; --green:#3F7D5C;
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  body{margin:0; font-family:'DM Sans',-apple-system,Segoe UI,Roboto,sans-serif; background:var(--cream); color:var(--ink); min-height:100vh;}
-  body.dark{ --cream:#1c1a18; --ink:#EDE8E1; --ink-soft:#B8B0A5; --terracotta:#E08A52; --terracotta-dark:#F0A876; --line:#3a3632; --card:#2A2724; }
-  h1,h2{font-family:'Syne',sans-serif; font-weight:800; letter-spacing:-.5px; margin:0;}
-  header{padding:36px 24px 10px; text-align:center;}
-  header h1{font-size:30px; color:var(--terracotta-dark);}
-  header p{font-size:14px; color:var(--ink-soft); margin-top:6px;}
-  main{padding:20px 20px 40px; max-width:480px; margin:0 auto; display:flex; flex-direction:column; gap:14px;}
-  a.card{display:flex; align-items:center; gap:16px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px; text-decoration:none; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.06);}
-  a.card .icon{font-size:30px; width:48px; text-align:center; flex:none;}
-  a.card .txt .t{font-family:'Syne',sans-serif; font-size:18px; font-weight:600;}
-  a.card .txt .d{font-size:13px; color:var(--ink-soft); margin-top:2px;}
-  a.card .arrow{margin-left:auto; color:var(--terracotta); font-size:20px;}
-  .badge-count{background:var(--terracotta); color:#fff; font-size:12px; font-weight:700; border-radius:12px; padding:3px 9px; margin-left:8px; white-space:nowrap;}
-  .attn-title{font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-bottom:2px;}
-  .attn-item{display:flex; align-items:center; gap:12px; background:var(--card); border-left:5px solid var(--red); border-radius:10px; padding:12px 14px; text-decoration:none; color:var(--ink); font-size:13px; box-shadow:0 1px 3px rgba(0,0,0,.06);}
-  .attn-item.amber{border-left-color:var(--amber);}
-  .attn-item .arrow{margin-left:auto; color:var(--ink-soft);}
-  .all-clear{background:var(--green); color:#fff; border-radius:14px; padding:16px; text-align:center; font-weight:600;}
+:root{--bg:#FAF7F2;--bg2:#f1ebdc;--sf:#fff;--sf2:#f3eee2;--br:#e8ddc9;--ac:#C1622D;--ac2:#9c4d23;--acl:#fbeee5;--tx:#2b2118;--t2:#6b5d4f;--t3:#a8987f;--red:#B0432F;--org:#c17817;--grn:#5C7A5C;--blu:#1a56db;--ra:10px;--rb:7px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:14px;overflow-x:hidden}
+body.dark{--bg:#1c1a18;--sf:#2A2724;--sf2:#242220;--br:#3a3632;--tx:#EDE8E1;--t2:#B8B0A5;--t3:#8a8178;--ac:#E08A52;--ac2:#F0A876;--acl:#3a2c24;}
+#HD{display:flex;align-items:center;padding:0 14px;height:50px;background:var(--sf);border-bottom:1px solid var(--br);position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.hlog{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:var(--ac)}
+.hbtn{margin-left:auto;background:var(--sf2);border:1.5px solid var(--br);color:var(--t2);cursor:pointer;font-size:.85rem;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+#MN{flex:1;padding:14px;max-width:600px;margin:0 auto;width:100%}
+.pt{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:2px}
+.ps{font-size:.76rem;color:var(--t2);margin-bottom:14px}
+.ic{background:var(--sf);border:1px solid var(--br);border-radius:var(--rb);padding:13px;margin-bottom:8px;border-left:4px solid var(--br);display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--tx);}
+.ic.crit{border-left-color:var(--red)}
+.ic.pend{border-left-color:var(--org)}
+.ic-ico{font-size:1.3rem;flex-shrink:0}
+.ic-title{font-size:.86rem;font-weight:600;line-height:1.35}
+.ic-arrow{margin-left:auto;color:var(--t3);font-size:1rem;flex-shrink:0}
+.all-clear{background:var(--grn);color:#fff;border-radius:var(--rb);padding:14px;text-align:center;font-weight:700;font-size:.85rem;margin-bottom:8px;}
+.card{background:var(--sf);border:1px solid var(--br);border-radius:var(--ra);padding:15px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--tx);}
+.card .icon{font-size:1.7rem;flex-shrink:0;width:40px;text-align:center;}
+.card .ct{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;}
+.card .cd{font-size:.76rem;color:var(--t2);margin-top:1px;line-height:1.35}
+.bk{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:700;background:var(--ac);color:#fff;margin-left:8px;}
+.card .arrow{margin-left:auto;color:var(--t3);font-size:1.1rem;flex-shrink:0}
+.sec-label{font-size:.68rem;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin:16px 0 8px;}
 </style>
 </head>
 <body>
-<button id="darkToggle" onclick="toggleDark()" style="position:fixed; top:8px; right:8px; z-index:500; width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--card,#fff); font-size:16px; cursor:pointer;">🌙</button>
-<header>
-  <h1>CoreJoint</h1>
-  <p>As tuas ferramentas de gestão, num só sítio.</p>
-</header>
-<main>
+<div id="HD">
+  <div class="hlog">CoreJoint</div>
+  <button class="hbtn" id="darkToggle" onclick="toggleDark()">🌙</button>
+</div>
+<div id="MN">
+  <div class="pt">Dashboard</div>
+  <div class="ps">As tuas ferramentas de gestão, num só sítio.</div>
+
   <div id="attnSection"></div>
 
+  <div class="sec-label">Apps</div>
   <a class="card" href="CoreJoint_Reportes.html">
     <div class="icon">📸</div>
-    <div class="txt"><div class="t">Reportes</div><div class="d">Vitrine, vendas e inventário por loja</div></div>
+    <div style="flex:1;"><div class="ct">Reportes</div><div class="cd">Vitrine, vendas e inventário por loja</div></div>
     <span id="badge-reportes"></span>
     <div class="arrow">›</div>
   </a>
   <a class="card" href="CoreJoint_Fardamento.html">
     <div class="icon">👕</div>
-    <div class="txt"><div class="t">Fardamento</div><div class="d">Stock nos 3 polos, saídas e alertas</div></div>
+    <div style="flex:1;"><div class="ct">Fardamento</div><div class="cd">Stock nos 3 polos, saídas e alertas</div></div>
     <span id="badge-fardamento"></span>
     <div class="arrow">›</div>
   </a>
   <a class="card" href="CoreJoint_Adendas.html">
     <div class="icon">📋</div>
-    <div class="txt"><div class="t">Adendas</div><div class="d">Controlo de impressão, entrega e assinatura</div></div>
+    <div style="flex:1;"><div class="ct">Adendas</div><div class="cd">Controlo de impressão, entrega e assinatura</div></div>
     <span id="badge-adendas"></span>
     <div class="arrow">›</div>
   </a>
-</main>
+</div>
 <script>
 function toggleDark(){
   document.body.classList.toggle("dark");
@@ -90,7 +90,7 @@ async function api(path){
   return res.json();
 }
 function setBadge(id, n){
-  if(n>0) document.getElementById(id).innerHTML = `<span class="badge-count">${n}</span>`;
+  if(n>0) document.getElementById(id).innerHTML = `<span class="bk">${n}</span>`;
 }
 
 const LOJAS = ["Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim","Carregado","Ponte de Sor","Torres MCH","Torres MH"];
@@ -195,10 +195,10 @@ function addAttn(list, href, icon, texto, urgente){
     section.innerHTML = `<div class="all-clear">✔ Tudo em dia — nada precisa da tua atenção agora.</div>`;
     return;
   }
-  let html = `<div class="attn-title">🔥 Precisa de atenção agora (${attn.length})</div>`;
+  let html = `<div class="sec-label">🔥 Precisa de atenção agora (${attn.length})</div>`;
   attn.sort((a,b)=> (b.urgente?1:0) - (a.urgente?1:0));
   attn.forEach(a=>{
-    html += `<a class="attn-item ${a.urgente?'':'amber'}" href="${a.href}"><span>${a.icon}</span><span>${a.texto}</span><span class="arrow">›</span></a>`;
+    html += `<a class="ic ${a.urgente?'crit':'pend'}" href="${a.href}"><span class="ic-ico">${a.icon}</span><span class="ic-title">${a.texto}</span><span class="ic-arrow">›</span></a>`;
   });
   section.innerHTML = html;
 })();
