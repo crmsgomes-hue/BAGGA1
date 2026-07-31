@@ -748,19 +748,21 @@ function renderMiniCalendar(containerId, mes, onSelect){
     if(dow>=1 && dow<=4) elegiveis.add(dia);
   }
 
-  let html = `<div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px; font-size:11px; text-align:center; color:var(--ink-soft); margin-bottom:4px;">
+  let html = `<div style="background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,.06);">
+    <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:13px; margin-bottom:8px; text-transform:capitalize;">${primeiroDiaMes.toLocaleDateString('pt-PT',{month:'long',year:'numeric'})}</div>
+    <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px; font-size:10px; text-align:center; color:var(--ink-soft); font-weight:600; text-transform:uppercase; margin-bottom:4px;">
     <div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div><div>D</div>
   </div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">`;
   for(let i=0;i<offset;i++) html += `<div></div>`;
   for(let dia=1; dia<=diasNoMes; dia++){
     const isElegivel = elegiveis.has(dia);
     html += `<div ${isElegivel?`data-dia="${dia}"`:''} style="
-      aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:8px; font-size:13px; font-weight:600;
+      aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:8px; font-family:'Syne',sans-serif; font-size:13px; font-weight:700;
       background:${isElegivel?'var(--terracotta)':'var(--cream)'}; color:${isElegivel?'#fff':'var(--ink-soft)'};
-      cursor:${isElegivel?'pointer':'default'}; opacity:${isElegivel?'1':'.45'};
+      cursor:${isElegivel?'pointer':'default'}; opacity:${isElegivel?'1':'.45'}; transition:.15s;
     ">${dia}</div>`;
   }
-  html += `</div>`;
+  html += `</div></div>`;
   container.innerHTML = html;
   container.querySelectorAll("[data-dia]").forEach(el=>{
     el.onclick = ()=>{
