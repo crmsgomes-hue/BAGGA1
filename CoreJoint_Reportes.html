@@ -1767,6 +1767,7 @@ async function confirmManualEntry(){
 }
 
 /* ---------- GESTÃO (todas as lojas) ---------- */
+let ferramentasExpandidas = false;
 function renderGestao(){
   const main = document.getElementById("main");
   main.innerHTML = "";
@@ -1776,10 +1777,12 @@ function renderGestao(){
   toolsTitle.textContent = "Ferramentas";
   main.appendChild(toolsTitle);
 
-  const toolsGrid = document.createElement("div");
-  toolsGrid.style.cssText = "display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:18px;";
-  const tools = [
+  const principais = [
     {icon:"🖨️", label:"Relatório PDF", fn:generateWeeklyReport, highlight:true},
+    {icon:"📊", label:"Sondagem", fn:openSondagens},
+    {icon:"📝", label:"Formulário", fn:openFormularios}
+  ];
+  const secundarias = [
     {icon:"📅", label:"Histórico 12m", fn:openHistoricoAnual},
     {icon:"📥", label:"Excel", fn:exportarExcel},
     {icon:"🖼️", label:"Galeria fotos", fn:openGaleria},
@@ -1787,18 +1790,34 @@ function renderGestao(){
     {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry},
     {icon:"🖥️", label:"Modo apresentação", fn:openModoApresentacao},
     {icon:"📅", label:"Quem marcou o Global", fn:openAgendamentosGlobal},
-    {icon:"🗓️", label:"Relatório mensal (PDF)", fn:generateMonthlyReport},
-    {icon:"📊", label:"Sondagem rápida", fn:openSondagens},
-    {icon:"📝", label:"Formulário", fn:openFormularios}
+    {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport}
   ];
-  tools.forEach(t=>{
+
+  function tileEl(t){
     const tile = document.createElement("button");
     tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:${t.highlight?'var(--terracotta)':'var(--card)'}; border:1px solid var(--line); border-radius:14px; padding:14px 4px; cursor:pointer;`;
     tile.innerHTML = `<div style="font-size:22px;">${t.icon}</div><div style="font-size:10.5px; font-weight:600; text-align:center; line-height:1.2; color:${t.highlight?'#fff':'var(--ink)'};">${t.label}</div>`;
     tile.onclick = t.fn;
-    toolsGrid.appendChild(tile);
-  });
+    return tile;
+  }
+
+  const toolsGrid = document.createElement("div");
+  toolsGrid.style.cssText = "display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:8px;";
+  principais.forEach(t=> toolsGrid.appendChild(tileEl(t)));
   main.appendChild(toolsGrid);
+
+  const maisBtn = document.createElement("div");
+  maisBtn.style.cssText = "font-size:12px; color:var(--ink-soft); text-decoration:underline; cursor:pointer; margin-bottom:12px;";
+  maisBtn.textContent = ferramentasExpandidas ? "▲ Menos ferramentas" : `▾ Mais ferramentas (${secundarias.length})`;
+  maisBtn.onclick = ()=>{ ferramentasExpandidas = !ferramentasExpandidas; renderGestao(); };
+  main.appendChild(maisBtn);
+
+  if(ferramentasExpandidas){
+    const toolsGrid2 = document.createElement("div");
+    toolsGrid2.style.cssText = "display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:18px;";
+    secundarias.forEach(t=> toolsGrid2.appendChild(tileEl(t)));
+    main.appendChild(toolsGrid2);
+  }
 
   const today = todayStr();
   const vitrineTurnosDone = (l,ds)=>VITRINE_TURNOS.filter(t=>dailyStatus(l,"vitrine",ds,t.key)).length;
