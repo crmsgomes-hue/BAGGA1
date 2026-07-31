@@ -319,27 +319,35 @@ function renderPecaCard(polo, peca){
     const qty = getQty(polo, peca, tam);
     const row = document.createElement("div");
     row.className = "size-row";
-    row.style.flexWrap = "wrap";
     row.innerHTML = `
       <div class="size-tag">${tam}</div>
-      <span class="qty-num ${qty<LOW_THRESHOLD?'low':''}" style="flex:1; text-align:center; font-size:18px;">${qty}</span>
+      <input type="number" inputmode="numeric" class="qty-input ${qty<LOW_THRESHOLD?'low':''}" value="${qty}" data-act="qtyinput" style="flex:1; text-align:center; font-size:16px; font-weight:700; padding:8px; border:1.5px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); font-family:inherit;">
       <button class="saida-btn" data-act="saida">Saída</button>
-      <div style="width:100%; display:flex; gap:6px; justify-content:flex-end; margin-top:6px;">
-        <button class="stepbtn" data-act="dec10">－10</button>
-        <button class="stepbtn" data-act="dec1">－1</button>
-        <button class="stepbtn" data-act="inc1">＋1</button>
-        <button class="stepbtn" data-act="inc10">＋10</button>
-      </div>
     `;
-    row.querySelector('[data-act="dec10"]').onclick = ()=>adjustQty(polo,peca,tam,-10);
-    row.querySelector('[data-act="dec1"]').onclick = ()=>adjustQty(polo,peca,tam,-1);
-    row.querySelector('[data-act="inc1"]').onclick = ()=>adjustQty(polo,peca,tam,1);
-    row.querySelector('[data-act="inc10"]').onclick = ()=>adjustQty(polo,peca,tam,10);
+    const input = row.querySelector('[data-act="qtyinput"]');
+    input.onchange = ()=>{
+      const novoValor = parseInt(input.value, 10);
+      if(isNaN(novoValor) || novoValor<0){ input.value = qty; toast("Valor inválido"); return; }
+      setQtyDireta(polo,peca,tam,qty,novoValor);
+    };
     row.querySelector('[data-act="saida"]').onclick = ()=>openSaida(polo,peca,tam);
     body.appendChild(row);
   });
   card.appendChild(body);
   return card;
+}
+
+async function setQtyDireta(polo, peca, tamanho, valorAntigo, valorNovo){
+  const delta = valorNovo - valorAntigo;
+  if(delta===0) return;
+  try{
+    await incrementStock(polo, peca, tamanho, delta, currentUser);
+    await logMovimento({polo, peca, tamanho, quantidade:Math.abs(delta), tipo: delta>0 ? "entrada":"ajuste", registado_por: currentUser, nota: "Contagem atualizada manualmente"});
+    await loadStock();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao gravar: " + (e.message||e).slice(0,100));
+  }
 }
 
 async function adjustQty(polo, peca, tamanho, delta){
