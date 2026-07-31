@@ -25,6 +25,13 @@ body.dark{--bg:#1c1a18;--sf:#2A2724;--sf2:#242220;--br:#3a3632;--tx:#EDE8E1;--t2
 .pt{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:2px}
 .ps{font-size:.76rem;color:var(--t2);margin-bottom:14px}
 .al{padding:10px 13px;border-radius:var(--rb);margin-bottom:10px;font-size:.8rem;border-left:3px solid;display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-decoration:none;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:16px;}
+@media(max-width:380px){.g4{grid-template-columns:1fr 1fr;}}
+.sc{background:var(--sf);border:1px solid var(--br);border-radius:var(--ra);padding:13px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.slb{font-size:.67rem;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:2px;}
+.svl{font-family:'Syne',sans-serif;font-size:1.45rem;font-weight:800;}
+.cr{color:var(--red)}
+.cg{color:var(--grn)}
 .al-w{background:#fdf6e9;border-color:var(--org);color:#6b4d12}
 .al-d{background:#fbeeec;border-color:var(--red);color:var(--red)}
 .al-g{background:#eef3ea;border-color:var(--grn);color:var(--grn)}
@@ -51,6 +58,7 @@ body.dark{--bg:#1c1a18;--sf:#2A2724;--sf2:#242220;--br:#3a3632;--tx:#EDE8E1;--t2
   <div class="pt">Dashboard</div>
   <div class="ps">As tuas ferramentas de gestão, num só sítio.</div>
 
+  <div id="statsGrid" class="g4"></div>
   <div id="attnSection"></div>
 
   <div class="sec-label">Apps</div>
@@ -142,6 +150,7 @@ function addAttn(list, href, titulo, sub, urgente){
   const attn = [];
   const today = new Date();
   const todayStr = today.toISOString().slice(0,10);
+  let statReportes = 0, statAtrasados = 0, statFardamento = 0, statAdendas = 0;
 
   try{
     const daily = await api(`cj_daily_reportes?select=loja,tipo,turno&data=eq.${todayStr}`);
@@ -153,6 +162,7 @@ function addAttn(list, href, titulo, sub, urgente){
       if(!daily.some(r=>r.loja===l && r.tipo==="vendas" && r.turno==="unico")){ reportesPend++; semVendas.push(l); }
     });
     setBadge("badge-reportes", reportesPend);
+    statReportes = reportesPend;
     if(semVitrine.length) addAttn(attn, "CoreJoint_Reportes.html", `🌇 ${semVitrine.length} loja(s) sem vitrine completa hoje`, semVitrine.slice(0,4).join(", ") + (semVitrine.length>4?" e mais...":""), true);
     if(semVendas.length) addAttn(attn, "CoreJoint_Reportes.html", `🧾 ${semVendas.length} loja(s) sem vendas hoje`, semVendas.slice(0,4).join(", ") + (semVendas.length>4?" e mais...":""), true);
 
@@ -171,12 +181,14 @@ function addAttn(list, href, titulo, sub, urgente){
       });
     });
     if(atrasadosN>0) addAttn(attn, "CoreJoint_Reportes.html", `📦 ${atrasadosN} inventário(s)/marketing atrasado(s)`, "Toca para ver quais lojas e categorias", true);
+    statAtrasados = atrasadosN;
   }catch(e){}
 
   try{
     const stock = await api("cj_fardamento_stock?select=quantidade&quantidade=lt.5");
     const dev = await api("cj_fardamento_devolucoes?select=id&recolhido=eq.false");
     setBadge("badge-fardamento", stock.length + dev.length);
+    statFardamento = stock.length + dev.length;
     if(stock.length) addAttn(attn, "CoreJoint_Fardamento.html", `👕 ${stock.length} combinação(ões) de fardamento com stock baixo`, "Toca para ver quais peças e tamanhos", false);
     if(dev.length) addAttn(attn, "CoreJoint_Fardamento.html", `↩ ${dev.length} devolução(ões) por recolher`, "Toca para ver em que lojas", false);
   }catch(e){}
@@ -184,6 +196,7 @@ function addAttn(list, href, titulo, sub, urgente){
   try{
     const adendas = await api("cj_adendas?select=id,updated_at,criado_em&arquivada=eq.false");
     setBadge("badge-adendas", adendas.length);
+    statAdendas = adendas.length;
     const paradas = adendas.filter(r=>{
       const ref = r.updated_at || r.criado_em;
       const dias = Math.floor((Date.now() - new Date(ref).getTime())/86400000);
@@ -191,6 +204,13 @@ function addAttn(list, href, titulo, sub, urgente){
     });
     if(paradas.length) addAttn(attn, "CoreJoint_Adendas.html", `📋 ${paradas.length} adenda(s) parada(s) há 3+ dias`, "Toca para ver quais precisam de ação", true);
   }catch(e){}
+
+  document.getElementById("statsGrid").innerHTML = `
+    <div class="sc"><div class="slb">Reportes</div><div class="svl ${statReportes>0?'cr':'cg'}">${statReportes}</div></div>
+    <div class="sc"><div class="slb">Atrasados</div><div class="svl ${statAtrasados>0?'cr':'cg'}">${statAtrasados}</div></div>
+    <div class="sc"><div class="slb">Fardamento</div><div class="svl ${statFardamento>0?'cr':'cg'}">${statFardamento}</div></div>
+    <div class="sc"><div class="slb">Adendas</div><div class="svl ${statAdendas>0?'cr':'cg'}">${statAdendas}</div></div>
+  `;
 
   const section = document.getElementById("attnSection");
   if(attn.length===0){
