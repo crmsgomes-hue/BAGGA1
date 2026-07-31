@@ -46,6 +46,11 @@
   .field input{width:100%; padding:12px 14px; font-size:16px; border:1px solid var(--line); border-radius:10px; background:#fff;}
   .cam-preview{width:100%; border-radius:10px; margin-top:8px; max-height:220px; object-fit:contain; background:#eee;}
   .filebtn{display:inline-block; background:var(--terracotta); color:#fff; padding:12px 20px; border-radius:10px; font-size:15px; font-weight:600;}
+  .photo-item{position:relative; display:inline-block;}
+  .photo-item img{width:80px; height:80px; object-fit:cover; border-radius:8px; border:1.5px solid var(--line); cursor:pointer; display:block;}
+  .photo-del{position:absolute; top:-6px; right:-6px; background:var(--red); color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:.7rem; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;}
+  .photo-legend{width:80px; margin-top:3px; font-size:11px; padding:2px 4px; border:1px solid var(--line); border-radius:4px; background:var(--card); color:var(--ink); font-family:inherit; outline:none;}
+  .photo-legend:focus{border-color:var(--terracotta);}
   .modal-actions{display:flex; gap:10px; margin-top:18px;}
   .btn-cancel{flex:1; background:none; border:1px solid var(--line); padding:13px; border-radius:10px; font-size:15px; color:var(--ink-soft);}
   .btn-save{flex:1.4; background:var(--terracotta); color:#fff; border:none; padding:13px; border-radius:10px; font-size:15px; font-weight:600;}
@@ -126,9 +131,9 @@ function categoriasParaLoja(loja){
 const params = new URLSearchParams(location.search);
 const currentLoja = params.get("loja") || "Loja não identificada";
 let dailyRows = [], invRows = [], agendamentos = [], sondagensPendentes = [], formulariosPendentes = [];
-let pendingPhoto = null;
+let pendingPhotos = [];
 window.addEventListener("beforeunload", function(e){
-  if(pendingPhoto){
+  if(pendingPhotos.length>0){
     e.preventDefault();
     e.returnValue = "";
   }
@@ -493,7 +498,7 @@ function render(){
 }
 
 function openCapture(kind, key, label, turno){
-  pendingPhoto = null;
+  pendingPhotos = [];
   pendingPhotoEntrada = null;
   pendingPhotoDesperdicio = null;
   const isInv = kind==="inv";
@@ -504,7 +509,8 @@ function openCapture(kind, key, label, turno){
       <h2>${label}</h2>
       <div class="sub">${currentLoja} · ${new Date().toLocaleDateString('pt-PT')}</div>
       <label class="filebtn">📷 Tirar foto<input type="file" accept="image/*" capture="environment" id="capFile"></label>
-      <img id="capPreview" class="cam-preview" style="display:none;">
+      <div class="sub" style="margin-top:2px;">Podes tirar várias fotos (ex: montra grande) — cada uma soma às outras.</div>
+      <div id="capThumbs" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;"></div>
       ${isInv ? `
         <div class="field" style="margin-top:16px;">
           <label>Valor do inventário (€)</label>
@@ -542,7 +548,7 @@ function openCapture(kind, key, label, turno){
 function closeCapture(){
   const o = document.getElementById("capOverlay");
   if(o) o.remove();
-  pendingPhoto = null;
+  pendingPhotos = [];
   pendingPhotoEntrada = null;
   pendingPhotoDesperdicio = null;
 }
@@ -590,28 +596,79 @@ function handleCapFileDesperdicio(e){
   };
   reader.readAsDataURL(file);
 }
-function handleCapFile(e){
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = evt=>{
-    const img = new Image();
-    img.onload = ()=>{
-      const maxDim = 1280;
-      let {width,height} = img;
-      if(width>height && width>maxDim){ height=height*maxDim/width; width=maxDim; }
-      else if(height>maxDim){ width=width*maxDim/height; height=maxDim; }
-      const canvas = document.createElement("canvas");
-      canvas.width=width; canvas.height=height;
-      canvas.getContext("2d").drawImage(img,0,0,width,height);
-      pendingPhoto = canvas.toDataURL("image/jpeg",0.7);
-      const prev = document.getElementById("capPreview");
-      prev.src = pendingPhoto; prev.style.display="block";
-      document.getElementById("capSaveBtn").disabled = false;
-    };
-    img.src = evt.target.result;
+function compressPhoto(dataUrl, maxWidth, quality, callback){
+  const img = new Image();
+  img.onload = function(){
+    try{
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if(w > maxWidth){ h = Math.round(h * maxWidth / w); w = maxWidth; }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const result = canvas.toDataURL('image/jpeg', quality);
+      canvas.width = 0; canvas.height = 0;
+      callback(result);
+    }catch(e){
+      console.warn('compressPhoto: falha ao comprimir, a usar a foto original.', e);
+      callback(dataUrl);
+    }
   };
-  reader.readAsDataURL(file);
+  img.onerror = function(e){
+    console.warn('compressPhoto: imagem não carregou.', e);
+    callback(null);
+  };
+  img.src = dataUrl;
+}
+function bigPhoto(src){
+  if(!src) return;
+  const old = document.getElementById('_lb');
+  if(old) document.body.removeChild(old);
+  const lb = document.createElement('div');
+  lb.id = '_lb';
+  lb.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.95);z-index:2147483647;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent';
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'max-width:96vw;max-height:90vh;object-fit:contain;border-radius:6px;pointer-events:none;user-select:none;display:block';
+  const x = document.createElement('div');
+  x.style.cssText = 'position:absolute;top:10px;right:16px;color:#fff;font-size:2.5rem;line-height:1;font-weight:200;pointer-events:none';
+  x.textContent = '×';
+  lb.appendChild(img); lb.appendChild(x);
+  lb.onclick = ()=>document.body.removeChild(lb);
+  document.body.appendChild(lb);
+}
+function handleCapFile(e){
+  if(!e.target.files.length) return;
+  const r = new FileReader();
+  r.onload = evt=>{
+    compressPhoto(evt.target.result, 1000, 0.7, function(compressed){
+      if(!compressed){ toast("Não foi possível processar a foto — tenta outra vez."); return; }
+      pendingPhotos.push({src:compressed, legenda:''});
+      renderCapThumbs();
+      document.getElementById("capSaveBtn").disabled = pendingPhotos.length===0;
+    });
+  };
+  r.readAsDataURL(e.target.files[0]);
+  e.target.value = "";
+}
+function renderCapThumbs(){
+  const wrap = document.getElementById("capThumbs");
+  if(!wrap) return;
+  wrap.innerHTML = pendingPhotos.map((p,i)=>`
+    <div class="photo-item">
+      <img src="${p.src}" onclick="bigPhoto('${p.src}')">
+      <button class="photo-del" onclick="removerCapFoto(${i})">✕</button>
+      <input class="photo-legend" type="text" placeholder="Legenda…" value="${p.legenda||''}" onchange="setCapFotoLegenda(${i},this.value)">
+    </div>
+  `).join("");
+}
+function setCapFotoLegenda(idx, val){
+  if(pendingPhotos[idx]) pendingPhotos[idx].legenda = val;
+}
+function removerCapFoto(i){
+  pendingPhotos.splice(i,1);
+  renderCapThumbs();
+  document.getElementById("capSaveBtn").disabled = pendingPhotos.length===0;
 }
 function abrirFormularioResposta(fm){
   const overlay = document.createElement("div");
@@ -691,11 +748,11 @@ async function agendarGlobal(mes, dataIso){
 }
 
 async function confirmCapture(kind, key, turno){
-  if(!pendingPhoto){ toast("Tira a foto primeiro"); return; }
+  if(pendingPhotos.length===0){ toast("Tira pelo menos uma foto"); return; }
   const today = todayStr();
   const item = {
     kind, key, turno, today, loja: currentLoja,
-    foto: pendingPhoto,
+    fotos: pendingPhotos.slice(),
     fotoEntrada: pendingPhotoEntrada || null,
     fotoDesperdicio: pendingPhotoDesperdicio || null,
     vInv: kind==="inv" ? document.getElementById("vInv").value : null,
@@ -703,7 +760,7 @@ async function confirmCapture(kind, key, turno){
   };
   try{
     await enviarItem(item);
-    mostrarSucesso("Registado! Obrigado 🙌");
+    mostrarSucesso(`Registado! ${item.fotos.length} foto${item.fotos.length>1?'s':''} guardada${item.fotos.length>1?'s':''} 🙌`);
     closeCapture();
     await loadAll();
   }catch(e){
@@ -715,36 +772,57 @@ async function confirmCapture(kind, key, turno){
 }
 
 async function enviarItem(item){
-  const {kind, key, turno, today, loja, foto, fotoEntrada, fotoDesperdicio, vInv, vCnvs} = item;
+  const {kind, key, turno, today, loja, fotos, fotoEntrada, fotoDesperdicio, vInv, vCnvs} = item;
   if(kind==="daily"){
-    const path = `${slug(loja)}/${key}/${turno}/${today}_${Date.now()}.jpg`;
-    const url = await uploadPhoto(foto, path);
-    await upsertDaily(loja, key, today, url, turno);
+    const objs = [];
+    for(const foto of fotos){
+      const src = foto.src !== undefined ? foto.src : foto;
+      const legenda = foto.legenda || "";
+      const path = `${slug(loja)}/${key}/${turno}/${today}_${Date.now()}_${Math.random().toString(36).slice(2,6)}.jpg`;
+      const url = await uploadPhoto(src, path);
+      objs.push({url, legenda});
+    }
+    await api("POST", "rpc/append_daily_foto_v2", {
+      p_loja: loja, p_tipo: key, p_data: today, p_turno: turno, p_fotos: objs, p_por: loja
+    });
   } else if(kind==="marketing"){
-    const path = `${slug(loja)}/marketing/${key}/${today}.jpg`;
-    const url = await uploadPhoto(foto, path);
-    await api("POST", "cj_inventario_reportes", {
-      loja, categoria:key, data:today, foto_path:url,
-      valor_inventario:null, valor_cnvs:null, enviado_por:loja
+    const objs = [];
+    for(const foto of fotos){
+      const src = foto.src !== undefined ? foto.src : foto;
+      const legenda = foto.legenda || "";
+      const path = `${slug(loja)}/marketing/${key}/${today}_${Date.now()}_${Math.random().toString(36).slice(2,6)}.jpg`;
+      const url = await uploadPhoto(src, path);
+      objs.push({url, legenda});
+    }
+    await api("POST", "rpc/append_inv_fotos_v2", {
+      p_loja: loja, p_categoria: key, p_data: today, p_fotos: objs,
+      p_valor_inventario: null, p_valor_cnvs: null, p_por: loja
     });
   } else {
     const vInvN = parseFloat(vInv);
     const vCnvsN = parseFloat(vCnvs);
-    const path = `${slug(loja)}/inventario/${key}/${today}.jpg`;
-    const url = await uploadPhoto(foto, path);
+    const objs = [];
+    for(const foto of fotos){
+      const src = foto.src !== undefined ? foto.src : foto;
+      const legenda = foto.legenda || "";
+      const path = `${slug(loja)}/inventario/${key}/${today}_${Date.now()}_${Math.random().toString(36).slice(2,6)}.jpg`;
+      const url = await uploadPhoto(src, path);
+      objs.push({url, legenda});
+    }
     let fotoEntradaUrl = null;
     if(fotoEntrada) fotoEntradaUrl = await uploadPhoto(fotoEntrada, `${slug(loja)}/inventario/${key}/entrada_${today}_${Date.now()}.jpg`);
     let fotoDesperdicioUrl = null;
     if(fotoDesperdicio) fotoDesperdicioUrl = await uploadPhoto(fotoDesperdicio, `${slug(loja)}/inventario/${key}/desperdicio_${today}_${Date.now()}.jpg`);
-    const payload = {
-      loja, categoria:key, data:today, foto_path:url,
-      valor_inventario: isNaN(vInvN)?null:vInvN, valor_cnvs: isNaN(vCnvsN)?null:vCnvsN, enviado_por:loja
-    };
-    if(key==="global"){
-      payload.foto_entrada_cnvs = fotoEntradaUrl;
-      payload.foto_desperdicio_cnvs = fotoDesperdicioUrl;
+    await api("POST", "rpc/append_inv_fotos_v2", {
+      p_loja: loja, p_categoria: key, p_data: today, p_fotos: objs,
+      p_valor_inventario: isNaN(vInvN)?null:vInvN, p_valor_cnvs: isNaN(vCnvsN)?null:vCnvsN, p_por: loja
+    });
+    if(key==="global" && (fotoEntradaUrl || fotoDesperdicioUrl)){
+      const patch = {};
+      if(fotoEntradaUrl) patch.foto_entrada_cnvs = fotoEntradaUrl;
+      if(fotoDesperdicioUrl) patch.foto_desperdicio_cnvs = fotoDesperdicioUrl;
+      await api("PATCH", `cj_inventario_reportes?loja=eq.${encodeURIComponent(loja)}&categoria=eq.${key}&data=eq.${today}`, patch);
     }
-    await api("POST", "cj_inventario_reportes", payload);
   }
 }
 
