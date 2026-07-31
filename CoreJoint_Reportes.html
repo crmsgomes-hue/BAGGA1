@@ -5,7 +5,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, user-scalable=yes">
 <title>CoreJoint · Reportes</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1370,6 +1370,37 @@ function openRegistoAtividade(){
   })();
 }
 
+async function partilharResumoWhatsApp(){
+  const today = todayStr();
+  const missingVitrine = LOJAS.filter(l=>VITRINE_TURNOS.some(t=>!dailyStatus(l,"vitrine",today,t.key)));
+  const missingVendas = LOJAS.filter(l=>!dailyStatus(l,"vendas",today,"unico"));
+  let atrasados = 0;
+  LOJAS.forEach(l=>{
+    [...categoriasParaLoja(l), ...MARKETING_CATS].forEach(c=>{
+      if(invStatus(l,c.key,c.freq).state==="late") atrasados++;
+    });
+  });
+  const dataTxt = new Date().toLocaleDateString('pt-PT',{weekday:'long', day:'2-digit', month:'long'});
+  let texto = `📊 CoreJoint — Resumo de ${dataTxt}\n\n`;
+  texto += missingVitrine.length ? `🌇 Vitrine incompleta (${missingVitrine.length}): ${missingVitrine.join(", ")}\n` : `🌇 Vitrine: todas completas ✔\n`;
+  texto += missingVendas.length ? `🧾 Sem vendas (${missingVendas.length}): ${missingVendas.join(", ")}\n` : `🧾 Vendas: todas registadas ✔\n`;
+  texto += atrasados>0 ? `📦 ${atrasados} inventário(s)/marketing atrasado(s)\n` : `📦 Inventário: tudo em dia ✔\n`;
+
+  try{
+    if(navigator.share){
+      await navigator.share({title:"CoreJoint — Resumo", text:texto});
+    } else {
+      await navigator.clipboard.writeText(texto);
+      toast("Resumo copiado — cola onde quiseres");
+    }
+  }catch(e){
+    if(e.name !== "AbortError"){
+      try{ await navigator.clipboard.writeText(texto); toast("Resumo copiado — cola onde quiseres"); }
+      catch(e2){ toast("Não foi possível partilhar nem copiar"); }
+    }
+  }
+}
+
 function openAgendamentosGlobal(){
   currentView = openAgendamentosGlobal;
   const main = document.getElementById("main");
@@ -1989,6 +2020,7 @@ async function confirmManualEntry(){
 
 /* ---------- GESTÃO (todas as lojas) ---------- */
 let ferramentasExpandidas = false;
+let gestaoSearchTerm = "";
 function renderGestao(){
   const main = document.getElementById("main");
   main.innerHTML = "";
@@ -2000,8 +2032,8 @@ function renderGestao(){
 
   const principais = [
     {icon:"🖨️", label:"Relatório PDF", fn:generateWeeklyReport, highlight:true},
-    {icon:"📊", label:"Sondagem", fn:openSondagens},
-    {icon:"📝", label:"Formulário", fn:openFormularios}
+    {icon:"📲", label:"Resumo p/ WhatsApp", fn:partilharResumoWhatsApp},
+    {icon:"📊", label:"Sondagem", fn:openSondagens}
   ];
   const secundarias = [
     {icon:"📅", label:"Histórico 12m", fn:openHistoricoAnual},
@@ -2013,7 +2045,8 @@ function renderGestao(){
     {icon:"📅", label:"Quem marcou o Global", fn:openAgendamentosGlobal},
     {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport},
     {icon:"🏆", label:"Ranking de lojas", fn:openRankingLojas},
-    {icon:"🕓", label:"Registo de atividade", fn:openRegistoAtividade}
+    {icon:"🕓", label:"Registo de atividade", fn:openRegistoAtividade},
+    {icon:"📝", label:"Formulário", fn:openFormularios}
   ];
 
   function tileEl(t){
@@ -2066,6 +2099,16 @@ function renderGestao(){
   t1.className="section-title"; t1.textContent="Por loja (piores primeiro)";
   main.appendChild(t1);
 
+  const searchInput = document.createElement("input");
+  searchInput.placeholder = "🔎 Procurar loja...";
+  searchInput.value = gestaoSearchTerm;
+  searchInput.style.cssText = "width:100%; padding:9px 12px; border-radius:10px; border:1px solid var(--line); font-size:14px; margin-bottom:12px;";
+  searchInput.oninput = ()=>{ gestaoSearchTerm = searchInput.value; renderLojasList(); };
+  main.appendChild(searchInput);
+
+  const lojasListWrap = document.createElement("div");
+  main.appendChild(lojasListWrap);
+
   function severidadeLoja(l){
     let score = 0;
     VITRINE_TURNOS.forEach(t=>{
@@ -2082,9 +2125,17 @@ function renderGestao(){
     if(ultima!==null && ultima>=3) score += 5;
     return score;
   }
-  const lojasOrdenadas = [...LOJAS].sort((a,b)=> severidadeLoja(b) - severidadeLoja(a));
 
-  lojasOrdenadas.forEach(l=>{
+  function renderLojasList(){
+    lojasListWrap.innerHTML = "";
+    const termo = gestaoSearchTerm.trim().toLowerCase();
+    const lojasFiltradas = termo ? LOJAS.filter(l=>l.toLowerCase().includes(termo)) : LOJAS;
+    const lojasOrdenadas = [...lojasFiltradas].sort((a,b)=> severidadeLoja(b) - severidadeLoja(a));
+    if(lojasOrdenadas.length===0){
+      lojasListWrap.innerHTML = '<div class="empty">Nenhuma loja encontrada.</div>';
+      return;
+    }
+    lojasOrdenadas.forEach(l=>{
     const items = [];
     VITRINE_TURNOS.forEach(t=>{
       const done = !!dailyStatus(l,"vitrine",today,t.key);
@@ -2136,8 +2187,10 @@ function renderGestao(){
       <div style="font-size:9px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin:8px 0 4px;">Marketing (mensal)</div>
       <div style="display:flex; flex-wrap:wrap; gap:4px; opacity:.85;">${squaresMkt}</div>
     `;
-    main.appendChild(card);
-  });
+    lojasListWrap.appendChild(card);
+    });
+  }
+  renderLojasList();
 }
 
 function ultimaAtividadeDias(loja){
