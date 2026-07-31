@@ -445,27 +445,26 @@ function render(){
         if(ag){
           agRow.innerHTML = `<div style="font-size:12px; color:var(--ink-soft);">📅 Agendado para ${new Date(ag.data_agendada+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} <span style="text-decoration:underline; cursor:pointer;" id="mudarAgendamento">(mudar)</span></div>`;
         } else {
-          agRow.innerHTML = `<div style="font-size:12px; color:var(--ink-soft); margin-bottom:4px;">📅 Marcar o dia em que vais fazer:</div><div class="chip-row" id="agDiasChips"></div>`;
+          agRow.innerHTML = `
+            <div style="font-size:12px; color:var(--ink-soft); margin-bottom:6px;">📅 Marca o dia em que vais fazer (só 3ª semana, segunda a quinta):</div>
+            <div id="miniCalWrap"></div>
+          `;
         }
         wrap.appendChild(agRow);
-        setTimeout(()=>{
-          const chipsWrap = document.getElementById("agDiasChips");
-          if(chipsWrap){
-            const win = c.st.window;
-            const d = new Date(win.start);
-            while(d<=win.end){
-              const ds = isoDate(d);
-              const chip = document.createElement("div");
-              chip.className = "chip";
-              chip.textContent = d.getDate();
-              chip.onclick = ()=>agendarGlobal(mes, ds);
-              chipsWrap.appendChild(chip);
-              d.setDate(d.getDate()+1);
-            }
-          }
-          const mudar = document.getElementById("mudarAgendamento");
-          if(mudar) mudar.onclick = ()=>{ agendamentos = agendamentos.filter(a=>a.mes!==mes); render(); };
-        }, 0);
+        if(!ag){
+          setTimeout(()=>{
+            renderMiniCalendar("miniCalWrap", mes, (ds)=>agendarGlobal(mes, ds));
+          }, 0);
+        }
+        const mudar = document.getElementById("mudarAgendamento");
+        if(mudar) mudar.onclick = ()=>{ agendamentos = agendamentos.filter(a=>a.mes!==mes); render(); };
+
+        if(isLastDaysOfMonth()){
+          const warnGlobal = document.createElement("div");
+          warnGlobal.className = "warn-card";
+          warnGlobal.textContent = "⚠ Estamos nos últimos dias do mês — não se faz inventário Global agora. Espera pela 3ª semana do próximo mês.";
+          wrap.appendChild(warnGlobal);
+        }
       }
       main.appendChild(wrap);
     });
@@ -730,6 +729,46 @@ async function responderSondagem(sondagemId, opcao){
     console.error(e);
     toast("Erro ao responder: " + (e.message||e).slice(0,100));
   }
+}
+
+function renderMiniCalendar(containerId, mes, onSelect){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+  const [ano, mesNum] = mes.split("-").map(Number);
+  const primeiroDiaMes = new Date(ano, mesNum-1, 1);
+  const ultimoDiaMes = new Date(ano, mesNum, 0);
+  const diasNoMes = ultimoDiaMes.getDate();
+  // offset: segunda=0 ... domingo=6
+  const offset = (primeiroDiaMes.getDay()+6)%7;
+
+  const elegiveis = new Set();
+  for(let dia=15; dia<=21; dia++){
+    const d = new Date(ano, mesNum-1, dia);
+    const dow = d.getDay(); // 1=Seg ... 4=Qui
+    if(dow>=1 && dow<=4) elegiveis.add(dia);
+  }
+
+  let html = `<div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px; font-size:11px; text-align:center; color:var(--ink-soft); margin-bottom:4px;">
+    <div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div><div>D</div>
+  </div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">`;
+  for(let i=0;i<offset;i++) html += `<div></div>`;
+  for(let dia=1; dia<=diasNoMes; dia++){
+    const isElegivel = elegiveis.has(dia);
+    html += `<div ${isElegivel?`data-dia="${dia}"`:''} style="
+      aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:8px; font-size:13px; font-weight:600;
+      background:${isElegivel?'var(--terracotta)':'var(--cream)'}; color:${isElegivel?'#fff':'var(--ink-soft)'};
+      cursor:${isElegivel?'pointer':'default'}; opacity:${isElegivel?'1':'.45'};
+    ">${dia}</div>`;
+  }
+  html += `</div>`;
+  container.innerHTML = html;
+  container.querySelectorAll("[data-dia]").forEach(el=>{
+    el.onclick = ()=>{
+      const dia = el.getAttribute("data-dia");
+      const ds = `${ano}-${String(mesNum).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
+      onSelect(ds);
+    };
+  });
 }
 
 async function agendarGlobal(mes, dataIso){
