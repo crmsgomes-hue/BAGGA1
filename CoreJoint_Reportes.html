@@ -2136,30 +2136,26 @@ function renderGestao(){
       return;
     }
     lojasOrdenadas.forEach(l=>{
-    const items = [];
-    VITRINE_TURNOS.forEach(t=>{
-      const done = !!dailyStatus(l,"vitrine",today,t.key);
-      items.push({label:t.label.slice(0,3), state: turnoSquareState(done, TURNO_HORA_LIMITE[t.key])});
-    });
-    {
-      const done = !!dailyStatus(l,"vendas",today,"unico");
-      items.push({label:"Vend", state: turnoSquareState(done, VENDAS_HORA_LIMITE)});
-    }
+    const vitOk = VITRINE_TURNOS.filter(t=>!!dailyStatus(l,"vitrine",today,t.key)).length;
+    const vitState = turnoSquareState(vitOk===3, TURNO_HORA_LIMITE.lanche);
+    const vendasDone = !!dailyStatus(l,"vendas",today,"unico");
+    const vendasState = turnoSquareState(vendasDone, VENDAS_HORA_LIMITE);
+
+    let invAtrasados = 0, invPausados = 0, invDiaErrado = 0;
     categoriasParaLoja(l).forEach(c=>{
       const st = invStatus(l,c.key,c.freq);
-      const state = st.diaErrado ? "diaerrado" : st.state;
-      items.push({label:c.label.slice(0,4), state});
+      if(st.state==="late") invAtrasados++;
+      if(st.state==="pausado") invPausados++;
+      if(st.diaErrado) invDiaErrado++;
     });
-    const itemsMarketing = [];
+    let mktAtrasados = 0;
     MARKETING_CATS.forEach(c=>{
       const st = invStatus(l,c.key,c.freq);
-      const state = st.diaErrado ? "diaerrado" : st.state;
-      itemsMarketing.push({label:c.label.slice(0,4), state});
+      if(st.state==="late") mktAtrasados++;
     });
 
-    const todosItems = [...items, ...itemsMarketing];
-    const anyLate = todosItems.some(i=>i.state==="late" || i.state==="diaerrado");
-    const anyPend = todosItems.some(i=>i.state==="pend");
+    const anyLate = vitState==="late" || vendasState==="late" || invAtrasados>0 || invDiaErrado>0 || mktAtrasados>0;
+    const anyPend = vitState==="pend" || vendasState==="pend";
     const overall = anyLate ? "late" : anyPend ? "pend" : "ok";
     const overallColor = overall==="ok" ? "var(--green)" : overall==="late" ? "var(--red)" : "var(--amber)";
     const streak = calcStreak(l);
@@ -2167,25 +2163,33 @@ function renderGestao(){
 
     const card = document.createElement("div");
     card.className = "card";
-    card.style.cssText = "padding:14px 16px; border-left:5px solid " + overallColor + "; cursor:pointer;";
+    card.style.cssText = "padding:12px 14px; border-left:3px solid " + overallColor + "; cursor:pointer;";
     card.onclick = ()=>openLojaDetalhe(l);
-    const squareHtml = (i, small)=>{
-      const bg = i.state==="ok" ? "var(--green)" : i.state==="late" ? "var(--red)" : i.state==="pausado" ? "var(--line)" : "var(--amber)";
-      const size = small ? "32px" : "40px";
-      const h = small ? "28px" : "36px";
-      return `<div style="width:${size}; height:${h}; border-radius:6px; background:${bg}; display:flex; align-items:center; justify-content:center; font-size:${small?'8px':'9px'}; font-weight:700; color:#fff; text-align:center; line-height:1.1; padding:2px;">${i.label}</div>`;
-    };
-    const squares = items.map(i=>squareHtml(i,false)).join("");
-    const squaresMkt = itemsMarketing.map(i=>squareHtml(i,true)).join("");
+
+    function pill(icon, texto, tipo){
+      const cores = {
+        ok: {bg:"#eef3ea", fg:"var(--green)"},
+        late: {bg:"#fbeeec", fg:"var(--red)"},
+        pend: {bg:"#fdf6e9", fg:"var(--amber)"}
+      };
+      const c = cores[tipo] || cores.pend;
+      return `<span style="display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:600; color:${c.fg}; background:${c.bg}; border-radius:99px; padding:3px 8px;">${icon} ${texto}</span>`;
+    }
+    const corVit = vitState==="ok" ? "ok" : vitState==="late" ? "late" : "pend";
+    const corVend = vendasState==="ok" ? "ok" : vendasState==="late" ? "late" : "pend";
+    let pills = pill("🌇", `Vitrine ${vitOk}/3`, corVit) + pill("🧾", vendasDone?"Vendas ✓":"Vendas por fazer", corVend);
+    if(invAtrasados>0) pills += pill("📦", `${invAtrasados} atrasado${invAtrasados>1?'s':''}`, "late");
+    if(invDiaErrado>0) pills += pill("⚠", `${invDiaErrado} dia errado`, "pend");
+    if(mktAtrasados>0) pills += pill("🎪", `${mktAtrasados} marketing atrasado`, "pend");
+    if(invAtrasados===0 && invDiaErrado===0 && mktAtrasados===0) pills += pill("✔", "Inventário em dia", "ok");
+
     card.innerHTML = `
       ${ultimaAtividade>=3 ? `<div style="background:var(--red); color:#fff; font-size:11px; font-weight:700; padding:5px 10px; border-radius:8px; margin-bottom:8px;">⚠ Sem qualquer envio há ${ultimaAtividade} dias</div>` : ``}
       <div class="card-top" style="margin-bottom:8px;">
-        <div class="card-title">${l}</div>
+        <div style="font-family:'Syne',sans-serif; font-size:15px; font-weight:700;">${l}</div>
         ${streak>=2 ? `<div class="status-badge ok">🔥 ${streak} dias</div>` : ``}
       </div>
-      <div style="display:flex; flex-wrap:wrap; gap:5px;">${squares}</div>
-      <div style="font-size:9px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin:8px 0 4px;">Marketing (mensal)</div>
-      <div style="display:flex; flex-wrap:wrap; gap:4px; opacity:.85;">${squaresMkt}</div>
+      <div style="display:flex; flex-wrap:wrap; gap:6px;">${pills}</div>
     `;
     lojasListWrap.appendChild(card);
     });
