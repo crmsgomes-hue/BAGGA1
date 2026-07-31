@@ -580,6 +580,14 @@ const VITRINE_TURNOS = [
   {key:"almoco", label:"Almoço", icon:"🌞"},
   {key:"lanche", label:"Lanche", icon:"🌇"}
 ];
+const TURNO_HORA_LIMITE = {manha:8, almoco:12, lanche:17};
+const VENDAS_HORA_LIMITE = 21;
+
+function turnoSquareState(done, horaLimite){
+  if(done) return "ok";
+  const agora = new Date();
+  return agora.getHours() >= horaLimite ? "late" : "pend";
+}
 
 /* ---------- RENDER: LOJA ---------- */
 function render(){
@@ -1419,9 +1427,9 @@ function openModoApresentacao(){
     const items = [];
     VITRINE_TURNOS.forEach(t=>{
       const done = !!dailyStatus(l,"vitrine",today,t.key);
-      items.push({label:t.label.slice(0,3), state: done?"ok":"late"});
+      items.push({label:t.label.slice(0,3), state: turnoSquareState(done, TURNO_HORA_LIMITE[t.key])});
     });
-    { const done = !!dailyStatus(l,"vendas",today,"unico"); items.push({label:"Vend", state: done?"ok":"late"}); }
+    { const done = !!dailyStatus(l,"vendas",today,"unico"); items.push({label:"Vend", state: turnoSquareState(done, VENDAS_HORA_LIMITE)}); }
     categoriasParaLoja(l).forEach(c=>{
       const st = invStatus(l,c.key,c.freq);
       items.push({label:c.label.slice(0,4), state: st.diaErrado ? "diaerrado" : st.state});
@@ -2062,11 +2070,11 @@ function renderGestao(){
     const items = [];
     VITRINE_TURNOS.forEach(t=>{
       const done = !!dailyStatus(l,"vitrine",today,t.key);
-      items.push({label:t.label.slice(0,3), state: done?"ok":"late"});
+      items.push({label:t.label.slice(0,3), state: turnoSquareState(done, TURNO_HORA_LIMITE[t.key])});
     });
     {
       const done = !!dailyStatus(l,"vendas",today,"unico");
-      items.push({label:"Vend", state: done?"ok":"late"});
+      items.push({label:"Vend", state: turnoSquareState(done, VENDAS_HORA_LIMITE)});
     }
     categoriasParaLoja(l).forEach(c=>{
       const st = invStatus(l,c.key,c.freq);
