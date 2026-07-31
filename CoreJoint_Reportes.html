@@ -1258,6 +1258,110 @@ function exportarFormularioExcel(id){
   toast("Ficheiro Excel gerado");
 }
 
+function openRankingLojas(){
+  currentView = openRankingLojas;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = render;
+  main.appendChild(back);
+
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:14px;";
+  title.textContent = "Últimos 7 dias — vitrine completa + vendas feitas, e nº de atrasados de inventário";
+  main.appendChild(title);
+
+  const days = [];
+  for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days.push(isoDate(d)); }
+
+  const ranking = LOJAS.map(l=>{
+    let vitOk = 0, vendOk = 0;
+    days.forEach(ds=>{
+      if(VITRINE_TURNOS.every(t=>dailyStatus(l,"vitrine",ds,t.key))) vitOk++;
+      if(dailyStatus(l,"vendas",ds,"unico")) vendOk++;
+    });
+    const atrasados = categoriasParaLoja(l).filter(c=>invStatus(l,c.key,c.freq).state==="late").length
+      + MARKETING_CATS.filter(c=>invStatus(l,c.key,c.freq).state==="late").length;
+    const pontuacao = (vitOk + vendOk) - (atrasados*2);
+    return {loja:l, vitOk, vendOk, atrasados, pontuacao};
+  }).sort((a,b)=> b.pontuacao - a.pontuacao);
+
+  ranking.forEach((r,i)=>{
+    const medalha = i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}º`;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.cssText = "display:flex; align-items:center; gap:14px;";
+    card.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-size:18px; font-weight:800; width:32px; text-align:center; flex-shrink:0;">${medalha}</div>
+      <div style="flex:1;">
+        <div style="font-weight:700;">${r.loja}</div>
+        <div class="card-sub">Vitrine ${r.vitOk}/7 · Vendas ${r.vendOk}/7 ${r.atrasados>0 ? `· <span style="color:var(--red); font-weight:700;">${r.atrasados} atrasado(s)</span>` : '· sem atrasados'}</div>
+      </div>
+    `;
+    main.appendChild(card);
+  });
+}
+
+function openRegistoAtividade(){
+  currentView = openRegistoAtividade;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = render;
+  main.appendChild(back);
+
+  main.innerHTML += '<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:40px 0;"><div style="width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--terracotta);border-radius:50%;animation:cjspin2 .8s linear infinite;"></div><div style="font-size:13px; color:var(--ink-soft);">A carregar…</div></div><style>@keyframes cjspin2{to{transform:rotate(360deg)}}</style>';
+
+  (async ()=>{
+    const eventos = [];
+    try{
+      const daily = await api("GET", "cj_daily_reportes?select=loja,tipo,turno,enviado_por,criado_em&order=criado_em.desc&limit=40");
+      daily.forEach(r=>eventos.push({quando:r.criado_em, quem:r.enviado_por||r.loja, texto:`Enviou ${r.tipo==='vitrine'?'vitrine ('+r.turno+')':'vendas'} — ${r.loja}`}));
+    }catch(e){}
+    try{
+      const inv = await api("GET", "cj_inventario_reportes?select=loja,categoria,enviado_por,criado_em&order=criado_em.desc&limit=40");
+      inv.forEach(r=>eventos.push({quando:r.criado_em, quem:r.enviado_por||r.loja, texto:`Enviou inventário (${r.categoria}) — ${r.loja}`}));
+    }catch(e){}
+    try{
+      const mov = await api("GET", "cj_fardamento_movimentos?select=polo,peca,tamanho,quantidade,tipo,registado_por,criado_em&order=criado_em.desc&limit=40");
+      mov.forEach(r=>eventos.push({quando:r.criado_em, quem:r.registado_por, texto:`${r.tipo==='saida'?'Saída':r.tipo==='entrada'?'Entrada':'Ajuste'} de ${r.peca} ${r.tamanho} (${r.quantidade}) — ${r.polo}`}));
+    }catch(e){}
+    try{
+      const adendas = await api("GET", "cj_adendas?select=colaborador,loja,updated_at&order=updated_at.desc&limit=40");
+      adendas.forEach(r=>eventos.push({quando:r.updated_at, quem:r.loja, texto:`Atualização em adenda de ${r.colaborador} — ${r.loja}`}));
+    }catch(e){}
+
+    eventos.sort((a,b)=> new Date(b.quando) - new Date(a.quando));
+    const top = eventos.slice(0,60);
+
+    main.innerHTML = "";
+    main.appendChild(back);
+    const title = document.createElement("div");
+    title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:14px;";
+    title.textContent = "Últimas ações em todas as apps (mais recentes primeiro)";
+    main.appendChild(title);
+
+    if(top.length===0){
+      main.innerHTML += '<div class="empty">Ainda sem atividade registada.</div>';
+      return;
+    }
+    top.forEach(e=>{
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.cssText = "padding:10px 14px;";
+      const dt = new Date(e.quando);
+      card.innerHTML = `<div style="font-size:13px;">${e.texto}</div><div class="card-sub" style="margin-top:2px;">${e.quem||'—'} · ${dt.toLocaleDateString('pt-PT')} ${dt.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}</div>`;
+      main.appendChild(card);
+    });
+  })();
+}
+
 function openAgendamentosGlobal(){
   currentView = openAgendamentosGlobal;
   const main = document.getElementById("main");
@@ -1899,7 +2003,9 @@ function renderGestao(){
     {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry},
     {icon:"🖥️", label:"Modo apresentação", fn:openModoApresentacao},
     {icon:"📅", label:"Quem marcou o Global", fn:openAgendamentosGlobal},
-    {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport}
+    {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport},
+    {icon:"🏆", label:"Ranking de lojas", fn:openRankingLojas},
+    {icon:"🕓", label:"Registo de atividade", fn:openRegistoAtividade}
   ];
 
   function tileEl(t){
