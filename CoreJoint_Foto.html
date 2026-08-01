@@ -352,6 +352,10 @@ async function loadAll(){
       }
       return true;
     });
+    avisosPendentes.filter(a=>!a.visto_em).forEach(a=>{
+      api("PATCH", `cj_avisos?id=eq.${a.id}`, {visto_em: new Date().toISOString()}).catch(()=>{});
+      a.visto_em = new Date().toISOString();
+    });
     render();
   }catch(e){ console.error(e); toast("Erro a carregar"); }
 }
