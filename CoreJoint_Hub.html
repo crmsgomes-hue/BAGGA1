@@ -227,16 +227,7 @@ function addAttn(list, href, titulo, sub, urgente){
     section.innerHTML = `<div class="all-clear">✔ Tudo em dia — nada precisa da tua atenção agora.</div>`;
     return;
   }
-  let html = `<div class="sec-label">🔥 Precisa de atenção agora (${attn.length})</div>`;
-  attn.sort((a,b)=> (b.urgente?1:0) - (a.urgente?1:0));
-  attn.forEach(a=>{
-    html += `<a class="al ${a.urgente?'al-d':'al-w'}" href="${a.href}">
-      <div><strong>${a.titulo}</strong></div>
-      <div class="al-sub">${a.sub}</div>
-      <div class="al-btn">Ver →</div>
-    </a>`;
-  });
-  section.innerHTML = html;
+  section.innerHTML = `<div style="text-align:center; font-size:.8rem; color:var(--t2); margin-bottom:14px;">${attn.length} coisa${attn.length>1?'s':''} a precisar de atenção — toca numa app abaixo para ver.</div>`;
 })();
 </script>
 </body>
