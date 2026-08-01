@@ -235,6 +235,11 @@ function startApp(){
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "block";
   document.getElementById("whoLabel").textContent = "Sessão: " + currentUser;
+  const lojaParam = new URLSearchParams(location.search).get("loja");
+  if(lojaParam){
+    const searchEl = document.getElementById("searchColab");
+    if(searchEl) searchEl.value = lojaParam;
+  }
   loadRows();
   setInterval(loadRows, 30000);
 }
@@ -272,8 +277,8 @@ function render(){
   let active = rows.filter(r=>!r.arquivada);
   let done = rows.filter(r=>r.arquivada);
   if(search){
-    active = active.filter(r=>(r.colaborador||"").toLowerCase().includes(search));
-    done = done.filter(r=>(r.colaborador||"").toLowerCase().includes(search));
+    active = active.filter(r=>(r.colaborador||"").toLowerCase().includes(search) || (r.loja||"").toLowerCase().includes(search));
+    done = done.filter(r=>(r.colaborador||"").toLowerCase().includes(search) || (r.loja||"").toLowerCase().includes(search));
   }
   const list = filter==="ativas" ? active : done;
 
