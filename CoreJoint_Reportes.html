@@ -1501,6 +1501,7 @@ async function openAvisos(lojaFiltro){
     card.innerHTML = `
       <div class="card-top"><div class="card-title">${a.loja} — ${label}</div>${statusHtml}</div>
       <div class="card-sub">Avisado em ${new Date(a.criado_em).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${a.descricao ? ' · '+a.descricao : ''}</div>
+      <div class="card-sub">${a.visto_em ? '👀 Visto às '+new Date(a.visto_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : '— Ainda não abriu a app'}</div>
       <div class="card-sub">${a.confirmado_em ? '✔ Loja confirmou às '+new Date(a.confirmado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : '— Loja ainda não confirmou'}</div>
     `;
     listWrap.appendChild(card);
@@ -2643,6 +2644,40 @@ async function confirmManualEntry(){
 /* ---------- GESTÃO (todas as lojas) ---------- */
 let ferramentasExpandidas = false;
 let gestaoSearchTerm = "";
+function abrirListaResumo(titulo, itens){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "resumoOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>${titulo}</h2>
+      <div id="resumoLista" style="display:flex; flex-direction:column; gap:6px; margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('resumoOverlay').remove()">Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const lista = document.getElementById("resumoLista");
+  if(itens.length===0){
+    lista.innerHTML = '<div class="empty">Nada aqui — tudo em dia.</div>';
+    return;
+  }
+  itens.forEach(it=>{
+    const item = document.createElement("div");
+    item.style.cssText = "display:flex; justify-content:space-between; align-items:center; width:100%; padding:10px 8px; border-bottom:1px solid var(--line); font-size:14px; gap:8px;";
+    item.innerHTML = `
+      <div style="flex:1; cursor:pointer;" data-abrir="1"><b>${it.loja}</b> <span style="color:var(--ink-soft); font-size:12px;">— ${it.label}</span></div>
+      <button data-avisar-item="1" style="background:var(--terracotta); color:#fff; border:none; border-radius:99px; padding:5px 10px; font-size:11px; font-weight:700; flex-shrink:0;">📢 Avisar</button>
+    `;
+    item.querySelector('[data-abrir]').onclick = ()=>{ overlay.remove(); openFichaGerente(it.loja); };
+    item.querySelector('[data-avisar-item]').onclick = async ()=>{
+      await avisarRapido(it.loja, it.tipo, it.label);
+    };
+    lista.appendChild(item);
+  });
+}
+
 function abrirMenuFerramentas(ferramentas){
   const overlay = document.createElement("div");
   overlay.className = "overlay";
@@ -2703,9 +2738,20 @@ function renderGestao(){
 
   const today = todayStr();
   const vitrineTurnosDone = (l,ds)=>VITRINE_TURNOS.filter(t=>dailyStatus(l,"vitrine",ds,t.key)).length;
-  const missingVitrine = LOJAS.filter(l=>vitrineTurnosDone(l,today) < 3).length;
-  const missingVendas = LOJAS.filter(l=>!dailyStatus(l,"vendas",today,"unico")).length;
-  const lateInv = LOJAS.reduce((acc,l)=>acc + categoriasParaLoja(l).filter(c=>invStatus(l,c.key,c.freq).state==="late").length, 0);
+  const missingVitrineList = LOJAS.map(l=>{
+    const turnoFalta = VITRINE_TURNOS.find(t=>!dailyStatus(l,"vitrine",today,t.key));
+    return turnoFalta ? {loja:l, label:"Falta "+turnoFalta.label, tipo:"vitrine_"+turnoFalta.key} : null;
+  }).filter(Boolean);
+  const missingVendasList = LOJAS.filter(l=>!dailyStatus(l,"vendas",today,"unico")).map(l=>({loja:l, label:"Vendas por registar", tipo:"vendas"}));
+  const lateInvList = [];
+  LOJAS.forEach(l=>{
+    categoriasParaLoja(l).forEach(c=>{
+      if(invStatus(l,c.key,c.freq).state==="late") lateInvList.push({loja:l, label:c.label, tipo:"inv_"+c.key});
+    });
+  });
+  const missingVitrine = missingVitrineList.length;
+  const missingVendas = missingVendasList.length;
+  const lateInv = lateInvList.length;
 
   const todayTitle = document.createElement("div");
   todayTitle.style.cssText = "font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-bottom:8px;";
@@ -2715,11 +2761,14 @@ function renderGestao(){
   const sumRow = document.createElement("div");
   sumRow.style.cssText = "display:flex; gap:8px; margin-bottom:18px;";
   sumRow.innerHTML = `
-    <div style="flex:1; text-align:center; background:${missingVitrine>0?'var(--amber)':'var(--green)'}; color:#fff; border-radius:14px; padding:14px 4px;"><div style="font-size:24px;font-weight:700;">${missingVitrine}</div><div style="font-size:10px; opacity:.9;">vitrine incompleta</div></div>
-    <div style="flex:1; text-align:center; background:${missingVendas>0?'var(--amber)':'var(--green)'}; color:#fff; border-radius:14px; padding:14px 4px;"><div style="font-size:24px;font-weight:700;">${missingVendas}</div><div style="font-size:10px; opacity:.9;">sem vendas</div></div>
-    <div style="flex:1; text-align:center; background:${lateInv>0?'var(--red)':'var(--green)'}; color:#fff; border-radius:14px; padding:14px 4px;"><div style="font-size:24px;font-weight:700;">${lateInv}</div><div style="font-size:10px; opacity:.9;">atrasados</div></div>
+    <div data-sum="vitrine" style="flex:1; text-align:center; background:${missingVitrine>0?'var(--amber)':'var(--green)'}; color:#fff; border-radius:14px; padding:14px 4px; cursor:pointer;"><div style="font-size:24px;font-weight:700;">${missingVitrine}</div><div style="font-size:10px; opacity:.9;">vitrine incompleta</div></div>
+    <div data-sum="vendas" style="flex:1; text-align:center; background:${missingVendas>0?'var(--amber)':'var(--green)'}; color:#fff; border-radius:14px; padding:14px 4px; cursor:pointer;"><div style="font-size:24px;font-weight:700;">${missingVendas}</div><div style="font-size:10px; opacity:.9;">sem vendas</div></div>
+    <div data-sum="atrasados" style="flex:1; text-align:center; background:${lateInv>0?'var(--red)':'var(--green)'}; color:#fff; border-radius:14px; padding:14px 4px; cursor:pointer;"><div style="font-size:24px;font-weight:700;">${lateInv}</div><div style="font-size:10px; opacity:.9;">atrasados</div></div>
   `;
   main.appendChild(sumRow);
+  sumRow.querySelector('[data-sum="vitrine"]').onclick = ()=>abrirListaResumo("Vitrine incompleta hoje", missingVitrineList);
+  sumRow.querySelector('[data-sum="vendas"]').onclick = ()=>abrirListaResumo("Sem vendas registadas hoje", missingVendasList);
+  sumRow.querySelector('[data-sum="atrasados"]').onclick = ()=>abrirListaResumo("Inventário/Marketing atrasado", lateInvList);
 
   const t1 = document.createElement("div");
   t1.className="section-title"; t1.textContent="Por loja (piores primeiro)";
