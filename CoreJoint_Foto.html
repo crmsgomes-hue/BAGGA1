@@ -130,7 +130,7 @@ function categoriasParaLoja(loja){
 
 const params = new URLSearchParams(location.search);
 const currentLoja = params.get("loja") || "Loja não identificada";
-let dailyRows = [], invRows = [], agendamentos = [], sondagensPendentes = [], formulariosPendentes = [];
+let dailyRows = [], invRows = [], agendamentos = [], sondagensPendentes = [], formulariosPendentes = [], avisosPendentes = [];
 let pendingPhotos = [];
 window.addEventListener("beforeunload", function(e){
   if(pendingPhotos.length>0){
@@ -335,6 +335,21 @@ async function loadAll(){
       (!fm.loja_alvo || fm.loja_alvo===currentLoja) &&
       !minhasRespostasForm.some(r=>r.formulario_id===fm.id)
     );
+    const meusAvisos = await api("GET", `cj_avisos?select=*${f}&order=criado_em.desc&limit=20`);
+    avisosPendentes = meusAvisos.filter(a=>{
+      if(a.tipo.startsWith("vitrine_")){
+        const turno = a.tipo.replace("vitrine_","");
+        return !dailyRows.some(r=>r.tipo==="vitrine" && r.turno===turno && new Date(r.criado_em) > new Date(a.criado_em));
+      }
+      if(a.tipo==="vendas"){
+        return !dailyRows.some(r=>r.tipo==="vendas" && r.turno==="unico" && new Date(r.criado_em) > new Date(a.criado_em));
+      }
+      if(a.tipo.startsWith("inv_")){
+        const cat = a.tipo.replace("inv_","");
+        return !invRows.some(r=>r.categoria===cat && new Date(r.criado_em) > new Date(a.criado_em));
+      }
+      return true;
+    });
     render();
   }catch(e){ console.error(e); toast("Erro a carregar"); }
 }
@@ -371,6 +386,27 @@ function render(){
     card.innerHTML = `<div style="font-size:11px; text-transform:uppercase; letter-spacing:.05em; opacity:.85; margin-bottom:6px;">📝 Formulário</div><div style="font-weight:700; font-size:16px; margin-bottom:12px;">${fm.titulo}</div><button style="background:#fff; color:var(--ink,#2B2723); border:none; border-radius:10px; padding:12px 20px; font-size:14px; font-weight:600;">Responder (${fm.perguntas.length} pergunta${fm.perguntas.length>1?'s':''})</button>`;
     card.querySelector("button").onclick = ()=>abrirFormularioResposta(fm);
     main.appendChild(card);
+  });
+
+  const TIPO_AVISO_LABELS = {
+    vitrine_manha:"Vitrine — Manhã", vitrine_almoco:"Vitrine — Almoço", vitrine_lanche:"Vitrine — Lanche", vendas:"Vendas",
+    inv_raspadinhas:"JSC", inv_laranja:"Laranja", inv_cafe:"Café", inv_tabaco:"Tabaco", inv_global:"Global",
+    inv_cavalete:"Cavalete", inv_toalhetes:"Toalhetes", inv_orelhas:"Orelhas"
+  };
+  avisosPendentes.forEach(a=>{
+    const card = document.createElement("div");
+    card.style.cssText = "background:var(--red,#B44435); color:#fff; border-radius:16px; padding:16px 18px; margin-bottom:14px;";
+    const label = TIPO_AVISO_LABELS[a.tipo] || a.tipo;
+    card.innerHTML = `
+      <div style="font-size:11px; text-transform:uppercase; letter-spacing:.05em; opacity:.85; margin-bottom:4px;">📢 A gestão pediu</div>
+      <div style="font-weight:700; font-size:15px; margin-bottom:${a.descricao?'4px':'12px'};">${label}</div>
+      ${a.descricao ? `<div style="font-size:13px; opacity:.9; margin-bottom:12px;">${a.descricao}</div>` : ``}
+      ${a.confirmado_em ? `<div style="font-size:12px; opacity:.85;">✔ Confirmaste — obrigado</div>` : `<button data-confirm-aviso="${a.id}" style="background:#fff; color:var(--red,#B44435); border:none; border-radius:10px; padding:10px 18px; font-size:14px; font-weight:700;">✔ Confirmar que vi</button>`}
+    `;
+    main.appendChild(card);
+    if(!a.confirmado_em){
+      card.querySelector("[data-confirm-aviso]").onclick = (ev)=>confirmarAviso(a.id, ev.target);
+    }
   });
 
   const today = todayStr();
@@ -726,6 +762,17 @@ async function submeterFormulario(formularioId){
   }catch(e){
     console.error(e);
     toast("Erro ao enviar: " + (e.message||e).slice(0,100));
+  }
+}
+
+async function confirmarAviso(avisoId, btnEl){
+  try{
+    await api("PATCH", `cj_avisos?id=eq.${avisoId}`, {confirmado_em: new Date().toISOString()});
+    mostrarSucesso("Confirmado!");
+    await loadAll();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao confirmar");
   }
 }
 
