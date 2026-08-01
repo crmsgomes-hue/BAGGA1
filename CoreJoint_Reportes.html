@@ -1525,6 +1525,51 @@ async function criarAviso(){
   }
 }
 
+function openChecklistMensal(){
+  currentView = openChecklistMensal;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = render;
+  main.appendChild(back);
+
+  const mesLabel = new Date().toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:14px; text-transform:capitalize;";
+  title.textContent = `Checklist de ${mesLabel} — tudo o que só se faz uma vez por mês`;
+  main.appendChild(title);
+
+  const globalCat = INV_CATS.find(c=>c.key==="global");
+  const colunas = [globalCat, ...MARKETING_CATS];
+
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "overflow-x:auto;";
+  let html = `<table style="width:100%; border-collapse:collapse; font-size:12px;"><tr><th style="text-align:left; padding:6px 8px; position:sticky; left:0; background:var(--cream);">Loja</th>${colunas.map(c=>`<th style="padding:6px 4px; white-space:nowrap;">${c.label}</th>`).join("")}</tr>`;
+
+  const contagem = {}; colunas.forEach(c=>contagem[c.key]=0);
+
+  LOJAS.forEach(l=>{
+    html += `<tr><td style="padding:6px 8px; font-weight:600; position:sticky; left:0; background:var(--card); white-space:nowrap;">${l}</td>`;
+    colunas.forEach(c=>{
+      const st = invStatus(l,c.key,c.freq);
+      let cell, bg, color="var(--ink)";
+      if(st.state==="ok"){ cell="✔"; bg="#eef3ea"; color="var(--green)"; contagem[c.key]++; }
+      else if(st.state==="late"){ cell="✕"; bg="#fbeeec"; color="var(--red)"; }
+      else if(st.state==="pausado"){ cell="⏸"; bg="var(--line)"; color="var(--ink-soft)"; }
+      else{ cell="…"; bg="#fdf6e9"; color="var(--amber)"; }
+      html += `<td style="text-align:center; padding:6px 4px; background:${bg}; color:${color}; font-weight:700;">${cell}</td>`;
+    });
+    html += `</tr>`;
+  });
+  html += `<tr><td style="padding:8px; font-weight:700; position:sticky; left:0; background:var(--cream);">Feito</td>${colunas.map(c=>`<td style="text-align:center; padding:8px 4px; font-weight:700; font-size:11px;">${contagem[c.key]}/${LOJAS.length}</td>`).join("")}</tr>`;
+  html += `</table>`;
+  wrap.innerHTML = html;
+  main.appendChild(wrap);
+}
+
 function openAgendamentosGlobal(){
   currentView = openAgendamentosGlobal;
   const main = document.getElementById("main");
@@ -2215,7 +2260,8 @@ function renderGestao(){
     {icon:"🏆", label:"Ranking de lojas", fn:openRankingLojas},
     {icon:"🕓", label:"Registo de atividade", fn:openRegistoAtividade},
     {icon:"📝", label:"Formulário", fn:openFormularios},
-    {icon:"📢", label:"Avisos dados", fn:openAvisos}
+    {icon:"📢", label:"Avisos dados", fn:openAvisos},
+    {icon:"✅", label:"Checklist do mês", fn:openChecklistMensal}
   ];
 
   function tileEl(t){
