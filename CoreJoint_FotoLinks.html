@@ -28,6 +28,7 @@
   .loja-card .t{font-family:'Syne',sans-serif; font-weight:700; font-size:15px;}
   .loja-card .link{font-size:11px; color:var(--ink-soft); word-break:break-all; margin:4px 0 8px;}
   .copybtn{background:var(--terracotta); color:#fff; border:none; padding:7px 14px; border-radius:99px; font-size:12px; font-weight:700;}
+  .openlink{background:none; color:var(--terracotta); border:1.5px solid var(--terracotta); padding:6px 13px; border-radius:99px; font-size:12px; font-weight:700; text-decoration:none; display:inline-block;}
 </style>
 </head>
 <body>
@@ -67,7 +68,10 @@ LOJAS.forEach(l=>{
     <div class="info">
       <div class="t">${l}</div>
       <div class="link">${url}</div>
-      <button class="copybtn" data-url="${url}">Copiar link</button>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <a class="openlink" href="${url}" target="_blank">Abrir ›</a>
+        <button class="copybtn" data-url="${url}">Copiar link</button>
+      </div>
     </div>
   `;
   card.querySelector("button").onclick = (e)=>{
