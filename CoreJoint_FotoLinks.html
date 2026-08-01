@@ -170,14 +170,29 @@ function carregarLojas(){
         <div class="link">${url}</div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <a class="openlink" href="${url}" target="_blank">Abrir ›</a>
-          <button class="copybtn" data-url="${url}">Copiar link</button>
+          <button class="copybtn" data-url="${url}" data-loja="${l}">📤 Enviar</button>
+          <button class="copybtn" style="background:none; color:var(--terracotta); border:1.5px solid var(--terracotta);" data-copy="${url}">Copiar</button>
         </div>
       </div>
     `;
-    card.querySelector("button").onclick = (e)=>{
-      navigator.clipboard.writeText(e.target.dataset.url);
+    card.querySelector("[data-loja]").onclick = async (e)=>{
+      const btn = e.target;
+      const shareUrl = btn.dataset.url;
+      const lojaNome = btn.dataset.loja;
+      if(navigator.share){
+        try{
+          await navigator.share({title:"CoreJoint — "+lojaNome, text:`Link da loja ${lojaNome}:`, url:shareUrl});
+        }catch(err){ /* utilizador cancelou, sem erro */ }
+      } else {
+        navigator.clipboard.writeText(shareUrl);
+        btn.textContent = "Copiado!";
+        setTimeout(()=>btn.textContent="📤 Enviar", 1500);
+      }
+    };
+    card.querySelector("[data-copy]").onclick = (e)=>{
+      navigator.clipboard.writeText(e.target.dataset.copy);
       e.target.textContent = "Copiado!";
-      setTimeout(()=>e.target.textContent="Copiar link", 1500);
+      setTimeout(()=>e.target.textContent="Copiar", 1500);
     };
     main.appendChild(card);
   });
