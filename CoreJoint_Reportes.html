@@ -1536,11 +1536,22 @@ function openChecklistMensal(){
   back.onclick = render;
   main.appendChild(back);
 
+  const mes = new Date().toISOString().slice(0,7);
   const mesLabel = new Date().toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
   const title = document.createElement("div");
   title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:14px; text-transform:capitalize;";
   title.textContent = `Checklist de ${mesLabel} — tudo o que só se faz uma vez por mês`;
   main.appendChild(title);
+
+  const actionsRow = document.createElement("div");
+  actionsRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;";
+  actionsRow.innerHTML = `
+    <button class="cambtn secondary" style="flex:1;" id="clExcelBtn">📥 Excel</button>
+    <button class="cambtn secondary" style="flex:1;" id="clPdfBtn">🖨️ PDF</button>
+    <button class="cambtn secondary" style="flex:1; background:var(--terracotta); color:#fff;" id="clArquivarBtn">💾 Arquivar este mês</button>
+    <button class="cambtn secondary" style="width:100%;" id="clHistBtn">📚 Ver meses arquivados</button>
+  `;
+  main.appendChild(actionsRow);
 
   const globalCat = INV_CATS.find(c=>c.key==="global");
   const colunas = [globalCat, ...MARKETING_CATS];
@@ -1550,8 +1561,10 @@ function openChecklistMensal(){
   let html = `<table style="width:100%; border-collapse:collapse; font-size:12px;"><tr><th style="text-align:left; padding:6px 8px; position:sticky; left:0; background:var(--cream);">Loja</th>${colunas.map(c=>`<th style="padding:6px 4px; white-space:nowrap;">${c.label}</th>`).join("")}</tr>`;
 
   const contagem = {}; colunas.forEach(c=>contagem[c.key]=0);
+  const checklistData = {};
 
   LOJAS.forEach(l=>{
+    checklistData[l] = {};
     html += `<tr><td style="padding:6px 8px; font-weight:600; position:sticky; left:0; background:var(--card); white-space:nowrap;">${l}</td>`;
     colunas.forEach(c=>{
       const st = invStatus(l,c.key,c.freq);
@@ -1560,6 +1573,7 @@ function openChecklistMensal(){
       else if(st.state==="late"){ cell="✕"; bg="#fbeeec"; color="var(--red)"; }
       else if(st.state==="pausado"){ cell="⏸"; bg="var(--line)"; color="var(--ink-soft)"; }
       else{ cell="…"; bg="#fdf6e9"; color="var(--amber)"; }
+      checklistData[l][c.key] = cell;
       html += `<td style="text-align:center; padding:6px 4px; background:${bg}; color:${color}; font-weight:700;">${cell}</td>`;
     });
     html += `</tr>`;
@@ -1568,6 +1582,91 @@ function openChecklistMensal(){
   html += `</table>`;
   wrap.innerHTML = html;
   main.appendChild(wrap);
+
+  document.getElementById("clExcelBtn").onclick = ()=>exportarChecklistExcel(mes, colunas, checklistData);
+  document.getElementById("clPdfBtn").onclick = ()=>exportarChecklistPDF(mesLabel, colunas, checklistData);
+  document.getElementById("clArquivarBtn").onclick = ()=>arquivarChecklist(mes, mesLabel, colunas, checklistData);
+  document.getElementById("clHistBtn").onclick = ()=>openChecklistHistorico();
+}
+
+function exportarChecklistExcel(mes, colunas, dados){
+  const wb = XLSX.utils.book_new();
+  const rows = LOJAS.map(l=>{
+    const row = {Loja: l};
+    colunas.forEach(c=>{ row[c.label] = dados[l][c.key]; });
+    return row;
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, "Checklist");
+  XLSX.writeFile(wb, `CoreJoint_checklist_${mes}.xlsx`);
+  toast("Ficheiro Excel gerado");
+}
+
+function exportarChecklistPDF(mesLabel, colunas, dados){
+  let html = `<h1>CoreJoint · Checklist Mensal</h1><div style="font-size:8px; color:#555; margin-bottom:6px; text-transform:capitalize;">${mesLabel} · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
+  html += `<table><tr><th style="text-align:left;">Loja</th>${colunas.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
+  LOJAS.forEach(l=>{
+    html += `<tr><td class="name">${l}</td>${colunas.map(c=>`<td>${dados[l][c.key]}</td>`).join("")}</tr>`;
+  });
+  html += `</table>`;
+  document.getElementById("printReport").innerHTML = html;
+  setTimeout(()=>window.print(), 100);
+}
+
+async function arquivarChecklist(mes, mesLabel, colunas, dados){
+  if(!confirm(`Arquivar o checklist de ${mesLabel}? Fica guardado para sempre para consulta futura.`)) return;
+  try{
+    const filtro = `mes=eq.${mes}`;
+    const patched = await api("PATCH", `cj_checklist_historico?${filtro}`, {dados, guardado_por: currentUser, guardado_em: new Date().toISOString()});
+    if(!patched || patched.length===0){
+      await api("POST", "cj_checklist_historico", {mes, dados, guardado_por: currentUser});
+    }
+    mostrarSucesso("Checklist arquivado!");
+  }catch(e){
+    console.error(e);
+    toast("Erro ao arquivar: " + (e.message||e).slice(0,100));
+  }
+}
+
+async function openChecklistHistorico(){
+  currentView = openChecklistHistorico;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao Checklist";
+  back.onclick = openChecklistMensal;
+  main.appendChild(back);
+
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:14px;";
+  title.textContent = "Meses arquivados — histórico permanente para avaliação";
+  main.appendChild(title);
+
+  const globalCat = INV_CATS.find(c=>c.key==="global");
+  const colunas = [globalCat, ...MARKETING_CATS];
+
+  const arquivados = await api("GET", "cj_checklist_historico?select=*&order=mes.desc");
+  if(arquivados.length===0){
+    main.innerHTML += '<div class="empty">Ainda não arquivaste nenhum mês.</div>';
+    return;
+  }
+  arquivados.forEach(a=>{
+    const mesLabel = new Date(a.mes+"-01T00:00:00").toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
+    const card = document.createElement("div");
+    card.className = "card";
+    let html = `<div class="card-title" style="margin-bottom:8px; text-transform:capitalize;">${mesLabel}</div>`;
+    html += `<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:11px;"><tr><th style="text-align:left; padding:4px;">Loja</th>${colunas.map(c=>`<th style="padding:4px;">${c.label}</th>`).join("")}</tr>`;
+    LOJAS.forEach(l=>{
+      const lojaDados = a.dados[l] || {};
+      html += `<tr><td style="padding:4px; font-weight:600; white-space:nowrap;">${l}</td>${colunas.map(c=>`<td style="text-align:center; padding:4px;">${lojaDados[c.key]||'—'}</td>`).join("")}</tr>`;
+    });
+    html += `</table></div>`;
+    html += `<div class="card-sub" style="margin-top:8px;">Arquivado por ${a.guardado_por||'—'} em ${new Date(a.guardado_em).toLocaleDateString('pt-PT')}</div>`;
+    card.innerHTML = html;
+    main.appendChild(card);
+  });
 }
 
 function openAgendamentosGlobal(){
