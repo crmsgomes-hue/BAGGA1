@@ -1493,9 +1493,18 @@ async function openAvisos(){
     card.innerHTML = `
       <div class="card-top"><div class="card-title">${a.loja} — ${label}</div>${statusHtml}</div>
       <div class="card-sub">Avisado em ${new Date(a.criado_em).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${a.descricao ? ' · '+a.descricao : ''}</div>
+      <div class="card-sub">${a.confirmado_em ? '✔ Loja confirmou às '+new Date(a.confirmado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : '— Loja ainda não confirmou'}</div>
     `;
     listWrap.appendChild(card);
   }
+}
+
+async function notificarLojaAviso(loja, tipo, descricao){
+  try{
+    const params = new URLSearchParams({tipo:"aviso", loja, avisoTipo:tipo});
+    if(descricao) params.set("descricao", descricao);
+    await fetch(`https://isdaegejkxgtzjcpzstr.supabase.co/functions/v1/send-daily-alerts?${params.toString()}`);
+  }catch(e){ console.warn("Não foi possível notificar a loja (a app continua a mostrar o aviso na próxima vez que abrirem)", e); }
 }
 
 async function criarAviso(){
@@ -1505,7 +1514,8 @@ async function criarAviso(){
   if(!loja){ toast("Escolhe a loja"); return; }
   try{
     await api("POST", "cj_avisos", {loja, tipo, descricao: nota || null, criado_por: currentUser});
-    mostrarSucesso("Aviso registado!");
+    notificarLojaAviso(loja, tipo, nota);
+    mostrarSucesso("Aviso enviado à loja!");
     openAvisos();
   }catch(e){
     console.error(e);
@@ -1830,7 +1840,7 @@ async function exportarExcel(){
   toast("Ficheiro Excel gerado");
 }
 
-function generateMonthlyReport(){
+async function generateMonthlyReport(){
   const hoje = new Date();
   const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
   const fimMes = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0);
@@ -1886,11 +1896,13 @@ function generateMonthlyReport(){
   });
   html += `</table>`;
 
+  html += await avisosSectionHtml(inicioMes);
+
   document.getElementById("printReport").innerHTML = html;
   setTimeout(()=>window.print(), 100);
 }
 
-function generateWeeklyReport(){
+async function generateWeeklyReport(){
   const days = [];
   for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days.push(d); }
   const rangeTxt = `${days[0].toLocaleDateString('pt-PT')} a ${days[6].toLocaleDateString('pt-PT')}`;
@@ -1961,9 +1973,51 @@ function generateWeeklyReport(){
   });
   html += `</table>`;
 
+  html += await avisosSectionHtml(days[0]);
 
   document.getElementById("printReport").innerHTML = html;
   setTimeout(()=>window.print(), 100);
+}
+
+async function avisosSectionHtml(desde){
+  try{
+    const avisos = await api("GET", `cj_avisos?select=*&criado_em=gte.${desde.toISOString()}&order=criado_em.desc&limit=100`);
+    if(avisos.length===0) return "";
+    const TIPO_LABELS = {vitrine_manha:"Vitrine — Manhã", vitrine_almoco:"Vitrine — Almoço", vitrine_lanche:"Vitrine — Lanche", vendas:"Vendas"};
+    INV_CATS.forEach(c=>TIPO_LABELS["inv_"+c.key]=c.label);
+    MARKETING_CATS.forEach(c=>TIPO_LABELS["inv_"+c.key]=c.label);
+    TIPO_LABELS.outro = "Outro";
+
+    const contagemPorLoja = {};
+    avisos.forEach(a=>{ contagemPorLoja[a.loja] = (contagemPorLoja[a.loja]||0)+1; });
+    let html = `<h2>Avisos dados às lojas — ${avisos.length} no total</h2>`;
+    html += `<table><tr><th style="text-align:left;">Loja</th><th>Nº de avisos precisos</th></tr>`;
+    Object.entries(contagemPorLoja).sort((a,b)=>b[1]-a[1]).forEach(([loja,n])=>{
+      html += `<tr><td class="name">${loja}</td><td><b>${n}</b></td></tr>`;
+    });
+    html += `</table>`;
+
+    html += `<table><tr><th style="text-align:left;">Loja</th><th style="text-align:left;">Pedido</th><th>Quando avisei</th><th>Confirmou?</th><th>Resolvido?</th></tr>`;
+    for(const a of avisos){
+      let resolvido = "—";
+      if(a.tipo.startsWith("vitrine_")){
+        const turno = a.tipo.replace("vitrine_","");
+        const rows = await api("GET", `cj_daily_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&tipo=eq.vitrine&turno=eq.${turno}&criado_em=gt.${a.criado_em}&limit=1`);
+        resolvido = rows.length>0 ? `✔ ${new Date(rows[0].criado_em).toLocaleDateString('pt-PT')}` : "✕ Ainda não";
+      } else if(a.tipo==="vendas"){
+        const rows = await api("GET", `cj_daily_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&tipo=eq.vendas&turno=eq.unico&criado_em=gt.${a.criado_em}&limit=1`);
+        resolvido = rows.length>0 ? `✔ ${new Date(rows[0].criado_em).toLocaleDateString('pt-PT')}` : "✕ Ainda não";
+      } else if(a.tipo.startsWith("inv_")){
+        const cat = a.tipo.replace("inv_","");
+        const rows = await api("GET", `cj_inventario_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&categoria=eq.${cat}&criado_em=gt.${a.criado_em}&limit=1`);
+        resolvido = rows.length>0 ? `✔ ${new Date(rows[0].criado_em).toLocaleDateString('pt-PT')}` : "✕ Ainda não";
+      }
+      const confirmou = a.confirmado_em ? `✔ ${new Date(a.confirmado_em).toLocaleDateString('pt-PT')}` : "✕";
+      html += `<tr><td class="name">${a.loja}</td><td>${TIPO_LABELS[a.tipo]||a.tipo}</td><td>${new Date(a.criado_em).toLocaleDateString('pt-PT')}</td><td>${confirmou}</td><td>${resolvido}</td></tr>`;
+    }
+    html += `</table>`;
+    return html;
+  }catch(e){ console.error(e); return ""; }
 }
 
 /* ---------- INSERÇÃO MANUAL (fotos guardadas do WhatsApp) ---------- */
@@ -2296,18 +2350,55 @@ function renderGestao(){
     if(mktAtrasados>0) pills += pill("🎪", `${mktAtrasados} marketing atrasado`, "pend");
     if(invAtrasados===0 && invDiaErrado===0 && mktAtrasados===0) pills += pill("✔", "Inventário em dia", "ok");
 
+    let piorTipo = null, piorLabel = null;
+    if(vitState==="late"){
+      const turnoFalta = VITRINE_TURNOS.find(t=>!dailyStatus(l,"vitrine",today,t.key));
+      if(turnoFalta){ piorTipo = "vitrine_"+turnoFalta.key; piorLabel = "Vitrine — "+turnoFalta.label; }
+    }
+    if(!piorTipo && vendasState==="late"){ piorTipo="vendas"; piorLabel="Vendas"; }
+    if(!piorTipo){
+      for(const c of categoriasParaLoja(l)){
+        if(invStatus(l,c.key,c.freq).state==="late"){ piorTipo="inv_"+c.key; piorLabel=c.label; break; }
+      }
+    }
+    if(!piorTipo){
+      for(const c of MARKETING_CATS){
+        if(invStatus(l,c.key,c.freq).state==="late"){ piorTipo="inv_"+c.key; piorLabel=c.label; break; }
+      }
+    }
+
     card.innerHTML = `
       ${ultimaAtividade>=3 ? `<div style="background:var(--red); color:#fff; font-size:11px; font-weight:700; padding:5px 10px; border-radius:8px; margin-bottom:8px;">⚠ Sem qualquer envio há ${ultimaAtividade} dias</div>` : ``}
       <div class="card-top" style="margin-bottom:8px;">
         <div style="font-family:'Syne',sans-serif; font-size:15px; font-weight:700;">${l}</div>
-        ${streak>=2 ? `<div class="status-badge ok">🔥 ${streak} dias</div>` : ``}
+        <div style="display:flex; gap:6px; align-items:center;">
+          ${streak>=2 ? `<div class="status-badge ok">🔥 ${streak} dias</div>` : ``}
+          ${piorTipo ? `<button data-avisar="1" style="background:var(--terracotta); color:#fff; border:none; border-radius:99px; padding:5px 10px; font-size:11px; font-weight:700;">📢 Avisar</button>` : ``}
+        </div>
       </div>
       <div style="display:flex; flex-wrap:wrap; gap:6px;">${pills}</div>
     `;
+    if(piorTipo){
+      card.querySelector('[data-avisar]').onclick = (ev)=>{
+        ev.stopPropagation();
+        avisarRapido(l, piorTipo, piorLabel);
+      };
+    }
     lojasListWrap.appendChild(card);
     });
   }
   renderLojasList();
+}
+
+async function avisarRapido(loja, tipo, label){
+  try{
+    await api("POST", "cj_avisos", {loja, tipo, descricao: null, criado_por: currentUser});
+    notificarLojaAviso(loja, tipo, null);
+    mostrarSucesso(`Avisaste ${loja} — ${label}`);
+  }catch(e){
+    console.error(e);
+    toast("Erro ao registar aviso");
+  }
 }
 
 function ultimaAtividadeDias(loja){
