@@ -1419,15 +1419,15 @@ function tiposAviso(){
   return tipos;
 }
 
-async function openAvisos(){
-  currentView = openAvisos;
+async function openAvisos(lojaFiltro){
+  currentView = ()=>openAvisos(lojaFiltro);
   const main = document.getElementById("main");
   main.innerHTML = "";
   const back = document.createElement("button");
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
-  back.textContent = "← Voltar ao painel";
-  back.onclick = render;
+  back.textContent = lojaFiltro ? "← Voltar à Ficha" : "← Voltar ao painel";
+  back.onclick = lojaFiltro ? ()=>openFichaGerente(lojaFiltro) : render;
   main.appendChild(back);
 
   const tipos = tiposAviso();
@@ -1437,7 +1437,7 @@ async function openAvisos(){
     <div class="field-label" style="font-weight:600; margin-bottom:6px;">Loja</div>
     <select id="avisoLoja" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:12px;">
       <option value="">— Escolhe a loja —</option>
-      ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+      ${LOJAS.map(l=>`<option value="${l}" ${l===lojaFiltro?'selected':''}>${l}</option>`).join("")}
     </select>
     <div class="field-label" style="font-weight:600; margin-bottom:6px;">O que pediste</div>
     <select id="avisoTipo" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:12px;">
@@ -1452,14 +1452,15 @@ async function openAvisos(){
 
   const listTitle = document.createElement("div");
   listTitle.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px;";
-  listTitle.textContent = "Avisos dados";
+  listTitle.textContent = lojaFiltro ? `Avisos dados a ${lojaFiltro}` : "Avisos dados";
   main.appendChild(listTitle);
 
   const listWrap = document.createElement("div");
   main.appendChild(listWrap);
   listWrap.innerHTML = '<div style="display:flex; justify-content:center; padding:20px;"><div style="width:24px;height:24px;border:3px solid var(--line);border-top-color:var(--terracotta);border-radius:50%;animation:cjspin3 .8s linear infinite;"></div></div><style>@keyframes cjspin3{to{transform:rotate(360deg)}}</style>';
 
-  const avisos = await api("GET", "cj_avisos?select=*&order=criado_em.desc&limit=50");
+  const filtroQS = lojaFiltro ? `&loja=eq.${encodeURIComponent(lojaFiltro)}` : "";
+  const avisos = await api("GET", `cj_avisos?select=*${filtroQS}&order=criado_em.desc&limit=50`);
   const tiposMap = {}; tipos.forEach(t=>tiposMap[t.key]=t.label);
 
   listWrap.innerHTML = "";
@@ -1854,6 +1855,14 @@ async function openFichaGerente(lojaPreSelecionada){
         <div class="card-title" style="margin-bottom:8px;">Adendas</div>
         <div class="card-sub">📋 Paradas há 3+ dias: <b>${adendasParadas}</b></div>
       </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:8px;">Atalhos desta loja</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <button class="cambtn secondary" style="text-align:left;" id="fichaVerDiaBtn">📅 Ver detalhe do dia-a-dia</button>
+          <button class="cambtn secondary" style="text-align:left;" id="fichaVerAvisosBtn">📢 Ver avisos desta loja</button>
+          <a class="cambtn secondary" style="text-align:left; display:block; text-decoration:none;" href="CoreJoint_Adendas.html?loja=${encodeURIComponent(l)}">📋 Ver adendas desta loja</a>
+        </div>
+      </div>
       <div style="display:flex; gap:8px; margin-bottom:8px;">
         <button class="cambtn" style="flex:1; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;" id="fichaPdfBtn">🖨️ PDF</button>
         <button class="cambtn secondary" style="flex:1; padding:12px;" id="fichaExcelBtn">📥 Excel</button>
@@ -1869,6 +1878,8 @@ async function openFichaGerente(lojaPreSelecionada){
     document.getElementById("fichaExcelBtn").onclick = ()=>exportarFichaExcel(l, dadosFicha);
     document.getElementById("fichaArquivarBtn").onclick = ()=>arquivarFicha(l, dadosFicha);
     document.getElementById("fichaHistBtn").onclick = ()=>openFichaHistorico(l);
+    document.getElementById("fichaVerDiaBtn").onclick = ()=>openLojaDetalhe(l);
+    document.getElementById("fichaVerAvisosBtn").onclick = ()=>openAvisos(l);
   }
 
   if(fichaLojaAtual) renderFichaConteudo();
@@ -2818,11 +2829,16 @@ function renderGestao(){
         <div style="font-family:'Syne',sans-serif; font-size:15px; font-weight:700;">${l}</div>
         <div style="display:flex; gap:6px; align-items:center;">
           ${streak>=2 ? `<div class="status-badge ok">🔥 ${streak} dias</div>` : ``}
+          <button data-ficha="1" style="background:none; color:var(--terracotta); border:1.5px solid var(--terracotta); border-radius:99px; padding:4px 9px; font-size:11px; font-weight:700;">🏪 Ficha</button>
           ${piorTipo ? `<button data-avisar="1" style="background:var(--terracotta); color:#fff; border:none; border-radius:99px; padding:5px 10px; font-size:11px; font-weight:700;">📢 Avisar</button>` : ``}
         </div>
       </div>
       <div style="display:flex; flex-wrap:wrap; gap:6px;">${pills}</div>
     `;
+    card.querySelector('[data-ficha]').onclick = (ev)=>{
+      ev.stopPropagation();
+      openFichaGerente(l);
+    };
     if(piorTipo){
       card.querySelector('[data-avisar]').onclick = (ev)=>{
         ev.stopPropagation();
