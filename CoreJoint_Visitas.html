@@ -2672,7 +2672,7 @@ async function loadMapaGops(){
   if(legenda) legenda.textContent = 'A carregar…';
 
   const rascunhos = await dbGet('cj_visitas_rascunhos',
-    'select=loja,saved_by,hora_inicio,data,gps_lat,gps_lng') || [];
+    'select=loja,saved_by,hora_inicio,data') || [];
 
   const emVisita = rascunhos.filter(r =>
     (r.data||'').slice(0,10) === hoje &&
