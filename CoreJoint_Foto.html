@@ -138,8 +138,8 @@ window.addEventListener("beforeunload", function(e){
     e.returnValue = "";
   }
 });
-let pendingPhotoEntrada = null;
-let pendingPhotoDesperdicio = null;
+let pendingPhotosEntrada = [];
+let pendingPhotosDesperdicio = [];
 
 function toast(msg){
   const t = document.getElementById("toast");
@@ -543,8 +543,8 @@ function render(){
 
 function openCapture(kind, key, label, turno){
   pendingPhotos = [];
-  pendingPhotoEntrada = null;
-  pendingPhotoDesperdicio = null;
+  pendingPhotosEntrada = [];
+  pendingPhotosDesperdicio = [];
   const isInv = kind==="inv";
   const overlay = document.createElement("div");
   overlay.className = "overlay"; overlay.id = "capOverlay";
@@ -566,14 +566,14 @@ function openCapture(kind, key, label, turno){
           <input id="vCnvs" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
         </div>
         <div class="field">
-          <label>Foto da entrada justificada</label>
+          <label>Foto(s) da entrada justificada</label>
           <label class="filebtn" style="display:block; text-align:center;">📷 Tirar foto<input type="file" accept="image/*" capture="environment" id="capFileEntrada"></label>
-          <img id="capPreviewEntrada" class="cam-preview" style="display:none;">
+          <div id="capThumbsEntrada" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;"></div>
         </div>
         <div class="field">
-          <label>Foto do desperdício</label>
+          <label>Foto(s) do desperdício</label>
           <label class="filebtn" style="display:block; text-align:center;">📷 Tirar foto<input type="file" accept="image/*" capture="environment" id="capFileDesperdicio"></label>
-          <img id="capPreviewDesperdicio" class="cam-preview" style="display:none;">
+          <div id="capThumbsDesperdicio" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;"></div>
         </div>` : ``}
       ` : ``}
       <div class="modal-actions">
@@ -593,52 +593,59 @@ function closeCapture(){
   const o = document.getElementById("capOverlay");
   if(o) o.remove();
   pendingPhotos = [];
-  pendingPhotoEntrada = null;
-  pendingPhotoDesperdicio = null;
+  pendingPhotosEntrada = [];
+  pendingPhotosDesperdicio = [];
 }
 function handleCapFileEntrada(e){
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = evt=>{
-    const img = new Image();
-    img.onload = ()=>{
-      const maxDim = 1280;
-      let {width,height} = img;
-      if(width>height && width>maxDim){ height=height*maxDim/width; width=maxDim; }
-      else if(height>maxDim){ width=width*maxDim/height; height=maxDim; }
-      const canvas = document.createElement("canvas");
-      canvas.width=width; canvas.height=height;
-      canvas.getContext("2d").drawImage(img,0,0,width,height);
-      pendingPhotoEntrada = canvas.toDataURL("image/jpeg",0.7);
-      const prev = document.getElementById("capPreviewEntrada");
-      prev.src = pendingPhotoEntrada; prev.style.display="block";
-    };
-    img.src = evt.target.result;
+  if(!e.target.files.length) return;
+  const r = new FileReader();
+  r.onload = evt=>{
+    compressPhoto(evt.target.result, 1000, 0.7, function(compressed){
+      if(!compressed){ toast("Não foi possível processar a foto"); return; }
+      pendingPhotosEntrada.push({src:compressed, legenda:''});
+      renderCapThumbsExtra("capThumbsEntrada", pendingPhotosEntrada, "removerCapFotoEntrada", "setCapFotoLegendaEntrada");
+    });
   };
-  reader.readAsDataURL(file);
+  r.readAsDataURL(e.target.files[0]);
+  e.target.value = "";
+}
+function removerCapFotoEntrada(i){
+  pendingPhotosEntrada.splice(i,1);
+  renderCapThumbsExtra("capThumbsEntrada", pendingPhotosEntrada, "removerCapFotoEntrada", "setCapFotoLegendaEntrada");
+}
+function setCapFotoLegendaEntrada(idx, val){
+  if(pendingPhotosEntrada[idx]) pendingPhotosEntrada[idx].legenda = val;
 }
 function handleCapFileDesperdicio(e){
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = evt=>{
-    const img = new Image();
-    img.onload = ()=>{
-      const maxDim = 1280;
-      let {width,height} = img;
-      if(width>height && width>maxDim){ height=height*maxDim/width; width=maxDim; }
-      else if(height>maxDim){ width=width*maxDim/height; height=maxDim; }
-      const canvas = document.createElement("canvas");
-      canvas.width=width; canvas.height=height;
-      canvas.getContext("2d").drawImage(img,0,0,width,height);
-      pendingPhotoDesperdicio = canvas.toDataURL("image/jpeg",0.7);
-      const prev = document.getElementById("capPreviewDesperdicio");
-      prev.src = pendingPhotoDesperdicio; prev.style.display="block";
-    };
-    img.src = evt.target.result;
+  if(!e.target.files.length) return;
+  const r = new FileReader();
+  r.onload = evt=>{
+    compressPhoto(evt.target.result, 1000, 0.7, function(compressed){
+      if(!compressed){ toast("Não foi possível processar a foto"); return; }
+      pendingPhotosDesperdicio.push({src:compressed, legenda:''});
+      renderCapThumbsExtra("capThumbsDesperdicio", pendingPhotosDesperdicio, "removerCapFotoDesperdicio", "setCapFotoLegendaDesperdicio");
+    });
   };
-  reader.readAsDataURL(file);
+  r.readAsDataURL(e.target.files[0]);
+  e.target.value = "";
+}
+function removerCapFotoDesperdicio(i){
+  pendingPhotosDesperdicio.splice(i,1);
+  renderCapThumbsExtra("capThumbsDesperdicio", pendingPhotosDesperdicio, "removerCapFotoDesperdicio", "setCapFotoLegendaDesperdicio");
+}
+function setCapFotoLegendaDesperdicio(idx, val){
+  if(pendingPhotosDesperdicio[idx]) pendingPhotosDesperdicio[idx].legenda = val;
+}
+function renderCapThumbsExtra(containerId, arr, removeFnName, legendaFnName){
+  const wrap = document.getElementById(containerId);
+  if(!wrap) return;
+  wrap.innerHTML = arr.map((p,i)=>`
+    <div class="photo-item">
+      <img src="${p.src}" onclick="bigPhoto('${p.src}')">
+      <button class="photo-del" onclick="${removeFnName}(${i})">✕</button>
+      <input class="photo-legend" type="text" placeholder="Legenda…" value="${p.legenda||''}" onchange="${legendaFnName}(${i},this.value)">
+    </div>
+  `).join("");
 }
 function compressPhoto(dataUrl, maxWidth, quality, callback){
   const img = new Image();
@@ -850,8 +857,8 @@ async function confirmCapture(kind, key, turno){
   const item = {
     kind, key, turno, today, loja: currentLoja,
     fotos: pendingPhotos.slice(),
-    fotoEntrada: pendingPhotoEntrada || null,
-    fotoDesperdicio: pendingPhotoDesperdicio || null,
+    fotosEntrada: pendingPhotosEntrada.slice(),
+    fotosDesperdicio: pendingPhotosDesperdicio.slice(),
     vInv: kind==="inv" ? document.getElementById("vInv").value : null,
     vCnvs: (kind==="inv" && document.getElementById("vCnvs")) ? document.getElementById("vCnvs").value : null
   };
@@ -869,7 +876,7 @@ async function confirmCapture(kind, key, turno){
 }
 
 async function enviarItem(item){
-  const {kind, key, turno, today, loja, fotos, fotoEntrada, fotoDesperdicio, vInv, vCnvs} = item;
+  const {kind, key, turno, today, loja, fotos, fotosEntrada, fotosDesperdicio, vInv, vCnvs} = item;
   if(kind==="daily"){
     const objs = [];
     for(const foto of fotos){
@@ -906,18 +913,32 @@ async function enviarItem(item){
       const url = await uploadPhoto(src, path);
       objs.push({url, legenda});
     }
-    let fotoEntradaUrl = null;
-    if(fotoEntrada) fotoEntradaUrl = await uploadPhoto(fotoEntrada, `${slug(loja)}/inventario/${key}/entrada_${today}_${Date.now()}.jpg`);
-    let fotoDesperdicioUrl = null;
-    if(fotoDesperdicio) fotoDesperdicioUrl = await uploadPhoto(fotoDesperdicio, `${slug(loja)}/inventario/${key}/desperdicio_${today}_${Date.now()}.jpg`);
+    const objsEntrada = [];
+    for(const foto of (fotosEntrada||[])){
+      const url = await uploadPhoto(foto.src, `${slug(loja)}/inventario/${key}/entrada_${today}_${Date.now()}_${Math.random().toString(36).slice(2,6)}.jpg`);
+      objsEntrada.push({url, legenda: foto.legenda||""});
+    }
+    const objsDesperdicio = [];
+    for(const foto of (fotosDesperdicio||[])){
+      const url = await uploadPhoto(foto.src, `${slug(loja)}/inventario/${key}/desperdicio_${today}_${Date.now()}_${Math.random().toString(36).slice(2,6)}.jpg`);
+      objsDesperdicio.push({url, legenda: foto.legenda||""});
+    }
     await api("POST", "rpc/append_inv_fotos_v2", {
       p_loja: loja, p_categoria: key, p_data: today, p_fotos: objs,
       p_valor_inventario: isNaN(vInvN)?null:vInvN, p_valor_cnvs: isNaN(vCnvsN)?null:vCnvsN, p_por: loja
     });
-    if(key==="global" && (fotoEntradaUrl || fotoDesperdicioUrl)){
+    if(key==="global" && (objsEntrada.length || objsDesperdicio.length)){
+      const rows = await api("GET", `cj_inventario_reportes?select=fotos_entrada_cnvs,fotos_desperdicio_cnvs&loja=eq.${encodeURIComponent(loja)}&categoria=eq.${key}&data=eq.${today}`);
+      const existing = rows[0] || {fotos_entrada_cnvs:[], fotos_desperdicio_cnvs:[]};
       const patch = {};
-      if(fotoEntradaUrl) patch.foto_entrada_cnvs = fotoEntradaUrl;
-      if(fotoDesperdicioUrl) patch.foto_desperdicio_cnvs = fotoDesperdicioUrl;
+      if(objsEntrada.length){
+        patch.fotos_entrada_cnvs = (existing.fotos_entrada_cnvs||[]).concat(objsEntrada);
+        patch.foto_entrada_cnvs = objsEntrada[0].url;
+      }
+      if(objsDesperdicio.length){
+        patch.fotos_desperdicio_cnvs = (existing.fotos_desperdicio_cnvs||[]).concat(objsDesperdicio);
+        patch.foto_desperdicio_cnvs = objsDesperdicio[0].url;
+      }
       await api("PATCH", `cj_inventario_reportes?loja=eq.${encodeURIComponent(loja)}&categoria=eq.${key}&data=eq.${today}`, patch);
     }
   }
