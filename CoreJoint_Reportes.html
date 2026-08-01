@@ -1451,9 +1451,12 @@ async function openAvisos(lojaFiltro){
   formCard.querySelector("#avisoCriarBtn").onclick = criarAviso;
 
   const listTitle = document.createElement("div");
-  listTitle.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px;";
-  listTitle.textContent = lojaFiltro ? `Avisos dados a ${lojaFiltro}` : "Avisos dados";
+  listTitle.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px; display:flex; justify-content:space-between; align-items:center;";
+  listTitle.innerHTML = `<span>${lojaFiltro ? `Avisos dados a ${lojaFiltro}` : "Avisos dados"}</span>${lojaFiltro ? `<span style="text-decoration:underline; cursor:pointer; text-transform:none; letter-spacing:0;" id="verTodasAvisosBtn">🔄 Ver todas as lojas</span>` : ``}`;
   main.appendChild(listTitle);
+  if(lojaFiltro){
+    document.getElementById("verTodasAvisosBtn").onclick = ()=>openAvisos();
+  }
 
   const listWrap = document.createElement("div");
   main.appendChild(listWrap);
