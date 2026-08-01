@@ -509,12 +509,7 @@
             <input type="text" class="fc" id="v-hinicio" readonly placeholder="Regista automaticamente…">
             
           </div>
-          <!-- Botão de localização — pedido explícito para garantir popup no Android -->
-          <div style="margin-bottom:10px">
-            <button id="btn-gps" onclick="captarGPS()" class="cam-btn" style="background:var(--sf2);border-color:var(--br);color:var(--t2);width:100%;justify-content:center">
-              📍 Partilhar localização (para a CROP ver no mapa)
-            </button>
-          </div>
+
           <input type="file" id="pf-chegada" accept="image/*" capture="environment" class="pfi" onchange="handleChegadaPhoto(this)"><input type="file" id="pf-chegada-gal" accept="image/*" class="pfi" onchange="handleChegadaPhoto(this)">
           <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="cam-btn" onclick="document.getElementById('pf-chegada').click()">📷 <span>Câmara</span></button><button class="cam-btn" onclick="document.getElementById('pf-chegada-gal').click()" style="background:var(--sf2);border-color:var(--br);color:var(--t2)">📁 <span>Galeria</span></button></div>
           <div id="chegada-preview" style="margin-top:8px;display:none">
@@ -7437,8 +7432,6 @@ async function doAutoSave(){
         fotos_chegada: snapshot.fotos_chegada,
         fotos_cafe: snapshot.fotos_cafe,
         equip_lista: snapshot.equip_lista,
-        gps_lat: vGpsLat || null,
-        gps_lng: vGpsLng || null,
         saved_by: who()
       };
       // Usar PATCH→POST em vez de on_conflict upsert (evita duplicate key silencioso)
