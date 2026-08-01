@@ -29,19 +29,117 @@
   .loja-card .link{font-size:11px; color:var(--ink-soft); word-break:break-all; margin:4px 0 8px;}
   .copybtn{background:var(--terracotta); color:#fff; border:none; padding:7px 14px; border-radius:99px; font-size:12px; font-weight:700;}
   .openlink{background:none; color:var(--terracotta); border:1.5px solid var(--terracotta); padding:6px 13px; border-radius:99px; font-size:12px; font-weight:700; text-decoration:none; display:inline-block;}
+  #pinScreen{max-width:320px; margin:60px auto; text-align:center; padding:0 20px;}
+  #pinScreen input{width:100%; padding:14px; border-radius:10px; border:1px solid var(--line); font-size:20px; text-align:center; letter-spacing:6px; margin:16px 0;}
+  #pinScreen button{width:100%; background:var(--terracotta); color:#fff; border:none; padding:13px; border-radius:10px; font-size:15px; font-weight:700;}
 </style>
 </head>
 <body>
-<div id="HD">
+<div id="HD" style="display:none;">
   <div class="hlog">CoreJoint</div>
   <button class="hbtn" id="darkToggle" onclick="toggleDark()">🌙</button>
 </div>
-<main>
+<div id="pinScreen">
+  <div class="pt" style="margin-top:20px;">Acesso restrito</div>
+  <div class="ps">Esta página tem os links de todas as lojas — só a gestão pode entrar.</div>
+  <input id="pinInput" type="password" inputmode="numeric" maxlength="4" placeholder="····" autofocus>
+  <button onclick="verificarPin()">Entrar</button>
+  <button id="bioBtn" style="background:none; color:var(--terracotta); border:1.5px solid var(--terracotta); margin-top:10px; display:none;" onclick="entrarComBiometria()">🔒 Usar impressão digital / Face ID</button>
+  <div id="bioSetupWrap" style="margin-top:14px; display:none;">
+    <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Depois de entrares com o PIN, podes ativar a biometria para a próxima vez.</div>
+  </div>
+</div>
+<main id="mainWrap" style="display:none;">
   <div class="pt">Links por loja</div>
   <div class="ps">Envia o link (ou o QR) a cada loja — podem gravá-lo no ecrã principal.</div>
   <div id="main"></div>
 </main>
 <script>
+const PIN_CORRETO = "3028";
+
+function bioSuportada(){
+  return window.PublicKeyCredential !== undefined;
+}
+
+async function verificarPin(){
+  const val = document.getElementById("pinInput").value.trim();
+  if(val === PIN_CORRETO){
+    if(!localStorage.getItem("cj_bio_cred_id") && bioSuportada()){
+      document.getElementById("bioSetupWrap").style.display = "block";
+      document.getElementById("bioSetupWrap").innerHTML = `
+        <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Queres ativar impressão digital / Face ID para a próxima vez?</div>
+        <button style="background:var(--terracotta); color:#fff; border:none; padding:10px 16px; border-radius:10px; font-size:13px; font-weight:700;" onclick="ativarBiometria()">Ativar agora</button>
+        <div style="font-size:12px; text-decoration:underline; cursor:pointer; margin-top:8px; color:var(--ink-soft);" onclick="mostrarConteudo()">Agora não</div>
+      `;
+    } else {
+      mostrarConteudo();
+    }
+  } else {
+    document.getElementById("pinInput").value = "";
+    document.getElementById("pinInput").placeholder = "Código errado";
+  }
+}
+
+async function ativarBiometria(){
+  try{
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        rp: { name: "CoreJoint" },
+        user: { id: crypto.getRandomValues(new Uint8Array(16)), name: "gestao@corejoint", displayName: "Gestão CoreJoint" },
+        pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+        timeout: 60000
+      }
+    });
+    localStorage.setItem("cj_bio_cred_id", cred.id);
+    toastFake("Biometria ativada!");
+    mostrarConteudo();
+  }catch(e){
+    console.error(e);
+    toastFake("Não foi possível ativar — continua a usar o PIN.");
+    mostrarConteudo();
+  }
+}
+
+async function entrarComBiometria(){
+  try{
+    const credId = localStorage.getItem("cj_bio_cred_id");
+    const idBytes = Uint8Array.from(atob(credId.replace(/-/g,"+").replace(/_/g,"/")), c=>c.charCodeAt(0));
+    await navigator.credentials.get({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ id: idBytes, type: "public-key" }],
+        userVerification: "required",
+        timeout: 60000
+      }
+    });
+    mostrarConteudo();
+  }catch(e){
+    console.error(e);
+    toastFake("Não foi possível verificar — usa o PIN.");
+  }
+}
+
+function toastFake(msg){
+  const t = document.createElement("div");
+  t.textContent = msg;
+  t.style.cssText = "position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:10px; font-size:13px; z-index:999;";
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 2200);
+}
+
+function mostrarConteudo(){
+  document.getElementById("pinScreen").style.display = "none";
+  document.getElementById("HD").style.display = "flex";
+  document.getElementById("mainWrap").style.display = "block";
+  carregarLojas();
+}
+document.getElementById("pinInput")?.addEventListener("keydown", (e)=>{ if(e.key==="Enter") verificarPin(); });
+if(localStorage.getItem("cj_bio_cred_id") && bioSuportada()){
+  document.getElementById("bioBtn").style.display = "block";
+}
+
 function toggleDark(){
   document.body.classList.toggle("dark");
   localStorage.setItem("cj_dark_mode", document.body.classList.contains("dark") ? "1" : "0");
@@ -57,30 +155,33 @@ const LOJAS = [
   "Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim",
   "Carregado","Ponte de Sor","Torres MCH","Torres MH"
 ];
-const main = document.getElementById("main");
-LOJAS.forEach(l=>{
-  const url = `${BASE}?loja=${encodeURIComponent(l)}`;
-  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}`;
-  const card = document.createElement("div");
-  card.className = "loja-card";
-  card.innerHTML = `
-    <img src="${qr}" alt="QR ${l}">
-    <div class="info">
-      <div class="t">${l}</div>
-      <div class="link">${url}</div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <a class="openlink" href="${url}" target="_blank">Abrir ›</a>
-        <button class="copybtn" data-url="${url}">Copiar link</button>
+function carregarLojas(){
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  LOJAS.forEach(l=>{
+    const url = `${BASE}?loja=${encodeURIComponent(l)}`;
+    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}`;
+    const card = document.createElement("div");
+    card.className = "loja-card";
+    card.innerHTML = `
+      <img src="${qr}" alt="QR ${l}">
+      <div class="info">
+        <div class="t">${l}</div>
+        <div class="link">${url}</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <a class="openlink" href="${url}" target="_blank">Abrir ›</a>
+          <button class="copybtn" data-url="${url}">Copiar link</button>
+        </div>
       </div>
-    </div>
-  `;
-  card.querySelector("button").onclick = (e)=>{
-    navigator.clipboard.writeText(e.target.dataset.url);
-    e.target.textContent = "Copiado!";
-    setTimeout(()=>e.target.textContent="Copiar link", 1500);
-  };
-  main.appendChild(card);
-});
+    `;
+    card.querySelector("button").onclick = (e)=>{
+      navigator.clipboard.writeText(e.target.dataset.url);
+      e.target.textContent = "Copiado!";
+      setTimeout(()=>e.target.textContent="Copiar link", 1500);
+    };
+    main.appendChild(card);
+  });
+}
 </script>
 </body>
 </html>
