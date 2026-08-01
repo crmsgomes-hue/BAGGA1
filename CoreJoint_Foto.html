@@ -983,7 +983,25 @@ tentarReenviarFila();
 setInterval(loadAll, 30000);
 
 if("Notification" in window && Notification.permission === "default"){
-  setTimeout(()=>{ ativarNotificacoesLoja(); }, 1200);
+  setTimeout(()=>{ mostrarPedidoNotificacao(); }, 800);
+}
+
+function mostrarPedidoNotificacao(){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "notifPromptOverlay";
+  overlay.innerHTML = `
+    <div class="modal" style="text-align:center;">
+      <div style="font-size:40px; margin-bottom:10px;">🔔</div>
+      <h2>Ativar avisos desta loja?</h2>
+      <div class="sub">Recebes um aviso no telemóvel sempre que a gestão precisar de algo — vitrine, vendas, ou outro pedido.</div>
+      <div class="modal-actions" style="margin-top:18px;">
+        <button class="btn-cancel" onclick="document.getElementById('notifPromptOverlay').remove()">Agora não</button>
+        <button class="btn-save" onclick="document.getElementById('notifPromptOverlay').remove(); ativarNotificacoesLoja();">🔔 Ativar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
 }
 
 function toggleDark(){
