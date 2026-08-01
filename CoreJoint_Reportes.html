@@ -1670,6 +1670,80 @@ async function openChecklistHistorico(){
 }
 
 let fichaLojaAtual = "";
+async function computarDadosFicha(l, rankingOrdenado){
+  const today = new Date();
+  const inicioMes = new Date(today.getFullYear(), today.getMonth(), 1);
+  const diasNoMes = [];
+  for(let d=new Date(inicioMes); d<=today; d.setDate(d.getDate()+1)){ diasNoMes.push(isoDate(new Date(d))); }
+
+  const vitOk = diasNoMes.filter(ds=>VITRINE_TURNOS.every(t=>dailyStatus(l,"vitrine",ds,t.key))).length;
+  const vendOk = diasNoMes.filter(ds=>dailyStatus(l,"vendas",ds,"unico")).length;
+  const pctVit = Math.round(vitOk/diasNoMes.length*100);
+  const pctVend = Math.round(vendOk/diasNoMes.length*100);
+
+  let atrasados = 0, diaErrado = 0;
+  [...categoriasParaLoja(l), ...MARKETING_CATS].forEach(c=>{
+    const st = invStatus(l,c.key,c.freq);
+    if(st.state==="late") atrasados++;
+    if(st.diaErrado) diaErrado++;
+  });
+
+  const streak = calcStreak(l);
+  const ultimaAtividade = ultimaAtividadeDias(l);
+
+  const avisosLoja = await api("GET", `cj_avisos?select=*&loja=eq.${encodeURIComponent(l)}&criado_em=gte.${inicioMes.toISOString()}`);
+  const avisosConfirmados = avisosLoja.filter(a=>a.confirmado_em).length;
+
+  const adendasLoja = await api("GET", `cj_adendas?select=*&loja=eq.${encodeURIComponent(l)}&arquivada=eq.false`);
+  const adendasParadas = adendasLoja.filter(r=>{
+    const ref = r.updated_at || r.criado_em;
+    const dias = Math.floor((Date.now() - new Date(ref).getTime())/86400000);
+    return dias>=3;
+  }).length;
+
+  const posicao = rankingOrdenado.findIndex(r=>r.loja===l)+1;
+
+  return {pctVit, pctVend, vitOk, vendOk, diasNoMes: diasNoMes.length, atrasados, diaErrado, avisosLoja, avisosConfirmados, adendasParadas, posicao, streak, ultimaAtividade};
+}
+
+function calcularRankingOrdenado(){
+  return LOJAS.map(loja=>{
+    let score = 0;
+    VITRINE_TURNOS.forEach(t=>{ if(turnoSquareState(!!dailyStatus(loja,"vitrine",todayStr(),t.key), TURNO_HORA_LIMITE[t.key])==="late") score+=2; });
+    if(turnoSquareState(!!dailyStatus(loja,"vendas",todayStr(),"unico"), VENDAS_HORA_LIMITE)==="late") score+=2;
+    [...categoriasParaLoja(loja), ...MARKETING_CATS].forEach(c=>{ if(invStatus(loja,c.key,c.freq).state==="late") score+=3; });
+    return {loja, score};
+  }).sort((a,b)=>a.score-b.score);
+}
+
+async function exportarTodasFichasExcel(){
+  toast("A preparar... pode demorar alguns segundos");
+  const rankingOrdenado = calcularRankingOrdenado();
+  const rows = [];
+  for(const l of LOJAS){
+    const d = await computarDadosFicha(l, rankingOrdenado);
+    rows.push({
+      Loja: l,
+      "Posição ranking": d.posicao,
+      "Vitrine completa %": d.pctVit,
+      "Vendas registadas %": d.pctVend,
+      "Atrasados": d.atrasados,
+      "Dia errado": d.diaErrado,
+      "Avisos (mês)": d.avisosLoja.length,
+      "Avisos confirmados": d.avisosConfirmados,
+      "Adendas paradas": d.adendasParadas,
+      "Sequência sem falhas": d.streak,
+      "Dias sem envio": d.ultimaAtividade===null ? "" : d.ultimaAtividade
+    });
+  }
+  rows.sort((a,b)=>a["Posição ranking"]-b["Posição ranking"]);
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, "Todas as lojas");
+  XLSX.writeFile(wb, `CoreJoint_fichas_todas_lojas_${todayStr()}.xlsx`);
+  mostrarSucesso("Excel gerado com todas as lojas!");
+}
+
 async function openFichaGerente(){
   currentView = openFichaGerente;
   const main = document.getElementById("main");
@@ -1685,6 +1759,13 @@ async function openFichaGerente(){
   title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:10px;";
   title.textContent = "Resumo por loja, pronto para avaliação — junta tudo o que já existe noutras ferramentas.";
   main.appendChild(title);
+
+  const exportAllBtn = document.createElement("button");
+  exportAllBtn.className = "cambtn secondary";
+  exportAllBtn.style.cssText = "width:100%; margin-bottom:14px;";
+  exportAllBtn.textContent = "📥 Exportar todas as lojas (Excel)";
+  exportAllBtn.onclick = exportarTodasFichasExcel;
+  main.appendChild(exportAllBtn);
 
   const sel = document.createElement("select");
   sel.style.cssText = "width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:14px;";
