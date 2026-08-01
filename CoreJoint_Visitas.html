@@ -2631,67 +2631,63 @@ async function renderMapa(dataFiltro){
   const eHoje = data===hoje;
   const legenda = el('mapa-gops-legenda');
 
-  if(legenda) legenda.textContent = 'A carregar...';
-
+  // ── 1. Criar o mapa ANTES das queries ─────────────────────────────────────
   try { await garantirLeaflet(); }
-  catch(e){ if(legenda) legenda.textContent='Erro ao carregar mapa.'; return; }
+  catch(e){ if(legenda) legenda.textContent='Erro ao carregar Leaflet.'; return; }
 
-  // Destruir mapa anterior e limpar o div (evita "Map container already initialized")
   if(_mapaInst){ try{ _mapaInst.remove(); }catch(e){} _mapaInst=null; }
   const mapEl = el('mapa-gops-leaflet');
   if(!mapEl) return;
-  mapEl.innerHTML = ''; // limpar qualquer estado Leaflet anterior
-
-  // Aguardar o DOM estar pronto antes de inicializar
-  await new Promise(r=>setTimeout(r,80));
+  mapEl.innerHTML='';
+  await new Promise(r=>setTimeout(r,50));
 
   let map;
-  try {
-    map = L.map(mapEl,{zoomControl:true,scrollWheelZoom:true});
-  } catch(e){
-    mapEl.innerHTML='';
-    map = L.map(mapEl,{zoomControl:true,scrollWheelZoom:true});
-  }
-  _mapaInst = map;
+  try{ map=L.map(mapEl,{zoomControl:true,scrollWheelZoom:true}); }
+  catch(e){ mapEl.innerHTML=''; map=L.map(mapEl,{zoomControl:true,scrollWheelZoom:true}); }
+  _mapaInst=map;
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',maxZoom:18
   }).addTo(map);
+  map.setView([39.6,-8.0],6); // Portugal por defeito enquanto carrega
 
-  const pontos = [];
+  if(legenda) legenda.textContent='A carregar visitas...';
+
+  // ── 2. Buscar dados ────────────────────────────────────────────────────────
+  const pontos=[];
 
   if(eHoje){
-    const rasc = await dbGet('cj_visitas_rascunhos','select=loja,saved_by,hora_inicio,data')||[];
+    const rasc=await dbGet('cj_visitas_rascunhos','select=loja,saved_by,hora_inicio,data')||[];
     rasc.filter(r=>(r.data||'').slice(0,10)===hoje && r.saved_by&&r.saved_by.startsWith('GOP') && lojasDaRegiao.includes(r.loja))
         .forEach(r=>pontos.push({loja:r.loja,nome:r.saved_by,hora:(r.hora_inicio||'').slice(0,5),terminada:false}));
   }
 
-  const iso = data+'T00:00:00Z';
-  const isoFim = data+'T23:59:59Z';
-  const hist = await dbGet('cj_historico','select=loja,saved_by,hora&created_at=gt.'+iso+'&created_at=lt.'+isoFim)||[];
-  const lojasActivas = new Set(pontos.map(p=>p.loja+'|'+p.nome));
+  const iso=data+'T00:00:00Z';
+  const isoFim=data+'T23:59:59Z';
+  const hist=await dbGet('cj_historico','select=loja,saved_by,hora&created_at=gt.'+iso+'&created_at=lt.'+isoFim)||[];
+  const lojasActivas=new Set(pontos.map(p=>p.loja+'|'+p.nome));
   hist.filter(r=>r.saved_by&&r.saved_by.startsWith('GOP')&&lojasDaRegiao.includes(r.loja))
       .forEach(r=>{
-        if(eHoje && lojasActivas.has(r.loja+'|'+r.saved_by)) return;
+        if(eHoje&&lojasActivas.has(r.loja+'|'+r.saved_by)) return;
         pontos.push({loja:r.loja,nome:r.saved_by,hora:(r.hora||'').slice(0,5),terminada:true});
       });
 
   if(!pontos.length){
-    map.setView([39.6,-8.0],6);
-    if(legenda) legenda.textContent = eHoje?'Nenhum GOP em visita hoje.':'Sem visitas neste dia.';
+    if(legenda) legenda.textContent=eHoje?'Nenhum GOP em visita hoje.':'Sem visitas neste dia.';
     return;
   }
 
+  // ── 3. Adicionar marcadores ────────────────────────────────────────────────
   const CORES=['#C1622D','#2563eb','#059669','#7c3aed','#db2777','#d97706','#0891b2','#65a30d','#dc2626','#6d28d9'];
   const corMap={};
   gopsRegiao.forEach((g,i)=>{corMap[g]=CORES[i%CORES.length];});
 
-  function gopCor(nomeGOP){
-    const n=nomeGOP.replace('GOP \u2014 ','').replace('GOP - ','');
-    const id=gopsRegiao.find(g=>GOP_NAMES[g]===n)||null;
+  function gopCor(n){
+    const nome=n.replace('GOP — ','').replace('GOP - ','');
+    const id=gopsRegiao.find(g=>GOP_NAMES[g]===nome)||null;
     return id?(corMap[id]||'#C1622D'):'#C1622D';
   }
-  function iniciais(nomeGOP){
-    return nomeGOP.replace('GOP \u2014 ','').replace('GOP - ','').split(' ').slice(0,2).map(p=>p[0]||'').join('').toUpperCase();
+  function ini(n){
+    return n.replace('GOP — ','').replace('GOP - ','').split(' ').slice(0,2).map(p=>p[0]||'').join('').toUpperCase();
   }
 
   const bounds=[];
@@ -2700,31 +2696,99 @@ async function renderMapa(dataFiltro){
     if(!coords) return;
     const [lat,lng]=coords;
     const cor=gopCor(p.nome);
-    const ini=iniciais(p.nome);
-    const nomeS=p.nome.replace('GOP \u2014 ','').replace('GOP - ','');
+    const nomeS=p.nome.replace('GOP — ','').replace('GOP - ','');
     const opac=p.terminada?'0.55':'1';
     const badge=p.terminada?'<span style="position:absolute;bottom:-3px;right:-3px;font-size:.6rem;background:#fff;border-radius:50%;width:14px;height:14px;display:flex;align-items:center;justify-content:center;color:#059669">&#10003;</span>':'';
-    const html='<div style="position:relative;width:38px;height:38px">'+
-      '<div style="width:38px;height:38px;border-radius:50%;background:'+cor+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.4);font-family:Syne,sans-serif;opacity:'+opac+'">'+ini+'</div>'+badge+'</div>';
-    const icon=L.divIcon({className:'',html:html,iconSize:[38,38],iconAnchor:[19,19],popupAnchor:[0,-22]});
-    const popup='<div style="font-family:sans-serif;min-width:150px">'+
-      '<div style="font-weight:700;color:'+cor+'">'+escH(nomeS)+'</div>'+
-      '<div>&#128205; '+sn(p.loja)+'</div>'+
-      (p.hora?'<div>&#128336; '+(p.terminada?'Entrada: ':'Chegada: ')+p.hora+'</div>':'')+
-      '<div style="margin-top:3px;font-size:.8rem;color:'+(p.terminada?'#059669':'#C1622D')+';font-weight:600">'+
-      (p.terminada?'&#9989; Visita conclu\u00edda':'&#128308; Em visita')+
-      '</div></div>';
+    const iconHtml='<div style="position:relative;width:38px;height:38px"><div style="width:38px;height:38px;border-radius:50%;background:'+cor+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.4);font-family:Syne,sans-serif;opacity:'+opac+'">'+ini(p.nome)+'</div>'+badge+'</div>';
+    const icon=L.divIcon({className:'',html:iconHtml,iconSize:[38,38],iconAnchor:[19,19],popupAnchor:[0,-22]});
+    const popup='<div style="font-family:sans-serif;min-width:150px"><div style="font-weight:700;color:'+cor+'">'+escH(nomeS)+'</div><div>&#128205; '+sn(p.loja)+'</div>'+(p.hora?'<div>&#128336; '+(p.terminada?'Entrada: ':'Chegada: ')+p.hora+'</div>':'')+'<div style="margin-top:3px;font-size:.8rem;color:'+(p.terminada?'#059669':'#C1622D')+';font-weight:600">'+(p.terminada?'&#9989; Concluída':'&#128308; Em visita')+'</div></div>';
     L.marker([lat,lng],{icon}).addTo(map).bindPopup(popup);
     bounds.push([lat,lng]);
   });
 
-  if(!bounds.length){ map.setView([39.6,-8.0],6); if(legenda) legenda.textContent='Lojas sem coordenadas.'; return; }
   if(bounds.length===1) map.setView(bounds[0],12);
-  else map.fitBounds(bounds,{padding:[40,40]});
+  else if(bounds.length>1) map.fitBounds(bounds,{padding:[40,40]});
 
   const nA=pontos.filter(p=>!p.terminada).length;
   const nC=pontos.filter(p=>p.terminada).length;
-  if(legenda) legenda.textContent=(eHoje&&nA>0?(nA+' em visita \u00b7 '):'')+nC+' conclu\u00edda(s) \u2014 '+data;
+  if(legenda) legenda.textContent=(eHoje&&nA>0?(nA+' em visita · '):'')+nC+' concluída(s) — '+data;
+}
+
+
+async function loadGopsEmVisita(){
+  const card = el('dash-gops-em-visita');
+  if(!card || !CU || CU.role !== 'crop') return;
+
+  const regiao = CU.region || 'sul';
+  const hoje = new Date().toISOString().slice(0,10);
+  const gopsRegiao = gopsDeRegiao(regiao);
+  const lojasDaRegiao = gopsRegiao.flatMap(g => GOP_STORES[g] || []);
+
+  const rascunhos = await dbGet('cj_visitas_rascunhos','select=loja,saved_by,hora_inicio,data') || [];
+  const emVisita = rascunhos.filter(r =>
+    (r.data||'').slice(0,10) === hoje &&
+    r.saved_by && r.saved_by.startsWith('GOP') &&
+    lojasDaRegiao.includes(r.loja)
+  );
+
+  const hist = await dbGet('cj_historico','select=loja,saved_by,hora&created_at=gt.'+hoje+'T00:00:00Z') || [];
+  const lojasActivas = new Set(emVisita.map(r=>r.loja+'|'+(r.saved_by||'')));
+  const terminadas = hist.filter(r =>
+    r.saved_by && r.saved_by.startsWith('GOP') &&
+    lojasDaRegiao.includes(r.loja) &&
+    !lojasActivas.has(r.loja+'|'+r.saved_by)
+  );
+
+  if(!emVisita.length && !terminadas.length){ card.style.display='none'; return; }
+
+  card.style.display = 'block';
+  let html = '<div style="background:#fff;border-radius:var(--ra);border:1px solid var(--br);padding:12px 14px">';
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">';
+  html += '<span style="width:8px;height:8px;border-radius:50%;background:var(--grn);display:inline-block"></span>';
+  html += '<div style="font-family:\'Syne\',sans-serif;font-weight:800;font-size:.92rem;color:var(--ac)">GOPs em Visita Hoje</div>';
+  html += '</div>';
+
+  emVisita.forEach(r => {
+    const nome = (r.saved_by||'').replace('GOP — ','');
+    const hora = (r.hora_inicio||'').slice(0,5)||'—';
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--br)">';
+    html += '<span style="font-size:1.1rem">🔴</span>';
+    html += '<div style="flex:1"><div style="font-weight:700;font-size:.88rem">'+escH(nome)+'</div>';
+    html += '<div style="font-size:.81rem;color:var(--t2)">'+sn(r.loja)+'</div></div>';
+    html += '<div style="font-size:.82rem;font-weight:700;color:var(--grn)">🕐 '+hora+'</div>';
+    html += '</div>';
+  });
+
+  terminadas.forEach(r => {
+    const nome = (r.saved_by||'').replace('GOP — ','');
+    const hora = (r.hora||'').slice(0,5);
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--br);opacity:.65">';
+    html += '<span style="font-size:1.1rem">✅</span>';
+    html += '<div style="flex:1"><div style="font-weight:700;font-size:.88rem">'+escH(nome)+'</div>';
+    html += '<div style="font-size:.81rem;color:var(--t2)">'+sn(r.loja)+' — terminou a visita</div></div>';
+    if(hora) html += '<div style="font-size:.82rem;color:var(--t2)">🕐 '+hora+'</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  card.innerHTML = html;
+}
+
+
+async function loadMapaGops(){
+  await renderMapa(null);
+}
+
+async function garantirLeaflet(){
+  if(window.L) return;
+  const css=document.createElement('link');css.rel='stylesheet';
+  css.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+  document.head.appendChild(css);
+  await new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    s.onload=res; s.onerror=rej; document.head.appendChild(s);
+  });
 }
 
 
