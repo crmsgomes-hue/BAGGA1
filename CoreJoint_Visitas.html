@@ -2632,13 +2632,26 @@ async function renderMapa(dataFiltro){
   const legenda = el('mapa-gops-legenda');
 
   if(legenda) legenda.textContent = 'A carregar...';
-  await garantirLeaflet();
 
-  if(_mapaInst){ _mapaInst.remove(); _mapaInst=null; }
+  try { await garantirLeaflet(); }
+  catch(e){ if(legenda) legenda.textContent='Erro ao carregar mapa.'; return; }
+
+  // Destruir mapa anterior e limpar o div (evita "Map container already initialized")
+  if(_mapaInst){ try{ _mapaInst.remove(); }catch(e){} _mapaInst=null; }
   const mapEl = el('mapa-gops-leaflet');
   if(!mapEl) return;
+  mapEl.innerHTML = ''; // limpar qualquer estado Leaflet anterior
 
-  const map = L.map(mapEl,{zoomControl:true,scrollWheelZoom:true});
+  // Aguardar o DOM estar pronto antes de inicializar
+  await new Promise(r=>setTimeout(r,80));
+
+  let map;
+  try {
+    map = L.map(mapEl,{zoomControl:true,scrollWheelZoom:true});
+  } catch(e){
+    mapEl.innerHTML='';
+    map = L.map(mapEl,{zoomControl:true,scrollWheelZoom:true});
+  }
   _mapaInst = map;
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',maxZoom:18
