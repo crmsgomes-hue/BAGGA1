@@ -1767,13 +1767,97 @@ async function openFichaGerente(){
         <div class="card-title" style="margin-bottom:8px;">Adendas</div>
         <div class="card-sub">📋 Paradas há 3+ dias: <b>${adendasParadas}</b></div>
       </div>
-      <button class="cambtn" style="width:100%; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;" id="fichaPdfBtn">🖨️ Exportar ficha em PDF</button>
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <button class="cambtn" style="flex:1; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;" id="fichaPdfBtn">🖨️ PDF</button>
+        <button class="cambtn secondary" style="flex:1; padding:12px;" id="fichaExcelBtn">📥 Excel</button>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="cambtn secondary" style="flex:1; padding:12px;" id="fichaArquivarBtn">💾 Arquivar este mês</button>
+        <button class="cambtn secondary" style="flex:1; padding:12px;" id="fichaHistBtn">📚 Histórico desta loja</button>
+      </div>
     `;
     contentWrap.innerHTML = html;
-    document.getElementById("fichaPdfBtn").onclick = ()=>exportarFichaPDF(l, {pctVit, pctVend, vitOk, vendOk, diasNoMes: diasNoMes.length, atrasados, diaErrado, avisosLoja, avisosConfirmados, adendasParadas, posicao, streak, ultimaAtividade});
+    const dadosFicha = {pctVit, pctVend, vitOk, vendOk, diasNoMes: diasNoMes.length, atrasados, diaErrado, avisosLoja, avisosConfirmados, adendasParadas, posicao, streak, ultimaAtividade};
+    document.getElementById("fichaPdfBtn").onclick = ()=>exportarFichaPDF(l, dadosFicha);
+    document.getElementById("fichaExcelBtn").onclick = ()=>exportarFichaExcel(l, dadosFicha);
+    document.getElementById("fichaArquivarBtn").onclick = ()=>arquivarFicha(l, dadosFicha);
+    document.getElementById("fichaHistBtn").onclick = ()=>openFichaHistorico(l);
   }
 
   if(fichaLojaAtual) renderFichaConteudo();
+}
+
+function exportarFichaExcel(loja, d){
+  const wb = XLSX.utils.book_new();
+  const rows = [
+    {Indicador:"Vitrine completa (mês)", Valor:`${d.pctVit}% (${d.vitOk}/${d.diasNoMes})`},
+    {Indicador:"Vendas registadas (mês)", Valor:`${d.pctVend}% (${d.vendOk}/${d.diasNoMes})`},
+    {Indicador:"Inventário/Marketing atrasado", Valor:d.atrasados},
+    {Indicador:"Enviado no dia errado", Valor:d.diaErrado},
+    {Indicador:"Avisos da gestão (mês)", Valor:d.avisosLoja.length},
+    {Indicador:"Avisos confirmados pela loja", Valor:`${d.avisosConfirmados} de ${d.avisosLoja.length}`},
+    {Indicador:"Adendas paradas (3+ dias)", Valor:d.adendasParadas},
+    {Indicador:"Sequência atual sem falhas", Valor:`${d.streak} dias`},
+    {Indicador:"Dias sem qualquer envio", Valor: d.ultimaAtividade===null ? "—" : d.ultimaAtividade},
+    {Indicador:"Posição no ranking", Valor:`${d.posicao}º de ${LOJAS.length}`}
+  ];
+  const ws = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, "Ficha");
+  XLSX.writeFile(wb, `CoreJoint_ficha_${loja.replace(/\s+/g,"_")}.xlsx`);
+  toast("Ficheiro Excel gerado");
+}
+
+async function arquivarFicha(loja, d){
+  const mes = new Date().toISOString().slice(0,7);
+  const mesLabel = new Date().toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
+  if(!confirm(`Arquivar a ficha de ${loja} — ${mesLabel}? Fica guardada para sempre para consulta futura.`)) return;
+  try{
+    const dadosLimpos = {...d, avisosLoja: d.avisosLoja.length};
+    const filtro = `loja=eq.${encodeURIComponent(loja)}&mes=eq.${mes}`;
+    const patched = await api("PATCH", `cj_ficha_historico?${filtro}`, {dados:dadosLimpos, guardado_por: currentUser, guardado_em: new Date().toISOString()});
+    if(!patched || patched.length===0){
+      await api("POST", "cj_ficha_historico", {loja, mes, dados:dadosLimpos, guardado_por: currentUser});
+    }
+    mostrarSucesso("Ficha arquivada!");
+  }catch(e){
+    console.error(e);
+    toast("Erro ao arquivar: " + (e.message||e).slice(0,100));
+  }
+}
+
+async function openFichaHistorico(loja){
+  currentView = ()=>openFichaHistorico(loja);
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar à Ficha";
+  back.onclick = openFichaGerente;
+  main.appendChild(back);
+
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:14px;";
+  title.textContent = `Histórico arquivado — ${loja}`;
+  main.appendChild(title);
+
+  const arquivados = await api("GET", `cj_ficha_historico?select=*&loja=eq.${encodeURIComponent(loja)}&order=mes.desc`);
+  if(arquivados.length===0){
+    main.innerHTML += '<div class="empty">Ainda não arquivaste nenhum mês desta loja.</div>';
+    return;
+  }
+  arquivados.forEach(a=>{
+    const mesLabel = new Date(a.mes+"-01T00:00:00").toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
+    const d = a.dados;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="card-title" style="margin-bottom:6px; text-transform:capitalize;">${mesLabel}</div>
+      <div class="card-sub">🌇 Vitrine: ${d.pctVit}% · 🧾 Vendas: ${d.pctVend}% · 📦 Atrasados: ${d.atrasados} · 📢 Avisos: ${d.avisosLoja} · 🏆 Ranking: ${d.posicao}º</div>
+      <div class="card-sub" style="margin-top:6px;">Arquivado por ${a.guardado_por||'—'} em ${new Date(a.guardado_em).toLocaleDateString('pt-PT')}</div>
+    `;
+    main.appendChild(card);
+  });
 }
 
 function exportarFichaPDF(loja, d){
