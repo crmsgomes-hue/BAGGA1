@@ -48,6 +48,9 @@
   .empty{color:var(--ink-soft); font-size:14px; padding:30px 10px; text-align:center; background:var(--card,var(--sf)); border:1px dashed var(--line,var(--br)); border-radius:12px;}
 
   .card{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .photo-item{position:relative; display:inline-block;}
+  .photo-item img{width:80px; height:80px; object-fit:cover; border-radius:8px; border:1.5px solid var(--line); cursor:pointer; display:block;}
+  .photo-del{position:absolute; top:-6px; right:-6px; background:var(--red); color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:.7rem; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;}
   .card-top{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
   .card-name{font-family:'Syne',sans-serif; font-size:17px; font-weight:600;}
   .card-meta{font-size:13px; color:var(--ink-soft); margin-top:2px;}
@@ -358,8 +361,9 @@ function renderCard(r, stageIdx){
 
   let photoHtml = "";
   const fotoPrincipal = r.foto_assinada || r.foto_entregue;
+  const totalPaginas = (r.fotos_assinada && r.fotos_assinada.length) || (fotoPrincipal ? 1 : 0);
   if(fotoPrincipal){
-    photoHtml = `<img class="photo-thumb" src="${fotoPrincipal}" onclick="viewPhoto('${fotoPrincipal.replace(/'/g,"")}','${(r.colaborador||'adenda').replace(/'/g,"")}')">`;
+    photoHtml = `<div style="position:relative;"><img class="photo-thumb" src="${fotoPrincipal}" onclick="verTodasFotosAssinatura(${r.id})">${totalPaginas>1 ? `<span style="position:absolute; bottom:2px; right:2px; background:var(--terracotta); color:#fff; font-size:10px; font-weight:700; border-radius:8px; padding:1px 5px;">+${totalPaginas-1}</span>` : ``}</div>`;
   }
 
   const historicoId = `hist-${r.id}`;
@@ -423,6 +427,47 @@ function renderCard(r, stageIdx){
 function escapeHtml(s){
   if(!s) return "";
   return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function bigPhoto(src){
+  if(!src) return;
+  const old = document.getElementById('_lb');
+  if(old) document.body.removeChild(old);
+  const lb = document.createElement('div');
+  lb.id = '_lb';
+  lb.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.95);z-index:2147483647;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent';
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'max-width:96vw;max-height:90vh;object-fit:contain;border-radius:6px;pointer-events:none;user-select:none;display:block';
+  const x = document.createElement('div');
+  x.style.cssText = 'position:absolute;top:10px;right:16px;color:#fff;font-size:2.5rem;line-height:1;font-weight:200;pointer-events:none';
+  x.textContent = '×';
+  lb.appendChild(img); lb.appendChild(x);
+  lb.onclick = ()=>document.body.removeChild(lb);
+  document.body.appendChild(lb);
+}
+
+function verTodasFotosAssinatura(id){
+  const r = rows.find(x=>x.id===id);
+  if(!r) return;
+  const fotos = (r.fotos_assinada && r.fotos_assinada.length) ? r.fotos_assinada : [r.foto_assinada || r.foto_entregue].filter(Boolean);
+  if(fotos.length===0) return;
+  if(fotos.length===1){ bigPhoto(fotos[0]); return; }
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "verFotosOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>${fotos.length} páginas</h2>
+      <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;">
+        ${fotos.map(src=>`<img src="${src}" style="width:90px; height:90px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;" onclick="bigPhoto('${src}')">`).join("")}
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('verFotosOverlay').remove()">Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
 }
 
 function viewPhoto(src, nome){
@@ -636,7 +681,11 @@ async function commitAdvance(id, stageIdx, photoDataUrl, confirmadoPeloColaborad
     [stage.personField]: confirmadoPeloColaborador ? (row?.colaborador || currentUser) + " (confirmado pelo próprio)" : currentUser,
     updated_at: now
   };
-  if(photoDataUrl && stage.photoField){ patch[stage.photoField] = photoDataUrl; }
+  if(photoDataUrl && stage.photoField){
+    const fotosArr = Array.isArray(photoDataUrl) ? photoDataUrl : [photoDataUrl];
+    patch[stage.photoField] = fotosArr[0];
+    patch["fotos_"+stage.photoField.replace("foto_","")] = fotosArr;
+  }
   if(stageIdx === STAGES.length - 1){ patch.arquivada = true; }
 
   try{
@@ -768,26 +817,27 @@ async function saveNew(){
 
 /* ---------- FOTO (assinatura) ---------- */
 let camStream = null;
+let pendingPhotosSign = [];
 
 async function openPhotoCapture(id, stageIdx){
   const stage = STAGES[stageIdx];
+  pendingPhotosSign = [];
   const overlay = document.createElement("div");
   overlay.className = "overlay";
   overlay.id = "photoOverlay";
   overlay.innerHTML = `
     <div class="modal">
       <h2>Foto — ${stage.label}</h2>
-      <div class="sub">A câmara vai abrir — aponta para o que confirma esta etapa.</div>
+      <div class="sub">A câmara vai abrir — podes tirar várias fotos (ex: várias páginas do documento).</div>
       <video id="camVideo" autoplay playsinline style="width:100%; border-radius:10px; margin-top:8px; background:#000;"></video>
       <canvas id="camCanvas" style="display:none;"></canvas>
-      <img id="camPreview" class="cam-preview" style="display:none;">
+      <div id="signThumbs" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;"></div>
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closePhoto()">Cancelar</button>
         <button class="btn-save" id="btnShoot" onclick="tirarFoto()">📷 Tirar foto</button>
       </div>
       <div class="modal-actions" id="confirmRow" style="display:none;">
-        <button class="btn-cancel" onclick="repetirFoto()">↺ Repetir</button>
-        <button class="btn-save" id="btnSavePhoto" onclick="saveWithPhoto(${id}, ${stageIdx})">Confirmar ${stage.label.toLowerCase()}</button>
+        <button class="btn-save" id="btnSavePhoto" onclick="saveWithPhoto(${id}, ${stageIdx})" style="width:100%;" disabled>Confirmar ${stage.label.toLowerCase()}</button>
       </div>
     </div>
   `;
@@ -808,7 +858,7 @@ function closePhoto(){
   pararCamara();
   const o = document.getElementById("photoOverlay");
   if(o) o.remove();
-  pendingPhoto = null;
+  pendingPhotosSign = [];
 }
 function tirarFoto(){
   const video = document.getElementById("camVideo");
@@ -823,32 +873,35 @@ function tirarFoto(){
   else if(height > maxDim){ width = width*maxDim/height; height = maxDim; }
   canvas.width = width; canvas.height = height;
   canvas.getContext("2d").drawImage(video, 0, 0, width, height);
-  pendingPhoto = canvas.toDataURL("image/jpeg", 0.75);
-
-  pararCamara();
-  document.getElementById("camVideo").style.display = "none";
-  const prev = document.getElementById("camPreview");
-  prev.src = pendingPhoto;
-  prev.style.display = "block";
-  document.getElementById("btnShoot").parentElement.style.display = "none";
+  pendingPhotosSign.push(canvas.toDataURL("image/jpeg", 0.75));
+  renderSignThumbs();
   document.getElementById("confirmRow").style.display = "flex";
+  document.getElementById("btnSavePhoto").disabled = false;
 }
-async function repetirFoto(){
-  pendingPhoto = null;
-  document.getElementById("camPreview").style.display = "none";
-  document.getElementById("confirmRow").style.display = "none";
-  const video = document.getElementById("camVideo");
-  video.style.display = "block";
-  document.getElementById("btnShoot").parentElement.style.display = "flex";
-  camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false});
-  video.srcObject = camStream;
+function renderSignThumbs(){
+  const wrap = document.getElementById("signThumbs");
+  if(!wrap) return;
+  wrap.innerHTML = pendingPhotosSign.map((src,i)=>`
+    <div class="photo-item">
+      <img src="${src}" onclick="bigPhoto('${src}')">
+      <button class="photo-del" onclick="removerFotoSign(${i})">✕</button>
+    </div>
+  `).join("");
+}
+function removerFotoSign(i){
+  pendingPhotosSign.splice(i,1);
+  renderSignThumbs();
+  if(pendingPhotosSign.length===0){
+    document.getElementById("confirmRow").style.display = "none";
+    document.getElementById("btnSavePhoto").disabled = true;
+  }
 }
 async function saveWithPhoto(id, stageIdx){
-  if(!pendingPhoto){ toast("Tira a foto primeiro"); return; }
-  const photo = pendingPhoto;
+  if(pendingPhotosSign.length===0){ toast("Tira pelo menos uma foto"); return; }
+  const fotos = pendingPhotosSign.slice();
   closePhoto();
-  await commitAdvance(id, stageIdx, photo);
-  pendingPhoto = null;
+  await commitAdvance(id, stageIdx, fotos);
+  pendingPhotosSign = [];
 }
 
 /* ---------- INIT ---------- */
