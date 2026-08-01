@@ -5,31 +5,52 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, user-scalable=yes">
 <title>CoreJoint · Links das Lojas</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --cream:#F4F1EA; --ink:#2B2723; --ink-soft:#5C564E;
     --terracotta:#C1622E; --terracotta-dark:#9C4C22; --line:#E4DDD0; --card:#FFFFFF;
   }
+  body.dark{ --cream:#1c1a18; --ink:#EDE8E1; --ink-soft:#B8B0A5; --terracotta:#E08A52; --terracotta-dark:#F0A876; --line:#3a3632; --card:#2A2724; }
   *{box-sizing:border-box;}
-  body{margin:0; font-family:'Source Sans 3',-apple-system,Segoe UI,Roboto,sans-serif; background:var(--cream); color:var(--ink);}
-  h1{font-family:'Fraunces',Georgia,serif; font-size:22px; color:var(--terracotta-dark); text-align:center; padding:24px 20px 4px;}
-  p.sub{text-align:center; font-size:13px; color:var(--ink-soft); margin:0 0 20px;}
-  main{max-width:520px; margin:0 auto; padding:0 16px 40px;}
-  .loja-card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; display:flex; gap:14px; align-items:center;}
-  .loja-card img{width:80px; height:80px; border-radius:8px; flex:none;}
+  body{margin:0; font-family:'DM Sans',-apple-system,Segoe UI,Roboto,sans-serif; background:var(--cream); color:var(--ink);}
+  #HD{display:flex;align-items:center;padding:0 14px;height:50px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+  .hlog{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:var(--terracotta);}
+  .hbtn{margin-left:auto;background:var(--cream);border:1.5px solid var(--line);color:var(--ink-soft);cursor:pointer;font-size:.85rem;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+  main{max-width:520px; margin:0 auto; padding:16px 16px 40px;}
+  .pt{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:2px}
+  .ps{font-size:.8rem; color:var(--ink-soft); margin:0 0 18px;}
+  .loja-card{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:10px; display:flex; gap:14px; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .loja-card img{width:72px; height:72px; border-radius:8px; flex:none; background:#fff;}
   .loja-card .info{flex:1; min-width:0;}
-  .loja-card .t{font-family:'Fraunces',Georgia,serif; font-weight:600; font-size:16px;}
+  .loja-card .t{font-family:'Syne',sans-serif; font-weight:700; font-size:15px;}
   .loja-card .link{font-size:11px; color:var(--ink-soft); word-break:break-all; margin:4px 0 8px;}
-  .copybtn{background:var(--terracotta); color:#fff; border:none; padding:7px 12px; border-radius:8px; font-size:12px; font-weight:600;}
+  .copybtn{background:var(--terracotta); color:#fff; border:none; padding:7px 14px; border-radius:99px; font-size:12px; font-weight:700;}
 </style>
 </head>
 <body>
-<h1>Links por loja — Foto do dia</h1>
-<p class="sub">Envia o link (ou o QR) a cada loja. Podem gravá-lo no ecrã principal.</p>
-<main id="main"></main>
+<div id="HD">
+  <div class="hlog">CoreJoint</div>
+  <button class="hbtn" id="darkToggle" onclick="toggleDark()">🌙</button>
+</div>
+<main>
+  <div class="pt">Links por loja</div>
+  <div class="ps">Envia o link (ou o QR) a cada loja — podem gravá-lo no ecrã principal.</div>
+  <div id="main"></div>
+</main>
 <script>
+function toggleDark(){
+  document.body.classList.toggle("dark");
+  localStorage.setItem("cj_dark_mode", document.body.classList.contains("dark") ? "1" : "0");
+  document.getElementById("darkToggle").textContent = document.body.classList.contains("dark") ? "☀️" : "🌙";
+}
+if(localStorage.getItem("cj_dark_mode")==="1"){
+  document.body.classList.add("dark");
+  document.getElementById("darkToggle").textContent = "☀️";
+}
+
 const BASE = "https://crmsgomes-hue.github.io/BAGGA1/CoreJoint_Foto.html";
 const LOJAS = [
   "Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim",
