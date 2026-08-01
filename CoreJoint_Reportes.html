@@ -1401,6 +1401,118 @@ async function partilharResumoWhatsApp(){
   }
 }
 
+/* ---------- AVISOS DADOS ÀS LOJAS ---------- */
+function tiposAviso(){
+  const tipos = [
+    {key:"vitrine_manha", label:"Vitrine — Manhã"},
+    {key:"vitrine_almoco", label:"Vitrine — Almoço"},
+    {key:"vitrine_lanche", label:"Vitrine — Lanche"},
+    {key:"vendas", label:"Vendas"}
+  ];
+  INV_CATS.forEach(c=>tipos.push({key:"inv_"+c.key, label:c.label}));
+  MARKETING_CATS.forEach(c=>tipos.push({key:"inv_"+c.key, label:c.label}));
+  tipos.push({key:"outro", label:"Outro (confirmo manualmente)"});
+  return tipos;
+}
+
+async function openAvisos(){
+  currentView = openAvisos;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = render;
+  main.appendChild(back);
+
+  const tipos = tiposAviso();
+  const formCard = document.createElement("div");
+  formCard.className = "card";
+  formCard.innerHTML = `
+    <div class="field-label" style="font-weight:600; margin-bottom:6px;">Loja</div>
+    <select id="avisoLoja" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:12px;">
+      <option value="">— Escolhe a loja —</option>
+      ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+    </select>
+    <div class="field-label" style="font-weight:600; margin-bottom:6px;">O que pediste</div>
+    <select id="avisoTipo" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:12px;">
+      ${tipos.map(t=>`<option value="${t.key}">${t.label}</option>`).join("")}
+    </select>
+    <div class="field-label" style="font-weight:600; margin-bottom:6px;">Nota (opcional)</div>
+    <input id="avisoNota" placeholder="Ex: pedi por WhatsApp às 15h" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:12px;">
+    <button class="cambtn" style="width:100%; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;" id="avisoCriarBtn">📢 Registar aviso</button>
+  `;
+  main.appendChild(formCard);
+  formCard.querySelector("#avisoCriarBtn").onclick = criarAviso;
+
+  const listTitle = document.createElement("div");
+  listTitle.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px;";
+  listTitle.textContent = "Avisos dados";
+  main.appendChild(listTitle);
+
+  const listWrap = document.createElement("div");
+  main.appendChild(listWrap);
+  listWrap.innerHTML = '<div style="display:flex; justify-content:center; padding:20px;"><div style="width:24px;height:24px;border:3px solid var(--line);border-top-color:var(--terracotta);border-radius:50%;animation:cjspin3 .8s linear infinite;"></div></div><style>@keyframes cjspin3{to{transform:rotate(360deg)}}</style>';
+
+  const avisos = await api("GET", "cj_avisos?select=*&order=criado_em.desc&limit=50");
+  const tiposMap = {}; tipos.forEach(t=>tiposMap[t.key]=t.label);
+
+  listWrap.innerHTML = "";
+  if(avisos.length===0){
+    listWrap.innerHTML = '<div class="empty">Ainda não registaste nenhum aviso.</div>';
+    return;
+  }
+
+  for(const a of avisos){
+    let resolvido = null;
+    if(a.tipo.startsWith("vitrine_")){
+      const turno = a.tipo.replace("vitrine_","");
+      const rows = await api("GET", `cj_daily_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&tipo=eq.vitrine&turno=eq.${turno}&criado_em=gt.${a.criado_em}&order=criado_em.asc&limit=1`);
+      resolvido = rows.length>0 ? rows[0].criado_em : false;
+    } else if(a.tipo==="vendas"){
+      const rows = await api("GET", `cj_daily_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&tipo=eq.vendas&turno=eq.unico&criado_em=gt.${a.criado_em}&order=criado_em.asc&limit=1`);
+      resolvido = rows.length>0 ? rows[0].criado_em : false;
+    } else if(a.tipo.startsWith("inv_")){
+      const cat = a.tipo.replace("inv_","");
+      const rows = await api("GET", `cj_inventario_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&categoria=eq.${cat}&criado_em=gt.${a.criado_em}&order=criado_em.asc&limit=1`);
+      resolvido = rows.length>0 ? rows[0].criado_em : false;
+    }
+
+    const card = document.createElement("div");
+    card.className = "card";
+    const label = tiposMap[a.tipo] || a.tipo;
+    let statusHtml;
+    if(resolvido===null){
+      statusHtml = `<span class="status-badge pend">Confirma tu mesma</span>`;
+    } else if(resolvido){
+      statusHtml = `<span class="status-badge ok">✔ Resolvido ${new Date(resolvido).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>`;
+    } else {
+      statusHtml = `<span class="status-badge late">⏳ Ainda não</span>`;
+    }
+    card.innerHTML = `
+      <div class="card-top"><div class="card-title">${a.loja} — ${label}</div>${statusHtml}</div>
+      <div class="card-sub">Avisado em ${new Date(a.criado_em).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${a.descricao ? ' · '+a.descricao : ''}</div>
+    `;
+    listWrap.appendChild(card);
+  }
+}
+
+async function criarAviso(){
+  const loja = document.getElementById("avisoLoja").value;
+  const tipo = document.getElementById("avisoTipo").value;
+  const nota = document.getElementById("avisoNota").value.trim();
+  if(!loja){ toast("Escolhe a loja"); return; }
+  try{
+    await api("POST", "cj_avisos", {loja, tipo, descricao: nota || null, criado_por: currentUser});
+    mostrarSucesso("Aviso registado!");
+    openAvisos();
+  }catch(e){
+    console.error(e);
+    toast("Erro: " + (e.message||e).slice(0,100));
+  }
+}
+
 function openAgendamentosGlobal(){
   currentView = openAgendamentosGlobal;
   const main = document.getElementById("main");
@@ -2046,7 +2158,8 @@ function renderGestao(){
     {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport},
     {icon:"🏆", label:"Ranking de lojas", fn:openRankingLojas},
     {icon:"🕓", label:"Registo de atividade", fn:openRegistoAtividade},
-    {icon:"📝", label:"Formulário", fn:openFormularios}
+    {icon:"📝", label:"Formulário", fn:openFormularios},
+    {icon:"📢", label:"Avisos dados", fn:openAvisos}
   ];
 
   function tileEl(t){
