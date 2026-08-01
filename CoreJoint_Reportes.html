@@ -1303,13 +1303,15 @@ function openRankingLojas(){
     const medalha = i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}º`;
     const card = document.createElement("div");
     card.className = "card";
-    card.style.cssText = "display:flex; align-items:center; gap:14px;";
+    card.style.cssText = "display:flex; align-items:center; gap:14px; cursor:pointer;";
+    card.onclick = ()=>openFichaGerente(r.loja);
     card.innerHTML = `
       <div style="font-family:'Syne',sans-serif; font-size:18px; font-weight:800; width:32px; text-align:center; flex-shrink:0;">${medalha}</div>
       <div style="flex:1;">
         <div style="font-weight:700;">${r.loja}</div>
         <div class="card-sub">Vitrine ${r.vitOk}/7 · Vendas ${r.vendOk}/7 ${r.atrasados>0 ? `· <span style="color:var(--red); font-weight:700;">${r.atrasados} atrasado(s)</span>` : '· sem atrasados'}</div>
       </div>
+      <div style="color:var(--ink-soft); font-size:16px;">›</div>
     `;
     main.appendChild(card);
   });
@@ -1565,7 +1567,7 @@ function openChecklistMensal(){
 
   LOJAS.forEach(l=>{
     checklistData[l] = {};
-    html += `<tr><td style="padding:6px 8px; font-weight:600; position:sticky; left:0; background:var(--card); white-space:nowrap;">${l}</td>`;
+    html += `<tr><td data-loja-cell="${l}" style="padding:6px 8px; font-weight:600; position:sticky; left:0; background:var(--card); white-space:nowrap; cursor:pointer; text-decoration:underline;">${l}</td>`;
     colunas.forEach(c=>{
       const st = invStatus(l,c.key,c.freq);
       let cell, bg, color="var(--ink)";
@@ -1582,6 +1584,9 @@ function openChecklistMensal(){
   html += `</table>`;
   wrap.innerHTML = html;
   main.appendChild(wrap);
+  wrap.querySelectorAll("[data-loja-cell]").forEach(td=>{
+    td.onclick = ()=>openFichaGerente(td.getAttribute("data-loja-cell"));
+  });
 
   document.getElementById("clExcelBtn").onclick = ()=>exportarChecklistExcel(mes, colunas, checklistData);
   document.getElementById("clPdfBtn").onclick = ()=>exportarChecklistPDF(mesLabel, colunas, checklistData);
@@ -1744,8 +1749,9 @@ async function exportarTodasFichasExcel(){
   mostrarSucesso("Excel gerado com todas as lojas!");
 }
 
-async function openFichaGerente(){
-  currentView = openFichaGerente;
+async function openFichaGerente(lojaPreSelecionada){
+  if(lojaPreSelecionada) fichaLojaAtual = lojaPreSelecionada;
+  currentView = ()=>openFichaGerente();
   const main = document.getElementById("main");
   main.innerHTML = "";
   const back = document.createElement("button");
