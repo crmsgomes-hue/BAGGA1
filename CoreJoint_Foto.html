@@ -128,6 +128,7 @@ const MARKETING_CATS = [
   {key:"haccp", label:"HACCP", freq:"mensal_inicio"},
   {key:"winrest", label:"Winrest", freq:"mensal_inicio"},
   {key:"limpeza_prelatores", label:"Limpeza Prelatores", freq:"semestral"},
+  {key:"aps", label:"APS", freq:"mensal_inicio"},
   {key:"registo_21", label:"Registo 21", freq:"semanal"},
   {key:"legionella", label:"Legionella", freq:"semanal"}
 ];
@@ -257,6 +258,18 @@ function isLastDaysOfMonth(threshold=3){
   return d.getDate() > lastDay - threshold;
 }
 const CATEGORY_DOW = { raspadinhas:1, cafe:2, laranja:3, tabaco:4 };
+const FREQ_DOW_LABELS = {1:"2ª feira", 2:"3ª feira", 3:"4ª feira", 4:"5ª feira", 5:"6ª feira", 6:"sábado", 7:"domingo"};
+function descricaoRegra(catKey, freq){
+  if(catKey==="global") return "Mensal — semana de 15 a 21, entre 2ª e 5ª feira";
+  const dow = CATEGORY_DOW[catKey];
+  if(dow) return (freq==="quinzenal" ? "Quinzenal — toda " : "Semanal — toda ") + FREQ_DOW_LABELS[dow];
+  if(freq==="semanal") return "Semanal — qualquer dia da semana";
+  if(freq==="quinzenal") return "Quinzenal — qualquer dia";
+  if(freq==="mensal_inicio") return "Mensal — primeiros 3 dias do mês";
+  if(freq==="mensal") return "Mensal — qualquer dia do mês";
+  if(freq==="semestral") return "De 6 em 6 meses";
+  return "";
+}
 const DOW_LABELS = ["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"];
 function findWeekdayInRange(start, end, dow){
   let d = new Date(start);
@@ -420,10 +433,19 @@ function render(){
 
   sondagensPendentes.forEach(s=>{
     const card = document.createElement("div");
-    card.style.cssText = "background:var(--terracotta,#C1622E); color:#fff; border-radius:16px; padding:18px; margin-bottom:14px;";
-    let html = `<div style="font-size:11px; text-transform:uppercase; letter-spacing:.05em; opacity:.85; margin-bottom:6px;">📊 Sondagem rápida</div><div style="font-weight:700; font-size:16px; margin-bottom:12px;">${s.pergunta}</div><div style="display:flex; flex-direction:column; gap:8px;">`;
+    card.className = "card";
+    card.style.cssText = "border-left:4px solid var(--terracotta); padding:16px 18px;";
+    let html = `
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+        <div style="width:34px; height:34px; border-radius:50%; background:var(--terracotta); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">📊</div>
+        <div>
+          <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--terracotta); font-weight:700;">Sondagem rápida</div>
+          <div style="font-weight:700; font-size:15.5px; color:var(--ink);">${s.pergunta}</div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px; padding-left:44px;">`;
     s.opcoes.forEach(op=>{
-      html += `<button data-op="${op.replace(/"/g,'&quot;')}" style="background:#fff; color:var(--ink,#2B2723); border:none; border-radius:10px; padding:12px; font-size:14px; font-weight:600; text-align:left;">${op}</button>`;
+      html += `<button data-op="${op.replace(/"/g,'&quot;')}" style="background:var(--cream); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:11px; font-size:14px; font-weight:600; text-align:left;">${op}</button>`;
     });
     html += `</div>`;
     card.innerHTML = html;
@@ -435,8 +457,20 @@ function render(){
 
   formulariosPendentes.forEach(fm=>{
     const card = document.createElement("div");
-    card.style.cssText = "background:var(--terracotta,#C1622E); color:#fff; border-radius:16px; padding:18px; margin-bottom:14px;";
-    card.innerHTML = `<div style="font-size:11px; text-transform:uppercase; letter-spacing:.05em; opacity:.85; margin-bottom:6px;">📝 Formulário</div><div style="font-weight:700; font-size:16px; margin-bottom:12px;">${fm.titulo}</div><button style="background:#fff; color:var(--ink,#2B2723); border:none; border-radius:10px; padding:12px 20px; font-size:14px; font-weight:600;">Responder (${fm.perguntas.length} pergunta${fm.perguntas.length>1?'s':''})</button>`;
+    card.className = "card";
+    card.style.cssText = "border-left:4px solid var(--terracotta); padding:16px 18px;";
+    card.innerHTML = `
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+        <div style="width:34px; height:34px; border-radius:50%; background:var(--terracotta); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">📝</div>
+        <div>
+          <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--terracotta); font-weight:700;">Formulário</div>
+          <div style="font-weight:700; font-size:15.5px; color:var(--ink);">${fm.titulo}</div>
+        </div>
+      </div>
+      <div style="padding-left:44px;">
+        <button style="background:var(--terracotta); color:#fff; border:none; border-radius:10px; padding:10px 18px; font-size:13.5px; font-weight:700;">Responder (${fm.perguntas.length} pergunta${fm.perguntas.length>1?'s':''})</button>
+      </div>
+    `;
     card.querySelector("button").onclick = ()=>abrirFormularioResposta(fm);
     main.appendChild(card);
   });
@@ -448,13 +482,21 @@ function render(){
   };
   avisosPendentes.forEach(a=>{
     const card = document.createElement("div");
-    card.style.cssText = "background:var(--red,#B44435); color:#fff; border-radius:16px; padding:16px 18px; margin-bottom:14px;";
+    card.className = "card";
+    card.style.cssText = "border-left:4px solid var(--red); padding:16px 18px;";
     const label = TIPO_AVISO_LABELS[a.tipo] || a.tipo;
     card.innerHTML = `
-      <div style="font-size:11px; text-transform:uppercase; letter-spacing:.05em; opacity:.85; margin-bottom:4px;">📢 A gestão pediu</div>
-      <div style="font-weight:700; font-size:15px; margin-bottom:${a.descricao?'4px':'12px'};">${label}</div>
-      ${a.descricao ? `<div style="font-size:13px; opacity:.9; margin-bottom:12px;">${a.descricao}</div>` : ``}
-      ${a.confirmado_em ? `<div style="font-size:12px; opacity:.85;">✔ Confirmaste — obrigado</div>` : `<button data-confirm-aviso="${a.id}" style="background:#fff; color:var(--red,#B44435); border:none; border-radius:10px; padding:10px 18px; font-size:14px; font-weight:700;">✔ Confirmar que vi</button>`}
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <div style="width:34px; height:34px; border-radius:50%; background:var(--red); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">📢</div>
+        <div>
+          <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--red); font-weight:700;">A gestão pediu</div>
+          <div style="font-weight:700; font-size:15.5px; color:var(--ink);">${label}</div>
+        </div>
+      </div>
+      ${a.descricao ? `<div style="font-size:13px; color:var(--ink-soft); margin-bottom:12px; padding-left:44px;">${a.descricao}</div>` : ``}
+      <div style="padding-left:44px;">
+        ${a.confirmado_em ? `<div style="font-size:12.5px; color:var(--green); font-weight:600;">✔ Confirmaste — obrigado</div>` : `<button data-confirm-aviso="${a.id}" style="background:var(--red); color:#fff; border:none; border-radius:10px; padding:9px 18px; font-size:13.5px; font-weight:700;">✔ Confirmar que vi</button>`}
+      </div>
     `;
     main.appendChild(card);
     if(!a.confirmado_em){
@@ -483,7 +525,7 @@ function render(){
   hojeSquares.forEach(s=>{
     const tile = document.createElement("button");
     tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:${s.done?'#eef3ea':'var(--card)'}; border:1.5px solid ${s.done?'var(--green)':'var(--line)'}; border-radius:12px; padding:12px 4px; text-align:center;`;
-    tile.innerHTML = `<span style="font-size:20px;">${s.done?'✅':s.icon}</span><span style="font-size:11px; font-weight:700;">${s.label}</span>`;
+    tile.innerHTML = `<span style="font-size:20px;">${s.done?'✅':s.icon}</span><span style="font-size:11px; font-weight:700;">${s.label}</span><span style="font-size:8.5px; color:var(--ink-soft);">Diário</span>`;
     tile.onclick = s.onclick;
     hojeGrid.appendChild(tile);
   });
@@ -534,7 +576,7 @@ function render(){
       const statusTxt = late?'⚠ Atrasado':isAmanha?'🔔 Amanhã':'⏳ Por enviar';
       const tile = document.createElement("button");
       tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:var(--card); border:1.5px solid ${corBorda}; border-radius:12px; padding:12px 4px; text-align:center;`;
-      tile.innerHTML = `<span style="font-size:20px;">📦</span><span style="font-size:11px; font-weight:700; line-height:1.2;">${c.label}</span><span style="font-size:9.5px; font-weight:700; color:${cor};">${statusTxt}</span>`;
+      tile.innerHTML = `<span style="font-size:20px;">📦</span><span style="font-size:11px; font-weight:700; line-height:1.2;">${c.label}</span><span style="font-size:9.5px; font-weight:700; color:${cor};">${statusTxt}</span><span style="font-size:8px; color:var(--ink-soft); line-height:1.2;">${descricaoRegra(c.key, c.freq)}</span>`;
       tile.onclick = ()=>openCapture("inv", c.key, c.label);
       invGrid.appendChild(tile);
       if(c.key==="global"){
@@ -598,7 +640,7 @@ function render(){
       const late = c.st.state==="late";
       const tile = document.createElement("button");
       tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:var(--card); border:1.5px solid ${late?'var(--red)':'var(--line)'}; border-radius:12px; padding:12px 4px; text-align:center;`;
-      tile.innerHTML = `<span style="font-size:20px;">🏷️</span><span style="font-size:11px; font-weight:700; line-height:1.2;">${c.label}</span><span style="font-size:9.5px; font-weight:700; color:${late?'var(--red)':'var(--ink-soft)'};">${late?'⚠ Atrasado':'⏳ Por fazer'}</span>`;
+      tile.innerHTML = `<span style="font-size:20px;">🏷️</span><span style="font-size:11px; font-weight:700; line-height:1.2;">${c.label}</span><span style="font-size:9.5px; font-weight:700; color:${late?'var(--red)':'var(--ink-soft)'};">${late?'⚠ Atrasado':'⏳ Por fazer'}</span><span style="font-size:8px; color:var(--ink-soft); line-height:1.2;">${descricaoRegra(c.key, c.freq)}</span>`;
       tile.onclick = ()=>openCapture("marketing", c.key, c.label);
       grid.appendChild(tile);
     });
