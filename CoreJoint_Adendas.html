@@ -451,20 +451,48 @@ function escapeHtml(s){
   return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 
-function bigPhoto(src){
-  if(!src) return;
+function bigPhoto(src, lista, indice){
   const old = document.getElementById('_lb');
   if(old) document.body.removeChild(old);
+  const urls = (lista && lista.length) ? lista : (src ? [src] : []);
+  if(urls.length===0) return;
+  let idx = (typeof indice === 'number') ? indice : Math.max(0, urls.indexOf(src));
+
   const lb = document.createElement('div');
   lb.id = '_lb';
-  lb.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.95);z-index:2147483647;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent';
+  lb.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.95);z-index:2147483647;display:flex;align-items:center;justify-content:center;touch-action:pinch-zoom;-webkit-tap-highlight-color:transparent;';
+
   const img = document.createElement('img');
-  img.src = src;
-  img.style.cssText = 'max-width:96vw;max-height:90vh;object-fit:contain;border-radius:6px;pointer-events:none;user-select:none;display:block';
+  img.style.cssText = 'max-width:96vw;max-height:90vh;object-fit:contain;border-radius:6px;display:block;';
+
+  const contador = document.createElement('div');
+  contador.style.cssText = 'position:absolute;top:16px;left:50%;transform:translateX(-50%);color:#fff;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.15);padding:4px 12px;border-radius:99px;';
+
+  function atualizar(){
+    img.src = urls[idx];
+    contador.textContent = urls.length>1 ? `${idx+1} / ${urls.length}` : '';
+  }
+  atualizar();
+
   const x = document.createElement('div');
-  x.style.cssText = 'position:absolute;top:10px;right:16px;color:#fff;font-size:2.5rem;line-height:1;font-weight:200;pointer-events:none';
+  x.style.cssText = 'position:absolute;top:10px;right:16px;color:#fff;font-size:2.5rem;line-height:1;font-weight:200;cursor:pointer;z-index:2;';
   x.textContent = '×';
-  lb.appendChild(img); lb.appendChild(x);
+  x.onclick = (e)=>{ e.stopPropagation(); document.body.removeChild(lb); };
+
+  lb.appendChild(img); lb.appendChild(x); lb.appendChild(contador);
+
+  if(urls.length>1){
+    const prev = document.createElement('div');
+    prev.textContent = '‹';
+    prev.style.cssText = 'position:absolute;left:6px;top:50%;transform:translateY(-50%);color:#fff;font-size:2.8rem;padding:10px 14px;cursor:pointer;z-index:2;user-select:none;';
+    prev.onclick = (e)=>{ e.stopPropagation(); idx = (idx-1+urls.length)%urls.length; atualizar(); };
+    const next = document.createElement('div');
+    next.textContent = '›';
+    next.style.cssText = 'position:absolute;right:6px;top:50%;transform:translateY(-50%);color:#fff;font-size:2.8rem;padding:10px 14px;cursor:pointer;z-index:2;user-select:none;';
+    next.onclick = (e)=>{ e.stopPropagation(); idx = (idx+1)%urls.length; atualizar(); };
+    lb.appendChild(prev); lb.appendChild(next);
+  }
+
   lb.onclick = ()=>document.body.removeChild(lb);
   document.body.appendChild(lb);
 }
@@ -481,15 +509,21 @@ function verTodasFotosAssinatura(id){
   overlay.innerHTML = `
     <div class="modal">
       <h2>${fotos.length} páginas</h2>
-      <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;">
-        ${fotos.map(src=>`<img src="${src}" style="width:90px; height:90px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;" onclick="bigPhoto('${src}')">`).join("")}
-      </div>
+      <div id="verFotosGrid" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;"></div>
       <div class="modal-actions">
         <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('verFotosOverlay').remove()">Fechar</button>
       </div>
     </div>
   `;
   document.body.appendChild(overlay);
+  const grid = document.getElementById("verFotosGrid");
+  fotos.forEach((src,fi)=>{
+    const img = document.createElement("img");
+    img.src = src;
+    img.style.cssText = "width:90px; height:90px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;";
+    img.onclick = ()=>bigPhoto(null, fotos, fi);
+    grid.appendChild(img);
+  });
 }
 
 function viewPhoto(src, nome){
