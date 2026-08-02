@@ -1,0 +1,16 @@
+{
+  "name": "CoreJoint · Reportes",
+  "short_name": "CJ Reportes",
+  "description": "Painel de gestão · Bagga",
+  "id": "corejoint-reportes",
+  "start_url": "./CoreJoint_Reportes.html",
+  "scope": "./CoreJoint_Reportes.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4F1EA",
+  "theme_color": "#C1622E",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
