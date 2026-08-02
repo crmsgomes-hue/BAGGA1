@@ -199,7 +199,11 @@ function addAttn(list, href, titulo, sub, urgente){
         if(rowsCat.length>0) return;
         const dow = CATEGORY_DOW[cat.key];
         let late = false;
-        if(dow){ const target = findWeekdayInRange(w.start,w.end,dow); late = today>target; }
+        if(dow){
+          const target = findWeekdayInRange(w.start,w.end,dow);
+          const graceDate = new Date(target); graceDate.setDate(graceDate.getDate()+1); graceDate.setHours(14,0,0,0);
+          late = today>graceDate;
+        }
         else { late = today>w.end; }
         if(late) atrasadosN++;
       });
