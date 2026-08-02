@@ -7,6 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, user-scalable=yes">
 <title>CoreJoint · Fardamento</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="manifest" href="manifest-fardamento.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -558,6 +559,30 @@ function openAlertas(){
   back.onclick = render;
   main.appendChild(back);
 
+  if(alerts.length>0){
+    const encCard = document.createElement("div");
+    encCard.style.cssText = "background:var(--card,#fff); border:1px solid var(--line,#E4DDD0); border-radius:14px; padding:16px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.06);";
+    encCard.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; margin-bottom:2px;">📦 Encomenda pronta</div>
+      <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">${alerts.length} combinações abaixo de ${LOW_THRESHOLD} unidades</div>
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <button class="copybtn" style="flex:1; background:var(--terracotta,#C1622E); color:#fff;" id="encPdfBtn">🖨️ PDF</button>
+        <button class="copybtn" style="flex:1;" id="encXlsBtn">📥 Excel</button>
+      </div>
+      <button class="copybtn" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);" id="encPartilharBtn">📤 Partilhar (email, WhatsApp...)</button>
+      <div style="text-align:center; margin-top:8px;"><span style="font-size:12px; text-decoration:underline; cursor:pointer; color:var(--ink-soft);" id="encCopiarBtn">Copiar como texto</span></div>
+    `;
+    main.appendChild(encCard);
+    encCard.querySelector("#encPdfBtn").onclick = ()=>gerarEncomendaPDF(alerts);
+    encCard.querySelector("#encXlsBtn").onclick = ()=>gerarEncomendaExcel(alerts);
+    encCard.querySelector("#encPartilharBtn").onclick = ()=>partilharEncomenda(alerts);
+    encCard.querySelector("#encCopiarBtn").onclick = ()=>{
+      const text = "Fardamento a encomendar (< " + LOW_THRESHOLD + " un.):\n" +
+        alerts.map(a=>`- ${a.peca} ${a.tam} (${a.polo}): restam ${a.q}`).join("\n");
+      navigator.clipboard.writeText(text).then(()=>toast("Lista copiada")).catch(()=>toast("Não foi possível copiar"));
+    };
+  }
+
   // Padrão: peças com reposição frequente (3+ nos últimos 30 dias) — sugerir aumentar base
   const trintaDiasAtras = Date.now() - 30*86400000;
   const contagemReposicoes = {};
@@ -596,31 +621,6 @@ function openAlertas(){
     c.innerHTML = `<div class="an">${a.peca} · ${a.tam}</div><div class="am">${a.polo} — restam ${a.q}</div>`;
     main.appendChild(c);
   });
-  const btn = document.createElement("button");
-  btn.className = "copybtn";
-  btn.textContent = "Copiar lista para encomenda";
-  btn.onclick = ()=>{
-    const text = "Fardamento a encomendar (< " + LOW_THRESHOLD + " un.):\n" +
-      alerts.map(a=>`- ${a.peca} ${a.tam} (${a.polo}): restam ${a.q}`).join("\n");
-    navigator.clipboard.writeText(text).then(()=>toast("Lista copiada")).catch(()=>toast("Não foi possível copiar"));
-  };
-  main.appendChild(btn);
-
-  const btnRow = document.createElement("div");
-  btnRow.style.cssText = "display:flex; gap:8px; margin-top:10px;";
-  const pdfBtn = document.createElement("button");
-  pdfBtn.className = "copybtn";
-  pdfBtn.style.cssText = "flex:1; background:var(--terracotta,#C1622E); color:#fff;";
-  pdfBtn.textContent = "🖨️ Gerar encomenda (PDF)";
-  pdfBtn.onclick = ()=>gerarEncomendaPDF(alerts);
-  const xlsBtn = document.createElement("button");
-  xlsBtn.className = "copybtn";
-  xlsBtn.style.cssText = "flex:1;";
-  xlsBtn.textContent = "📥 Excel";
-  xlsBtn.onclick = ()=>gerarEncomendaExcel(alerts);
-  btnRow.appendChild(pdfBtn);
-  btnRow.appendChild(xlsBtn);
-  main.appendChild(btnRow);
 }
 
 function gerarEncomendaPDF(alerts){
@@ -645,6 +645,68 @@ function gerarEncomendaExcel(alerts){
   XLSX.utils.book_append_sheet(wb, ws, "Encomenda");
   XLSX.writeFile(wb, `CoreJoint_encomenda_fardamento_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast("Ficheiro Excel gerado");
+}
+
+function construirPdfEncomenda(alerts){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("CoreJoint · Encomenda de Fardamento", 14, 18);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(`Gerado em ${new Date().toLocaleDateString('pt-PT')} · ${alerts.length} combinações abaixo de ${LOW_THRESHOLD} unidades`, 14, 25);
+
+  let y = 36;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("Polo", 14, y);
+  doc.text("Peça", 50, y);
+  doc.text("Tam.", 110, y);
+  doc.text("Stock", 130, y);
+  doc.text("Encomendar", 155, y);
+  y += 2;
+  doc.line(14, y, 196, y);
+  y += 6;
+  doc.setFont("helvetica", "normal");
+
+  const ordenados = alerts.slice().sort((a,b)=> a.polo.localeCompare(b.polo) || a.peca.localeCompare(b.peca));
+  ordenados.forEach(a=>{
+    if(y > 280){ doc.addPage(); y = 20; }
+    const sugestao = Math.max(LOW_THRESHOLD*2 - a.q, LOW_THRESHOLD);
+    doc.text(String(a.polo), 14, y);
+    doc.text(String(a.peca), 50, y);
+    doc.text(String(a.tam), 110, y);
+    doc.text(String(a.q), 130, y);
+    doc.setFont("helvetica", "bold");
+    doc.text(String(sugestao), 155, y);
+    doc.setFont("helvetica", "normal");
+    y += 7;
+  });
+  return doc;
+}
+
+async function partilharEncomenda(alerts){
+  try{
+    const doc = construirPdfEncomenda(alerts);
+    const blob = doc.output("blob");
+    const filename = `CoreJoint_encomenda_fardamento_${new Date().toISOString().slice(0,10)}.pdf`;
+    const file = new File([blob], filename, {type:"application/pdf"});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:"Encomenda de Fardamento", text:"Encomenda de fardamento — CoreJoint"});
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+      toast("Ficheiro descarregado — usa o teu email ou WhatsApp para o enviar");
+    }
+  }catch(e){
+    if(e.name !== "AbortError"){
+      console.error(e);
+      toast("Erro ao partilhar: " + (e.message||e).slice(0,100));
+    }
+  }
 }
 
 /* ---------- NOVA ADMISSÃO (kit completo, desconta tudo de uma vez) ---------- */
