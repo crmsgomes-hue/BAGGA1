@@ -317,7 +317,7 @@ function invStatus(catKey, freq){
   }
   if(dow){
     const targetDate = findWeekdayInRange(w.start, w.end, dow);
-    const graceDate = new Date(targetDate); graceDate.setDate(graceDate.getDate()+1);
+    const graceDate = new Date(targetDate); graceDate.setDate(graceDate.getDate()+1); graceDate.setHours(14,0,0,0);
     return {state: today>graceDate ? "late" : "pend", latest:null, window:w, targetDate, dowLabel:DOW_LABELS[dow-1]};
   }
   return {state: today>w.end ? "late" : "pend", latest:null, window:w};
