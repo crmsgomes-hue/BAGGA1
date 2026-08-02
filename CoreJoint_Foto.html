@@ -467,29 +467,15 @@ function render(){
     {key:"almoco", label:"Vitrine — Almoço", icon:"🌞"},
     {key:"lanche", label:"Vitrine — Lanche", icon:"🌇"}
   ];
-  const hojeTitle = document.createElement("div");
-  hojeTitle.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:4px 0 8px;";
-  hojeTitle.textContent = "Hoje";
-  main.appendChild(hojeTitle);
-  const hojeCard = document.createElement("div");
-  hojeCard.className = "card";
-  hojeCard.style.cssText = "padding:6px 0;";
-  main.appendChild(hojeCard);
+
+  const tarefas = [];
   VITRINE_TURNOS.forEach(t=>{
     const rec = dailyStatus("vitrine", today, t.key);
-    const row = document.createElement("button");
-    row.style.cssText = "display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:12px 14px; border:none; background:none; border-bottom:1px solid var(--line);";
-    row.innerHTML = `<span style="font-size:18px;">${t.icon}</span><span style="flex:1; font-weight:600; font-size:14px;">${t.label}</span><span style="font-size:12px; font-weight:700; color:${rec?'var(--green)':'var(--ink-soft)'};">${rec?'✅ Enviado':'⏳ Por enviar'}</span>`;
-    row.onclick = ()=>openCapture("daily", "vitrine", t.label, t.key);
-    hojeCard.appendChild(row);
+    if(!rec) tarefas.push({icon:t.icon, label:t.label, status:"⏳ Por enviar", cor:"var(--ink-soft)", urgencia:1, onclick:()=>openCapture("daily","vitrine",t.label,t.key)});
   });
   {
     const rec = dailyStatus("vendas", today, "unico");
-    const row = document.createElement("button");
-    row.style.cssText = "display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:12px 14px; border:none; background:none;";
-    row.innerHTML = `<span style="font-size:18px;">🧾</span><span style="flex:1; font-weight:600; font-size:14px;">Vendas — Final do dia</span><span style="font-size:12px; font-weight:700; color:${rec?'var(--green)':'var(--ink-soft)'};">${rec?'✅ Enviado':'⏳ Por enviar'}</span>`;
-    row.onclick = ()=>openCapture("daily", "vendas", "Vendas — Final do dia", "unico");
-    hojeCard.appendChild(row);
+    if(!rec) tarefas.push({icon:"🧾", label:"Vendas — Final do dia", status:"⏳ Por enviar", cor:"var(--ink-soft)", urgencia:1, onclick:()=>openCapture("daily","vendas","Vendas — Final do dia","unico")});
   }
 
   const dueInv = categoriasParaLoja(currentLoja).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado).filter(c=>{
@@ -501,45 +487,66 @@ function render(){
       const doisDiasAntes = new Date(dataAgendada); doisDiasAntes.setDate(doisDiasAntes.getDate()-2);
       return new Date() >= doisDiasAntes;
     }
-    return new Date().getDate() >= 13; // só aparece a marcar a partir do dia 13 (2 dias antes da janela abrir no dia 15)
+    return new Date().getDate() >= 13;
   });
-  if(dueInv.length>0){
-    const title = document.createElement("div");
-    title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px;";
-    title.textContent = "Inventário pendente";
-    main.appendChild(title);
-
-    if(isLastDaysOfMonth()){
-      const warn = document.createElement("div");
-      warn.className = "warn-card";
-      warn.textContent = "⚠ Estamos nos últimos dias do mês — evita fazer contagens agora, para não desalinhar com o fecho.";
-      main.appendChild(warn);
+  dueInv.forEach(c=>{
+    const late = c.st.state==="late";
+    if(c.st.diaErrado){
+      tarefas.push({icon:"⚠", label:c.label, status:`Enviado fora do dia (${c.st.dowLabel}-feira) — chefia avisada`, cor:"var(--amber)", urgencia:2, isWarnOnly:true});
+      return;
     }
+    const isAmanha = c.st.targetDate && !late && isoDate(c.st.targetDate)===isoDate(new Date(Date.now()+86400000));
+    tarefas.push({
+      icon:"📦", label:c.label,
+      status: late?'⚠ Atrasado':isAmanha?'🔔 Amanhã é o dia':'⏳ Por enviar',
+      cor: late?'var(--red)':isAmanha?'var(--terracotta)':'var(--ink-soft)',
+      urgencia: late?3:1,
+      onclick:()=>openCapture("inv", c.key, c.label),
+      isGlobal: c.key==="global"
+    });
+  });
 
+  const dueMkt = MARKETING_CATS.map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>c.st.state!=="ok");
+  dueMkt.forEach(c=>{
+    const late = c.st.state==="late";
+    tarefas.push({icon:"🏷️", label:c.label, status: late?'⚠ Atrasado':'⏳ Por fazer', cor: late?'var(--red)':'var(--ink-soft)', urgencia: late?3:1, onclick:()=>openCapture("marketing", c.key, c.label)});
+  });
+
+  tarefas.sort((a,b)=>b.urgencia-a.urgencia);
+
+  if(isLastDaysOfMonth()){
+    const warn = document.createElement("div");
+    warn.className = "warn-card";
+    warn.textContent = "⚠ Estamos nos últimos dias do mês — evita fazer contagens de inventário agora, para não desalinhar com o fecho.";
+    main.appendChild(warn);
+  }
+
+  if(tarefas.length===0){
+    const ok = document.createElement("div");
+    ok.className = "card";
+    ok.style.cssText = "text-align:center; padding:28px 14px; color:var(--green);";
+    ok.innerHTML = `<div style="font-size:32px; margin-bottom:6px;">✅</div><div style="font-weight:700; font-size:15px;">Tudo feito por hoje!</div>`;
+    main.appendChild(ok);
+  } else {
     const listCard = document.createElement("div");
     listCard.className = "card";
     listCard.style.cssText = "padding:6px 0;";
     main.appendChild(listCard);
-
-    dueInv.forEach(c=>{
-      const late = c.st.state==="late";
-      if(c.st.diaErrado){
-        const card = document.createElement("div");
-        card.className = "warn-card";
-        card.style.margin = "8px 14px";
-        card.innerHTML = `⚠ <b>${c.label}</b>: enviaste, mas NÃO em ${c.st.dowLabel}-feira (dia certo). A chefia já foi avisada.`;
-        listCard.appendChild(card);
+    tarefas.forEach(t=>{
+      if(t.isWarnOnly){
+        const w = document.createElement("div");
+        w.className = "warn-card";
+        w.style.margin = "8px 14px";
+        w.innerHTML = `<b>${t.label}</b>: ${t.status}`;
+        listCard.appendChild(w);
         return;
       }
-      const isAmanha = c.st.targetDate && !late && isoDate(c.st.targetDate)===isoDate(new Date(Date.now()+86400000));
       const row = document.createElement("button");
       row.style.cssText = "display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:12px 14px; border:none; background:none; border-bottom:1px solid var(--line);";
-      const statusTxt = late?'⚠ Atrasado':isAmanha?'🔔 Amanhã é o dia':'⏳ Por enviar';
-      const statusColor = late?'var(--red)':isAmanha?'var(--terracotta)':'var(--ink-soft)';
-      row.innerHTML = `<span style="font-size:18px;">📦</span><span style="flex:1; font-weight:600; font-size:14px;">${c.label}</span><span style="font-size:12px; font-weight:700; color:${statusColor};">${statusTxt}</span>`;
-      row.onclick = ()=>openCapture("inv", c.key, c.label);
+      row.innerHTML = `<span style="font-size:18px;">${t.icon}</span><span style="flex:1; font-weight:600; font-size:14px;">${t.label}</span><span style="font-size:12px; font-weight:700; color:${t.cor};">${t.status}</span>`;
+      row.onclick = t.onclick;
       listCard.appendChild(row);
-      if(c.key==="global"){
+      if(t.isGlobal){
         const mes = mesKey(new Date());
         const ag = agendamentos.find(a=>a.mes===mes);
         const agRow = document.createElement("div");
@@ -554,13 +561,10 @@ function render(){
         }
         listCard.appendChild(agRow);
         if(!ag){
-          setTimeout(()=>{
-            renderMiniCalendar("miniCalWrap", mes, (ds)=>agendarGlobal(mes, ds));
-          }, 0);
+          setTimeout(()=>{ renderMiniCalendar("miniCalWrap", mes, (ds)=>agendarGlobal(mes, ds)); }, 0);
         }
         const mudar = document.getElementById("mudarAgendamento");
         if(mudar) mudar.onclick = ()=>{ agendamentos = agendamentos.filter(a=>a.mes!==mes); render(); };
-
         if(isLastDaysOfMonth()){
           const warnGlobal = document.createElement("div");
           warnGlobal.className = "warn-card";
@@ -569,26 +573,6 @@ function render(){
           listCard.appendChild(warnGlobal);
         }
       }
-    });
-  }
-
-  const dueMkt = MARKETING_CATS.map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>c.st.state!=="ok");
-  if(dueMkt.length>0){
-    const title = document.createElement("div");
-    title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px;";
-    title.textContent = "Marketing e Manutenção";
-    main.appendChild(title);
-    const mktCard = document.createElement("div");
-    mktCard.className = "card";
-    mktCard.style.cssText = "padding:6px 0;";
-    main.appendChild(mktCard);
-    dueMkt.forEach(c=>{
-      const late = c.st.state==="late";
-      const row = document.createElement("button");
-      row.style.cssText = "display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:12px 14px; border:none; background:none; border-bottom:1px solid var(--line);";
-      row.innerHTML = `<span style="font-size:18px;">🏷️</span><span style="flex:1; font-weight:600; font-size:14px;">${c.label}</span><span style="font-size:12px; font-weight:700; color:${late?'var(--red)':'var(--ink-soft)'};">${late?'⚠ Atrasado':'⏳ Por fazer'}</span>`;
-      row.onclick = ()=>openCapture("marketing", c.key, c.label);
-      mktCard.appendChild(row);
     });
   }
 
