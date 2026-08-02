@@ -2804,14 +2804,14 @@ async function resetDadosTeste(){
   }
 }
 
-function abrirMenuFerramentas(ferramentas){
+function abrirMenuFerramentas(grupos){
   const overlay = document.createElement("div");
   overlay.className = "overlay";
   overlay.id = "ferramentasOverlay";
   overlay.innerHTML = `
     <div class="modal">
       <h2>Ferramentas</h2>
-      <div id="ferramentasLista" style="display:flex; flex-direction:column; gap:4px; margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
+      <div id="ferramentasLista" style="margin-top:6px; max-height:65vh; overflow-y:auto;"></div>
       <div class="modal-actions">
         <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('ferramentasOverlay').remove()">Fechar</button>
       </div>
@@ -2819,12 +2819,18 @@ function abrirMenuFerramentas(ferramentas){
   `;
   document.body.appendChild(overlay);
   const lista = document.getElementById("ferramentasLista");
-  ferramentas.forEach(t=>{
-    const item = document.createElement("button");
-    item.style.cssText = `display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:11px 8px; border:none; background:none; border-bottom:1px solid var(--line); font-size:14px; ${t.highlight?'color:var(--terracotta); font-weight:700;':'color:var(--ink);'}`;
-    item.innerHTML = `<span style="font-size:18px;">${t.icon}</span><span>${t.label}</span>`;
-    item.onclick = ()=>{ overlay.remove(); t.fn(); };
-    lista.appendChild(item);
+  grupos.forEach(g=>{
+    const titulo = document.createElement("div");
+    titulo.style.cssText = "font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:700; margin:16px 0 4px;";
+    titulo.textContent = g.titulo;
+    lista.appendChild(titulo);
+    g.itens.forEach(t=>{
+      const item = document.createElement("button");
+      item.style.cssText = `display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:11px 8px; border:none; background:none; border-bottom:1px solid var(--line); font-size:14px; color:var(--ink);`;
+      item.innerHTML = `<span style="font-size:18px;">${t.icon}</span><span>${t.label}</span>`;
+      item.onclick = ()=>{ overlay.remove(); t.fn(); };
+      lista.appendChild(item);
+    });
   });
 }
 
@@ -2837,32 +2843,45 @@ function renderGestao(){
     {icon:"📲", label:"Resumo p/ WhatsApp", fn:partilharResumoWhatsApp},
     {icon:"📊", label:"Sondagem", fn:openSondagens}
   ];
-  const secundarias = [
-    {icon:"📅", label:"Histórico 12m", fn:openHistoricoAnual},
-    {icon:"📥", label:"Excel", fn:exportarExcel},
-    {icon:"🖼️", label:"Galeria fotos", fn:openGaleria},
-    {icon:"📈", label:"CNVs Global", fn:openEvolucaoCnvs},
-    {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry},
-    {icon:"🖥️", label:"Modo apresentação", fn:openModoApresentacao},
-    {icon:"📅", label:"Quem marcou o Global", fn:openAgendamentosGlobal},
-    {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport},
-    {icon:"🏆", label:"Ranking de lojas", fn:openRankingLojas},
-    {icon:"🕓", label:"Registo de atividade", fn:openRegistoAtividade},
-    {icon:"📝", label:"Formulário", fn:openFormularios},
-    {icon:"📢", label:"Avisos dados", fn:openAvisos},
-    {icon:"✅", label:"Checklist do mês", fn:openChecklistMensal},
-    {icon:"🏪", label:"Ficha da Loja", fn:openFichaGerente},
-    {icon:"🗑️", label:"Reset total (limpar testes)", fn:resetDadosTeste},
-    {icon:"🛡️", label:"Relatório de Compliance", fn:generateComplianceReport},
-    {icon:"🧪", label:"Zerar atrasados (só testes)", fn:zerarAtrasadosTeste}
+  const grupos = [
+    {titulo:"Relatórios", itens:[
+      {icon:"🖨️", label:"Relatório PDF (semanal)", fn:generateWeeklyReport},
+      {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport},
+      {icon:"🛡️", label:"Relatório de Compliance", fn:generateComplianceReport},
+      {icon:"📥", label:"Excel", fn:exportarExcel},
+      {icon:"📅", label:"Histórico 12m", fn:openHistoricoAnual}
+    ]},
+    {titulo:"Comunicação com lojas", itens:[
+      {icon:"📲", label:"Resumo p/ WhatsApp", fn:partilharResumoWhatsApp},
+      {icon:"📢", label:"Avisos dados", fn:openAvisos},
+      {icon:"📊", label:"Sondagem", fn:openSondagens},
+      {icon:"📝", label:"Formulário", fn:openFormularios}
+    ]},
+    {titulo:"Visão por loja", itens:[
+      {icon:"🏪", label:"Ficha da Loja", fn:openFichaGerente},
+      {icon:"🏆", label:"Ranking de lojas", fn:openRankingLojas},
+      {icon:"✅", label:"Checklist do mês", fn:openChecklistMensal},
+      {icon:"🕓", label:"Registo de atividade", fn:openRegistoAtividade},
+      {icon:"🖼️", label:"Galeria fotos", fn:openGaleria},
+      {icon:"📈", label:"CNVs Global", fn:openEvolucaoCnvs},
+      {icon:"📅", label:"Quem marcou o Global", fn:openAgendamentosGlobal}
+    ]},
+    {titulo:"Utilitários", itens:[
+      {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry},
+      {icon:"🖥️", label:"Modo apresentação", fn:openModoApresentacao}
+    ]},
+    {titulo:"Testes (não usar em produção)", itens:[
+      {icon:"🧪", label:"Zerar atrasados (só testes)", fn:zerarAtrasadosTeste},
+      {icon:"🗑️", label:"Reset total (limpar testes)", fn:resetDadosTeste}
+    ]}
   ];
-  const todasFerramentas = [...principais, ...secundarias];
+  const todasFerramentas = grupos.flatMap(g=>g.itens);
 
   const toolsBtn = document.createElement("button");
   toolsBtn.className = "cambtn secondary";
   toolsBtn.style.cssText = "width:100%; margin-bottom:18px; display:flex; align-items:center; justify-content:center; gap:6px;";
   toolsBtn.innerHTML = `🛠️ Ferramentas <span style="color:var(--ink-soft); font-weight:400;">(${todasFerramentas.length})</span>`;
-  toolsBtn.onclick = ()=>abrirMenuFerramentas(todasFerramentas);
+  toolsBtn.onclick = ()=>abrirMenuFerramentas(grupos);
   main.appendChild(toolsBtn);
 
   const today = todayStr();
