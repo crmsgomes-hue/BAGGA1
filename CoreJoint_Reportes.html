@@ -2819,18 +2819,22 @@ function abrirMenuFerramentas(grupos){
   `;
   document.body.appendChild(overlay);
   const lista = document.getElementById("ferramentasLista");
-  grupos.forEach(g=>{
+  grupos.forEach((g, gi)=>{
+    const grupoBox = document.createElement("div");
+    grupoBox.style.cssText = `background:var(--cream); border-radius:12px; padding:4px 10px; margin-bottom:14px;`;
     const titulo = document.createElement("div");
-    titulo.style.cssText = "font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:700; margin:16px 0 4px;";
+    titulo.style.cssText = "font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--terracotta); font-weight:800; padding:10px 2px 6px;";
     titulo.textContent = g.titulo;
-    lista.appendChild(titulo);
-    g.itens.forEach(t=>{
+    grupoBox.appendChild(titulo);
+    g.itens.forEach((t, ti)=>{
       const item = document.createElement("button");
-      item.style.cssText = `display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:11px 8px; border:none; background:none; border-bottom:1px solid var(--line); font-size:14px; color:var(--ink);`;
+      const isLast = ti === g.itens.length-1;
+      item.style.cssText = `display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:11px 8px; border:none; background:none; ${isLast?'':'border-bottom:1px solid rgba(0,0,0,.06);'} font-size:14px; color:var(--ink);`;
       item.innerHTML = `<span style="font-size:18px;">${t.icon}</span><span>${t.label}</span>`;
       item.onclick = ()=>{ overlay.remove(); t.fn(); };
-      lista.appendChild(item);
+      grupoBox.appendChild(item);
     });
+    lista.appendChild(grupoBox);
   });
 }
 
