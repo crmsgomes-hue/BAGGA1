@@ -195,12 +195,12 @@ const MARKETING_CATS = [
   {key:"orelhas", label:"Orelhas", freq:"mensal_inicio"},
   {key:"horarios", label:"Horários", freq:"mensal_inicio"},
   {key:"preventiva_delta", label:"Preventiva Delta", freq:"mensal_inicio"},
-  {key:"papel", label:"Legionella (Papel)", freq:"mensal_inicio"},
-  {key:"forms", label:"Legionella (Forms)", freq:"mensal_inicio"},
+  {key:"papel", label:"Legionella (Papel)", freq:"semanal"},
+  {key:"forms", label:"Legionella (Forms)", freq:"semanal"},
   {key:"haccp", label:"HACCP", freq:"mensal_inicio"},
   {key:"winrest", label:"Winrest", freq:"mensal_inicio"},
-  {key:"limpeza_prelatores", label:"Limpeza Prelatores", freq:"semestral"},
-  {key:"aps", label:"APS", freq:"mensal_inicio"},
+  {key:"limpeza_prelatores", label:"Limpeza Prelatores", freq:"semestral_jul_dez"},
+  {key:"aps", label:"APS", freq:"mensal_dia20"},
   {key:"registo_21", label:"Registo 21", freq:"semanal"},
   {key:"legionella", label:"Legionella", freq:"semanal"}
 ];
@@ -598,12 +598,26 @@ function isLastDaysOfMonth(threshold=3){
   return d.getDate() > lastDay - threshold;
 }
 
+function monthDia20Window(d){
+  const start = new Date(d.getFullYear(), d.getMonth(), 1);
+  const end = new Date(d.getFullYear(), d.getMonth(), 20);
+  return {start, end};
+}
+function julDezWindow(d){
+  const mes = d.getMonth();
+  const alvoMes = mes <= 5 ? 6 : 11;
+  const start = new Date(d.getFullYear(), alvoMes, 1);
+  const end = new Date(d.getFullYear(), alvoMes+1, 0);
+  return {start, end};
+}
 function windowFor(freq, d){
   if(freq==="semanal") return weekWindow(d);
   if(freq==="quinzenal") return biweekWindow(d);
   if(freq==="mensal_inicio") return monthStartWindow(d);
+  if(freq==="mensal_dia20") return monthDia20Window(d);
   if(freq==="mensal") return monthWindow(d);
   if(freq==="semestral") return semestreWindow(d);
+  if(freq==="semestral_jul_dez") return julDezWindow(d);
   return month3Window(d);
 }
 function inRange(dateStr, start, end){
