@@ -321,14 +321,15 @@ function generateComplianceReport(){
   mostrarAcoesRelatorio(html, `CoreJoint_compliance_${todayStr()}.pdf`);
 }
 // Exceções conhecidas por loja (ajustar à medida que se confirma mais informação)
-const JSC_LOJAS = ["Almeirim", "Ponte de Sor"]; // só estas confirmadas com JSC por agora
-const TABACO_EXCLUIR = ["Caldas da Rainha"]; // não tem tabaco
+let naoAplicaveis = []; // {loja, categoria}
+function categoriaNaoAplicavel(loja, key){
+  return naoAplicaveis.some(e=>e.loja===loja && e.categoria===key);
+}
 function categoriasParaLoja(loja){
-  return INV_CATS.filter(c=>{
-    if(c.key==="raspadinhas") return JSC_LOJAS.includes(loja);
-    if(c.key==="tabaco") return !TABACO_EXCLUIR.includes(loja);
-    return true;
-  });
+  return INV_CATS.filter(c=>!categoriaNaoAplicavel(loja, c.key));
+}
+function marketingCatsParaLoja(loja){
+  return MARKETING_CATS.filter(c=>!categoriaNaoAplicavel(loja, c.key));
 }
 
 let mode = null; // 'loja' | 'gestao'
@@ -660,6 +661,7 @@ async function loadAll(){
     dailyRows = await api("GET", `cj_daily_reportes?select=*${lojaFilter}&order=data.desc`);
     invRows = await api("GET", `cj_inventario_reportes?select=*${lojaFilter}&order=data.desc&limit=5000`);
     agendamentos = await api("GET", `cj_global_agendamento?select=*${lojaFilter}`);
+    naoAplicaveis = await api("GET", "cj_categoria_nao_aplicavel?select=*");
     currentView();
   }catch(e){ console.error(e); toast("Erro a carregar dados"); }
 }
@@ -748,6 +750,9 @@ function findWeekdayInRange(start, end, dow){
 }
 
 function invStatus(loja, catKey, freq){
+  if(categoriaNaoAplicavel(loja, catKey)){
+    return {state:"na", latest:null, window:null, dowLabel:null};
+  }
   const today = new Date();
   const w = windowFor(freq, today);
   const rows = invRows.filter(r=>r.loja===loja && r.categoria===catKey && inRange(r.data, w.start, w.end));
@@ -879,7 +884,7 @@ function renderInventario(main){
 }
 
 function renderMarketing(main){
-  MARKETING_CATS.forEach(cat=>{
+  marketingCatsParaLoja(currentLoja).forEach(cat=>{
     const st = invStatus(currentLoja, cat.key, cat.freq);
     const card = document.createElement("div");
     card.className = "card";
@@ -1586,7 +1591,7 @@ async function partilharResumoWhatsApp(){
   const missingVendas = LOJAS.filter(l=>!dailyStatus(l,"vendas",today,"unico"));
   let atrasados = 0;
   LOJAS.forEach(l=>{
-    [...categoriasParaLoja(l), ...MARKETING_CATS].forEach(c=>{
+    [...categoriasParaLoja(l), ...marketingCatsParaLoja(l)].forEach(c=>{
       if(invStatus(l,c.key,c.freq).state==="late") atrasados++;
     });
   });
@@ -1782,7 +1787,8 @@ function openChecklistMensal(){
     colunas.forEach(c=>{
       const st = invStatus(l,c.key,c.freq);
       let cell, bg, color="var(--ink)";
-      if(st.state==="ok"){ cell="✔"; bg="#eef3ea"; color="var(--green)"; contagem[c.key]++; }
+      if(st.state==="na"){ cell="—"; bg="var(--cream)"; color="var(--ink-soft)"; }
+      else if(st.state==="ok"){ cell="✔"; bg="#eef3ea"; color="var(--green)"; contagem[c.key]++; }
       else if(st.state==="late"){ cell="✕"; bg="#fbeeec"; color="var(--red)"; }
       else if(st.state==="pausado"){ cell="⏸"; bg="var(--line)"; color="var(--ink-soft)"; }
       else{ cell="…"; bg="#fdf6e9"; color="var(--amber)"; }
@@ -1897,7 +1903,7 @@ async function computarDadosFicha(l, rankingOrdenado){
   const pctVend = Math.round(vendOk/diasNoMes.length*100);
 
   let atrasados = 0, diaErrado = 0;
-  [...categoriasParaLoja(l), ...MARKETING_CATS].forEach(c=>{
+  [...categoriasParaLoja(l), ...marketingCatsParaLoja(l)].forEach(c=>{
     const st = invStatus(l,c.key,c.freq);
     if(st.state==="late") atrasados++;
     if(st.diaErrado) diaErrado++;
@@ -1926,7 +1932,7 @@ function calcularRankingOrdenado(){
     let score = 0;
     VITRINE_TURNOS.forEach(t=>{ if(turnoSquareState(!!dailyStatus(loja,"vitrine",todayStr(),t.key), TURNO_HORA_LIMITE[t.key])==="late") score+=2; });
     if(turnoSquareState(!!dailyStatus(loja,"vendas",todayStr(),"unico"), VENDAS_HORA_LIMITE)==="late") score+=2;
-    [...categoriasParaLoja(loja), ...MARKETING_CATS].forEach(c=>{ if(invStatus(loja,c.key,c.freq).state==="late") score+=3; });
+    [...categoriasParaLoja(loja), ...marketingCatsParaLoja(loja)].forEach(c=>{ if(invStatus(loja,c.key,c.freq).state==="late") score+=3; });
     return {loja, score};
   }).sort((a,b)=>a.score-b.score);
 }
@@ -1957,6 +1963,36 @@ async function exportarTodasFichasExcel(){
   XLSX.utils.book_append_sheet(wb, ws, "Todas as lojas");
   await salvarOuPartilharExcel(wb, `CoreJoint_fichas_todas_lojas_${todayStr()}.xlsx`);
   mostrarSucesso("Excel gerado com todas as lojas!");
+}
+
+function renderNaoAplicavelLista(loja){
+  const wrap = document.getElementById("fichaNaoAplicavelLista");
+  if(!wrap) return;
+  const todasCats = [...INV_CATS, ...MARKETING_CATS];
+  wrap.innerHTML = "";
+  todasCats.forEach(c=>{
+    const ativo = categoriaNaoAplicavel(loja, c.key);
+    const row = document.createElement("label");
+    row.style.cssText = "display:flex; align-items:center; gap:10px; padding:8px 2px; border-bottom:1px solid var(--line); font-size:14px; cursor:pointer;";
+    row.innerHTML = `<input type="checkbox" data-cat="${c.key}" ${ativo?'checked':''} style="width:18px; height:18px;"><span>${c.label}</span>`;
+    row.querySelector("input").onchange = (ev)=>toggleNaoAplicavel(loja, c.key, ev.target.checked);
+    wrap.appendChild(row);
+  });
+}
+
+async function toggleNaoAplicavel(loja, categoria, ativo){
+  try{
+    if(ativo){
+      await api("POST", "cj_categoria_nao_aplicavel", {loja, categoria, criado_por: currentUser});
+    } else {
+      await api("DELETE", `cj_categoria_nao_aplicavel?loja=eq.${encodeURIComponent(loja)}&categoria=eq.${categoria}`);
+    }
+    await loadAll();
+    toast(ativo ? "Marcado como não aplicável" : "Voltou a ser aplicável");
+  }catch(e){
+    console.error(e);
+    toast("Erro ao atualizar: " + (e.message||e).slice(0,100));
+  }
 }
 
 async function autorizarDataEspecialGlobal(loja){
@@ -2027,7 +2063,7 @@ async function openFichaGerente(lojaPreSelecionada){
     const pctVend = Math.round(vendOk/diasNoMes.length*100);
 
     let atrasados = 0, diaErrado = 0;
-    [...categoriasParaLoja(l), ...MARKETING_CATS].forEach(c=>{
+    [...categoriasParaLoja(l), ...marketingCatsParaLoja(l)].forEach(c=>{
       const st = invStatus(l,c.key,c.freq);
       if(st.state==="late") atrasados++;
       if(st.diaErrado) diaErrado++;
@@ -2051,7 +2087,7 @@ async function openFichaGerente(lojaPreSelecionada){
       let score = 0;
       VITRINE_TURNOS.forEach(t=>{ if(turnoSquareState(!!dailyStatus(loja,"vitrine",todayStr(),t.key), TURNO_HORA_LIMITE[t.key])==="late") score+=2; });
       if(turnoSquareState(!!dailyStatus(loja,"vendas",todayStr(),"unico"), VENDAS_HORA_LIMITE)==="late") score+=2;
-      [...categoriasParaLoja(loja), ...MARKETING_CATS].forEach(c=>{ if(invStatus(loja,c.key,c.freq).state==="late") score+=3; });
+      [...categoriasParaLoja(loja), ...marketingCatsParaLoja(loja)].forEach(c=>{ if(invStatus(loja,c.key,c.freq).state==="late") score+=3; });
       return {loja, score};
     }).sort((a,b)=>a.score-b.score);
     const posicao = ranking.findIndex(r=>r.loja===l)+1;
@@ -2104,6 +2140,11 @@ async function openFichaGerente(lojaPreSelecionada){
         <input type="date" id="fichaDataEspecial" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:10px;">
         <button class="cambtn" style="width:100%; background:var(--terracotta); color:#fff; border:none; padding:11px; border-radius:10px; font-weight:600;" id="fichaAutorizarBtn">Autorizar esta data</button>
       </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:8px;">Categorias não aplicáveis a esta loja</div>
+        <div class="card-sub" style="margin-bottom:10px;">Marca as que esta loja não precisa de fazer — desaparecem do link dela e dos relatórios.</div>
+        <div id="fichaNaoAplicavelLista" style="display:flex; flex-direction:column; gap:2px;"></div>
+      </div>
       <div style="display:flex; gap:8px; margin-bottom:8px;">
         <button class="cambtn" style="flex:1; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;" id="fichaPdfBtn">🖨️ PDF</button>
         <button class="cambtn secondary" style="flex:1; padding:12px;" id="fichaExcelBtn">📥 Excel</button>
@@ -2122,6 +2163,7 @@ async function openFichaGerente(lojaPreSelecionada){
     document.getElementById("fichaVerDiaBtn").onclick = ()=>openLojaDetalhe(l);
     document.getElementById("fichaVerAvisosBtn").onclick = ()=>openAvisos(l);
     document.getElementById("fichaAutorizarBtn").onclick = ()=>autorizarDataEspecialGlobal(l);
+    renderNaoAplicavelLista(l);
   }
 
   if(fichaLojaAtual) renderFichaConteudo();
@@ -2281,7 +2323,7 @@ function openModoApresentacao(){
       const st = invStatus(l,c.key,c.freq);
       items.push({label:c.label.slice(0,4), state: st.diaErrado ? "diaerrado" : st.state});
     });
-    MARKETING_CATS.forEach(c=>{
+    marketingCatsParaLoja(l).forEach(c=>{
       const st = invStatus(l,c.key,c.freq);
       items.push({label:c.label.slice(0,4), state: st.diaErrado ? "diaerrado" : st.state});
     });
@@ -2499,7 +2541,7 @@ function openHistoricoAnual(){
     html += `<div style="display:grid; grid-template-columns:70px repeat(12,1fr); gap:2px; font-size:9px; margin-bottom:4px; color:var(--ink-soft);">
       <div></div>${months.map(m=>`<div style="text-align:center;">${monthLabel(m)}</div>`).join("")}
     </div>`;
-    MARKETING_CATS.forEach(cat=>{
+    marketingCatsParaLoja(l).forEach(cat=>{
       const cells = months.map(m=>{
         const mk = monthKey(m);
         const has = invRows.some(r=>r.loja===l && r.categoria===cat.key && r.data && r.data.slice(0,7)===mk);
@@ -2600,6 +2642,7 @@ async function generateMonthlyReport(){
   html += `<h2>Marketing — feito nos primeiros 3 dias do mês?</h2><table><tr><th style="text-align:left;">Loja</th>${MARKETING_CATS.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
   LOJAS.forEach(l=>{
     const cells = MARKETING_CATS.map(c=>{
+      if(categoriaNaoAplicavel(l, c.key)) return "—";
       const feito = invRows.some(r=>r.loja===l && r.categoria===c.key && r.data>=isoDate(inicioMes) && r.data<=isoDate(fimMes));
       return feito ? "✔" : "✕";
     });
@@ -2678,6 +2721,7 @@ async function generateWeeklyReport(){
   LOJAS.forEach(l=>{
     const cells = MARKETING_CATS.map(c=>{
       const st = invStatus(l,c.key,c.freq);
+      if(st.state==="na") return "—";
       if(st.state==="ok") return `✔ ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}`;
       return st.state==="late" ? "✕" : "…";
     });
@@ -3152,7 +3196,7 @@ function renderGestao(){
       if(turnoSquareState(done, TURNO_HORA_LIMITE[t.key])==="late") score += 2;
     });
     if(turnoSquareState(!!dailyStatus(l,"vendas",today,"unico"), VENDAS_HORA_LIMITE)==="late") score += 2;
-    [...categoriasParaLoja(l), ...MARKETING_CATS].forEach(c=>{
+    [...categoriasParaLoja(l), ...marketingCatsParaLoja(l)].forEach(c=>{
       const st = invStatus(l,c.key,c.freq);
       if(st.state==="late") score += 3;
       if(st.diaErrado) score += 1;
@@ -3185,7 +3229,7 @@ function renderGestao(){
       if(st.diaErrado) invDiaErrado++;
     });
     let mktAtrasados = 0;
-    MARKETING_CATS.forEach(c=>{
+    marketingCatsParaLoja(l).forEach(c=>{
       const st = invStatus(l,c.key,c.freq);
       if(st.state==="late") mktAtrasados++;
     });
