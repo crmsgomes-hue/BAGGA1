@@ -539,38 +539,59 @@ function render(){
     ok.innerHTML = `<div style="font-size:32px; margin-bottom:6px;">✅</div><div style="font-weight:700; font-size:15px;">Tudo feito por hoje!</div>`;
     main.appendChild(ok);
   } else {
-    const listCard = document.createElement("div");
-    listCard.className = "card";
-    listCard.style.cssText = "padding:6px 0;";
-    main.appendChild(listCard);
+    const folderBtn = document.createElement("button");
+    folderBtn.style.cssText = "width:100%; display:flex; align-items:center; gap:10px; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,.06); margin-bottom:14px;";
+    const temAtrasado = tarefas.some(t=>t.urgencia>=3);
+    folderBtn.innerHTML = `<span style="font-size:22px;">📋</span><span style="flex:1; text-align:left; font-weight:700; font-size:15px;">Pendentes</span><span style="background:${temAtrasado?'var(--red)':'var(--terracotta)'}; color:#fff; font-weight:700; font-size:13px; border-radius:99px; padding:3px 10px;">${tarefas.length}</span><span id="pendChevron" style="font-size:14px; color:var(--ink-soft);">▾</span>`;
+    main.appendChild(folderBtn);
+
+    const gridWrap = document.createElement("div");
+    gridWrap.style.cssText = "display:none;";
+    main.appendChild(gridWrap);
+
+    let aberto = temAtrasado;
+    function atualizarAberto(){
+      gridWrap.style.display = aberto ? "block" : "none";
+      document.getElementById("pendChevron").textContent = aberto ? "▴" : "▾";
+    }
+    folderBtn.onclick = ()=>{ aberto = !aberto; atualizarAberto(); };
+
+    const grid = document.createElement("div");
+    grid.style.cssText = "display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:10px;";
+    gridWrap.appendChild(grid);
+
+    const extras = document.createElement("div");
+    gridWrap.appendChild(extras);
+
     tarefas.forEach(t=>{
       if(t.isWarnOnly){
         const w = document.createElement("div");
         w.className = "warn-card";
-        w.style.margin = "8px 14px";
         w.innerHTML = `<b>${t.label}</b>: ${t.status}`;
-        listCard.appendChild(w);
+        extras.appendChild(w);
         return;
       }
-      const row = document.createElement("button");
-      row.style.cssText = "display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:12px 14px; border:none; background:none; border-bottom:1px solid var(--line);";
-      row.innerHTML = `<span style="font-size:18px;">${t.icon}</span><span style="flex:1; font-weight:600; font-size:14px;">${t.label}</span><span style="font-size:12px; font-weight:700; color:${t.cor};">${t.status}</span>`;
-      row.onclick = t.onclick;
-      listCard.appendChild(row);
+      const corBorda = t.urgencia>=3 ? 'var(--red)' : t.urgencia===2 ? 'var(--amber)' : 'var(--line)';
+      const tile = document.createElement("button");
+      tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:var(--card); border:1.5px solid ${corBorda}; border-radius:12px; padding:12px 4px; text-align:center;`;
+      tile.innerHTML = `<span style="font-size:22px;">${t.icon}</span><span style="font-size:11px; font-weight:700; line-height:1.2;">${t.label}</span><span style="font-size:9.5px; font-weight:700; color:${t.cor};">${t.status}</span>`;
+      tile.onclick = t.onclick;
+      grid.appendChild(tile);
       if(t.isGlobal){
         const mes = mesKey(new Date());
         const ag = agendamentos.find(a=>a.mes===mes);
         const agRow = document.createElement("div");
-        agRow.style.cssText = "margin:2px 14px 10px;";
+        agRow.className = "card";
+        agRow.style.padding = "12px 14px";
         if(ag){
-          agRow.innerHTML = `<div style="font-size:12px; color:var(--ink-soft);">📅 Agendado para ${new Date(ag.data_agendada+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} <span style="text-decoration:underline; cursor:pointer;" id="mudarAgendamento">(mudar)</span></div>`;
+          agRow.innerHTML = `<div style="font-size:12px; color:var(--ink-soft);">📅 Global agendado para ${new Date(ag.data_agendada+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} <span style="text-decoration:underline; cursor:pointer;" id="mudarAgendamento">(mudar)</span></div>`;
         } else {
           agRow.innerHTML = `
-            <div style="font-size:12px; color:var(--ink-soft); margin-bottom:6px;">📅 Marca o dia em que vais fazer (só 3ª semana, segunda a quinta):</div>
+            <div style="font-size:12px; color:var(--ink-soft); margin-bottom:6px;">📅 Marca o dia do Global (só 3ª semana, segunda a quinta):</div>
             <div id="miniCalWrap"></div>
           `;
         }
-        listCard.appendChild(agRow);
+        extras.appendChild(agRow);
         if(!ag){
           setTimeout(()=>{ renderMiniCalendar("miniCalWrap", mes, (ds)=>agendarGlobal(mes, ds)); }, 0);
         }
@@ -579,12 +600,12 @@ function render(){
         if(isLastDaysOfMonth()){
           const warnGlobal = document.createElement("div");
           warnGlobal.className = "warn-card";
-          warnGlobal.style.margin = "8px 14px";
           warnGlobal.textContent = "⚠ Estamos nos últimos dias do mês — não se faz inventário Global agora.";
-          listCard.appendChild(warnGlobal);
+          extras.appendChild(warnGlobal);
         }
       }
     });
+    atualizarAberto();
   }
 
 }
