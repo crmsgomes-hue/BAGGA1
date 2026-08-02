@@ -204,16 +204,10 @@ const MARKETING_CATS = [
   {key:"orelhas", label:"Orelhas", freq:"mensal_inicio"},
   {key:"horarios", label:"Horários", freq:"mensal_inicio"},
   {key:"preventiva_delta", label:"Preventiva Delta", freq:"mensal_inicio"},
-  {key:"papel", label:"Legionella (Papel)", freq:"semanal"},
-  {key:"forms", label:"Legionella (Forms)", freq:"semanal"},
-  {key:"haccp", label:"HACCP", freq:"mensal_inicio"},
-  {key:"winrest", label:"Winrest", freq:"mensal_inicio"},
   {key:"limpeza_prelatores", label:"Limpeza Prelatores", freq:"semestral_jul_dez"},
-  {key:"aps", label:"APS", freq:"mensal_dia20"},
-  {key:"registo_21", label:"Registo 21", freq:"semanal"},
-  {key:"legionella", label:"Legionella", freq:"semanal"}
+  {key:"aps", label:"APS", freq:"mensal_dia20"}
 ];
-const COMPLIANCE_KEYS = ["legionella","haccp","winrest","papel","forms","limpeza_prelatores"];
+const COMPLIANCE_KEYS = ["limpeza_prelatores"];
 function categoriasCompliance(loja){
   return [...categoriasParaLoja(loja), ...MARKETING_CATS].filter(c=>COMPLIANCE_KEYS.includes(c.key));
 }
