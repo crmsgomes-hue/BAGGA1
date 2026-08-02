@@ -134,6 +134,7 @@
     <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:6px;"><input type="checkbox" id="prefFardamento" checked> Fardamento</label>
     <label style="display:flex; align-items:center; gap:8px; font-size:13px;"><input type="checkbox" id="prefAdendas" checked> Adendas</label>
     <button class="mgmt-btn" style="background:#666; margin-top:10px; padding:9px;" onclick="guardarPreferencias()">Guardar preferências</button>
+    <button class="mgmt-btn" style="background:var(--terracotta); margin-top:10px; padding:9px;" onclick="testarNotificacao()">🔔 Testar notificação agora</button>
   </div>
   <button class="mgmt-btn" style="background:#666; margin-top:10px;" onclick="runDiagnostico()">🔧 Testar ligação (diagnóstico)</button>
   <pre id="diagResult" style="display:none; white-space:pre-wrap; word-break:break-word; background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px; margin-top:14px; font-size:12px; max-width:420px; width:100%; text-align:left;"></pre>
@@ -371,6 +372,19 @@ async function guardarPreferencias(){
   }catch(e){
     console.error(e);
     toast("Erro ao guardar preferências");
+  }
+}
+
+async function testarNotificacao(){
+  try{
+    toast("A enviar notificação de teste...");
+    const res = await fetch("https://isdaegejkxgtzjcpzstr.supabase.co/functions/v1/send-daily-alerts?tipo=teste");
+    const data = await res.json();
+    if(data.sent>0) toast(`Enviada! Devias recebê-la em segundos (${data.sent} dispositivo(s))`);
+    else toast("Não há notificações ativas para testar — ativa primeiro.");
+  }catch(e){
+    console.error(e);
+    toast("Erro ao testar notificação");
   }
 }
 
