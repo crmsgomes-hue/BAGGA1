@@ -203,6 +203,37 @@ const MARKETING_CATS = [
   {key:"winrest", label:"Winrest", freq:"mensal_inicio"},
   {key:"limpeza_prelatores", label:"Limpeza Prelatores", freq:"semestral"}
 ];
+const COMPLIANCE_KEYS = ["legionella","haccp","winrest","papel","forms","limpeza_prelatores"];
+function categoriasCompliance(loja){
+  return [...categoriasParaLoja(loja), ...MARKETING_CATS].filter(c=>COMPLIANCE_KEYS.includes(c.key));
+}
+function complianceSectionHtml(){
+  let html = `<h2>🛡️ Compliance / Auditoria</h2><table><tr><th style="text-align:left;">Loja</th>${COMPLIANCE_KEYS.map(k=>{
+    const cat = [...INV_CATS, ...MARKETING_CATS].find(c=>c.key===k);
+    return `<th>${cat?cat.label:k}</th>`;
+  }).join("")}</tr>`;
+  LOJAS.forEach(l=>{
+    const aplicaveis = categoriasCompliance(l).map(c=>c.key);
+    const cells = COMPLIANCE_KEYS.map(k=>{
+      if(!aplicaveis.includes(k)) return "—";
+      const cat = [...INV_CATS, ...MARKETING_CATS].find(c=>c.key===k);
+      const st = invStatus(l,k,cat.freq);
+      if(st.state==="ok") return `✔ ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}`;
+      if(st.state==="pausado") return "⏸";
+      return st.state==="late" ? "✕" : "…";
+    });
+    html += `<tr><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+  });
+  html += `</table>`;
+  return html;
+}
+
+function generateComplianceReport(){
+  let html = `<h1>CoreJoint · Relatório de Compliance</h1><div style="font-size:8px; color:#555; margin-bottom:6px;">Gerado em ${new Date().toLocaleDateString('pt-PT')} às ${new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}</div>`;
+  html += complianceSectionHtml();
+  document.getElementById("printReport").innerHTML = html;
+  setTimeout(()=>window.print(), 100);
+}
 // Exceções conhecidas por loja (ajustar à medida que se confirma mais informação)
 const JSC_LOJAS = ["Almeirim", "Ponte de Sor"]; // só estas confirmadas com JSC por agora
 const TABACO_EXCLUIR = ["Caldas da Rainha"]; // não tem tabaco
@@ -2381,6 +2412,8 @@ async function generateMonthlyReport(){
   });
   html += `</table>`;
 
+  html += complianceSectionHtml();
+
   html += await avisosSectionHtml(inicioMes);
 
   document.getElementById("printReport").innerHTML = html;
@@ -2457,6 +2490,8 @@ async function generateWeeklyReport(){
     html += `<tr><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
   });
   html += `</table>`;
+
+  html += complianceSectionHtml();
 
   html += await avisosSectionHtml(days[0]);
 
@@ -2768,7 +2803,8 @@ function renderGestao(){
     {icon:"📢", label:"Avisos dados", fn:openAvisos},
     {icon:"✅", label:"Checklist do mês", fn:openChecklistMensal},
     {icon:"🏪", label:"Ficha da Loja", fn:openFichaGerente},
-    {icon:"🗑️", label:"Reset total (limpar testes)", fn:resetDadosTeste}
+    {icon:"🗑️", label:"Reset total (limpar testes)", fn:resetDadosTeste},
+    {icon:"🛡️", label:"Relatório de Compliance", fn:generateComplianceReport}
   ];
   const todasFerramentas = [...principais, ...secundarias];
 
