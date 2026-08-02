@@ -2623,70 +2623,81 @@ async function garantirLeaflet(){
 }
 
 let _mapaInst = null;
+let _mapaGen = 0;
 
 async function renderMapa(dataFiltro){
   if(!CU || CU.role!=='crop') return;
+
+  // Geração para cancelar chamadas antigas
+  const gen = ++_mapaGen;
+
   const regiao = CU.region||'sul';
   const gopsRegiao = gopsDeRegiao(regiao);
   const lojasDaRegiao = gopsRegiao.flatMap(g=>GOP_STORES[g]||[]);
   const hoje = new Date().toISOString().slice(0,10);
-  const data = dataFiltro || hoje;
-  const eHoje = data===hoje;
+  const data = (dataFiltro && dataFiltro.trim()) ? dataFiltro.trim() : hoje;
+  const eHoje = (data === hoje);
   const legenda = el('mapa-gops-legenda');
 
-  // ── 1. Criar o mapa ANTES das queries ─────────────────────────────────────
-  try { await garantirLeaflet(); }
-  catch(e){ if(legenda) legenda.textContent='Erro ao carregar Leaflet.'; return; }
+  // ── 1. Criar/recriar o mapa ────────────────────────────────────────────────
+  try { await garantirLeaflet(); } catch(e){ return; }
+  if(gen !== _mapaGen) return; // chamada mais recente tomou o lugar
 
   if(_mapaInst){ try{ _mapaInst.remove(); }catch(e){} _mapaInst=null; }
   const mapEl = el('mapa-gops-leaflet');
   if(!mapEl) return;
-  mapEl.innerHTML='';
-  await new Promise(r=>setTimeout(r,50));
+  mapEl.innerHTML = '';
+  await new Promise(r=>setTimeout(r,60));
+  if(gen !== _mapaGen) return;
 
   let map;
-  try{ map=L.map(mapEl,{zoomControl:true,scrollWheelZoom:true}); }
-  catch(e){ mapEl.innerHTML=''; map=L.map(mapEl,{zoomControl:true,scrollWheelZoom:true}); }
-  _mapaInst=map;
+  try{ map = L.map(mapEl,{zoomControl:true,scrollWheelZoom:true}); }
+  catch(e){ mapEl.innerHTML=''; map = L.map(mapEl,{zoomControl:true,scrollWheelZoom:true}); }
+  _mapaInst = map;
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',maxZoom:18
   }).addTo(map);
-  map.setView([39.6,-8.0],6); // Portugal por defeito enquanto carrega
-
+  map.setView([39.3,-8.5],6);
   if(legenda) legenda.textContent='A carregar visitas...';
 
-  // ── 2. Buscar dados ────────────────────────────────────────────────────────
+  // ── 2. Buscar dados (query simples sem limit/order para fiabilidade) ────────
   const pontos=[];
-  try {
-    // Converter data YYYY-MM-DD para PT DD/MM/YYYY
+  try{
     const [ano,mes,dia] = data.split('-');
     const dataPT = dia+'/'+mes+'/'+ano;
 
     if(eHoje){
-      const rasc=await dbGet('cj_visitas_rascunhos','select=loja,saved_by,hora_inicio,data')||[];
+      const rasc = await dbGet('cj_visitas_rascunhos','select=loja,saved_by,hora_inicio,data')||[];
+      if(gen !== _mapaGen) return;
       rasc.filter(r=>(r.data||'').slice(0,10)===hoje && r.saved_by&&r.saved_by.startsWith('GOP') && lojasDaRegiao.includes(r.loja))
           .forEach(r=>pontos.push({loja:r.loja,nome:r.saved_by,hora:(r.hora_inicio||'').slice(0,5),terminada:false}));
     }
 
-    // Buscar histórico sem filtro de servidor — filtrar por 'data' PT em JS
-    const hist = await dbGet('cj_historico','select=loja,saved_by,hora,data&order=created_at.desc&limit=500')||[];
+    // Buscar histórico — query simples, filtrar por data PT no cliente
+    const hist = await dbGet('cj_historico','select=loja,saved_by,hora,data')||[];
+    if(gen !== _mapaGen) return;
     const lojasActivas = new Set(pontos.map(p=>p.loja+'|'+p.nome));
-    hist.filter(r => r.data===dataPT && r.saved_by&&r.saved_by.startsWith('GOP') && lojasDaRegiao.includes(r.loja))
+    hist.filter(r=>r.data===dataPT && r.saved_by&&r.saved_by.startsWith('GOP') && lojasDaRegiao.includes(r.loja))
         .forEach(r=>{
           if(eHoje&&lojasActivas.has(r.loja+'|'+r.saved_by)) return;
-          pontos.push({loja:r.loja,nome:r.saved_by,hora:(r.hora||'').slice(11,16),terminada:true});
+          const hora=(r.hora||'').length>5?(r.hora||'').slice(11,16):(r.hora||'').slice(0,5);
+          pontos.push({loja:r.loja,nome:r.saved_by,hora,terminada:true});
         });
-  } catch(err){
-    console.error('renderMapa error:', err);
-    if(legenda) legenda.textContent='Erro: '+err.message;
-    return;
-  }
-  if(!pontos.length){
-    if(legenda) legenda.textContent=eHoje?'Nenhum GOP em visita hoje.':'Sem visitas neste dia.';
+
+  }catch(err){
+    console.error('renderMapa fetch error:',err);
+    if(gen===_mapaGen && legenda) legenda.textContent='Erro ao carregar dados.';
     return;
   }
 
-  // ── 3. Adicionar marcadores ────────────────────────────────────────────────
+  if(gen !== _mapaGen) return;
+
+  // ── 3. Mostrar resultado ───────────────────────────────────────────────────
+  if(!pontos.length){
+    if(legenda) legenda.textContent = eHoje?'Nenhum GOP em visita hoje.':'Sem visitas neste dia ('+dataPT+').';
+    return;
+  }
+
   const CORES=['#C1622D','#2563eb','#059669','#7c3aed','#db2777','#d97706','#0891b2','#65a30d','#dc2626','#6d28d9'];
   const corMap={};
   gopsRegiao.forEach((g,i)=>{corMap[g]=CORES[i%CORES.length];});
@@ -2716,12 +2727,13 @@ async function renderMapa(dataFiltro){
     bounds.push([lat,lng]);
   });
 
+  if(gen !== _mapaGen) return;
   if(bounds.length===1) map.setView(bounds[0],12);
   else if(bounds.length>1) map.fitBounds(bounds,{padding:[40,40]});
 
   const nA=pontos.filter(p=>!p.terminada).length;
   const nC=pontos.filter(p=>p.terminada).length;
-  if(legenda) legenda.textContent=(eHoje&&nA>0?(nA+' em visita · '):'')+nC+' concluída(s) — '+data;
+  if(legenda) legenda.textContent=(eHoje&&nA>0?(nA+' em visita · '):'')+nC+' concluída(s) — '+data.split('-').reverse().join('/');
 }
 
 
