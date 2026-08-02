@@ -2741,6 +2741,36 @@ function abrirListaResumo(titulo, itens){
   });
 }
 
+async function zerarAtrasadosTeste(){
+  if(!confirm("Isto cria registos de TESTE (marcados como concluídos) para as categorias semanais/quinzenais, em todas as lojas, só para a semana/quinzena atual — para não teres o contador de atrasados a incomodar enquanto testas.\n\nNão são dados reais. Continuar?")) return;
+  try{
+    toast("A marcar semana atual como feita (teste)...");
+    const today = new Date();
+    let count = 0;
+    for(const l of LOJAS){
+      const categoriasSemanais = categoriasParaLoja(l).filter(c=>c.freq==="semanal" || c.freq==="quinzenal");
+      for(const c of categoriasSemanais){
+        const w = windowFor(c.freq, today);
+        const dow = CATEGORY_DOW[c.key];
+        const dataAlvo = dow ? findWeekdayInRange(w.start, w.end, dow) : today;
+        const dataStr = isoDate(dataAlvo);
+        const existe = await api("GET", `cj_inventario_reportes?select=id&loja=eq.${encodeURIComponent(l)}&categoria=eq.${c.key}&data=eq.${dataStr}`);
+        if(existe.length===0){
+          await api("POST", "cj_inventario_reportes", {
+            loja:l, categoria:c.key, data:dataStr, foto_path:null, fotos:[], valor_inventario:null, valor_cnvs:null, enviado_por:"Teste (zerar atrasados)"
+          });
+          count++;
+        }
+      }
+    }
+    mostrarSucesso(`${count} registo(s) de teste criado(s) — atrasados desta semana já não devem aparecer.`);
+    render();
+  }catch(e){
+    console.error(e);
+    toast("Erro: " + (e.message||e).slice(0,100));
+  }
+}
+
 async function resetDadosTeste(){
   if(!confirm("⚠ ATENÇÃO: isto apaga TODOS os dados de teste (Reportes, Fardamento, Adendas, Sondagens, Formulários, Avisos, Checklists, Fichas) em TODAS as lojas.\n\nA tua subscrição de notificações fica intacta.\n\nDe certeza que queres continuar?")) return;
   if(!confirm("Última confirmação: isto é IRREVERSÍVEL. Confirmas mesmo?")) return;
@@ -2804,7 +2834,8 @@ function renderGestao(){
     {icon:"✅", label:"Checklist do mês", fn:openChecklistMensal},
     {icon:"🏪", label:"Ficha da Loja", fn:openFichaGerente},
     {icon:"🗑️", label:"Reset total (limpar testes)", fn:resetDadosTeste},
-    {icon:"🛡️", label:"Relatório de Compliance", fn:generateComplianceReport}
+    {icon:"🛡️", label:"Relatório de Compliance", fn:generateComplianceReport},
+    {icon:"🧪", label:"Zerar atrasados (só testes)", fn:zerarAtrasadosTeste}
   ];
   const todasFerramentas = [...principais, ...secundarias];
 
