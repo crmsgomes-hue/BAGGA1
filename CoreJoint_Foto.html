@@ -530,19 +530,19 @@ function render(){
   const hojeSquares = [];
   VITRINE_TURNOS.forEach(t=>{
     const rec = dailyStatus("vitrine", today, t.key);
-    hojeSquares.push({icon:t.icon, label:t.label, done:!!rec, onclick:()=>openCapture("daily","vitrine","Vitrine — "+t.label,t.key)});
+    hojeSquares.push({icon:t.icon, label:t.label, done:!!rec, rec, tipo:"vitrine", turno:t.key, onclick:()=>openCapture("daily","vitrine","Vitrine — "+t.label,t.key)});
   });
   {
     const rec = dailyStatus("vendas", today, "unico");
-    hojeSquares.push({icon:"🧾", label:"Vendas", done:!!rec, onclick:()=>openCapture("daily","vendas","Vendas — Final do dia","unico")});
+    hojeSquares.push({icon:"🧾", label:"Vendas", done:!!rec, rec, tipo:"vendas", turno:"unico", onclick:()=>openCapture("daily","vendas","Vendas — Final do dia","unico")});
   }
   const hojeGrid = document.createElement("div");
   hojeGrid.style.cssText = "display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:16px;";
   hojeSquares.forEach(s=>{
     const tile = document.createElement("button");
     tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:${s.done?'#eef3ea':'var(--card)'}; border:1.5px solid ${s.done?'var(--green)':'var(--line)'}; border-radius:12px; padding:12px 4px; text-align:center;`;
-    tile.innerHTML = `<span style="font-size:20px;">${s.done?'✅':s.icon}</span><span style="font-size:11px; font-weight:700;">${s.label}</span><span style="font-size:8.5px; color:var(--ink-soft);">Diário</span>`;
-    tile.onclick = s.onclick;
+    tile.innerHTML = `<span style="font-size:20px;">${s.done?'✅':s.icon}</span><span style="font-size:11px; font-weight:700;">${s.label}</span><span style="font-size:8.5px; color:var(--ink-soft);">${s.done?'Ver/editar':'Diário'}</span>`;
+    tile.onclick = s.done ? ()=>verEditarFotosSubmissao(s.rec, s.label) : s.onclick;
     hojeGrid.appendChild(tile);
   });
   main.appendChild(hojeGrid);
@@ -815,6 +815,62 @@ function compressPhoto(dataUrl, maxWidth, quality, callback){
   };
   img.src = dataUrl;
 }
+function verEditarFotosSubmissao(rec, label){
+  if(!rec) return;
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "editFotosOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>${label}</h2>
+      <div class="sub">Enviado às ${new Date(rec.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}. Toca no ✕ para apagar uma foto que ficou mal ou foi enganada.</div>
+      <div id="editFotosGrid" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:12px;"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('editFotosOverlay').remove()">Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  renderEditFotosGrid(rec);
+}
+
+function renderEditFotosGrid(rec){
+  const grid = document.getElementById("editFotosGrid");
+  if(!grid) return;
+  grid.innerHTML = "";
+  const fotos = rec.fotos || [];
+  if(fotos.length===0){
+    grid.innerHTML = '<div class="empty">Sem fotos nesta submissão.</div>';
+    return;
+  }
+  fotos.forEach((f,i)=>{
+    const url = fotoUrl(f);
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "position:relative;";
+    wrap.innerHTML = `
+      <img src="${url}" style="width:80px; height:80px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;">
+      <button data-del="${i}" style="position:absolute; top:-6px; right:-6px; background:var(--red); color:#fff; border:none; border-radius:50%; width:22px; height:22px; font-size:12px; font-weight:700; cursor:pointer;">✕</button>
+    `;
+    wrap.querySelector("img").onclick = ()=>bigPhoto(null, fotos.map(fotoUrl), i);
+    wrap.querySelector("[data-del]").onclick = async (ev)=>{
+      ev.stopPropagation();
+      if(!confirm("Apagar esta foto?")) return;
+      try{
+        const novasFotos = fotos.filter((_,fi)=>fi!==i);
+        await api("PATCH", `cj_daily_reportes?id=eq.${rec.id}`, {fotos: novasFotos});
+        rec.fotos = novasFotos;
+        toast("Foto apagada");
+        renderEditFotosGrid(rec);
+        await loadAll();
+      }catch(e){
+        console.error(e);
+        toast("Erro ao apagar: " + (e.message||e).slice(0,100));
+      }
+    };
+    grid.appendChild(wrap);
+  });
+}
+
 function bigPhoto(src, lista, indice){
   const old = document.getElementById('_lb');
   if(old) document.body.removeChild(old);
