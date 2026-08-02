@@ -2913,6 +2913,27 @@ async function resetDadosTeste(){
   }
 }
 
+function verFotosRecentesLoja(loja){
+  const days = [];
+  for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days.push(isoDate(d)); }
+
+  const rowsDaily = dailyRows.filter(r=>r.loja===loja && days.includes(r.data) && r.fotos && r.fotos.length>0)
+    .sort((a,b)=> new Date(b.criado_em) - new Date(a.criado_em));
+  const rowsInv = invRows.filter(r=>r.loja===loja && days.includes(r.data) && r.fotos && r.fotos.length>0)
+    .sort((a,b)=> new Date(b.criado_em) - new Date(a.criado_em));
+
+  const todasFotos = [];
+  [...rowsDaily, ...rowsInv].forEach(r=>{
+    (r.fotos||[]).forEach(f=>todasFotos.push(fotoUrl(f)));
+  });
+
+  if(todasFotos.length===0){
+    toast(`${loja} — sem fotos nos últimos 7 dias`);
+    return;
+  }
+  bigPhoto(null, todasFotos, 0);
+}
+
 function abrirMenuFerramentas(grupos){
   const overlay = document.createElement("div");
   overlay.className = "overlay";
@@ -3142,6 +3163,7 @@ function renderGestao(){
         <div style="font-family:'Syne',sans-serif; font-size:15px; font-weight:700;">${l}</div>
         <div style="display:flex; gap:6px; align-items:center;">
           ${streak>=2 ? `<div class="status-badge ok">🔥 ${streak} dias</div>` : ``}
+          <button data-fotos="1" style="background:none; color:var(--ink-soft); border:1.5px solid var(--line); border-radius:99px; padding:4px 9px; font-size:11px; font-weight:700;">📷</button>
           <button data-ficha="1" style="background:none; color:var(--terracotta); border:1.5px solid var(--terracotta); border-radius:99px; padding:4px 9px; font-size:11px; font-weight:700;">🏪 Ficha</button>
           ${piorTipo ? `<button data-avisar="1" style="background:var(--terracotta); color:#fff; border:none; border-radius:99px; padding:5px 10px; font-size:11px; font-weight:700;">📢 Avisar</button>` : ``}
         </div>
@@ -3149,6 +3171,10 @@ function renderGestao(){
       <div style="display:flex; flex-wrap:wrap; gap:6px;">${pills}</div>
       <div data-aviso-status="${l}"></div>
     `;
+    card.querySelector('[data-fotos]').onclick = (ev)=>{
+      ev.stopPropagation();
+      verFotosRecentesLoja(l);
+    };
     card.querySelector('[data-ficha]').onclick = (ev)=>{
       ev.stopPropagation();
       openFichaGerente(l);
