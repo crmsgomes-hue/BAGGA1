@@ -243,6 +243,10 @@ function addAttn(list, href, titulo, sub, urgente){
   }
   section.innerHTML = `<div style="text-align:center; font-size:.8rem; color:var(--t2); margin-bottom:14px;">${attn.length} coisa${attn.length>1?'s':''} a precisar de atenção — toca numa app abaixo para ver.</div>`;
 })();
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js', {scope: './'}).catch(e=>console.warn('sw.js falhou', e));
+}
 </script>
 </body>
 </html>
