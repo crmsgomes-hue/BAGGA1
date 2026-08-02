@@ -200,7 +200,8 @@ const MARKETING_CATS = [
   {key:"papel", label:"Papel", freq:"mensal_inicio"},
   {key:"forms", label:"Forms", freq:"mensal_inicio"},
   {key:"haccp", label:"HACCP", freq:"mensal_inicio"},
-  {key:"winrest", label:"Winrest", freq:"mensal_inicio"}
+  {key:"winrest", label:"Winrest", freq:"mensal_inicio"},
+  {key:"limpeza_prelatores", label:"Limpeza Prelatores", freq:"semestral"}
 ];
 // Exceções conhecidas por loja (ajustar à medida que se confirma mais informação)
 const JSC_LOJAS = ["Almeirim", "Ponte de Sor"]; // só estas confirmadas com JSC por agora
@@ -537,6 +538,13 @@ function monthWindow(d){
   const end = new Date(d.getFullYear(), d.getMonth()+1, 0);
   return {start, end};
 }
+function semestreWindow(d){
+  const mes = d.getMonth();
+  const inicioMes = mes < 6 ? 0 : 6;
+  const start = new Date(d.getFullYear(), inicioMes, 1);
+  const end = new Date(d.getFullYear(), inicioMes+6, 0);
+  return {start, end};
+}
 function monthStartWindow(d){
   const start = new Date(d.getFullYear(), d.getMonth(), 1);
   const end = new Date(d.getFullYear(), d.getMonth(), 3);
@@ -553,6 +561,7 @@ function windowFor(freq, d){
   if(freq==="quinzenal") return biweekWindow(d);
   if(freq==="mensal_inicio") return monthStartWindow(d);
   if(freq==="mensal") return monthWindow(d);
+  if(freq==="semestral") return semestreWindow(d);
   return month3Window(d);
 }
 function inRange(dateStr, start, end){
