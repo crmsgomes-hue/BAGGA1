@@ -493,7 +493,10 @@ function render(){
     main.appendChild(wrap);
   }
 
-  const dueInv = categoriasParaLoja(currentLoja).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado);
+  const dueInv = categoriasParaLoja(currentLoja).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado).filter(c=>{
+    if(c.key!=="global") return true;
+    return new Date().getDate() >= 13; // só aparece a marcar a partir do dia 13 (2 dias antes da janela abrir no dia 15)
+  });
   if(dueInv.length>0){
     const title = document.createElement("div");
     title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px;";
