@@ -15,6 +15,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -809,7 +810,6 @@ function renderHoje(main){
         <div class="card-title">${t.icon} Vitrine — ${t.label}</div>
         <div class="status-badge ${rec?'ok':'pend'}">${rec?'✔ Feito':'Por fazer'}</div>
       </div>
-      <button class="cambtn" onclick="openCapture('daily','vitrine','${t.key}')">${rec ? 'Substituir foto' : '📸 Tirar foto agora'}</button>
     `;
     main.appendChild(card);
   });
@@ -822,7 +822,6 @@ function renderHoje(main){
         <div class="card-title">🧾 Vendas — Final do dia</div>
         <div class="status-badge ${rec?'ok':'pend'}">${rec?'✔ Feito':'Por fazer'}</div>
       </div>
-      <button class="cambtn" onclick="openCapture('daily','vendas','unico')">${rec ? 'Substituir foto' : '📸 Tirar foto agora'}</button>
     `;
     main.appendChild(card);
   }
@@ -893,7 +892,6 @@ function renderMarketing(main){
         <div class="status-badge ${badgeClass}">${badgeIcon} ${badgeText}</div>
       </div>
       <div class="card-sub">Mensal — qualquer dia do mês</div>
-      <button class="cambtn" onclick="openCapture('marketing','${cat.key}')">${st.latest ? 'Substituir foto' : '📸 Tirar foto'}</button>
       ${st.latest ? `<div class="card-sub" style="margin-top:8px;">Última foto: ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')}</div>` : ``}
     `;
     main.appendChild(card);
