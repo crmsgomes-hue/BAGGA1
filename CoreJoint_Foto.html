@@ -618,7 +618,7 @@ function render(){
     const folderBtn = document.createElement("button");
     folderBtn.style.cssText = "width:100%; display:flex; align-items:center; gap:10px; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,.06); margin-bottom:14px;";
     const temAtrasado = dueMkt.some(c=>c.st.state==="late");
-    folderBtn.innerHTML = `<span style="font-size:22px;">🏷️</span><span style="flex:1; text-align:left; font-weight:700; font-size:15px;">Marketing e Manutenção</span><span style="background:${temAtrasado?'var(--red)':'var(--terracotta)'}; color:#fff; font-weight:700; font-size:13px; border-radius:99px; padding:3px 10px;">${dueMkt.length}</span><span id="pendChevron" style="font-size:14px; color:var(--ink-soft);">▾</span>`;
+    folderBtn.innerHTML = `<span style="font-size:22px;">📋</span><span style="flex:1; text-align:left; font-weight:700; font-size:15px;">Outras tarefas</span><span style="background:${temAtrasado?'var(--red)':'var(--terracotta)'}; color:#fff; font-weight:700; font-size:13px; border-radius:99px; padding:3px 10px;">${dueMkt.length}</span><span id="pendChevron" style="font-size:14px; color:var(--ink-soft);">▾</span>`;
     main.appendChild(folderBtn);
 
     const gridWrap = document.createElement("div");
@@ -640,7 +640,9 @@ function render(){
       const late = c.st.state==="late";
       const tile = document.createElement("button");
       tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:var(--card); border:1.5px solid ${late?'var(--red)':'var(--line)'}; border-radius:12px; padding:12px 4px; text-align:center;`;
-      tile.innerHTML = `<span style="font-size:20px;">🏷️</span><span style="font-size:11px; font-weight:700; line-height:1.2;">${c.label}</span><span style="font-size:9.5px; font-weight:700; color:${late?'var(--red)':'var(--ink-soft)'};">${late?'⚠ Atrasado':'⏳ Por fazer'}</span><span style="font-size:8px; color:var(--ink-soft); line-height:1.2;">${descricaoRegra(c.key, c.freq)}</span>`;
+      const iconesCategoria = {cavalete:"🏷️", toalhetes:"🏷️", orelhas:"🏷️", horarios:"🕒", preventiva_delta:"🔧", papel:"🛡️", forms:"🛡️", haccp:"🛡️", winrest:"🛡️", limpeza_prelatores:"🧹", registo_21:"📋", legionella:"🛡️", aps:"📋"};
+      const iconeItem = iconesCategoria[c.key] || "📋";
+      tile.innerHTML = `<span style="font-size:20px;">${iconeItem}</span><span style="font-size:11px; font-weight:700; line-height:1.2;">${c.label}</span><span style="font-size:9.5px; font-weight:700; color:${late?'var(--red)':'var(--ink-soft)'};">${late?'⚠ Atrasado':'⏳ Por fazer'}</span><span style="font-size:8px; color:var(--ink-soft); line-height:1.2;">${descricaoRegra(c.key, c.freq)}</span>`;
       tile.onclick = ()=>openCapture("marketing", c.key, c.label);
       grid.appendChild(tile);
     });
