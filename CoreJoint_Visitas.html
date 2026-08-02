@@ -2674,7 +2674,11 @@ async function renderMapa(dataFiltro){
     }
 
     // Buscar histórico — query simples, filtrar por data PT no cliente
-    const hist = await dbGet('cj_historico','select=loja,saved_by,hora,data')||[];
+    // Buscar histórico com filtro de data para evitar full-table-scan na coluna html
+    const dataObj = new Date(data+'T00:00:00Z');
+    const dataAnterior = new Date(dataObj.getTime() - 24*60*60*1000).toISOString().slice(0,10);
+    const dataFollowing = new Date(dataObj.getTime() + 2*24*60*60*1000).toISOString().slice(0,10);
+    const hist = await dbGet('cj_historico','select=loja,saved_by,hora,data&created_at=gt.'+dataAnterior+'T00:00:00Z&created_at=lt.'+dataFollowing+'T00:00:00Z')||[];
     if(gen !== _mapaGen) return;
     const lojasActivas = new Set(pontos.map(p=>p.loja+'|'+p.nome));
     hist.filter(r=>r.data===dataPT && r.saved_by&&r.saved_by.startsWith('GOP') && lojasDaRegiao.includes(r.loja))
