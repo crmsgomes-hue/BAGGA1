@@ -3308,6 +3308,10 @@ function mostrarSucesso(msg){
   o.style.display = "flex";
   setTimeout(()=>{ o.style.display = "none"; }, 1300);
 }
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js', {scope: './'}).catch(e=>console.warn('sw.js falhou', e));
+}
 </script>
 </body>
 </html>
