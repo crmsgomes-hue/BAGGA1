@@ -2559,9 +2559,12 @@ async function loadGopsEmVisita(){
     lojasDaRegiao.includes(r.loja)
   );
 
-  const hist = await dbGet('cj_historico','select=loja,saved_by,hora&created_at=gt.'+hoje+'T00:00:00Z') || [];
+  const [aH,mH,dH] = hoje.split('-');
+  const hojePT = dH+'/'+mH+'/'+aH;
+  const hist = await dbGet('cj_historico','select=loja,saved_by,hora,data&created_at=gt.'+hoje+'T00:00:00Z') || [];
   const lojasActivas = new Set(emVisita.map(r=>r.loja+'|'+(r.saved_by||'')));
   const terminadas = hist.filter(r =>
+    r.data === hojePT &&
     r.saved_by && r.saved_by.startsWith('GOP') &&
     lojasDaRegiao.includes(r.loja) &&
     !lojasActivas.has(r.loja+'|'+r.saved_by)
@@ -2661,14 +2664,20 @@ async function renderMapa(dataFiltro){
         .forEach(r=>pontos.push({loja:r.loja,nome:r.saved_by,hora:(r.hora_inicio||'').slice(0,5),terminada:false}));
   }
 
-  const iso=data+'T00:00:00Z';
-  const isoFim=data+'T23:59:59Z';
-  const hist=await dbGet('cj_historico','select=loja,saved_by,hora&created_at=gt.'+iso+'&created_at=lt.'+isoFim)||[];
-  const lojasActivas=new Set(pontos.map(p=>p.loja+'|'+p.nome));
-  hist.filter(r=>r.saved_by&&r.saved_by.startsWith('GOP')&&lojasDaRegiao.includes(r.loja))
+  // Converter data ISO (YYYY-MM-DD) para formato PT (DD/MM/YYYY) para comparar com campo 'data'
+  const [ano,mes,dia] = data.split('-');
+  const dataPT = dia+'/'+mes+'/'+ano;
+
+  // Buscar histórico com janela alargada (+/-1 dia em created_at para cobrir fusos)
+  const iso = data+'T00:00:00Z';
+  const isoFim = data+'T23:59:59Z';
+  const hist = await dbGet('cj_historico','select=loja,saved_by,hora,data&created_at=gt.'+data+'T00:00:00Z')||[];
+  // Filtrar pelo campo 'data' em formato PT e pela região
+  const lojasActivas = new Set(pontos.map(p=>p.loja+'|'+p.nome));
+  hist.filter(r => r.data===dataPT && r.saved_by&&r.saved_by.startsWith('GOP') && lojasDaRegiao.includes(r.loja))
       .forEach(r=>{
         if(eHoje&&lojasActivas.has(r.loja+'|'+r.saved_by)) return;
-        pontos.push({loja:r.loja,nome:r.saved_by,hora:(r.hora||'').slice(0,5),terminada:true});
+        pontos.push({loja:r.loja,nome:r.saved_by,hora:(r.hora||'').slice(11,16),terminada:true});
       });
 
   if(!pontos.length){
