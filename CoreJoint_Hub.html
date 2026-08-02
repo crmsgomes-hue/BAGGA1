@@ -125,12 +125,12 @@ const MARKETING_CATS = [
   { key: "orelhas", label: "Orelhas", freq: "mensal_inicio" },
   { key: "horarios", label: "Horários", freq: "mensal_inicio" },
   { key: "preventiva_delta", label: "Preventiva Delta", freq: "mensal_inicio" },
-  { key: "papel", label: "Legionella (Papel)", freq: "mensal_inicio" },
-  { key: "forms", label: "Legionella (Forms)", freq: "mensal_inicio" },
+  { key: "papel", label: "Legionella (Papel)", freq: "semanal" },
+  { key: "forms", label: "Legionella (Forms)", freq: "semanal" },
   { key: "haccp", label: "HACCP", freq: "mensal_inicio" },
   { key: "winrest", label: "Winrest", freq: "mensal_inicio" },
-  { key: "limpeza_prelatores", label: "Limpeza Prelatores", freq: "semestral" },
-  { key: "aps", label: "APS", freq: "mensal_inicio" },
+  { key: "limpeza_prelatores", label: "Limpeza Prelatores", freq: "semestral_jul_dez" },
+  { key: "aps", label: "APS", freq: "mensal_dia20" },
   { key: "registo_21", label: "Registo 21", freq: "semanal" },
   { key: "legionella", label: "Legionella", freq: "semanal" },
 ];
@@ -151,12 +151,16 @@ function month3Window(d){ return {start:new Date(d.getFullYear(),d.getMonth(),15
 function monthWindow(d){ return {start:new Date(d.getFullYear(),d.getMonth(),1), end:new Date(d.getFullYear(),d.getMonth()+1,0)}; }
 function semestreWindow(d){ const mes=d.getMonth(); const inicioMes = mes<6?0:6; return {start:new Date(d.getFullYear(),inicioMes,1), end:new Date(d.getFullYear(),inicioMes+6,0)}; }
 function monthStartWindow(d){ return {start:new Date(d.getFullYear(),d.getMonth(),1), end:new Date(d.getFullYear(),d.getMonth(),3)}; }
+function monthDia20Window(d){ return {start:new Date(d.getFullYear(),d.getMonth(),1), end:new Date(d.getFullYear(),d.getMonth(),20)}; }
+function julDezWindow(d){ const mes=d.getMonth(); const alvoMes = mes<=5?6:11; return {start:new Date(d.getFullYear(),alvoMes,1), end:new Date(d.getFullYear(),alvoMes+1,0)}; }
 function windowFor(freq,d){
   if(freq==="semanal") return weekWindow(d);
   if(freq==="quinzenal") return biweekWindow(d);
   if(freq==="mensal_inicio") return monthStartWindow(d);
+  if(freq==="mensal_dia20") return monthDia20Window(d);
   if(freq==="mensal") return monthWindow(d);
   if(freq==="semestral") return semestreWindow(d);
+  if(freq==="semestral_jul_dez") return julDezWindow(d);
   return month3Window(d);
 }
 function findWeekdayInRange(start,end,dow){ let d=new Date(start); while((((d.getDay()+6)%7)+1)!==dow && d<=end) d.setDate(d.getDate()+1); return d>end?end:d; }
