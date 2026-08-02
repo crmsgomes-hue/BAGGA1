@@ -143,7 +143,10 @@
       </div>
       <button class="newbtn" onclick="openNew()">+ Nova adenda</button>
     </div>
-    <a href="CoreJoint_Hub.html" style="display:inline-block; margin-top:8px; font-size:12px; color:var(--ink-soft); text-decoration:none;">⌂ CoreJoint</a>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+      <a href="CoreJoint_Hub.html" style="font-size:12px; color:var(--ink-soft); text-decoration:none;">⌂ CoreJoint</a>
+      <span onclick="resetDadosTesteAdendas()" style="font-size:11px; color:var(--red); text-decoration:underline; cursor:pointer;">🗑️ Reset total</span>
+    </div>
     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:10px;">
       <button style="display:flex; flex-direction:column; align-items:center; gap:2px; background:var(--card,#fff); border:1px solid var(--line); color:var(--ink-soft); padding:10px 2px; border-radius:12px; font-size:10px; font-weight:600;" onclick="openHistoricoAnual()"><span style="font-size:18px;">📅</span>Histórico</button>
       <button style="display:flex; flex-direction:column; align-items:center; gap:2px; background:var(--card,#fff); border:1px solid var(--line); color:var(--ink-soft); padding:10px 2px; border-radius:12px; font-size:10px; font-weight:600;" onclick="gerarRelatorioSemanal()"><span style="font-size:18px;">🖨️</span>Relatório</button>
@@ -213,6 +216,20 @@ async function api(method, path, body){
   });
   if(!res.ok){ const t = await res.text(); throw new Error(t); }
   return res.status === 204 ? null : res.json();
+}
+
+async function resetDadosTesteAdendas(){
+  if(!confirm("⚠ ATENÇÃO: isto apaga TODOS os dados de teste (Reportes, Fardamento, Adendas, Sondagens, Formulários, Avisos, Checklists, Fichas) em TODAS as lojas.\n\nA subscrição de notificações fica intacta.\n\nDe certeza que queres continuar?")) return;
+  if(!confirm("Última confirmação: isto é IRREVERSÍVEL. Confirmas mesmo?")) return;
+  try{
+    toast("A limpar tudo...");
+    await api("POST", "rpc/reset_dados_teste", {});
+    mostrarSucesso("Tudo limpo!");
+    await loadRows();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao limpar: " + (e.message||e).slice(0,100));
+  }
 }
 
 async function loadRows(){
