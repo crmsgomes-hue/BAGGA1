@@ -95,8 +95,11 @@
 <header>
   <h1 id="titleLoja">Foto do dia</h1>
   <p id="dateSub"></p>
-  <button id="notifBtnLoja" onclick="ativarNotificacoesLoja()" style="background:var(--terracotta,#C1622E); color:#fff; border:none; padding:10px 16px; border-radius:20px; font-size:13px; font-weight:600; margin-top:8px;">🔔 Ativar avisos desta loja</button>
-  <button onclick="testarNotificacaoLoja()" style="background:none; color:var(--terracotta,#C1622E); border:1.5px solid var(--terracotta,#C1622E); padding:9px 15px; border-radius:20px; font-size:13px; font-weight:600; margin-top:8px; margin-left:8px;">🔔 Testar agora</button>
+  <div id="notifRow">
+    <button id="notifBtnLoja" onclick="ativarNotificacoesLoja()" style="background:var(--terracotta,#C1622E); color:#fff; border:none; padding:10px 16px; border-radius:20px; font-size:13px; font-weight:600; margin-top:8px;">🔔 Ativar avisos desta loja</button>
+    <button onclick="testarNotificacaoLoja()" style="background:none; color:var(--terracotta,#C1622E); border:1.5px solid var(--terracotta,#C1622E); padding:9px 15px; border-radius:20px; font-size:13px; font-weight:600; margin-top:8px; margin-left:8px;">🔔 Testar agora</button>
+  </div>
+  <div id="notifDiscreto" style="display:none; font-size:11px; color:var(--ink-soft); margin-top:6px; text-decoration:underline; cursor:pointer;" onclick="testarNotificacaoLoja()">🔔 Notificações ativas — testar</div>
 </header>
 <main id="main"></main>
 <div id="toast" class="toast"></div>
@@ -351,6 +354,10 @@ async function ativarNotificacoesLoja(){
     }
     btn.textContent = "✅ Avisos ativos para " + currentLoja;
     toast("A partir de agora recebem avisos só desta loja.");
+    setTimeout(()=>{
+      document.getElementById("notifRow").style.display = "none";
+      document.getElementById("notifDiscreto").style.display = "block";
+    }, 1500);
   }catch(e){
     console.error(e);
     toast("Erro ao ativar: " + (e.message||e).slice(0,100));
@@ -460,37 +467,29 @@ function render(){
     {key:"almoco", label:"Vitrine — Almoço", icon:"🌞"},
     {key:"lanche", label:"Vitrine — Lanche", icon:"🌇"}
   ];
+  const hojeTitle = document.createElement("div");
+  hojeTitle.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:4px 0 8px;";
+  hojeTitle.textContent = "Hoje";
+  main.appendChild(hojeTitle);
+  const hojeCard = document.createElement("div");
+  hojeCard.className = "card";
+  hojeCard.style.cssText = "padding:6px 0;";
+  main.appendChild(hojeCard);
   VITRINE_TURNOS.forEach(t=>{
     const rec = dailyStatus("vitrine", today, t.key);
-    const wrap = document.createElement("div");
-    const btn = document.createElement("button");
-    btn.className = "big-btn";
-    btn.innerHTML = `<div class="icon">${t.icon}</div><div class="txt"><div class="t">${t.label}</div><div class="d">${rec ? 'Já enviaste' : 'Ainda não enviaste'}</div></div><div class="status">${rec?'✅':'⭕'}</div>`;
-    btn.onclick = ()=>openCapture("daily", "vitrine", t.label, t.key);
-    wrap.appendChild(btn);
-    if(!rec){
-      const notice = document.createElement("div");
-      notice.style.cssText = "font-size:12px; color:var(--red); margin:-6px 0 12px 4px;";
-      notice.textContent = "⚠ Se não for feito, é avisado automaticamente à chefia";
-      wrap.appendChild(notice);
-    }
-    main.appendChild(wrap);
+    const row = document.createElement("button");
+    row.style.cssText = "display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:12px 14px; border:none; background:none; border-bottom:1px solid var(--line);";
+    row.innerHTML = `<span style="font-size:18px;">${t.icon}</span><span style="flex:1; font-weight:600; font-size:14px;">${t.label}</span><span style="font-size:12px; font-weight:700; color:${rec?'var(--green)':'var(--ink-soft)'};">${rec?'✅ Enviado':'⏳ Por enviar'}</span>`;
+    row.onclick = ()=>openCapture("daily", "vitrine", t.label, t.key);
+    hojeCard.appendChild(row);
   });
   {
     const rec = dailyStatus("vendas", today, "unico");
-    const wrap = document.createElement("div");
-    const btn = document.createElement("button");
-    btn.className = "big-btn";
-    btn.innerHTML = `<div class="icon">🧾</div><div class="txt"><div class="t">Vendas — Final do dia</div><div class="d">${rec ? 'Já enviaste' : 'Ainda não enviaste'}</div></div><div class="status">${rec?'✅':'⭕'}</div>`;
-    btn.onclick = ()=>openCapture("daily", "vendas", "Vendas — Final do dia", "unico");
-    wrap.appendChild(btn);
-    if(!rec){
-      const notice = document.createElement("div");
-      notice.style.cssText = "font-size:12px; color:var(--red); margin:-6px 0 12px 4px;";
-      notice.textContent = "⚠ Se não for feito, é avisado automaticamente à chefia";
-      wrap.appendChild(notice);
-    }
-    main.appendChild(wrap);
+    const row = document.createElement("button");
+    row.style.cssText = "display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:12px 14px; border:none; background:none;";
+    row.innerHTML = `<span style="font-size:18px;">🧾</span><span style="flex:1; font-weight:600; font-size:14px;">Vendas — Final do dia</span><span style="font-size:12px; font-weight:700; color:${rec?'var(--green)':'var(--ink-soft)'};">${rec?'✅ Enviado':'⏳ Por enviar'}</span>`;
+    row.onclick = ()=>openCapture("daily", "vendas", "Vendas — Final do dia", "unico");
+    hojeCard.appendChild(row);
   }
 
   const dueInv = categoriasParaLoja(currentLoja).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado).filter(c=>{
@@ -1030,8 +1029,13 @@ loadAll();
 tentarReenviarFila();
 setInterval(loadAll, 30000);
 
-if("Notification" in window && Notification.permission === "default"){
-  setTimeout(()=>{ mostrarPedidoNotificacao(); }, 800);
+if("Notification" in window){
+  if(Notification.permission === "granted"){
+    document.getElementById("notifRow").style.display = "none";
+    document.getElementById("notifDiscreto").style.display = "block";
+  } else if(Notification.permission === "default"){
+    setTimeout(()=>{ mostrarPedidoNotificacao(); }, 800);
+  }
 }
 
 function mostrarPedidoNotificacao(){
