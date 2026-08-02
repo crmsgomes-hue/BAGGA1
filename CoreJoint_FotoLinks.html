@@ -22,16 +22,19 @@
   main{max-width:520px; margin:0 auto; padding:16px 16px 40px;}
   .pt{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:2px}
   .ps{font-size:.8rem; color:var(--ink-soft); margin:0 0 18px;}
-  .loja-card{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:10px; display:flex; gap:14px; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,.06);}
-  .loja-card img{width:72px; height:72px; border-radius:8px; flex:none; background:#fff;}
-  .loja-card .info{flex:1; min-width:0;}
-  .loja-card .t{font-family:'Syne',sans-serif; font-weight:700; font-size:15px;}
-  .loja-card .link{font-size:11px; color:var(--ink-soft); word-break:break-all; margin:4px 0 8px;}
-  .copybtn{background:var(--terracotta); color:#fff; border:none; padding:7px 14px; border-radius:99px; font-size:12px; font-weight:700;}
-  .openlink{background:none; color:var(--terracotta); border:1.5px solid var(--terracotta); padding:6px 13px; border-radius:99px; font-size:12px; font-weight:700; text-decoration:none; display:inline-block;}
+  .loja-card{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; gap:10px; box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .loja-card .t{font-family:'Syne',sans-serif; font-weight:700; font-size:14.5px; flex:1;}
+  .qrbtn{background:none; border:none; color:var(--ink-soft); font-size:18px; padding:6px; cursor:pointer;}
+  .copybtn{background:var(--terracotta); color:#fff; border:none; padding:8px 14px; border-radius:99px; font-size:12.5px; font-weight:700; white-space:nowrap;}
+  .openlink{background:none; color:var(--terracotta); border:1.5px solid var(--terracotta); padding:7px 13px; border-radius:99px; font-size:12.5px; font-weight:700; text-decoration:none; display:inline-block; white-space:nowrap;}
   #pinScreen{max-width:320px; margin:60px auto; text-align:center; padding:0 20px;}
   #pinScreen input{width:100%; padding:14px; border-radius:10px; border:1px solid var(--line); font-size:20px; text-align:center; letter-spacing:6px; margin:16px 0;}
   #pinScreen button{width:100%; background:var(--terracotta); color:#fff; border:none; padding:13px; border-radius:10px; font-size:15px; font-weight:700;}
+  #qrOverlay{display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:200; align-items:center; justify-content:center;}
+  #qrOverlay.show{display:flex;}
+  #qrOverlay .box{background:var(--card); border-radius:14px; padding:20px; text-align:center; max-width:260px;}
+  #qrOverlay img{width:200px; height:200px; border-radius:8px;}
+  #qrOverlay .close{margin-top:12px; background:none; border:none; color:var(--ink-soft); text-decoration:underline; font-size:13px;}
 </style>
 </head>
 <body>
@@ -51,9 +54,16 @@
 </div>
 <main id="mainWrap" style="display:none;">
   <div class="pt">Links por loja</div>
-  <div class="ps">Envia o link (ou o QR) a cada loja — podem gravá-lo no ecrã principal.</div>
+  <div class="ps">Toca em Enviar para partilhar, ou Abrir para entrar direto.</div>
   <div id="main"></div>
 </main>
+<div id="qrOverlay" onclick="this.classList.remove('show')">
+  <div class="box">
+    <img id="qrImg" src="">
+    <div id="qrLojaNome" style="font-weight:700; margin-top:8px;"></div>
+    <button class="close">Fechar</button>
+  </div>
+</div>
 <script>
 const PIN_CORRETO = "3028";
 
@@ -160,21 +170,20 @@ function carregarLojas(){
   main.innerHTML = "";
   LOJAS.forEach(l=>{
     const url = `${BASE}?loja=${encodeURIComponent(l)}`;
-    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}`;
+    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
     const card = document.createElement("div");
     card.className = "loja-card";
     card.innerHTML = `
-      <img src="${qr}" alt="QR ${l}">
-      <div class="info">
-        <div class="t">${l}</div>
-        <div class="link">${url}</div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <a class="openlink" href="${url}" target="_blank">Abrir ›</a>
-          <button class="copybtn" data-url="${url}" data-loja="${l}">📤 Enviar</button>
-          <button class="copybtn" style="background:none; color:var(--terracotta); border:1.5px solid var(--terracotta);" data-copy="${url}">Copiar</button>
-        </div>
-      </div>
+      <div class="t">${l}</div>
+      <button class="qrbtn" data-qr="${qr}" data-nome="${l}" title="Ver QR">▦</button>
+      <a class="openlink" href="${url}" target="_blank">Abrir</a>
+      <button class="copybtn" data-url="${url}" data-loja="${l}">📤 Enviar</button>
     `;
+    card.querySelector("[data-qr]").onclick = (e)=>{
+      document.getElementById("qrImg").src = e.target.dataset.qr;
+      document.getElementById("qrLojaNome").textContent = e.target.dataset.nome;
+      document.getElementById("qrOverlay").classList.add("show");
+    };
     card.querySelector("[data-loja]").onclick = async (e)=>{
       const btn = e.target;
       const shareUrl = btn.dataset.url;
@@ -188,11 +197,6 @@ function carregarLojas(){
         btn.textContent = "Copiado!";
         setTimeout(()=>btn.textContent="📤 Enviar", 1500);
       }
-    };
-    card.querySelector("[data-copy]").onclick = (e)=>{
-      navigator.clipboard.writeText(e.target.dataset.copy);
-      e.target.textContent = "Copiado!";
-      setTimeout(()=>e.target.textContent="Copiar", 1500);
     };
     main.appendChild(card);
   });
