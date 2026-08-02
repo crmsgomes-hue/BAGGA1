@@ -845,11 +845,13 @@ function renderEditFotosGrid(rec){
   }
   fotos.forEach((f,i)=>{
     const url = fotoUrl(f);
+    const leg = fotoLegenda(f);
     const wrap = document.createElement("div");
-    wrap.style.cssText = "position:relative;";
+    wrap.style.cssText = "position:relative; width:130px;";
     wrap.innerHTML = `
-      <img src="${url}" style="width:80px; height:80px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;">
+      <img src="${url}" style="width:130px; height:100px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer; display:block;">
       <button data-del="${i}" style="position:absolute; top:-6px; right:-6px; background:var(--red); color:#fff; border:none; border-radius:50%; width:22px; height:22px; font-size:12px; font-weight:700; cursor:pointer;">✕</button>
+      <div style="font-style:italic; font-size:11px; color:var(--ink-soft); margin-top:4px;">${leg || "Sem comentário"}</div>
     `;
     wrap.querySelector("img").onclick = ()=>bigPhoto(null, fotos.map(fotoUrl), i);
     wrap.querySelector("[data-del]").onclick = async (ev)=>{
