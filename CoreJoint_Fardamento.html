@@ -7,6 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, user-scalable=yes">
 <title>CoreJoint · Fardamento</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -150,6 +151,21 @@
 </div>
 
 <div id="toast" class="toast"></div>
+<div id="printReport" style="display:none;"></div>
+
+<style>
+  @media print{
+    @page{ size: A4; margin: 6mm; }
+    body > *:not(#printReport){ display:none !important; }
+    #printReport{ display:block !important; padding:0; font-family:Georgia,serif; color:#000; }
+    #printReport h1{ font-size:13px; margin:0 0 1px; }
+    #printReport h2{ font-size:8px; margin:4px 0 2px; text-transform:uppercase; letter-spacing:.02em; }
+    #printReport table{ width:100%; border-collapse:collapse; font-size:7px; margin-bottom:2px; }
+    #printReport th, #printReport td{ border:1px solid #999; padding:1px 3px; text-align:center; line-height:1.2; }
+    #printReport th{ background:#eee; }
+    #printReport td.name{ text-align:left; font-weight:600; }
+  }
+</style>
 
 <script>
 const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
@@ -157,8 +173,8 @@ const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 const POLOS = ["Caldas","Santarém","Torres"];
 const PECAS = {
-  "Polo manga curta": ["S","M","L","XL","XXL"],
-  "Polo manga comprida": ["S","M","L","XL","XXL"],
+  "Polo manga curta": ["S","M","L","XL","XXL","2XXL","3XXL"],
+  "Polo manga comprida": ["S","M","L","XL","XXL","2XXL","3XXL"],
   "Camisola": ["S","M","L","XL","XXL"],
   "Calças": ["32","34","36","38","40","42","44","46","48","50","52","54","56","Especial"],
   "Avental": ["Único"],
@@ -583,6 +599,46 @@ function openAlertas(){
     navigator.clipboard.writeText(text).then(()=>toast("Lista copiada")).catch(()=>toast("Não foi possível copiar"));
   };
   main.appendChild(btn);
+
+  const btnRow = document.createElement("div");
+  btnRow.style.cssText = "display:flex; gap:8px; margin-top:10px;";
+  const pdfBtn = document.createElement("button");
+  pdfBtn.className = "copybtn";
+  pdfBtn.style.cssText = "flex:1; background:var(--terracotta,#C1622E); color:#fff;";
+  pdfBtn.textContent = "🖨️ Gerar encomenda (PDF)";
+  pdfBtn.onclick = ()=>gerarEncomendaPDF(alerts);
+  const xlsBtn = document.createElement("button");
+  xlsBtn.className = "copybtn";
+  xlsBtn.style.cssText = "flex:1;";
+  xlsBtn.textContent = "📥 Excel";
+  xlsBtn.onclick = ()=>gerarEncomendaExcel(alerts);
+  btnRow.appendChild(pdfBtn);
+  btnRow.appendChild(xlsBtn);
+  main.appendChild(btnRow);
+}
+
+function gerarEncomendaPDF(alerts){
+  let html = `<h1>CoreJoint · Encomenda de Fardamento</h1><div style="font-size:8px; color:#555; margin-bottom:6px;">Gerado em ${new Date().toLocaleDateString('pt-PT')} · ${alerts.length} combinações abaixo de ${LOW_THRESHOLD} unidades</div>`;
+  html += `<table><tr><th style="text-align:left;">Polo</th><th style="text-align:left;">Peça</th><th>Tamanho</th><th>Stock atual</th><th>Sugestão a encomendar</th></tr>`;
+  alerts.slice().sort((a,b)=> a.polo.localeCompare(b.polo) || a.peca.localeCompare(b.peca)).forEach(a=>{
+    const sugestao = Math.max(LOW_THRESHOLD*2 - a.q, LOW_THRESHOLD);
+    html += `<tr><td class="name">${a.polo}</td><td class="name">${a.peca}</td><td>${a.tam}</td><td>${a.q}</td><td><b>${sugestao}</b></td></tr>`;
+  });
+  html += `</table>`;
+  document.getElementById("printReport").innerHTML = html;
+  setTimeout(()=>window.print(), 100);
+}
+
+function gerarEncomendaExcel(alerts){
+  const wb = XLSX.utils.book_new();
+  const rows = alerts.slice().sort((a,b)=> a.polo.localeCompare(b.polo) || a.peca.localeCompare(b.peca)).map(a=>({
+    Polo: a.polo, Peça: a.peca, Tamanho: a.tam, "Stock atual": a.q,
+    "Sugestão a encomendar": Math.max(LOW_THRESHOLD*2 - a.q, LOW_THRESHOLD)
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, "Encomenda");
+  XLSX.writeFile(wb, `CoreJoint_encomenda_fardamento_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast("Ficheiro Excel gerado");
 }
 
 /* ---------- NOVA ADMISSÃO (kit completo, desconta tudo de uma vez) ---------- */
