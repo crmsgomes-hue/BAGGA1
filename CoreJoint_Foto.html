@@ -101,6 +101,7 @@
     <button onclick="testarNotificacaoLoja()" style="background:none; color:var(--terracotta,#C1622E); border:1.5px solid var(--terracotta,#C1622E); padding:9px 15px; border-radius:20px; font-size:13px; font-weight:600; margin-top:8px; margin-left:8px;">🔔 Testar agora</button>
   </div>
   <div id="notifDiscreto" style="display:none; font-size:11px; color:var(--ink-soft); margin-top:6px; text-decoration:underline; cursor:pointer;" onclick="testarNotificacaoLoja()">🔔 Notificações ativas — testar</div>
+  <div style="text-align:center; margin-top:10px;"><span style="font-size:12.5px; color:var(--ink-soft); text-decoration:underline; cursor:pointer;" onclick="abrirAjuda()">❓ Dúvidas frequentes</span></div>
 </header>
 <main id="main"></main>
 <div id="toast" class="toast"></div>
@@ -866,6 +867,45 @@ function renderEditFotosGrid(rec){
       }
     };
     grid.appendChild(wrap);
+  });
+}
+
+const FAQ_ITEMS = [
+  {p:"O que é o Global e quando devo fazer?", r:"É o inventário completo da loja, feito uma vez por mês. Tens de marcar a data entre o dia 1 e o dia 5 (só podes escolher entre 2ª e 5ª feira da 3ª semana do mês). Depois de marcado, só te lembramos 2 dias antes."},
+  {p:"O que significa \"⚠ Atrasado\"?", r:"Cada tarefa tem um prazo. Se passar o prazo até às 14h do dia seguinte sem seres enviada, fica marcada como atrasada e a gestão é avisada automaticamente."},
+  {p:"Enganei-me numa foto ou ficou mal, como corrijo?", r:"Se ainda não confirmaste o envio, toca no ✕ na miniatura para a apagar antes de enviar. Se já enviaste, toca no quadrado verde (✅) dessa tarefa em \"Hoje\" — abre para veres e apagares fotos já enviadas."},
+  {p:"Esqueci-me de enviar as vendas/inventário de ontem, o que faço?", r:"Ao tirar a foto, marca a opção \"📅 Isto é de ontem — esqueci-me de enviar\" antes de confirmar. Fica registado no dia certo."},
+  {p:"Como sei se a gestão já viu o que enviei ou um aviso?", r:"Não precisas de fazer nada — assim que abres esta página, o sistema regista automaticamente que viste. Se houver um aviso da gestão, também podes tocar em \"Confirmar que vi\" para confirmares ativamente."},
+  {p:"Preciso de marcar o Global fora da 3ª semana, o que faço?", r:"Fala com a gestão — só ela pode autorizar uma data especial fora do período normal."},
+  {p:"A minha dúvida não está aqui, o que faço?", r:"Contacta a gestão diretamente (telefone ou WhatsApp habitual)."}
+];
+function abrirAjuda(){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "ajudaOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>❓ Dúvidas frequentes</h2>
+      <div id="ajudaLista" style="margin-top:10px; max-height:65vh; overflow-y:auto;"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('ajudaOverlay').remove()">Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const lista = document.getElementById("ajudaLista");
+  FAQ_ITEMS.forEach((item,i)=>{
+    const bloco = document.createElement("div");
+    bloco.style.cssText = "border-bottom:1px solid var(--line); padding:10px 0;";
+    bloco.innerHTML = `
+      <div style="font-weight:700; font-size:14px; cursor:pointer;" data-q="${i}">${item.p}</div>
+      <div id="ajuda-r-${i}" style="display:none; font-size:13px; color:var(--ink-soft); margin-top:6px;">${item.r}</div>
+    `;
+    bloco.querySelector("[data-q]").onclick = ()=>{
+      const r = document.getElementById(`ajuda-r-${i}`);
+      r.style.display = r.style.display==="none" ? "block" : "none";
+    };
+    lista.appendChild(bloco);
   });
 }
 
