@@ -131,6 +131,7 @@ const MARKETING_CATS = [
   { key: "forms", label: "Forms", freq: "mensal_inicio" },
   { key: "haccp", label: "HACCP", freq: "mensal_inicio" },
   { key: "winrest", label: "Winrest", freq: "mensal_inicio" },
+  { key: "limpeza_prelatores", label: "Limpeza Prelatores", freq: "semestral" },
 ];
 const JSC_LOJAS = ["Almeirim", "Ponte de Sor"];
 const TABACO_EXCLUIR = ["Caldas da Rainha"];
@@ -147,12 +148,14 @@ function weekWindow(d){ const day=(d.getDay()+6)%7; const start=new Date(d); sta
 function biweekWindow(d){ const day=d.getDate(); const start = day<=15 ? new Date(d.getFullYear(),d.getMonth(),1) : new Date(d.getFullYear(),d.getMonth(),16); const end = day<=15 ? new Date(d.getFullYear(),d.getMonth(),15) : new Date(d.getFullYear(),d.getMonth()+1,0); return {start,end}; }
 function month3Window(d){ return {start:new Date(d.getFullYear(),d.getMonth(),15), end:new Date(d.getFullYear(),d.getMonth(),21)}; }
 function monthWindow(d){ return {start:new Date(d.getFullYear(),d.getMonth(),1), end:new Date(d.getFullYear(),d.getMonth()+1,0)}; }
+function semestreWindow(d){ const mes=d.getMonth(); const inicioMes = mes<6?0:6; return {start:new Date(d.getFullYear(),inicioMes,1), end:new Date(d.getFullYear(),inicioMes+6,0)}; }
 function monthStartWindow(d){ return {start:new Date(d.getFullYear(),d.getMonth(),1), end:new Date(d.getFullYear(),d.getMonth(),3)}; }
 function windowFor(freq,d){
   if(freq==="semanal") return weekWindow(d);
   if(freq==="quinzenal") return biweekWindow(d);
   if(freq==="mensal_inicio") return monthStartWindow(d);
   if(freq==="mensal") return monthWindow(d);
+  if(freq==="semestral") return semestreWindow(d);
   return month3Window(d);
 }
 function findWeekdayInRange(start,end,dow){ let d=new Date(start); while((((d.getDay()+6)%7)+1)!==dow && d<=end) d.setDate(d.getDate()+1); return d>end?end:d; }
