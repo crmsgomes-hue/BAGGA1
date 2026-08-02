@@ -1,0 +1,16 @@
+{
+  "name": "CoreJoint · Fardamento",
+  "short_name": "CJ Fardamento",
+  "description": "Stock de fardamento · Bagga",
+  "id": "corejoint-fardamento",
+  "start_url": "./CoreJoint_Fardamento.html",
+  "scope": "./CoreJoint_Fardamento.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4F1EA",
+  "theme_color": "#C1622E",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
