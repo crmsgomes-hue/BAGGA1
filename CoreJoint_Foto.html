@@ -969,7 +969,9 @@ function renderMiniCalendar(containerId, mes, onSelect){
       cursor:${isElegivel?'pointer':'default'}; opacity:${isElegivel?'1':'.45'}; transition:.15s;
     ">${dia}</div>`;
   }
-  html += `</div></div>`;
+  html += `</div>
+    <div style="font-size:10.5px; color:var(--ink-soft); margin-top:10px; text-align:center;">Precisas de outra data? Fala com a gestão para autorização.</div>
+  </div>`;
   container.innerHTML = html;
   container.querySelectorAll("[data-dia]").forEach(el=>{
     el.onclick = ()=>{
