@@ -556,7 +556,7 @@ function render(){
       const doisDiasAntes = new Date(dataAgendada); doisDiasAntes.setDate(doisDiasAntes.getDate()-2);
       return new Date() >= doisDiasAntes;
     }
-    return new Date().getDate() >= 13;
+    return true; // ainda não marcado — deve marcar entre dia 1 e 5
   });
 
   if(isLastDaysOfMonth() && dueInv.length>0){
@@ -585,11 +585,15 @@ function render(){
     main.appendChild(invGrid);
     let globalAgRow = null;
     invParaGrid.forEach(c=>{
-      const late = c.st.state==="late";
+      const mesAtualTile = mesKey(new Date());
+      const agTile = agendamentos.find(a=>a.mes===mesAtualTile);
+      const globalPorMarcar = c.key==="global" && !agTile;
+      const atrasadoAMarcar = globalPorMarcar && new Date().getDate() > 5;
+      const late = atrasadoAMarcar || c.st.state==="late";
       const isAmanha = c.st.targetDate && !late && isoDate(c.st.targetDate)===isoDate(new Date(Date.now()+86400000));
       const cor = late?'var(--red)':isAmanha?'var(--terracotta)':'var(--ink-soft)';
       const corBorda = late?'var(--red)':isAmanha?'var(--terracotta)':'var(--line)';
-      const statusTxt = late?'⚠ Atrasado':isAmanha?'🔔 Amanhã':'⏳ Por enviar';
+      const statusTxt = globalPorMarcar ? (atrasadoAMarcar?'⚠ Atrasado a marcar':'📅 Por marcar') : (late?'⚠ Atrasado':isAmanha?'🔔 Amanhã':'⏳ Por enviar');
       const tile = document.createElement("button");
       tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:var(--card); border:1.5px solid ${corBorda}; border-radius:12px; padding:12px 4px; text-align:center;`;
       tile.innerHTML = `<span style="font-size:20px;">📦</span><span style="font-size:11px; font-weight:700; line-height:1.2;">${c.label}</span><span style="font-size:9.5px; font-weight:700; color:${cor};">${statusTxt}</span><span style="font-size:8px; color:var(--ink-soft); line-height:1.2;">${descricaoRegra(c.key, c.freq)}</span>`;
