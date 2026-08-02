@@ -1923,6 +1923,14 @@ async function openFichaGerente(lojaPreSelecionada){
         <div class="card-title" style="margin-bottom:8px;">Avisos da gestão (este mês)</div>
         <div class="card-sub">📢 Total de avisos precisos: <b>${avisosLoja.length}</b></div>
         <div class="card-sub">✔ Confirmados pela loja: <b>${avisosConfirmados}</b> de ${avisosLoja.length}</div>
+        ${avisosLoja.length>0 ? (()=>{
+          const ultimo = [...avisosLoja].sort((a,b)=>new Date(b.criado_em)-new Date(a.criado_em))[0];
+          const tiposMap = {}; tiposAviso().forEach(t=>tiposMap[t.key]=t.label);
+          const label = tiposMap[ultimo.tipo] || ultimo.tipo;
+          const statusTxt = ultimo.confirmado_em ? "✔ Confirmado" : (ultimo.visto_em ? "👀 Visto, não confirmado" : "— Ainda não visto");
+          const statusColor = ultimo.confirmado_em ? "var(--green)" : (ultimo.visto_em ? "var(--amber)" : "var(--ink-soft)");
+          return `<div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--line); font-size:13px;">Último: <b>${label}</b>${ultimo.descricao ? ' — '+ultimo.descricao : ''}<br><span style="color:${statusColor}; font-weight:700;">${statusTxt}</span></div>`;
+        })() : ``}
       </div>
       <div class="card">
         <div class="card-title" style="margin-bottom:8px;">Adendas</div>
@@ -3006,6 +3014,7 @@ function renderGestao(){
         </div>
       </div>
       <div style="display:flex; flex-wrap:wrap; gap:6px;">${pills}</div>
+      <div data-aviso-status="${l}"></div>
     `;
     card.querySelector('[data-ficha]').onclick = (ev)=>{
       ev.stopPropagation();
@@ -3019,8 +3028,31 @@ function renderGestao(){
     }
     lojasListWrap.appendChild(card);
     });
+    carregarUltimosAvisosNosCartoes();
   }
   renderLojasList();
+}
+
+async function carregarUltimosAvisosNosCartoes(){
+  try{
+    const avisos = await api("GET", "cj_avisos?select=*&order=criado_em.desc&limit=200");
+    const tipos = tiposAviso();
+    const tiposMap = {}; tipos.forEach(t=>tiposMap[t.key]=t.label);
+    const porLoja = {};
+    avisos.forEach(a=>{ if(!porLoja[a.loja]) porLoja[a.loja] = a; });
+    Object.entries(porLoja).forEach(([loja, a])=>{
+      const el = document.querySelector(`[data-aviso-status="${CSS.escape(loja)}"]`);
+      if(!el) return;
+      const label = tiposMap[a.tipo] || a.tipo;
+      const statusTxt = a.confirmado_em ? `✔ Confirmado` : (a.visto_em ? `👀 Visto, não confirmado` : `— Ainda não visto`);
+      const statusColor = a.confirmado_em ? "var(--green)" : (a.visto_em ? "var(--amber)" : "var(--ink-soft)");
+      el.innerHTML = `<div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--line); font-size:11.5px; cursor:pointer;" data-open-aviso="${loja}">
+        <span style="color:var(--ink-soft);">📢 Último aviso:</span> <b>${label}</b> — <span style="color:${statusColor}; font-weight:700;">${statusTxt}</span>
+      </div>`;
+      const line = el.querySelector('[data-open-aviso]');
+      if(line) line.onclick = (ev)=>{ ev.stopPropagation(); openAvisos(loja); };
+    });
+  }catch(e){ console.error(e); }
 }
 
 async function avisarRapido(loja, tipo, label){
