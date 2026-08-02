@@ -3209,6 +3209,11 @@ function renderGestao(){
     if(invAtrasados>0) pills += pill("📦", `${invAtrasados} atrasado${invAtrasados>1?'s':''}`, "late");
     if(invDiaErrado>0) pills += pill("⚠", `${invDiaErrado} dia errado`, "pend");
     if(mktAtrasados>0) pills += pill("🎪", `${mktAtrasados} marketing atrasado`, "pend");
+    if(new Date().getDate()>5){
+      const mesAtualPill = mesKey(new Date());
+      const temAgendamento = agendamentos.some(a=>a.loja===l && a.mes===mesAtualPill);
+      if(!temAgendamento) pills += pill("📅", "Global não marcado", "late");
+    }
     if(invAtrasados===0 && invDiaErrado===0 && mktAtrasados===0) pills += pill("✔", "Inventário em dia", "ok");
 
     let piorTipo = null, piorLabel = null;
