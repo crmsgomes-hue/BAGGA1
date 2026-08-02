@@ -710,6 +710,12 @@ function openCapture(kind, key, label, turno){
           <div id="capThumbsDesperdicio" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;"></div>
         </div>` : ``}
       ` : ``}
+      ${!(kind==="daily" && key==="vitrine") ? `
+        <div class="field" style="margin-top:14px; display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" id="capOntem" style="width:18px; height:18px;">
+          <label for="capOntem" style="font-size:13px; color:var(--ink-soft);">📅 Isto é de ontem — esqueci-me de enviar</label>
+        </div>
+      ` : ``}
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeCapture()">Cancelar</button>
         <button class="btn-save" id="capSaveBtn" onclick="confirmCapture('${kind}','${key}','${turno||''}')" disabled>Guardar</button>
@@ -987,7 +993,10 @@ async function agendarGlobal(mes, dataIso){
 
 async function confirmCapture(kind, key, turno){
   if(pendingPhotos.length===0){ toast("Tira pelo menos uma foto"); return; }
-  const today = todayStr();
+  const ontemCheckbox = document.getElementById("capOntem");
+  const usarOntem = ontemCheckbox && ontemCheckbox.checked;
+  const dataAlvo = usarOntem ? new Date(Date.now() - 86400000) : new Date();
+  const today = isoDate(dataAlvo);
   const item = {
     kind, key, turno, today, loja: currentLoja,
     fotos: pendingPhotos.slice(),
