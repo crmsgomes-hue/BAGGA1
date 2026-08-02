@@ -432,7 +432,17 @@ function toast(msg){
   clearTimeout(window.__toastTimer);
   window.__toastTimer = setTimeout(()=>t.classList.remove("show"), dur);
 }
-function isoDate(d){ return d.toISOString().slice(0,10); }
+function isoDate(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function mesKey(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  return `${y}-${m}`;
+}
 function fotoUrl(f){ return typeof f === "string" ? f : (f && f.url) || ""; }
 function fotoLegenda(f){ return typeof f === "string" ? "" : (f && f.legenda) || ""; }
 function bigPhoto(src){
@@ -1602,7 +1612,7 @@ function openChecklistMensal(){
   back.onclick = render;
   main.appendChild(back);
 
-  const mes = new Date().toISOString().slice(0,7);
+  const mes = mesKey(new Date());
   const mesLabel = new Date().toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
   const title = document.createElement("div");
   title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:14px; text-transform:capitalize;";
@@ -1969,7 +1979,7 @@ function exportarFichaExcel(loja, d){
 }
 
 async function arquivarFicha(loja, d){
-  const mes = new Date().toISOString().slice(0,7);
+  const mes = mesKey(new Date());
   const mesLabel = new Date().toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
   if(!confirm(`Arquivar a ficha de ${loja} — ${mesLabel}? Fica guardada para sempre para consulta futura.`)) return;
   try{
@@ -2050,7 +2060,7 @@ function openAgendamentosGlobal(){
   back.onclick = render;
   main.appendChild(back);
 
-  const mes = new Date().toISOString().slice(0,7);
+  const mes = mesKey(new Date());
   const mesLabel = new Date().toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
   const title = document.createElement("div");
   title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:14px; text-transform:capitalize;";
