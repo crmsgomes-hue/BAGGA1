@@ -446,20 +446,48 @@ function mesKey(d){
 }
 function fotoUrl(f){ return typeof f === "string" ? f : (f && f.url) || ""; }
 function fotoLegenda(f){ return typeof f === "string" ? "" : (f && f.legenda) || ""; }
-function bigPhoto(src){
-  if(!src) return;
+function bigPhoto(src, lista, indice){
   const old = document.getElementById('_lb');
   if(old) document.body.removeChild(old);
+  const urls = (lista && lista.length) ? lista : (src ? [src] : []);
+  if(urls.length===0) return;
+  let idx = (typeof indice === 'number') ? indice : Math.max(0, urls.indexOf(src));
+
   const lb = document.createElement('div');
   lb.id = '_lb';
-  lb.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.95);z-index:2147483647;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent';
+  lb.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.95);z-index:2147483647;display:flex;align-items:center;justify-content:center;touch-action:pinch-zoom;-webkit-tap-highlight-color:transparent;';
+
   const img = document.createElement('img');
-  img.src = src;
-  img.style.cssText = 'max-width:96vw;max-height:90vh;object-fit:contain;border-radius:6px;pointer-events:none;user-select:none;display:block';
+  img.style.cssText = 'max-width:96vw;max-height:90vh;object-fit:contain;border-radius:6px;display:block;';
+
+  const contador = document.createElement('div');
+  contador.style.cssText = 'position:absolute;top:16px;left:50%;transform:translateX(-50%);color:#fff;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.15);padding:4px 12px;border-radius:99px;';
+
+  function atualizar(){
+    img.src = urls[idx];
+    contador.textContent = urls.length>1 ? `${idx+1} / ${urls.length}` : '';
+  }
+  atualizar();
+
   const x = document.createElement('div');
-  x.style.cssText = 'position:absolute;top:10px;right:16px;color:#fff;font-size:2.5rem;line-height:1;font-weight:200;pointer-events:none';
+  x.style.cssText = 'position:absolute;top:10px;right:16px;color:#fff;font-size:2.5rem;line-height:1;font-weight:200;cursor:pointer;z-index:2;';
   x.textContent = '×';
-  lb.appendChild(img); lb.appendChild(x);
+  x.onclick = (e)=>{ e.stopPropagation(); document.body.removeChild(lb); };
+
+  lb.appendChild(img); lb.appendChild(x); lb.appendChild(contador);
+
+  if(urls.length>1){
+    const prev = document.createElement('div');
+    prev.textContent = '‹';
+    prev.style.cssText = 'position:absolute;left:6px;top:50%;transform:translateY(-50%);color:#fff;font-size:2.8rem;padding:10px 14px;cursor:pointer;z-index:2;user-select:none;';
+    prev.onclick = (e)=>{ e.stopPropagation(); idx = (idx-1+urls.length)%urls.length; atualizar(); };
+    const next = document.createElement('div');
+    next.textContent = '›';
+    next.style.cssText = 'position:absolute;right:6px;top:50%;transform:translateY(-50%);color:#fff;font-size:2.8rem;padding:10px 14px;cursor:pointer;z-index:2;user-select:none;';
+    next.onclick = (e)=>{ e.stopPropagation(); idx = (idx+1)%urls.length; atualizar(); };
+    lb.appendChild(prev); lb.appendChild(next);
+  }
+
   lb.onclick = ()=>document.body.removeChild(lb);
   document.body.appendChild(lb);
 }
@@ -748,12 +776,16 @@ function renderInventario(main){
       ${st.diaErrado ? `<div style="background:rgba(0,0,0,.15); color:#fff; font-weight:700; font-size:13px; padding:8px 10px; border-radius:8px; margin-top:8px;">⚠ Enviaste, mas NÃO no dia certo (${st.dowLabel}-feira). A chefia já foi avisada.</div>` : ``}
       ${st.state==="late" && !st.diaErrado ? `<div style="background:rgba(0,0,0,.15); color:#fff; font-weight:700; font-size:13px; padding:8px 10px; border-radius:8px; margin-top:8px;">⚠ Ainda NÃO foi feito. Está atrasado e a chefia já foi avisada.</div>` : ``}
       ${st.state!=="pausado" ? `<button class="cambtn" style="${problema ? 'background:#fff; color:var(--red);' : ''}" onclick="openCapture('inv','${cat.key}')">${st.latest ? 'Enviar nova contagem' : '📸 Enviar foto + valores'}</button>` : ``}
-      ${st.latest ? `<div class="card-sub" style="margin-top:8px; text-decoration:underline; cursor:pointer; color:${subColor};" data-toggle-det="${cat.key}">Ver último envio</div><div id="det-${cat.key}" style="display:none; margin-top:6px; font-size:13px; color:${subColor};">Enviado em ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')} · Inventário: ${st.latest.valor_inventario ?? '-'} €${cat.key==="global" ? ' · CNVs: ' + (st.latest.valor_cnvs ?? '-') + ' €' : ''}<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">${(st.latest.fotos && st.latest.fotos.length ? st.latest.fotos : [st.latest.foto_path]).filter(Boolean).map(f=>`<img src="${fotoUrl(f)}" style="width:56px; height:56px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;" onclick="bigPhoto('${fotoUrl(f)}')">`).join("")}</div></div>` : ``}
+      ${st.latest ? `<div class="card-sub" style="margin-top:8px; text-decoration:underline; cursor:pointer; color:${subColor};" data-toggle-det="${cat.key}">Ver último envio</div><div id="det-${cat.key}" style="display:none; margin-top:6px; font-size:13px; color:${subColor};">Enviado em ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')} · Inventário: ${st.latest.valor_inventario ?? '-'} €${cat.key==="global" ? ' · CNVs: ' + (st.latest.valor_cnvs ?? '-') + ' €' : ''}<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">${(st.latest.fotos && st.latest.fotos.length ? st.latest.fotos : [st.latest.foto_path]).filter(Boolean).map((f,fi)=>`<img src="${fotoUrl(f)}" data-fi="${fi}" style="width:56px; height:56px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;">`).join("")}</div></div>` : ``}
     `;
     main.appendChild(card);
     if(st.latest){
       const t = card.querySelector(`[data-toggle-det="${cat.key}"]`);
       const d = card.querySelector(`#det-${cat.key}`);
+      const fotosLista = (st.latest.fotos && st.latest.fotos.length ? st.latest.fotos : [st.latest.foto_path]).filter(Boolean).map(fotoUrl);
+      d.querySelectorAll("img[data-fi]").forEach(img=>{
+        img.onclick = ()=>bigPhoto(null, fotosLista, +img.dataset.fi);
+      });
       t.onclick = ()=>{
         const showing = d.style.display !== "none";
         d.style.display = showing ? "none" : "block";
@@ -2222,20 +2254,28 @@ function openGaleria(){
     const card = document.createElement("div");
     card.className = "card";
     let html = `<div class="card-title" style="margin-bottom:8px;">${l}</div><div style="display:flex; flex-wrap:wrap; gap:6px;">`;
+    const grupos = [];
     rowsLoja.forEach(r=>{
-      (r.fotos||[]).forEach(f=>{
-        const u = fotoUrl(f), leg = fotoLegenda(f);
-        html += `<img src="${u}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;" onclick="bigPhoto('${u}')" title="${r.tipo} ${r.turno} · ${r.data}${leg?' · '+leg:''}">`;
+      const urls = (r.fotos||[]).map(fotoUrl);
+      const gi = grupos.push(urls)-1;
+      (r.fotos||[]).forEach((f,fi)=>{
+        const leg = fotoLegenda(f);
+        html += `<img src="${urls[fi]}" data-gi="${gi}" data-fi="${fi}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;" title="${r.tipo} ${r.turno} · ${r.data}${leg?' · '+leg:''}">`;
       });
     });
     rowsInvLoja.forEach(r=>{
-      (r.fotos||[]).forEach(f=>{
-        const u = fotoUrl(f), leg = fotoLegenda(f);
-        html += `<img src="${u}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;" onclick="bigPhoto('${u}')" title="${r.categoria} · ${r.data}${leg?' · '+leg:''}">`;
+      const urls = (r.fotos||[]).map(fotoUrl);
+      const gi = grupos.push(urls)-1;
+      (r.fotos||[]).forEach((f,fi)=>{
+        const leg = fotoLegenda(f);
+        html += `<img src="${urls[fi]}" data-gi="${gi}" data-fi="${fi}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;" title="${r.categoria} · ${r.data}${leg?' · '+leg:''}">`;
       });
     });
     html += `</div>`;
     card.innerHTML = html;
+    card.querySelectorAll("img[data-gi]").forEach(img=>{
+      img.onclick = ()=>bigPhoto(null, grupos[+img.dataset.gi], +img.dataset.fi);
+    });
     main.appendChild(card);
   });
 }
