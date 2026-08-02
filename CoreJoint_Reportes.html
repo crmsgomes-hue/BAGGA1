@@ -859,7 +859,7 @@ function renderInventario(main){
       ${st.diaErrado ? `<div style="background:rgba(0,0,0,.15); color:#fff; font-weight:700; font-size:13px; padding:8px 10px; border-radius:8px; margin-top:8px;">⚠ Enviaste, mas NÃO no dia certo (${st.dowLabel}-feira). A chefia já foi avisada.</div>` : ``}
       ${st.state==="late" && !st.diaErrado ? `<div style="background:rgba(0,0,0,.15); color:#fff; font-weight:700; font-size:13px; padding:8px 10px; border-radius:8px; margin-top:8px;">⚠ Ainda NÃO foi feito. Está atrasado e a chefia já foi avisada.</div>` : ``}
       ${st.state!=="pausado" ? `<button class="cambtn" style="${problema ? 'background:#fff; color:var(--red);' : ''}" onclick="openCapture('inv','${cat.key}')">${st.latest ? 'Enviar nova contagem' : '📸 Enviar foto + valores'}</button>` : ``}
-      ${st.latest ? `<div class="card-sub" style="margin-top:8px; text-decoration:underline; cursor:pointer; color:${subColor};" data-toggle-det="${cat.key}">Ver último envio</div><div id="det-${cat.key}" style="display:none; margin-top:6px; font-size:13px; color:${subColor};">Enviado em ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')} · Inventário: ${st.latest.valor_inventario ?? '-'} €${cat.key==="global" ? ' · CNVs: ' + (st.latest.valor_cnvs ?? '-') + ' €' : ''}<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">${(st.latest.fotos && st.latest.fotos.length ? st.latest.fotos : [st.latest.foto_path]).filter(Boolean).map((f,fi)=>`<img src="${fotoUrl(f)}" data-fi="${fi}" style="width:56px; height:56px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;">`).join("")}</div></div>` : ``}
+      ${st.latest ? `<div class="card-sub" style="margin-top:8px; text-decoration:underline; cursor:pointer; color:${subColor};" data-toggle-det="${cat.key}">Ver último envio</div><div id="det-${cat.key}" style="display:none; margin-top:6px; font-size:13px; color:${subColor};">Enviado em ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT')} · Inventário: ${st.latest.valor_inventario ?? '-'} €${cat.key==="global" ? ' · CNVs: ' + (st.latest.valor_cnvs ?? '-') + ' €' : ''}<div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;">${(st.latest.fotos && st.latest.fotos.length ? st.latest.fotos : [st.latest.foto_path]).filter(Boolean).map((f,fi)=>`<img src="${fotoUrl(f)}" data-fi="${fi}" style="width:130px; height:100px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;">`).join("")}</div><div style="font-style:italic; font-size:12px; color:var(--ink-soft); margin-top:8px;">${fotoLegenda((st.latest.fotos||[])[0]) || "Sem comentário"}</div></div>` : ``}
     `;
     main.appendChild(card);
     if(st.latest){
@@ -2330,33 +2330,42 @@ function openGaleria(){
     const rowsLoja = recentes.filter(r=>r.loja===l);
     const rowsInvLoja = recentesInv.filter(r=>r.loja===l);
     if(rowsLoja.length===0 && rowsInvLoja.length===0) return;
-    const card = document.createElement("div");
-    card.className = "card";
-    let html = `<div class="card-title" style="margin-bottom:8px;">${l}</div><div style="display:flex; flex-wrap:wrap; gap:6px;">`;
-    const grupos = [];
+
+    const lojaTitle = document.createElement("div");
+    lojaTitle.style.cssText = "font-family:'Syne',sans-serif; font-weight:800; font-size:16px; margin:18px 0 8px;";
+    lojaTitle.textContent = l;
+    main.appendChild(lojaTitle);
+
+    const TURNO_LABELS_G = {manha:"Manhã", almoco:"Almoço", lanche:"Lanche", unico:""};
     rowsLoja.forEach(r=>{
-      const urls = (r.fotos||[]).map(fotoUrl);
-      const gi = grupos.push(urls)-1;
-      (r.fotos||[]).forEach((f,fi)=>{
-        const leg = fotoLegenda(f);
-        html += `<img src="${urls[fi]}" data-gi="${gi}" data-fi="${fi}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;" title="${r.tipo} ${r.turno} · ${r.data}${leg?' · '+leg:''}">`;
-      });
+      const tituloSecao = r.tipo==="vitrine" ? `Vitrine — ${TURNO_LABELS_G[r.turno]||r.turno}` : "Vendas";
+      renderSecaoFotosVisitas(main, tituloSecao, r.fotos||[], r.data);
     });
     rowsInvLoja.forEach(r=>{
-      const urls = (r.fotos||[]).map(fotoUrl);
-      const gi = grupos.push(urls)-1;
-      (r.fotos||[]).forEach((f,fi)=>{
-        const leg = fotoLegenda(f);
-        html += `<img src="${urls[fi]}" data-gi="${gi}" data-fi="${fi}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;" title="${r.categoria} · ${r.data}${leg?' · '+leg:''}">`;
-      });
+      const catObj = [...INV_CATS, ...MARKETING_CATS].find(c=>c.key===r.categoria);
+      renderSecaoFotosVisitas(main, catObj ? catObj.label : r.categoria, r.fotos||[], r.data);
     });
-    html += `</div>`;
-    card.innerHTML = html;
-    card.querySelectorAll("img[data-gi]").forEach(img=>{
-      img.onclick = ()=>bigPhoto(null, grupos[+img.dataset.gi], +img.dataset.fi);
-    });
-    main.appendChild(card);
   });
+}
+
+function renderSecaoFotosVisitas(main, titulo, fotos, data){
+  if(fotos.length===0) return;
+  const card = document.createElement("div");
+  card.className = "card";
+  const urls = fotos.map(fotoUrl);
+  let html = `<div class="card-title" style="margin-bottom:2px;">${titulo}</div><div class="card-sub" style="margin-bottom:10px;">${new Date(data+"T00:00:00").toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit',month:'2-digit'})}</div>`;
+  html += `<div style="display:flex; flex-wrap:wrap; gap:10px;">`;
+  fotos.forEach((f,fi)=>{
+    html += `<div style="width:130px;"><img src="${urls[fi]}" data-fi="${fi}" style="width:130px; height:100px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer; display:block;"></div>`;
+  });
+  html += `</div>`;
+  const primeiraLegenda = fotoLegenda(fotos[0]);
+  html += `<div style="font-style:italic; font-size:12.5px; color:var(--ink-soft); margin-top:8px;">${primeiraLegenda || "Sem comentário"}</div>`;
+  card.innerHTML = html;
+  card.querySelectorAll("img[data-fi]").forEach(img=>{
+    img.onclick = ()=>bigPhoto(null, urls, +img.dataset.fi);
+  });
+  main.appendChild(card);
 }
 
 /* ---------- EVOLUÇÃO CNVS (Global) ---------- */
