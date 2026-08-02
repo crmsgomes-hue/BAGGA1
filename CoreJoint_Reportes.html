@@ -1432,6 +1432,16 @@ function openRegistoAtividade(){
       const adendas = await api("GET", "cj_adendas?select=colaborador,loja,updated_at&order=updated_at.desc&limit=40");
       adendas.forEach(r=>eventos.push({quando:r.updated_at, quem:r.loja, texto:`Atualização em adenda de ${r.colaborador} — ${r.loja}`}));
     }catch(e){}
+    try{
+      const avisos = await api("GET", "cj_avisos?select=*&order=criado_em.desc&limit=40");
+      const tiposMap = {}; tiposAviso().forEach(t=>tiposMap[t.key]=t.label);
+      avisos.forEach(a=>{
+        eventos.push({quando:a.criado_em, quem:a.criado_por||"Gestão", texto:`📢 Avisou ${a.loja} — ${tiposMap[a.tipo]||a.tipo}`});
+        if(a.confirmado_em){
+          eventos.push({quando:a.confirmado_em, quem:a.loja, texto:`✔ Confirmou aviso — ${tiposMap[a.tipo]||a.tipo}`});
+        }
+      });
+    }catch(e){}
 
     eventos.sort((a,b)=> new Date(b.quando) - new Date(a.quando));
     const top = eventos.slice(0,60);
