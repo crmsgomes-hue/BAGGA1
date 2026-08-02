@@ -236,6 +236,22 @@ function complianceSectionHtml(){
   return html;
 }
 
+async function salvarOuPartilharExcel(wb, filename){
+  try{
+    const arrayBuffer = XLSX.write(wb, {bookType:"xlsx", type:"array"});
+    const blob = new Blob([arrayBuffer], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    const file = new File([blob], filename, {type:blob.type});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:filename});
+      return;
+    }
+  }catch(e){
+    if(e.name === "AbortError") return;
+    console.warn("Partilha falhou, a descarregar em vez disso", e);
+  }
+  XLSX.writeFile(wb, filename);
+}
+
 async function compartilharHtmlComoPDF(htmlContent, filename){
   try{
     toast("A preparar PDF...");
@@ -1258,7 +1274,7 @@ function exportarSondagemPDF(id){
   mostrarAcoesRelatorio(html, `CoreJoint_sondagem_${todayStr()}.pdf`);
 }
 
-function exportarSondagemExcel(id){
+async function exportarSondagemExcel(id){
   const data = window.__sondagensCache && window.__sondagensCache[id];
   if(!data) return;
   const { sondagem: s, respostas } = data;
@@ -1270,7 +1286,7 @@ function exportarSondagemExcel(id){
   });
   const ws = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(wb, ws, "Sondagem");
-  XLSX.writeFile(wb, `CoreJoint_sondagem_${id}.xlsx`);
+  await salvarOuPartilharExcel(wb, `CoreJoint_sondagem_${id}.xlsx`);
   toast("Ficheiro Excel gerado");
 }
 
@@ -1430,7 +1446,7 @@ function exportarFormularioPDF(id){
   mostrarAcoesRelatorio(html, `CoreJoint_formulario_${todayStr()}.pdf`);
 }
 
-function exportarFormularioExcel(id){
+async function exportarFormularioExcel(id){
   const data = window.__formulariosCache && window.__formulariosCache[id];
   if(!data) return;
   const { formulario: f, respostas } = data;
@@ -1445,7 +1461,7 @@ function exportarFormularioExcel(id){
   });
   const ws = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(wb, ws, "Formulario");
-  XLSX.writeFile(wb, `CoreJoint_formulario_${id}.xlsx`);
+  await salvarOuPartilharExcel(wb, `CoreJoint_formulario_${id}.xlsx`);
   toast("Ficheiro Excel gerado");
 }
 
@@ -1790,7 +1806,7 @@ function openChecklistMensal(){
   document.getElementById("clHistBtn").onclick = ()=>openChecklistHistorico();
 }
 
-function exportarChecklistExcel(mes, colunas, dados){
+async function exportarChecklistExcel(mes, colunas, dados){
   const wb = XLSX.utils.book_new();
   const rows = LOJAS.map(l=>{
     const row = {Loja: l};
@@ -1799,7 +1815,7 @@ function exportarChecklistExcel(mes, colunas, dados){
   });
   const ws = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(wb, ws, "Checklist");
-  XLSX.writeFile(wb, `CoreJoint_checklist_${mes}.xlsx`);
+  await salvarOuPartilharExcel(wb, `CoreJoint_checklist_${mes}.xlsx`);
   toast("Ficheiro Excel gerado");
 }
 
@@ -1940,7 +1956,7 @@ async function exportarTodasFichasExcel(){
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(wb, ws, "Todas as lojas");
-  XLSX.writeFile(wb, `CoreJoint_fichas_todas_lojas_${todayStr()}.xlsx`);
+  await salvarOuPartilharExcel(wb, `CoreJoint_fichas_todas_lojas_${todayStr()}.xlsx`);
   mostrarSucesso("Excel gerado com todas as lojas!");
 }
 
@@ -2112,7 +2128,7 @@ async function openFichaGerente(lojaPreSelecionada){
   if(fichaLojaAtual) renderFichaConteudo();
 }
 
-function exportarFichaExcel(loja, d){
+async function exportarFichaExcel(loja, d){
   const wb = XLSX.utils.book_new();
   const rows = [
     {Indicador:"Vitrine completa (mês)", Valor:`${d.pctVit}% (${d.vitOk}/${d.diasNoMes})`},
@@ -2128,7 +2144,7 @@ function exportarFichaExcel(loja, d){
   ];
   const ws = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(wb, ws, "Ficha");
-  XLSX.writeFile(wb, `CoreJoint_ficha_${loja.replace(/\s+/g,"_")}.xlsx`);
+  await salvarOuPartilharExcel(wb, `CoreJoint_ficha_${loja.replace(/\s+/g,"_")}.xlsx`);
   toast("Ficheiro Excel gerado");
 }
 
@@ -2523,7 +2539,7 @@ async function exportarExcel(){
       return;
     }catch(e){ /* utilizador cancelou ou falhou — cai para download */ }
   }
-  XLSX.writeFile(wb, fname);
+  await salvarOuPartilharExcel(wb, fname);
   toast("Ficheiro Excel gerado");
 }
 
