@@ -507,31 +507,34 @@ function render(){
       main.appendChild(warn);
     }
 
+    const listCard = document.createElement("div");
+    listCard.className = "card";
+    listCard.style.cssText = "padding:6px 0;";
+    main.appendChild(listCard);
+
     dueInv.forEach(c=>{
       const late = c.st.state==="late";
-      const wrap = document.createElement("div");
       if(c.st.diaErrado){
         const card = document.createElement("div");
         card.className = "warn-card";
+        card.style.margin = "8px 14px";
         card.innerHTML = `⚠ <b>${c.label}</b>: enviaste, mas NÃO em ${c.st.dowLabel}-feira (dia certo). A chefia já foi avisada.`;
-        wrap.appendChild(card);
-        main.appendChild(wrap);
+        listCard.appendChild(card);
         return;
       }
-      const btn = document.createElement("button");
-      btn.className = "big-btn";
       const isAmanha = c.st.targetDate && !late && isoDate(c.st.targetDate)===isoDate(new Date(Date.now()+86400000));
-      if(late){ btn.style.cssText = "background:var(--red); border:none;"; }
-      const textColor = late ? "#fff" : "var(--ink)";
-      const subColor = late ? "rgba(255,255,255,.9)" : "var(--ink-soft)";
-      btn.innerHTML = `<div class="icon">📦</div><div class="txt"><div class="t" style="color:${textColor};">${c.label}</div><div class="d" style="color:${subColor}; font-weight:${late?'700':'400'};">${late?'⚠ ATRASADO — a chefia já foi avisada':isAmanha?'Amanhã é o dia':'Por enviar'}</div></div><div class="status">${late?'🔴':isAmanha?'🔔':'⏳'}</div>`;
-      btn.onclick = ()=>openCapture("inv", c.key, c.label);
-      wrap.appendChild(btn);
+      const row = document.createElement("button");
+      row.style.cssText = "display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:12px 14px; border:none; background:none; border-bottom:1px solid var(--line);";
+      const statusTxt = late?'⚠ Atrasado':isAmanha?'🔔 Amanhã é o dia':'⏳ Por enviar';
+      const statusColor = late?'var(--red)':isAmanha?'var(--terracotta)':'var(--ink-soft)';
+      row.innerHTML = `<span style="font-size:18px;">📦</span><span style="flex:1; font-weight:600; font-size:14px;">${c.label}</span><span style="font-size:12px; font-weight:700; color:${statusColor};">${statusTxt}</span>`;
+      row.onclick = ()=>openCapture("inv", c.key, c.label);
+      listCard.appendChild(row);
       if(c.key==="global"){
         const mes = mesKey(new Date());
         const ag = agendamentos.find(a=>a.mes===mes);
         const agRow = document.createElement("div");
-        agRow.style.cssText = "margin:6px 0 12px 4px;";
+        agRow.style.cssText = "margin:2px 14px 10px;";
         if(ag){
           agRow.innerHTML = `<div style="font-size:12px; color:var(--ink-soft);">📅 Agendado para ${new Date(ag.data_agendada+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} <span style="text-decoration:underline; cursor:pointer;" id="mudarAgendamento">(mudar)</span></div>`;
         } else {
@@ -540,7 +543,7 @@ function render(){
             <div id="miniCalWrap"></div>
           `;
         }
-        wrap.appendChild(agRow);
+        listCard.appendChild(agRow);
         if(!ag){
           setTimeout(()=>{
             renderMiniCalendar("miniCalWrap", mes, (ds)=>agendarGlobal(mes, ds));
@@ -552,11 +555,11 @@ function render(){
         if(isLastDaysOfMonth()){
           const warnGlobal = document.createElement("div");
           warnGlobal.className = "warn-card";
+          warnGlobal.style.margin = "8px 14px";
           warnGlobal.textContent = "⚠ Estamos nos últimos dias do mês — não se faz inventário Global agora.";
-          wrap.appendChild(warnGlobal);
+          listCard.appendChild(warnGlobal);
         }
       }
-      main.appendChild(wrap);
     });
   }
 
@@ -566,21 +569,17 @@ function render(){
     title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px;";
     title.textContent = "Marketing — este mês";
     main.appendChild(title);
+    const mktCard = document.createElement("div");
+    mktCard.className = "card";
+    mktCard.style.cssText = "padding:6px 0;";
+    main.appendChild(mktCard);
     dueMkt.forEach(c=>{
       const late = c.st.state==="late";
-      const wrap = document.createElement("div");
-      const btn = document.createElement("button");
-      btn.className = "big-btn";
-      btn.innerHTML = `<div class="icon">🏷️</div><div class="txt"><div class="t">${c.label}</div><div class="d">${late?'Atrasado':'Por fazer este mês'}</div></div><div class="status">${late?'🔴':'⏳'}</div>`;
-      btn.onclick = ()=>openCapture("marketing", c.key, c.label);
-      wrap.appendChild(btn);
-      if(late){
-        const notice = document.createElement("div");
-        notice.style.cssText = "font-size:12px; color:var(--red); margin:-6px 0 12px 4px;";
-        notice.textContent = "⚠ Este atraso é avisado automaticamente à chefia";
-        wrap.appendChild(notice);
-      }
-      main.appendChild(wrap);
+      const row = document.createElement("button");
+      row.style.cssText = "display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:12px 14px; border:none; background:none; border-bottom:1px solid var(--line);";
+      row.innerHTML = `<span style="font-size:18px;">🏷️</span><span style="flex:1; font-weight:600; font-size:14px;">${c.label}</span><span style="font-size:12px; font-weight:700; color:${late?'var(--red)':'var(--ink-soft)'};">${late?'⚠ Atrasado':'⏳ Por fazer'}</span>`;
+      row.onclick = ()=>openCapture("marketing", c.key, c.label);
+      mktCard.appendChild(row);
     });
   }
 
