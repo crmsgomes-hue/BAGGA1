@@ -168,7 +168,7 @@ function addAttn(list, href, titulo, sub, urgente){
 (async ()=>{
   const attn = [];
   const today = new Date();
-  const todayStr = today.toISOString().slice(0,10);
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   let statReportes = 0, statAtrasados = 0, statFardamento = 0, statAdendas = 0;
 
   try{
