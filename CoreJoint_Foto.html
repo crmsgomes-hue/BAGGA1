@@ -495,6 +495,13 @@ function render(){
 
   const dueInv = categoriasParaLoja(currentLoja).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado).filter(c=>{
     if(c.key!=="global") return true;
+    const mesAtual = mesKey(new Date());
+    const ag = agendamentos.find(a=>a.mes===mesAtual);
+    if(ag){
+      const dataAgendada = new Date(ag.data_agendada+"T00:00:00");
+      const doisDiasAntes = new Date(dataAgendada); doisDiasAntes.setDate(doisDiasAntes.getDate()-2);
+      return new Date() >= doisDiasAntes;
+    }
     return new Date().getDate() >= 13; // só aparece a marcar a partir do dia 13 (2 dias antes da janela abrir no dia 15)
   });
   if(dueInv.length>0){
