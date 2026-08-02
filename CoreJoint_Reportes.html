@@ -1848,6 +1848,24 @@ async function exportarTodasFichasExcel(){
   mostrarSucesso("Excel gerado com todas as lojas!");
 }
 
+async function autorizarDataEspecialGlobal(loja){
+  const data = document.getElementById("fichaDataEspecial").value;
+  if(!data){ toast("Escolhe uma data primeiro"); return; }
+  const mes = data.slice(0,7);
+  try{
+    const existe = await api("GET", `cj_global_agendamento?select=id&loja=eq.${encodeURIComponent(loja)}&mes=eq.${mes}`);
+    if(existe.length>0){
+      await api("PATCH", `cj_global_agendamento?loja=eq.${encodeURIComponent(loja)}&mes=eq.${mes}`, {data_agendada: data, criado_por: currentUser});
+    } else {
+      await api("POST", "cj_global_agendamento", {loja, mes, data_agendada: data, criado_por: currentUser});
+    }
+    mostrarSucesso(`Data especial autorizada para ${loja}: ${new Date(data+"T00:00:00").toLocaleDateString('pt-PT')}`);
+  }catch(e){
+    console.error(e);
+    toast("Erro ao autorizar: " + (e.message||e).slice(0,100));
+  }
+}
+
 async function openFichaGerente(lojaPreSelecionada){
   if(lojaPreSelecionada) fichaLojaAtual = lojaPreSelecionada;
   currentView = ()=>openFichaGerente();
@@ -1969,6 +1987,12 @@ async function openFichaGerente(lojaPreSelecionada){
           <a class="cambtn secondary" style="text-align:left; display:block; text-decoration:none;" href="CoreJoint_Adendas.html?loja=${encodeURIComponent(l)}">📋 Ver adendas desta loja</a>
         </div>
       </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:8px;">📅 Autorizar data especial do Global</div>
+        <div class="card-sub" style="margin-bottom:10px;">Normalmente só a 3ª semana (2ª a 5ª) está disponível para a loja marcar. Aqui podes autorizar qualquer outra data para este mês.</div>
+        <input type="date" id="fichaDataEspecial" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:10px;">
+        <button class="cambtn" style="width:100%; background:var(--terracotta); color:#fff; border:none; padding:11px; border-radius:10px; font-weight:600;" id="fichaAutorizarBtn">Autorizar esta data</button>
+      </div>
       <div style="display:flex; gap:8px; margin-bottom:8px;">
         <button class="cambtn" style="flex:1; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;" id="fichaPdfBtn">🖨️ PDF</button>
         <button class="cambtn secondary" style="flex:1; padding:12px;" id="fichaExcelBtn">📥 Excel</button>
@@ -1986,6 +2010,7 @@ async function openFichaGerente(lojaPreSelecionada){
     document.getElementById("fichaHistBtn").onclick = ()=>openFichaHistorico(l);
     document.getElementById("fichaVerDiaBtn").onclick = ()=>openLojaDetalhe(l);
     document.getElementById("fichaVerAvisosBtn").onclick = ()=>openAvisos(l);
+    document.getElementById("fichaAutorizarBtn").onclick = ()=>autorizarDataEspecialGlobal(l);
   }
 
   if(fichaLojaAtual) renderFichaConteudo();
