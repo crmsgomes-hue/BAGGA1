@@ -14,6 +14,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -235,11 +236,71 @@ function complianceSectionHtml(){
   return html;
 }
 
+async function compartilharHtmlComoPDF(htmlContent, filename){
+  try{
+    toast("A preparar PDF...");
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({unit:"pt", format:"a4"});
+    const container = document.createElement("div");
+    container.style.cssText = "width:550px; font-family:Georgia,serif; font-size:9px; color:#000; background:#fff; padding:10px;";
+    container.innerHTML = htmlContent;
+    container.querySelectorAll("table").forEach(t=>{ t.style.width="100%"; t.style.borderCollapse="collapse"; t.style.marginBottom="8px"; });
+    container.querySelectorAll("th,td").forEach(c=>{ c.style.border="1px solid #999"; c.style.padding="3px 5px"; c.style.fontSize="8px"; c.style.textAlign="center"; });
+    container.querySelectorAll("h1").forEach(h=>{ h.style.fontSize="15px"; h.style.margin="0 0 2px"; });
+    container.querySelectorAll("h2").forEach(h=>{ h.style.fontSize="11px"; h.style.margin="10px 0 3px"; });
+    document.body.appendChild(container);
+    await doc.html(container, {margin:[24,24,24,24], autoPaging:"text", width:550, windowWidth:550});
+    document.body.removeChild(container);
+    const blob = doc.output("blob");
+    const file = new File([blob], filename, {type:"application/pdf"});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:filename});
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+      toast("PDF descarregado — usa o teu email/WhatsApp para enviar");
+    }
+  }catch(e){
+    if(e.name !== "AbortError"){
+      console.error(e);
+      toast("Erro ao gerar PDF: " + (e.message||e).slice(0,100));
+    }
+  }
+}
+
+function mostrarAcoesRelatorio(html, filename){
+  document.getElementById("printReport").innerHTML = html;
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "relatorioAcoesOverlay";
+  overlay.innerHTML = `
+    <div class="modal" style="text-align:center;">
+      <h2>Relatório pronto</h2>
+      <div class="sub">Escolhe o que queres fazer com ele.</div>
+      <div class="modal-actions" style="flex-direction:column; gap:8px; margin-top:16px;">
+        <button class="btn-save" style="width:100%;" id="raImprimirBtn">🖨️ Imprimir / Guardar PDF</button>
+        <button class="btn-save" style="width:100%; background:none; border:1.5px solid var(--terracotta); color:var(--terracotta);" id="raPartilharBtn">📤 Partilhar (email, WhatsApp...)</button>
+        <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('relatorioAcoesOverlay').remove()">Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("raImprimirBtn").onclick = ()=>{
+    overlay.remove();
+    setTimeout(()=>window.print(), 100);
+  };
+  document.getElementById("raPartilharBtn").onclick = ()=>{
+    overlay.remove();
+    compartilharHtmlComoPDF(html, filename);
+  };
+}
+
 function generateComplianceReport(){
   let html = `<h1>CoreJoint · Relatório de Compliance</h1><div style="font-size:8px; color:#555; margin-bottom:6px;">Gerado em ${new Date().toLocaleDateString('pt-PT')} às ${new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}</div>`;
   html += complianceSectionHtml();
-  document.getElementById("printReport").innerHTML = html;
-  setTimeout(()=>window.print(), 100);
+  mostrarAcoesRelatorio(html, `CoreJoint_compliance_${todayStr()}.pdf`);
 }
 // Exceções conhecidas por loja (ajustar à medida que se confirma mais informação)
 const JSC_LOJAS = ["Almeirim", "Ponte de Sor"]; // só estas confirmadas com JSC por agora
@@ -1194,8 +1255,7 @@ function exportarSondagemPDF(id){
     html += `<tr><td class="name">${l}</td><td>${r ? r.opcao : '— sem resposta —'}</td></tr>`;
   });
   html += `</table>`;
-  document.getElementById("printReport").innerHTML = html;
-  setTimeout(()=>window.print(), 100);
+  mostrarAcoesRelatorio(html, `CoreJoint_sondagem_${todayStr()}.pdf`);
 }
 
 function exportarSondagemExcel(id){
@@ -1367,8 +1427,7 @@ function exportarFormularioPDF(id){
     html += `<tr><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
   });
   html += `</table>`;
-  document.getElementById("printReport").innerHTML = html;
-  setTimeout(()=>window.print(), 100);
+  mostrarAcoesRelatorio(html, `CoreJoint_formulario_${todayStr()}.pdf`);
 }
 
 function exportarFormularioExcel(id){
@@ -1751,8 +1810,7 @@ function exportarChecklistPDF(mesLabel, colunas, dados){
     html += `<tr><td class="name">${l}</td>${colunas.map(c=>`<td>${dados[l][c.key]}</td>`).join("")}</tr>`;
   });
   html += `</table>`;
-  document.getElementById("printReport").innerHTML = html;
-  setTimeout(()=>window.print(), 100);
+  mostrarAcoesRelatorio(html, `CoreJoint_checklist_${mes}.pdf`);
 }
 
 async function arquivarChecklist(mes, mesLabel, colunas, dados){
@@ -2141,8 +2199,7 @@ function exportarFichaPDF(loja, d){
   html += `<tr><td class="name">Sequência atual sem falhas</td><td>${d.streak} dias</td></tr>`;
   html += `<tr><td class="name">Dias sem qualquer envio</td><td>${d.ultimaAtividade===null ? '—' : d.ultimaAtividade}</td></tr>`;
   html += `</table>`;
-  document.getElementById("printReport").innerHTML = html;
-  setTimeout(()=>window.print(), 100);
+  mostrarAcoesRelatorio(html, `CoreJoint_ficha_${loja.replace(/\s+/g,"_")}.pdf`);
 }
 
 function openAgendamentosGlobal(){
@@ -2530,8 +2587,7 @@ async function generateMonthlyReport(){
 
   html += await avisosSectionHtml(inicioMes);
 
-  document.getElementById("printReport").innerHTML = html;
-  setTimeout(()=>window.print(), 100);
+  mostrarAcoesRelatorio(html, `CoreJoint_mensal_${mesKey(new Date())}.pdf`);
 }
 
 async function generateWeeklyReport(){
@@ -2609,8 +2665,7 @@ async function generateWeeklyReport(){
 
   html += await avisosSectionHtml(days[0]);
 
-  document.getElementById("printReport").innerHTML = html;
-  setTimeout(()=>window.print(), 100);
+  mostrarAcoesRelatorio(html, `CoreJoint_semanal_${todayStr()}.pdf`);
 }
 
 async function avisosSectionHtml(desde){
