@@ -158,7 +158,17 @@ function toast(msg){
   clearTimeout(window.__toastTimer);
   window.__toastTimer = setTimeout(()=>t.classList.remove("show"), dur);
 }
-function isoDate(d){ return d.toISOString().slice(0,10); }
+function isoDate(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function mesKey(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  return `${y}-${m}`;
+}
 function todayStr(){ return isoDate(new Date()); }
 function slug(s){ return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_").toLowerCase(); }
 
@@ -518,7 +528,7 @@ function render(){
       btn.onclick = ()=>openCapture("inv", c.key, c.label);
       wrap.appendChild(btn);
       if(c.key==="global"){
-        const mes = new Date().toISOString().slice(0,7);
+        const mes = mesKey(new Date());
         const ag = agendamentos.find(a=>a.mes===mes);
         const agRow = document.createElement("div");
         agRow.style.cssText = "margin:6px 0 12px 4px;";
