@@ -470,13 +470,16 @@ function render(){
   ];
 
   const tarefas = [];
+  const feitosHoje = [];
   VITRINE_TURNOS.forEach(t=>{
     const rec = dailyStatus("vitrine", today, t.key);
     if(!rec) tarefas.push({icon:t.icon, label:t.label, status:"⏳ Por enviar", cor:"var(--ink-soft)", urgencia:1, onclick:()=>openCapture("daily","vitrine",t.label,t.key)});
+    else feitosHoje.push(t.label.replace("Vitrine — ",""));
   });
   {
     const rec = dailyStatus("vendas", today, "unico");
     if(!rec) tarefas.push({icon:"🧾", label:"Vendas — Final do dia", status:"⏳ Por enviar", cor:"var(--ink-soft)", urgencia:1, onclick:()=>openCapture("daily","vendas","Vendas — Final do dia","unico")});
+    else feitosHoje.push("Vendas");
   }
 
   const dueInv = categoriasParaLoja(currentLoja).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado).filter(c=>{
@@ -514,6 +517,13 @@ function render(){
   });
 
   tarefas.sort((a,b)=>b.urgencia-a.urgencia);
+
+  if(feitosHoje.length>0){
+    const feitoLine = document.createElement("div");
+    feitoLine.style.cssText = "font-size:12px; color:var(--green); margin-bottom:10px;";
+    feitoLine.innerHTML = `✅ Já feito hoje: ${feitosHoje.join(", ")}`;
+    main.appendChild(feitoLine);
+  }
 
   if(isLastDaysOfMonth()){
     const warn = document.createElement("div");
