@@ -145,7 +145,7 @@ function categoriasParaLoja(loja){
 
 const params = new URLSearchParams(location.search);
 const currentLoja = params.get("loja") || "Loja não identificada";
-let dailyRows = [], invRows = [], agendamentos = [], sondagensPendentes = [], formulariosPendentes = [], avisosPendentes = [];
+let dailyRows = [], invRows = [], agendamentos = [], sondagensPendentes = [], formulariosPendentes = [], avisosPendentes = [], naoAplicaveis = [];
 let pendingPhotos = [];
 window.addEventListener("beforeunload", function(e){
   if(pendingPhotos.length>0){
@@ -401,6 +401,8 @@ async function loadAll(){
     dailyRows = await api("GET", `cj_daily_reportes?select=*${f}&order=data.desc`);
     invRows = await api("GET", `cj_inventario_reportes?select=*${f}&order=data.desc`);
     agendamentos = await api("GET", `cj_global_agendamento?select=*${f}`);
+    const naoAplicaveisRows = await api("GET", `cj_categoria_nao_aplicavel?select=categoria${f}`);
+    naoAplicaveis = naoAplicaveisRows.map(r=>r.categoria);
     const todasSondagens = await api("GET", "cj_sondagens?select=*&ativa=eq.true");
     const minhasRespostas = await api("GET", `cj_sondagens_respostas?select=*${f}`);
     sondagensPendentes = todasSondagens.filter(s=>
@@ -547,7 +549,7 @@ function render(){
   });
   main.appendChild(hojeGrid);
 
-  const dueInv = categoriasParaLoja(currentLoja).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado).filter(c=>{
+  const dueInv = categoriasParaLoja(currentLoja).filter(c=>!naoAplicaveis.includes(c.key)).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado).filter(c=>{
     if(c.key!=="global") return true;
     const mesAtual = mesKey(new Date());
     const ag = agendamentos.find(a=>a.mes===mesAtual);
@@ -633,7 +635,7 @@ function render(){
     }
   }
 
-  const dueMkt = MARKETING_CATS.map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>c.st.state!=="ok");
+  const dueMkt = MARKETING_CATS.filter(c=>!naoAplicaveis.includes(c.key)).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>c.st.state!=="ok");
   if(dueMkt.length>0){
     const folderBtn = document.createElement("button");
     folderBtn.style.cssText = "width:100%; display:flex; align-items:center; gap:10px; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,.06); margin-bottom:14px;";
