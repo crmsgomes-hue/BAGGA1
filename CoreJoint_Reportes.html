@@ -2692,6 +2692,20 @@ function abrirListaResumo(titulo, itens){
   });
 }
 
+async function resetDadosTeste(){
+  if(!confirm("⚠ ATENÇÃO: isto apaga TODOS os dados de teste (Reportes, Fardamento, Adendas, Sondagens, Formulários, Avisos, Checklists, Fichas) em TODAS as lojas.\n\nA tua subscrição de notificações fica intacta.\n\nDe certeza que queres continuar?")) return;
+  if(!confirm("Última confirmação: isto é IRREVERSÍVEL. Confirmas mesmo?")) return;
+  try{
+    toast("A limpar tudo...");
+    await api("POST", "rpc/reset_dados_teste", {});
+    mostrarSucesso("Tudo limpo! Pronto para começar de novo.");
+    render();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao limpar: " + (e.message||e).slice(0,100));
+  }
+}
+
 function abrirMenuFerramentas(ferramentas){
   const overlay = document.createElement("div");
   overlay.className = "overlay";
@@ -2739,7 +2753,8 @@ function renderGestao(){
     {icon:"📝", label:"Formulário", fn:openFormularios},
     {icon:"📢", label:"Avisos dados", fn:openAvisos},
     {icon:"✅", label:"Checklist do mês", fn:openChecklistMensal},
-    {icon:"🏪", label:"Ficha da Loja", fn:openFichaGerente}
+    {icon:"🏪", label:"Ficha da Loja", fn:openFichaGerente},
+    {icon:"🗑️", label:"Reset total (limpar testes)", fn:resetDadosTeste}
   ];
   const todasFerramentas = [...principais, ...secundarias];
 
