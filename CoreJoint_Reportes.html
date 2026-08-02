@@ -265,7 +265,7 @@ async function compartilharHtmlComoPDF(htmlContent, filename){
     container.querySelectorAll("h1").forEach(h=>{ h.style.fontSize="15px"; h.style.margin="0 0 2px"; });
     container.querySelectorAll("h2").forEach(h=>{ h.style.fontSize="11px"; h.style.margin="10px 0 3px"; });
     document.body.appendChild(container);
-    await doc.html(container, {margin:[24,24,24,24], autoPaging:"text", width:550, windowWidth:550});
+    await doc.html(container, {margin:[24,24,24,24], autoPaging:"text", width:550, windowWidth:550, html2canvas:{scale:3, useCORS:true}});
     document.body.removeChild(container);
     const blob = doc.output("blob");
     const file = new File([blob], filename, {type:"application/pdf"});
