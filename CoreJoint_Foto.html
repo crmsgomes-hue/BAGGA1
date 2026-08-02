@@ -96,6 +96,7 @@
   <h1 id="titleLoja">Foto do dia</h1>
   <p id="dateSub"></p>
   <button id="notifBtnLoja" onclick="ativarNotificacoesLoja()" style="background:var(--terracotta,#C1622E); color:#fff; border:none; padding:10px 16px; border-radius:20px; font-size:13px; font-weight:600; margin-top:8px;">🔔 Ativar avisos desta loja</button>
+  <button onclick="testarNotificacaoLoja()" style="background:none; color:var(--terracotta,#C1622E); border:1.5px solid var(--terracotta,#C1622E); padding:9px 15px; border-radius:20px; font-size:13px; font-weight:600; margin-top:8px; margin-left:8px;">🔔 Testar agora</button>
 </header>
 <main id="main"></main>
 <div id="toast" class="toast"></div>
@@ -274,6 +275,19 @@ function urlBase64ToUint8Array(base64String){
   const rawData = atob(base64);
   return Uint8Array.from([...rawData].map(c=>c.charCodeAt(0)));
 }
+async function testarNotificacaoLoja(){
+  try{
+    toast("A enviar notificação de teste...");
+    const res = await fetch(`https://isdaegejkxgtzjcpzstr.supabase.co/functions/v1/send-daily-alerts?tipo=teste&loja=${encodeURIComponent(currentLoja)}`);
+    const data = await res.json();
+    if(data.sent>0) toast("Enviada! Deves recebê-la em segundos.");
+    else toast("Ainda não tens notificações ativas — ativa primeiro.");
+  }catch(e){
+    console.error(e);
+    toast("Erro ao testar notificação");
+  }
+}
+
 async function ativarNotificacoesLoja(){
   const btn = document.getElementById("notifBtnLoja");
   if(!("serviceWorker" in navigator) || !("PushManager" in window)){
