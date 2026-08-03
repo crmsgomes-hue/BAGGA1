@@ -204,10 +204,9 @@ const MARKETING_CATS = [
   {key:"orelhas", label:"Orelhas", freq:"mensal_inicio"},
   {key:"horarios", label:"Horários", freq:"mensal_inicio"},
   {key:"preventiva_delta", label:"Preventiva Delta", freq:"mensal_inicio"},
-  {key:"limpeza_prelatores", label:"Limpeza Prelatores", freq:"semestral_jul_dez"},
   {key:"aps", label:"APS", freq:"mensal_dia20"}
 ];
-const COMPLIANCE_KEYS = ["limpeza_prelatores"];
+const COMPLIANCE_KEYS = [];
 function categoriasCompliance(loja){
   return [...categoriasParaLoja(loja), ...MARKETING_CATS].filter(c=>COMPLIANCE_KEYS.includes(c.key));
 }
