@@ -124,7 +124,6 @@ const MARKETING_CATS = [
   {key:"orelhas", label:"Orelhas", freq:"mensal_inicio"},
   {key:"horarios", label:"Horários", freq:"mensal_inicio"},
   {key:"preventiva_delta", label:"Preventiva Delta", freq:"mensal_inicio"},
-  {key:"limpeza_prelatores", label:"Limpeza Prelatores", freq:"semestral_jul_dez"},
   {key:"aps", label:"APS", freq:"mensal_dia20"}
 ];
 // Exceções conhecidas por loja (ajustar à medida que se confirma mais informação)
@@ -657,7 +656,7 @@ function render(){
       const late = c.st.state==="late";
       const tile = document.createElement("button");
       tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:var(--card); border:1.5px solid ${late?'var(--red)':'var(--line)'}; border-radius:12px; padding:12px 4px; text-align:center;`;
-      const iconesCategoria = {cavalete:"🏷️", toalhetes:"🏷️", orelhas:"🏷️", horarios:"🕒", preventiva_delta:"🔧", limpeza_prelatores:"🧹", aps:"📋"};
+      const iconesCategoria = {cavalete:"🏷️", toalhetes:"🏷️", orelhas:"🏷️", horarios:"🕒", preventiva_delta:"🔧", aps:"📋"};
       const iconeItem = iconesCategoria[c.key] || "📋";
       tile.innerHTML = `<span style="font-size:20px;">${iconeItem}</span><span style="font-size:11px; font-weight:700; line-height:1.2;">${c.label}</span><span style="font-size:9.5px; font-weight:700; color:${late?'var(--red)':'var(--ink-soft)'};">${late?'⚠ Atrasado':'⏳ Por fazer'}</span><span style="font-size:8px; color:var(--ink-soft); line-height:1.2;">${descricaoRegra(c.key, c.freq)}</span>`;
       tile.onclick = ()=>openCapture("marketing", c.key, c.label);
