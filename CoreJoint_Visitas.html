@@ -2606,6 +2606,52 @@ async function loadGopsEmVisita(){
 }
 
 
+// Coordenadas das lojas Bagga
+var LOJA_COORDS={
+  bombarral:[39.283,-9.156],peniche:[39.356,-9.381],rio_maior:[39.336,-8.939],
+  caldas:[39.402,-9.137],carregado:[38.994,-8.971],torres_novas_mch:[39.480,-8.536],
+  ponte_sor:[39.254,-8.012],santarem:[39.235,-8.685],almeirim:[39.211,-8.629],
+  marechal_g_cos:[38.856,-9.179],belas:[38.819,-9.270],loures:[38.832,-9.169],
+  s_joao_talha:[38.849,-9.088],arroja:[38.816,-9.051],malveira:[38.931,-9.268],
+  mafra_mh:[38.935,-9.332],mafra_mch:[38.935,-9.332],vf_xira:[38.951,-8.985],
+  alverca:[38.895,-9.030],montelavar:[38.882,-9.350],torres_vedras:[39.093,-9.261],
+  estoril:[38.703,-9.393],porto_alto_i:[38.900,-8.850],s_magos:[38.851,-8.894],
+  vasco_da_gama:[38.765,-9.099],colombo:[38.757,-9.159],alto_lumiar:[38.780,-9.162],
+  alta_lisboa:[38.784,-9.152],defens_chaves:[38.769,-9.200],
+  sesimbra:[38.444,-9.099],barreiro_mch:[38.659,-9.070],setubal:[38.524,-8.893],
+  moita:[38.638,-9.017],palmela:[38.571,-8.902],alhos_vedros:[38.656,-9.024],
+  quinta_conde:[38.565,-8.898],pinhal_novo:[38.626,-8.916],mdl_seixal:[38.637,-9.098],
+  sines:[37.956,-8.866],grandola:[38.174,-8.566],beja_retail_mh:[38.015,-7.863],
+  evora:[38.571,-7.906],beja_mch:[38.015,-7.863],estremoz:[38.843,-7.590],
+  reguengos:[38.414,-7.534],sintra:[38.801,-9.379],tapada_merces:[38.730,-9.262],
+  carcavelos:[38.685,-9.330],mem_martins:[38.774,-9.349],tires:[38.718,-9.349],
+  cacem:[38.769,-9.296],loule_mh:[37.136,-8.024],silves:[37.190,-8.439],
+  lagos:[37.102,-8.673],quarteira:[37.066,-8.102],vrs_antonio:[37.200,-8.580],
+  olhao:[37.028,-7.841],faro:[37.019,-7.930],odiaxere:[37.152,-8.599],
+  loule_mch:[37.136,-8.024],portimao_ii:[37.136,-8.536],
+  lamego:[41.101,-7.812],chaves:[41.739,-7.470],braganca:[41.806,-6.757],
+  amarante:[41.270,-8.081],mirandela:[41.487,-7.180],santo_tirso:[41.341,-8.475],
+  ponte_lima:[41.768,-8.581],moncao:[42.075,-8.484],vizela:[41.381,-8.300],
+  viana_castelo:[41.694,-8.830],marco_canav_ii:[41.193,-8.153],fafe:[41.451,-8.176],
+  esposende:[41.534,-8.779],maia_jard_mch:[41.235,-8.618],norte_shopping:[41.188,-8.613],
+  leca_balio:[41.192,-8.626],maia_mira_mh:[41.235,-8.618],paredes:[41.206,-8.332],
+  penafiel:[41.207,-8.287],trofa:[41.338,-8.557],camara_lobos:[32.649,-16.978],
+  machico:[32.715,-16.766],famalicao_r:[41.408,-8.520],braga:[41.550,-8.426],
+  barcelos:[41.538,-8.620],s_m_feira:[40.916,-8.547],fanzeres:[41.153,-8.555],
+  valbom:[41.163,-8.546],ovar_mch:[40.865,-8.625],rio_tinto:[41.172,-8.564],
+  oliveira_azeme:[40.820,-8.490],ermesinde:[41.221,-8.549],maia_a_sant_mh:[41.235,-8.618],
+  valongo:[41.189,-8.499],areosa:[41.694,-8.830],s_joao_madeira:[40.900,-8.490],
+  vila_conde:[41.355,-8.748],povoa_varzim:[41.381,-8.762],ilhavo:[40.601,-8.668],
+  cantanhede:[40.345,-8.596],anadia:[40.436,-8.435],agueda:[40.574,-8.448],
+  gaia:[41.134,-8.673],figueira_foz:[40.151,-8.860],avintes:[41.110,-8.612],
+  guarda:[40.537,-7.268],mangualde:[40.602,-7.763],s_felix_marinh:[41.034,-8.542],
+  gulpilhares:[41.066,-8.653],vale_cambra:[40.841,-8.395],tomar:[39.602,-8.412],
+  ourem:[39.656,-8.577],coimbra:[40.208,-8.423],nazare:[39.602,-9.071],
+  abrantes:[39.461,-8.197],forum_coimbra:[40.208,-8.423],leiria:[39.748,-8.801],
+  marinha_grande:[39.755,-8.932],porto_de_mos:[39.604,-8.821],fundao:[40.138,-7.501],
+  castelo_branco:[39.820,-7.492],pombal:[39.918,-8.630],lousa:[40.118,-8.248]
+};
+
 async function loadMapaGops(){
   await renderMapa(null);
 }
