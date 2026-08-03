@@ -2625,6 +2625,25 @@ async function garantirLeaflet(){
 let _mapaInst = null;
 let _mapaGen = 0;
 
+// Fetch directo sem header Prefer (evita contagem lenta) e com timeout de 12s
+async function mapFetch(table, qs){
+  const ac = new AbortController();
+  const timer = setTimeout(()=>ac.abort(), 12000);
+  try{
+    const url = SB+'/rest/v1/'+table+(qs?'?'+qs:'');
+    const r = await fetch(url,{
+      signal: ac.signal,
+      headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Accept':'application/json'}
+    });
+    clearTimeout(timer);
+    if(!r.ok) return [];
+    return await r.json();
+  }catch(e){
+    clearTimeout(timer);
+    return [];
+  }
+}
+
 async function renderMapa(dataFiltro){
   if(!CU || CU.role!=='crop') return;
 
@@ -2667,7 +2686,7 @@ async function renderMapa(dataFiltro){
     const dataPT = dia+'/'+mes+'/'+ano;
 
     if(eHoje){
-      const rasc = await dbGet('cj_visitas_rascunhos','select=loja,saved_by,hora_inicio,data')||[];
+      const rasc = await mapFetch('cj_visitas_rascunhos','select=loja,saved_by,hora_inicio,data');
       if(gen !== _mapaGen) return;
       rasc.filter(r=>(r.data||'').slice(0,10)===hoje && r.saved_by&&r.saved_by.startsWith('GOP') && lojasDaRegiao.includes(r.loja))
           .forEach(r=>pontos.push({loja:r.loja,nome:r.saved_by,hora:(r.hora_inicio||'').slice(0,5),terminada:false}));
@@ -2678,7 +2697,7 @@ async function renderMapa(dataFiltro){
     const dataObj = new Date(data+'T00:00:00Z');
     const dataAnterior = new Date(dataObj.getTime() - 24*60*60*1000).toISOString().slice(0,10);
     const dataFollowing = new Date(dataObj.getTime() + 2*24*60*60*1000).toISOString().slice(0,10);
-    const hist = await dbGet('cj_historico','select=loja,saved_by,hora,data&created_at=gt.'+dataAnterior+'T00:00:00Z&created_at=lt.'+dataFollowing+'T00:00:00Z')||[];
+    const hist = await mapFetch('cj_historico','select=loja,saved_by,hora,data&created_at=gt.'+dataAnterior+'T00:00:00Z&created_at=lt.'+dataFollowing+'T00:00:00Z');
     if(gen !== _mapaGen) return;
     const lojasActivas = new Set(pontos.map(p=>p.loja+'|'+p.nome));
     hist.filter(r=>r.data===dataPT && r.saved_by&&r.saved_by.startsWith('GOP') && lojasDaRegiao.includes(r.loja))
