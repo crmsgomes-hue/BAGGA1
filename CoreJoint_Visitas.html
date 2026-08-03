@@ -2681,7 +2681,7 @@ async function renderMapa(dataFiltro){
   // ── Buscar rascunhos activos (hoje) ─────────────────────────────────────────
   const pontos=[];
   if(eHoje){
-    const rasc = await mapFetch('cj_visitas_rascunhos','select=loja,saved_by,hora_inicio,data');
+      const rasc = await sb('GET','cj_visitas_rascunhos',null,'select=loja,saved_by,hora_inicio,data',true)||[];
     rasc.forEach(r=>{
       if((r.data||'').slice(0,10)!==hoje) return;
       if(!r.saved_by||!r.saved_by.startsWith('GOP')) return;
@@ -2693,8 +2693,8 @@ async function renderMapa(dataFiltro){
   // ── Buscar histórico (filtro created_at para não varrer html) ───────────────
   const dBefore = new Date(new Date(data+'T12:00:00Z').getTime()-86400000).toISOString().slice(0,10);
   const dAfter  = new Date(new Date(data+'T12:00:00Z').getTime()+86400000*2).toISOString().slice(0,10);
-  const hist = await mapFetch('cj_historico',
-    'select=loja,saved_by,hora,data&created_at=gt.'+dBefore+'T00:00:00Z&created_at=lt.'+dAfter+'T00:00:00Z');
+  const hist = await sb('GET','cj_historico',null,
+    'select=loja,saved_by,hora,data&created_at=gt.'+dBefore+'T00:00:00Z&created_at=lt.'+dAfter+'T00:00:00Z',true)||[];
 
   const lojasActivas = new Set(pontos.map(p=>p.loja+'|'+p.nome));
   hist.forEach(r=>{
