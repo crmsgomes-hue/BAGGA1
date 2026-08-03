@@ -686,7 +686,7 @@ function openCapture(kind, key, label, turno){
     <div class="modal">
       <h2>${label}</h2>
       <div class="sub">${currentLoja} · ${new Date().toLocaleDateString('pt-PT')}</div>
-      <label class="filebtn">📷 Tirar foto<input type="file" accept="image/*" capture="environment" id="capFile"></label>
+      <label class="filebtn">📷 Tirar foto ou escolher da galeria<input type="file" accept="image/*" id="capFile"></label>
       <div class="sub" style="margin-top:2px;">Podes tirar várias fotos (ex: montra grande) — cada uma soma às outras.</div>
       <div id="capThumbs" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;"></div>
       ${isInv ? `
@@ -701,12 +701,12 @@ function openCapture(kind, key, label, turno){
         </div>
         <div class="field">
           <label>Foto(s) da entrada justificada</label>
-          <label class="filebtn" style="display:block; text-align:center;">📷 Tirar foto<input type="file" accept="image/*" capture="environment" id="capFileEntrada"></label>
+          <label class="filebtn" style="display:block; text-align:center;">📷 Tirar foto ou escolher da galeria<input type="file" accept="image/*" id="capFileEntrada"></label>
           <div id="capThumbsEntrada" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;"></div>
         </div>
         <div class="field">
           <label>Foto(s) do desperdício</label>
-          <label class="filebtn" style="display:block; text-align:center;">📷 Tirar foto<input type="file" accept="image/*" capture="environment" id="capFileDesperdicio"></label>
+          <label class="filebtn" style="display:block; text-align:center;">📷 Tirar foto ou escolher da galeria<input type="file" accept="image/*" id="capFileDesperdicio"></label>
           <div id="capThumbsDesperdicio" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;"></div>
         </div>` : ``}
       ` : ``}
