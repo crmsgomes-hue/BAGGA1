@@ -686,7 +686,10 @@ function openCapture(kind, key, label, turno){
     <div class="modal">
       <h2>${label}</h2>
       <div class="sub">${currentLoja} · ${new Date().toLocaleDateString('pt-PT')}</div>
-      <label class="filebtn">📷 Tirar foto ou escolher da galeria<input type="file" accept="image/*" id="capFile"></label>
+      <div style="display:flex; gap:8px;">
+        <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" id="capFile"></label>
+        <label class="filebtn" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);">🖼️ Galeria<input type="file" accept="image/*" id="capFileGaleria"></label>
+      </div>
       <div class="sub" style="margin-top:2px;">Podes tirar várias fotos (ex: montra grande) — cada uma soma às outras.</div>
       <div id="capThumbs" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;"></div>
       ${isInv ? `
@@ -701,12 +704,18 @@ function openCapture(kind, key, label, turno){
         </div>
         <div class="field">
           <label>Foto(s) da entrada justificada</label>
-          <label class="filebtn" style="display:block; text-align:center;">📷 Tirar foto ou escolher da galeria<input type="file" accept="image/*" id="capFileEntrada"></label>
+          <div style="display:flex; gap:8px;">
+            <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" id="capFileEntrada"></label>
+            <label class="filebtn" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);">🖼️ Galeria<input type="file" accept="image/*" id="capFileEntradaGaleria"></label>
+          </div>
           <div id="capThumbsEntrada" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;"></div>
         </div>
         <div class="field">
           <label>Foto(s) do desperdício</label>
-          <label class="filebtn" style="display:block; text-align:center;">📷 Tirar foto ou escolher da galeria<input type="file" accept="image/*" id="capFileDesperdicio"></label>
+          <div style="display:flex; gap:8px;">
+            <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" id="capFileDesperdicio"></label>
+            <label class="filebtn" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);">🖼️ Galeria<input type="file" accept="image/*" id="capFileDesperdicioGaleria"></label>
+          </div>
           <div id="capThumbsDesperdicio" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;"></div>
         </div>` : ``}
       ` : ``}
@@ -724,10 +733,15 @@ function openCapture(kind, key, label, turno){
   `;
   document.body.appendChild(overlay);
   document.getElementById("capFile").addEventListener("change", handleCapFile);
+  document.getElementById("capFileGaleria").addEventListener("change", handleCapFile);
   const entradaInput = document.getElementById("capFileEntrada");
   if(entradaInput) entradaInput.addEventListener("change", handleCapFileEntrada);
+  const entradaGaleriaInput = document.getElementById("capFileEntradaGaleria");
+  if(entradaGaleriaInput) entradaGaleriaInput.addEventListener("change", handleCapFileEntrada);
   const desperdicioInput = document.getElementById("capFileDesperdicio");
   if(desperdicioInput) desperdicioInput.addEventListener("change", handleCapFileDesperdicio);
+  const desperdicioGaleriaInput = document.getElementById("capFileDesperdicioGaleria");
+  if(desperdicioGaleriaInput) desperdicioGaleriaInput.addEventListener("change", handleCapFileDesperdicio);
 }
 function closeCapture(){
   const o = document.getElementById("capOverlay");
