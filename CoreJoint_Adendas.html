@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, user-scalable=yes">
-<title>CoreJoint · Adendas</title>
+<title>CoreJoint · RH</title>
 <link rel="manifest" href="manifest-adendas.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -132,7 +132,7 @@
 
 
 <div id="login">
-  <h1>CoreJoint · Adendas</h1>
+  <h1>CoreJoint · RH</h1>
   <p>Controlo de impressão, entrega, assinatura e envio das adendas.</p>
   <div style="display:flex; flex-direction:column; gap:10px; width:100%; max-width:280px;">
     <button onclick="doLoginAs('Cristina')" style="padding:16px; font-size:17px; font-weight:600; border-radius:14px; border:none; background:var(--terracotta,#C1622E); color:#fff;">Cristina</button>
@@ -144,7 +144,7 @@
   <header>
     <div class="headrow">
       <div>
-        <h1>Adendas</h1>
+        <h1>RH</h1>
         <div class="who" id="whoLabel"></div>
       </div>
       <button class="newbtn" onclick="openNew()">+ Nova adenda</button>
@@ -1184,7 +1184,7 @@ function gerarRelatorioSemanal(){
   const ativas = rows.filter(r=>!r.arquivada);
   const concluidasSemana = rows.filter(r=>r.enviada_em && new Date(r.enviada_em) >= semanaAtras);
 
-  let html = `<h1>CoreJoint · Adendas — Relatório Semanal</h1>
+  let html = `<h1>CoreJoint · RH — Relatório Semanal</h1>
   <div style="font-size:8px; color:#555; margin-bottom:6px;">Gerado em ${hoje.toLocaleDateString('pt-PT')}</div>`;
 
   html += `<h2>Em curso (${ativas.length})</h2><table><tr><th>Colaborador</th><th>Tipo</th><th>Loja</th><th>Estado</th><th>Última atualização</th></tr>`;
