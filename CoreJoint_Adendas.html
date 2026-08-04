@@ -149,6 +149,7 @@
       </div>
       <button class="newbtn" onclick="openNew()">+ Nova adenda</button>
     </div>
+    <button id="trocarUserBtnRH" onclick="trocarUtilizadorRH()" style="width:100%; background:var(--terracotta,#C1622E); border:none; color:#fff; border-radius:14px; padding:14px; font-size:18px; font-weight:800; cursor:pointer; margin:8px 0; box-shadow:0 3px 8px rgba(0,0,0,.2);">🔄 Trocar utilizador</button>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
       <a href="CoreJoint_Hub.html" style="font-size:12px; color:var(--ink-soft); text-decoration:none;">⌂ CoreJoint</a>
       <span onclick="resetDadosTesteAdendas()" style="font-size:11px; color:var(--red); text-decoration:underline; cursor:pointer;">🗑️ Reset total</span>
@@ -248,6 +249,17 @@ async function loadRows(){
   }
 }
 
+function trocarUtilizadorRH(){
+  currentUser = currentUser === "Cristina" ? "João" : "Cristina";
+  localStorage.setItem("cj_adendas_user", currentUser);
+  atualizarBotaoTrocarRH();
+  toast(`Agora estás como ${currentUser}`);
+}
+function atualizarBotaoTrocarRH(){
+  const btn = document.getElementById("trocarUserBtnRH");
+  if(btn) btn.textContent = `🔄 ${currentUser || "Trocar utilizador"}`;
+}
+
 function doLoginAs(name){
   currentUser = name;
   localStorage.setItem("cj_adendas_user", name);
@@ -258,6 +270,7 @@ function startApp(){
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "block";
   document.getElementById("whoLabel").textContent = "Sessão: " + currentUser;
+  atualizarBotaoTrocarRH();
   const lojaParam = new URLSearchParams(location.search).get("loja");
   if(lojaParam){
     const searchEl = document.getElementById("searchColab");
