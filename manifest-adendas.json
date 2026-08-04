@@ -1,7 +1,7 @@
 {
-  "name": "CoreJoint · Adendas",
-  "short_name": "CJ Adendas",
-  "description": "Controlo de adendas · Bagga",
+  "name": "CoreJoint · RH",
+  "short_name": "CJ RH",
+  "description": "Controlo de RH · Bagga",
   "id": "corejoint-adendas",
   "start_url": "./CoreJoint_Adendas.html",
   "scope": "./CoreJoint_Adendas.html",
