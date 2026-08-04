@@ -277,35 +277,41 @@ function bigPhoto(urls, indice){
     const TURNO_LABELS_H = {manha:"Manhã", almoco:"Almoço", lanche:"Lanche", unico:""};
     const todasCatsLabel = {};
     [...INV_CATS, ...MARKETING_CATS].forEach(c=>todasCatsLabel[c.key]=c.label);
-    const todasFotos = [];
+    function fotoUrlH(f){ return typeof f === "string" ? f : (f && f.url) || ""; }
+    function fotoLegendaH(f){ return (f && typeof f === "object" && f.legenda) || ""; }
+
+    const submissoes = [];
     dailyFotos.forEach(r=>{
-      (r.fotos||[]).forEach(f=>{
-        const url = typeof f === "string" ? f : (f && f.url) || "";
-        if(url) todasFotos.push({url, loja:r.loja, titulo: r.tipo==="vitrine" ? `Vitrine — ${TURNO_LABELS_H[r.turno]||r.turno}` : "Vendas", criado_em:r.criado_em});
-      });
+      if(!(r.fotos||[]).length) return;
+      submissoes.push({loja:r.loja, titulo: r.tipo==="vitrine" ? `Vitrine — ${TURNO_LABELS_H[r.turno]||r.turno}` : "Vendas", data:r.data, criado_em:r.criado_em, fotos:r.fotos});
     });
     invFotos.forEach(r=>{
-      (r.fotos||[]).forEach(f=>{
-        const url = typeof f === "string" ? f : (f && f.url) || "";
-        if(url) todasFotos.push({url, loja:r.loja, titulo: todasCatsLabel[r.categoria]||r.categoria, criado_em:r.criado_em});
-      });
+      if(!(r.fotos||[]).length) return;
+      submissoes.push({loja:r.loja, titulo: todasCatsLabel[r.categoria]||r.categoria, data:r.data, criado_em:r.criado_em, fotos:r.fotos});
     });
-    todasFotos.sort((a,b)=> new Date(b.criado_em) - new Date(a.criado_em));
+    submissoes.sort((a,b)=> new Date(b.criado_em) - new Date(a.criado_em));
     const porLoja = {};
-    todasFotos.forEach(f=>{ (porLoja[f.loja] ||= []).push(f); });
+    submissoes.forEach(s=>{ (porLoja[s.loja] ||= []).push(s); });
 
     if(Object.keys(porLoja).length>0){
-      let html = `<div class="sec-label">Fotos recentes por loja</div>`;
+      let html = `<div class="sec-label">Fotos recentes</div>`;
       const gruposUrls = [];
       LOJAS.filter(l=>porLoja[l]).forEach(l=>{
-        const fotosLoja = porLoja[l].slice(0,8);
-        const gi = gruposUrls.push(fotosLoja.map(f=>f.url)) - 1;
         html += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">
-          <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.85rem; margin-bottom:8px;">${l}</div>
-          <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;">
-            ${fotosLoja.map((f,fi)=>`<div style="flex-shrink:0; width:92px;"><img src="${f.url}" data-gi="${gi}" data-fi="${fi}" style="width:92px; height:72px; object-fit:cover; border-radius:8px; border:1px solid var(--br); cursor:pointer; display:block;"><div style="font-size:.62rem; color:var(--t2); margin-top:3px; line-height:1.2;">${f.titulo}</div></div>`).join("")}
-          </div>
-        </div>`;
+          <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.9rem; margin-bottom:10px;">${l}</div>`;
+        porLoja[l].slice(0,4).forEach(s=>{
+          const urls = s.fotos.map(fotoUrlH);
+          const gi = gruposUrls.push(urls) - 1;
+          const leg = fotoLegendaH(s.fotos[0]);
+          html += `
+            <div style="font-size:.72rem; font-weight:700; color:var(--t2); margin-bottom:6px;">${s.titulo} · ${new Date(s.data+"T00:00:00").toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit',month:'2-digit'})}</div>
+            <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:6px;">
+              ${urls.map((u,fi)=>`<img src="${u}" data-gi="${gi}" data-fi="${fi}" style="flex-shrink:0; width:130px; height:100px; object-fit:cover; border-radius:8px; border:1px solid var(--br); cursor:pointer; display:block;">`).join("")}
+            </div>
+            <div style="font-style:italic; font-size:.68rem; color:var(--t3); margin-bottom:12px;">${leg || "Sem comentário"}</div>
+          `;
+        });
+        html += `</div>`;
       });
       const wrap = document.createElement("div");
       wrap.innerHTML = html;
