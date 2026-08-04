@@ -306,11 +306,14 @@ function render(){
   const list = filter==="ativas" ? active : done;
 
   if(filter==="ativas"){
-    if(active.length>0){
+    const activeCompleta = active.filter(r=>!r.tipo || r.tipo==="Alteração de horário");
+    const activeSimplificada = active.filter(r=>r.tipo && r.tipo!=="Alteração de horário");
+
+    if(activeCompleta.length>0){
       const summary = document.createElement("div");
       summary.style.cssText = "display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;";
       STAGES.forEach((stage, idx)=>{
-        const n = active.filter(r=>currentStageIndex(r)===idx).length;
+        const n = activeCompleta.filter(r=>currentStageIndex(r)===idx).length;
         if(n===0) return;
         summary.innerHTML += `<span style="font-size:11px; font-weight:600; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:4px 10px;">${n} ${stage.label}</span>`;
       });
@@ -318,7 +321,7 @@ function render(){
     }
     // group by stage
     STAGES.forEach((stage, idx)=>{
-      const inStage = active.filter(r=>currentStageIndex(r)===idx);
+      const inStage = activeCompleta.filter(r=>currentStageIndex(r)===idx);
       if(inStage.length===0) return;
       const h = document.createElement("div");
       h.className="section-title";
@@ -335,6 +338,16 @@ function render(){
       inStage.sort((a,b)=> new Date(a.updated_at) - new Date(b.updated_at));
       inStage.forEach(r=>main.appendChild(renderCard(r, idx)));
     });
+
+    if(activeSimplificada.length>0){
+      const h = document.createElement("div");
+      h.className = "section-title";
+      h.textContent = `Outros tipos · ${activeSimplificada.length}`;
+      main.appendChild(h);
+      activeSimplificada.sort((a,b)=> new Date(b.criado_em) - new Date(a.criado_em));
+      activeSimplificada.forEach(r=>main.appendChild(renderCard(r)));
+    }
+
     if(active.length===0){
       main.innerHTML = '<div class="empty">Sem adendas em curso. Toca em "+ Nova adenda" para começar.</div>';
     }
@@ -358,6 +371,9 @@ function render(){
 }
 
 function renderCard(r, stageIdx){
+  if(r.tipo && r.tipo !== "Alteração de horário"){
+    return renderCardSimplificada(r);
+  }
   const div = document.createElement("div");
   div.className = "card";
   const stage = STAGES[stageIdx];
@@ -450,6 +466,58 @@ function renderCard(r, stageIdx){
     }
   }, 0);
   return div;
+}
+
+function renderCardSimplificada(r){
+  const div = document.createElement("div");
+  div.className = "card";
+  const d = daysSince(r.updated_at || r.criado_em);
+  const bClass = badgeClass(d);
+  const dayLabel = d===0 ? "hoje" : d===1 ? "há 1 dia" : `há ${d} dias`;
+
+  const docHtml = r.documento_upload
+    ? `<div class="card-meta" style="margin-top:8px; text-decoration:underline; cursor:pointer;" onclick="viewPhoto('${r.documento_upload.replace(/'/g,"")}','${(r.colaborador||'documento').replace(/'/g,"")}')">📄 Ver documento</div>`
+    : `<div class="card-meta" style="margin-top:8px; color:var(--ink-soft);">Sem documento anexado</div>`;
+
+  const assinaturasHtml = r.precisa_assinaturas
+    ? `<div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+        <input type="checkbox" ${r.assinaturas_recolhidas?'checked':''} onchange="toggleCampoSimples(${r.id},'assinaturas_recolhidas',this.checked)" style="width:18px; height:18px;">
+        <span style="font-size:13px;">Assinaturas recolhidas</span>
+      </div>`
+    : ``;
+
+  const rhHtml = `<div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+    <input type="checkbox" ${r.enviada_rh?'checked':''} onchange="toggleCampoSimples(${r.id},'enviada_rh',this.checked)" style="width:18px; height:18px;">
+    <span style="font-size:13px;">Enviada aos RH</span>
+  </div>`;
+
+  div.innerHTML = `
+    <div class="card-top">
+      <div>
+        <div class="card-meta" style="margin-top:0;">${r.loja ? escapeHtml(r.loja) : ''}</div>
+        <div class="card-name">${escapeHtml(r.colaborador)}</div>
+        <div class="card-meta">${escapeHtml(r.tipo||'Adenda')}</div>
+      </div>
+      <span class="badge ${bClass}">${dayLabel}</span>
+    </div>
+    ${docHtml}
+    ${assinaturasHtml}
+    ${rhHtml}
+  `;
+  return div;
+}
+
+async function toggleCampoSimples(id, campo, valor){
+  try{
+    const patch = {[campo]: valor, updated_at: new Date().toISOString()};
+    if(campo==="enviada_rh" && valor){ patch.enviada_em = new Date().toISOString(); patch.enviada_por = currentUser; patch.arquivada = true; }
+    if(campo==="enviada_rh" && !valor){ patch.arquivada = false; }
+    await api("PATCH", `${TABLE}?id=eq.${id}`, patch);
+    await loadRows();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao atualizar");
+  }
 }
 
 function escapeHtml(s){
@@ -804,14 +872,28 @@ function openNew(){
       </div>
       <div class="field">
         <label>Tipo de adenda</label>
-        <select id="fTipo">
+        <select id="fTipo" onchange="toggleCamposSimplificados()">
           <option>Alteração de horário</option>
-          <option>Carta de demissão</option>
+          <option>Carta de rescisão</option>
           <option>Carta de efetividade</option>
           <option>Pluralidade</option>
           <option>Pedido de flexibilidade</option>
           <option>Outra</option>
         </select>
+      </div>
+      <div id="camposSimplificados" style="display:none;">
+        <div class="field">
+          <label>Documento (upload, opcional)</label>
+          <input type="file" id="fDocumentoUpload" accept="application/pdf,image/*">
+        </div>
+        <div class="field" style="display:flex; align-items:center; gap:10px;">
+          <input type="checkbox" id="fPrecisaAssinaturas" style="width:18px; height:18px;">
+          <label for="fPrecisaAssinaturas" style="margin:0;">Precisa de recolher assinaturas?</label>
+        </div>
+        <div class="field" style="display:flex; align-items:center; gap:10px;">
+          <input type="checkbox" id="fEnviadaRh" style="width:18px; height:18px;">
+          <label for="fEnviadaRh" style="margin:0;">Já foi enviada aos RH?</label>
+        </div>
       </div>
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeNew()">Cancelar</button>
@@ -853,6 +935,11 @@ function closeNew(){
   const o = document.getElementById("newOverlay");
   if(o) o.remove();
 }
+function toggleCamposSimplificados(){
+  const tipo = document.getElementById("fTipo").value;
+  document.getElementById("camposSimplificados").style.display = tipo==="Alteração de horário" ? "none" : "block";
+}
+
 async function saveNew(){
   let colaborador = selectedColab === "__novo__" ? document.getElementById("fColabNovo").value.trim() : selectedColab;
   const tipo = document.getElementById("fTipo").value;
@@ -863,11 +950,28 @@ async function saveNew(){
   if(!colaborador){ toast("Escolhe ou escreve o colaborador"); return; }
   if(!loja){ toast("Indica a loja"); return; }
   const now = new Date().toISOString();
+  const isSimplificada = tipo !== "Alteração de horário";
   try{
-    await api("POST", TABLE, {
+    const payload = {
       colaborador, tipo, loja,
       criado_em: now, criado_por: currentUser, updated_at: now
-    });
+    };
+    if(isSimplificada){
+      payload.precisa_assinaturas = document.getElementById("fPrecisaAssinaturas").checked;
+      payload.enviada_rh = document.getElementById("fEnviadaRh").checked;
+      if(payload.enviada_rh){ payload.enviada_em = now; payload.enviada_por = currentUser; payload.arquivada = true; }
+      const fileInput = document.getElementById("fDocumentoUpload");
+      if(fileInput.files && fileInput.files[0]){
+        const file = fileInput.files[0];
+        payload.documento_upload = await new Promise((resolve,reject)=>{
+          const reader = new FileReader();
+          reader.onload = ()=>resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+    }
+    await api("POST", TABLE, payload);
     mostrarSucesso("Adenda criada!");
     closeNew();
     await loadRows();
