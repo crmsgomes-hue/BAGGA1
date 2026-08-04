@@ -67,6 +67,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div class="ps">As tuas ferramentas de gestão, num só sítio.</div>
 
   <div id="statsGrid" class="g4"></div>
+  <div id="fotosRecentesSection"></div>
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
 
   <div class="sec-label">Apps</div>
@@ -163,6 +164,48 @@ function addAttn(list, href, titulo, sub, urgente){
   list.push({href, titulo, sub, urgente});
 }
 
+function bigPhoto(urls, indice){
+  const old = document.getElementById('_lb');
+  if(old) document.body.removeChild(old);
+  if(!urls || urls.length===0) return;
+  let idx = indice || 0;
+
+  const lb = document.createElement('div');
+  lb.id = '_lb';
+  lb.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.95);z-index:2147483647;display:flex;align-items:center;justify-content:center;touch-action:pinch-zoom;';
+
+  const img = document.createElement('img');
+  img.style.cssText = 'max-width:96vw;max-height:90vh;object-fit:contain;border-radius:6px;display:block;';
+
+  const contador = document.createElement('div');
+  contador.style.cssText = 'position:absolute;top:16px;left:50%;transform:translateX(-50%);color:#fff;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.15);padding:4px 12px;border-radius:99px;';
+
+  function atualizar(){ img.src = urls[idx]; contador.textContent = urls.length>1 ? `${idx+1} / ${urls.length}` : ''; }
+  atualizar();
+
+  const x = document.createElement('div');
+  x.style.cssText = 'position:absolute;top:10px;right:16px;color:#fff;font-size:2.5rem;line-height:1;font-weight:200;cursor:pointer;z-index:2;';
+  x.textContent = '×';
+  x.onclick = (e)=>{ e.stopPropagation(); document.body.removeChild(lb); };
+
+  lb.appendChild(img); lb.appendChild(x); lb.appendChild(contador);
+
+  if(urls.length>1){
+    const prev = document.createElement('div');
+    prev.textContent = '‹';
+    prev.style.cssText = 'position:absolute;left:6px;top:50%;transform:translateY(-50%);color:#fff;font-size:2.8rem;padding:10px 14px;cursor:pointer;z-index:2;user-select:none;';
+    prev.onclick = (e)=>{ e.stopPropagation(); idx = (idx-1+urls.length)%urls.length; atualizar(); };
+    const next = document.createElement('div');
+    next.textContent = '›';
+    next.style.cssText = 'position:absolute;right:6px;top:50%;transform:translateY(-50%);color:#fff;font-size:2.8rem;padding:10px 14px;cursor:pointer;z-index:2;user-select:none;';
+    next.onclick = (e)=>{ e.stopPropagation(); idx = (idx+1)%urls.length; atualizar(); };
+    lb.appendChild(prev); lb.appendChild(next);
+  }
+
+  lb.onclick = ()=>document.body.removeChild(lb);
+  document.body.appendChild(lb);
+}
+
 (async ()=>{
   const attn = [];
   const today = new Date();
@@ -226,6 +269,45 @@ function addAttn(list, href, titulo, sub, urgente){
     });
     if(paradas.length) addAttn(attn, "CoreJoint_Adendas.html", `📋 ${paradas.length} adenda(s) parada(s) há 3+ dias`, "Toca para ver quais precisam de ação", true);
   }catch(e){}
+
+  try{
+    const desde = new Date(Date.now() - 2*86400000).toISOString().slice(0,10);
+    const dailyFotos = await api(`cj_daily_reportes?select=loja,tipo,turno,data,fotos,criado_em&data=gte.${desde}&order=criado_em.desc&limit=40`);
+    const invFotos = await api(`cj_inventario_reportes?select=loja,categoria,data,fotos,criado_em&data=gte.${desde}&order=criado_em.desc&limit=40`);
+    const TURNO_LABELS_H = {manha:"Manhã", almoco:"Almoço", lanche:"Lanche", unico:""};
+    const todasCatsLabel = {};
+    [...INV_CATS, ...MARKETING_CATS].forEach(c=>todasCatsLabel[c.key]=c.label);
+    const todasFotos = [];
+    dailyFotos.forEach(r=>{
+      (r.fotos||[]).forEach(f=>{
+        const url = typeof f === "string" ? f : (f && f.url) || "";
+        if(url) todasFotos.push({url, loja:r.loja, titulo: r.tipo==="vitrine" ? `Vitrine — ${TURNO_LABELS_H[r.turno]||r.turno}` : "Vendas", criado_em:r.criado_em});
+      });
+    });
+    invFotos.forEach(r=>{
+      (r.fotos||[]).forEach(f=>{
+        const url = typeof f === "string" ? f : (f && f.url) || "";
+        if(url) todasFotos.push({url, loja:r.loja, titulo: todasCatsLabel[r.categoria]||r.categoria, criado_em:r.criado_em});
+      });
+    });
+    todasFotos.sort((a,b)=> new Date(b.criado_em) - new Date(a.criado_em));
+    const recentes = todasFotos.slice(0,16);
+    if(recentes.length>0){
+      const urls = recentes.map(f=>f.url);
+      let html = `<div class="sec-label">Fotos recentes</div><div class="card" style="flex-direction:column; align-items:stretch;"><div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;">`;
+      recentes.forEach((f,i)=>{
+        html += `<div style="flex-shrink:0; width:96px;"><img src="${f.url}" data-fi="${i}" style="width:96px; height:76px; object-fit:cover; border-radius:8px; border:1px solid var(--br); cursor:pointer; display:block;"><div style="font-size:.65rem; color:var(--t2); margin-top:3px; line-height:1.2;">${f.loja}<br>${f.titulo}</div></div>`;
+      });
+      html += `</div></div>`;
+      const wrap = document.createElement("div");
+      wrap.innerHTML = html;
+      wrap.querySelectorAll("img[data-fi]").forEach(img=>{
+        img.onclick = ()=>bigPhoto(urls, +img.dataset.fi);
+      });
+      document.getElementById("fotosRecentesSection").innerHTML = "";
+      document.getElementById("fotosRecentesSection").appendChild(wrap);
+    }
+  }catch(e){ console.error(e); }
 
   document.getElementById("statsGrid").innerHTML = `
     <div class="sc"><div class="slb">Reportes</div><div class="svl ${statReportes>0?'cr':'cg'}">${statReportes}</div></div>
