@@ -572,15 +572,11 @@ function openAlertas(){
     encCard.innerHTML = `
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; margin-bottom:2px;">📦 Encomenda pronta</div>
       <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">${alerts.length} combinações abaixo de ${LOW_THRESHOLD} unidades</div>
-      <div style="display:flex; gap:8px; margin-bottom:8px;">
-        <button class="copybtn" style="flex:1; background:var(--terracotta,#C1622E); color:#fff;" id="encPdfBtn">🖨️ PDF</button>
-        <button class="copybtn" style="flex:1;" id="encXlsBtn">📥 Excel</button>
-      </div>
-      <button class="copybtn" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);" id="encPartilharBtn">📤 Partilhar (email, WhatsApp...)</button>
+      <button class="copybtn" style="width:100%; background:var(--terracotta,#C1622E); color:#fff; margin-bottom:8px;" id="encPartilharBtn">📤 Partilhar (email, WhatsApp...)</button>
+      <button class="copybtn" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);" id="encXlsBtn">📥 Excel</button>
       <div style="text-align:center; margin-top:8px;"><span style="font-size:12px; text-decoration:underline; cursor:pointer; color:var(--ink-soft);" id="encCopiarBtn">Copiar como texto</span></div>
     `;
     main.appendChild(encCard);
-    encCard.querySelector("#encPdfBtn").onclick = ()=>gerarEncomendaPDF(alerts);
     encCard.querySelector("#encXlsBtn").onclick = ()=>gerarEncomendaExcel(alerts);
     encCard.querySelector("#encPartilharBtn").onclick = ()=>partilharEncomenda(alerts);
     encCard.querySelector("#encCopiarBtn").onclick = ()=>{
@@ -631,15 +627,8 @@ function openAlertas(){
 }
 
 function gerarEncomendaPDF(alerts){
-  let html = `<h1>CoreJoint · Encomenda de Fardamento</h1><div style="font-size:8px; color:#555; margin-bottom:6px;">Gerado em ${new Date().toLocaleDateString('pt-PT')} · ${alerts.length} combinações abaixo de ${LOW_THRESHOLD} unidades</div>`;
-  html += `<table><tr><th style="text-align:left;">Polo</th><th style="text-align:left;">Peça</th><th>Tamanho</th><th>Stock atual</th><th>Sugestão a encomendar</th></tr>`;
-  alerts.slice().sort((a,b)=> a.polo.localeCompare(b.polo) || a.peca.localeCompare(b.peca)).forEach(a=>{
-    const sugestao = Math.max(LOW_THRESHOLD - a.q, 0);
-    html += `<tr><td class="name">${a.polo}</td><td class="name">${a.peca}</td><td>${a.tam}</td><td>${a.q}</td><td><b>${sugestao}</b></td></tr>`;
-  });
-  html += `</table>`;
-  document.getElementById("printReport").innerHTML = html;
-  setTimeout(()=>window.print(), 100);
+  const doc = construirPdfEncomenda(alerts);
+  doc.output("dataurlnewwindow");
 }
 
 function gerarEncomendaExcel(alerts){
@@ -658,37 +647,42 @@ function construirPdfEncomenda(alerts){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text("CoreJoint · Encomenda de Fardamento", 14, 18);
+  doc.setFontSize(18);
+  doc.text("CoreJoint · Encomenda de Fardamento", 14, 20);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text(`Gerado em ${new Date().toLocaleDateString('pt-PT')} · ${alerts.length} combinações abaixo de ${LOW_THRESHOLD} unidades`, 14, 25);
+  doc.setFontSize(11);
+  doc.text(`Gerado em ${new Date().toLocaleDateString('pt-PT')} · ${alerts.length} combinações abaixo de ${LOW_THRESHOLD} unidades (soma dos 3 polos)`, 14, 28);
 
-  let y = 36;
+  let y = 42;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text("Polo", 14, y);
-  doc.text("Peça", 50, y);
-  doc.text("Tam.", 110, y);
-  doc.text("Stock", 130, y);
-  doc.text("Encomendar", 155, y);
-  y += 2;
+  doc.setFontSize(13);
+  doc.text("Peça", 14, y);
+  doc.text("Tamanho", 100, y);
+  doc.text("Stock atual", 135, y);
+  doc.text("Encomendar", 172, y);
+  y += 3;
+  doc.setLineWidth(0.5);
   doc.line(14, y, 196, y);
-  y += 6;
+  y += 10;
   doc.setFont("helvetica", "normal");
 
   const ordenados = alerts.slice().sort((a,b)=> a.peca.localeCompare(b.peca));
   ordenados.forEach(a=>{
-    if(y > 280){ doc.addPage(); y = 20; }
+    if(y > 275){ doc.addPage(); y = 20; }
     const sugestao = Math.max(LOW_THRESHOLD - a.q, 0);
-    doc.text("Todos", 14, y);
-    doc.text(String(a.peca), 50, y);
-    doc.text(String(a.tam), 110, y);
-    doc.text(String(a.q), 130, y);
+    doc.setFontSize(13);
+    doc.text(String(a.peca), 14, y);
+    doc.text(String(a.tam), 100, y);
+    doc.text(String(a.q), 135, y);
     doc.setFont("helvetica", "bold");
-    doc.text(String(sugestao), 155, y);
+    doc.text(String(sugestao), 172, y);
     doc.setFont("helvetica", "normal");
-    y += 7;
+    y += 6;
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text(Object.entries(a.porPolo).map(([p,q])=>`${p}: ${q}`).join("   ·   "), 14, y);
+    doc.setTextColor(0);
+    y += 10;
   });
   return doc;
 }
