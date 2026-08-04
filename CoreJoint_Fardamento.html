@@ -333,7 +333,7 @@ function render(){
   const devCount = devolucoes.length;
   if(alertasCount>0 || devCount>0){
     const quickSummary = document.createElement("div");
-    quickSummary.style.cssText = "display:flex; gap:8px; margin-bottom:12px;";
+    quickSummary.style.cssText = "display:flex; gap:8px; margin-bottom:8px;";
     let html = "";
     if(alertasCount>0){
       html += `<div class="card" style="flex:1; text-align:center; margin-bottom:0; padding:10px; background:var(--red); cursor:pointer;" onclick="openAlertas()"><div style="font-size:20px; font-weight:700; color:#fff;">${alertasCount}</div><div style="font-size:11px; color:#fff;">stock baixo</div></div>`;
@@ -343,6 +343,14 @@ function render(){
     }
     quickSummary.innerHTML = html;
     main.appendChild(quickSummary);
+  }
+  if(alertasCount>0){
+    const partilharBtn = document.createElement("button");
+    partilharBtn.className = "copybtn";
+    partilharBtn.style.cssText = "width:100%; background:var(--terracotta,#C1622E); color:#fff; margin-bottom:12px;";
+    partilharBtn.textContent = `📤 Partilhar encomenda (${alertasCount})`;
+    partilharBtn.onclick = ()=>partilharEncomenda(allAlerts());
+    main.appendChild(partilharBtn);
   }
 
   const allOpen = Object.keys(PECAS).every(p=>openPecas[p]);
