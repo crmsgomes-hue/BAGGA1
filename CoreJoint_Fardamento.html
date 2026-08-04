@@ -141,6 +141,7 @@
         <div class="who" id="whoLabel"></div>
       </div>
     </div>
+    <button id="trocarUserBtn" onclick="trocarUtilizadorFard()" style="width:100%; background:var(--terracotta,#C1622E); border:none; color:#fff; border-radius:14px; padding:14px; font-size:18px; font-weight:800; cursor:pointer; margin:8px 0; box-shadow:0 3px 8px rgba(0,0,0,.2);">🔄 Trocar utilizador</button>
     <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr; gap:6px; margin-top:10px;">
       <button class="bell" id="admBtn" onclick="openAdmissao()" style="width:100%; height:44px; font-size:15px;" title="Nova Admissão">👤+</button>
       <button class="bell" id="devBtn" onclick="openDevolucao()" style="width:100%; height:44px; font-size:18px;" title="Devoluções">↩</button>
@@ -230,6 +231,17 @@ async function api(method, path, body){
   return res.status === 204 ? null : res.json();
 }
 
+function trocarUtilizadorFard(){
+  currentUser = currentUser === "Cristina" ? "João" : "Cristina";
+  localStorage.setItem("cj_fard_user", currentUser);
+  atualizarBotaoTrocarFard();
+  toast(`Agora estás como ${currentUser}`);
+}
+function atualizarBotaoTrocarFard(){
+  const btn = document.getElementById("trocarUserBtn");
+  if(btn) btn.textContent = `🔄 ${currentUser || "Trocar utilizador"}`;
+}
+
 function doLoginAs(name){
   currentUser = name;
   localStorage.setItem("cj_fard_user", name);
@@ -240,6 +252,7 @@ function startApp(){
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "block";
   document.getElementById("whoLabel").textContent = "Sessão: " + currentUser;
+  atualizarBotaoTrocarFard();
   buildPoloGrid();
   loadStock();
   setInterval(loadStock, 30000);
