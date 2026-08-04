@@ -291,18 +291,28 @@ function bigPhoto(urls, indice){
       });
     });
     todasFotos.sort((a,b)=> new Date(b.criado_em) - new Date(a.criado_em));
-    const recentes = todasFotos.slice(0,16);
-    if(recentes.length>0){
-      const urls = recentes.map(f=>f.url);
-      let html = `<div class="sec-label">Fotos recentes</div><div class="card" style="flex-direction:column; align-items:stretch;"><div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;">`;
-      recentes.forEach((f,i)=>{
-        html += `<div style="flex-shrink:0; width:96px;"><img src="${f.url}" data-fi="${i}" style="width:96px; height:76px; object-fit:cover; border-radius:8px; border:1px solid var(--br); cursor:pointer; display:block;"><div style="font-size:.65rem; color:var(--t2); margin-top:3px; line-height:1.2;">${f.loja}<br>${f.titulo}</div></div>`;
+    const porLoja = {};
+    todasFotos.forEach(f=>{ (porLoja[f.loja] ||= []).push(f); });
+
+    if(Object.keys(porLoja).length>0){
+      let html = `<div class="sec-label">Fotos recentes por loja</div>`;
+      const gruposUrls = [];
+      LOJAS.filter(l=>porLoja[l]).forEach(l=>{
+        const fotosLoja = porLoja[l].slice(0,8);
+        const gi = gruposUrls.push(fotosLoja.map(f=>f.url)) - 1;
+        html += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">
+          <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.85rem; margin-bottom:8px;">${l}</div>
+          <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;">
+            ${fotosLoja.map((f,fi)=>`<div style="flex-shrink:0; width:92px;"><img src="${f.url}" data-gi="${gi}" data-fi="${fi}" style="width:92px; height:72px; object-fit:cover; border-radius:8px; border:1px solid var(--br); cursor:pointer; display:block;"><div style="font-size:.62rem; color:var(--t2); margin-top:3px; line-height:1.2;">${f.titulo}</div></div>`).join("")}
+          </div>
+        </div>`;
       });
-      html += `</div></div>`;
       const wrap = document.createElement("div");
       wrap.innerHTML = html;
-      wrap.querySelectorAll("img[data-fi]").forEach(img=>{
-        img.onclick = ()=>bigPhoto(urls, +img.dataset.fi);
+      wrap.querySelectorAll("img[data-gi]").forEach(img=>{
+        img.addEventListener("click", ()=>{
+          bigPhoto(gruposUrls[+img.dataset.gi], +img.dataset.fi);
+        });
       });
       document.getElementById("fotosRecentesSection").innerHTML = "";
       document.getElementById("fotosRecentesSection").appendChild(wrap);
