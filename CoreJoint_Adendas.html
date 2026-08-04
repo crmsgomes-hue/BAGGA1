@@ -883,8 +883,12 @@ function openNew(){
       </div>
       <div id="camposSimplificados" style="display:none;">
         <div class="field">
-          <label>Documento (upload, opcional)</label>
-          <input type="file" id="fDocumentoUpload" accept="application/pdf,image/*">
+          <label>Documento (foto ou upload, opcional)</label>
+          <div style="display:flex; gap:8px;">
+            <label class="btn-save" style="flex:1; text-align:center; display:block; cursor:pointer;">📷 Tirar foto<input type="file" id="fDocumentoFoto" accept="image/*" capture="environment" style="display:none;"></label>
+            <label class="btn-undo" style="flex:1; text-align:center; display:block; cursor:pointer;">📁 Escolher ficheiro<input type="file" id="fDocumentoUpload" accept="application/pdf,image/*" style="display:none;"></label>
+          </div>
+          <div id="fDocumentoPreview" style="margin-top:8px;"></div>
         </div>
         <div class="field" style="display:flex; align-items:center; gap:10px;">
           <input type="checkbox" id="fPrecisaAssinaturas" style="width:18px; height:18px;">
@@ -902,6 +906,15 @@ function openNew(){
     </div>
   `;
   document.body.appendChild(overlay);
+  const fotoInput = document.getElementById("fDocumentoFoto");
+  const uploadInput = document.getElementById("fDocumentoUpload");
+  const preview = document.getElementById("fDocumentoPreview");
+  function atualizarPreview(){
+    const f = (fotoInput.files[0]) || (uploadInput.files[0]);
+    preview.innerHTML = f ? `<span style="font-size:12px; color:var(--ink-soft);">✔ ${f.name || "foto tirada"}</span>` : "";
+  }
+  if(fotoInput) fotoInput.addEventListener("change", atualizarPreview);
+  if(uploadInput) uploadInput.addEventListener("change", atualizarPreview);
   selectedColab = "";
   const chipRow = document.getElementById("colabChips");
   knownColabs.forEach(name=>{
@@ -960,9 +973,8 @@ async function saveNew(){
       payload.precisa_assinaturas = document.getElementById("fPrecisaAssinaturas").checked;
       payload.enviada_rh = document.getElementById("fEnviadaRh").checked;
       if(payload.enviada_rh){ payload.enviada_em = now; payload.enviada_por = currentUser; payload.arquivada = true; }
-      const fileInput = document.getElementById("fDocumentoUpload");
-      if(fileInput.files && fileInput.files[0]){
-        const file = fileInput.files[0];
+      const file = (document.getElementById("fDocumentoFoto").files[0]) || (document.getElementById("fDocumentoUpload").files[0]);
+      if(file){
         payload.documento_upload = await new Promise((resolve,reject)=>{
           const reader = new FileReader();
           reader.onload = ()=>resolve(reader.result);
