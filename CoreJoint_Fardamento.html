@@ -180,10 +180,11 @@ const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 const POLOS = ["Caldas","Santarém","Torres"];
 const PECAS = {
-  "Polo manga curta": ["S","M","L","XL","XXL","2XXL","3XXL"],
-  "Polo manga comprida": ["S","M","L","XL","XXL","2XXL","3XXL"],
+  "Polo manga curta": ["S","M","L","XL","XXL","2XXL","3XXL","4XXL"],
+  "Polo manga comprida": ["S","M","L","XL","XXL","2XXL","3XXL","4XXL"],
   "Camisola": ["S","M","L","XL","XXL"],
   "Calças": ["32","34","36","38","40","42","44","46","48","50","52","54","56","Especial"],
+  "Calças Grávida": ["32","34","36","38","40","42","44","46","48","50","52","54","56","Especial"],
   "Avental": ["Único"],
   "Sapatos": ["36","37","38","39","40","41","42","43","44","45"]
 };
@@ -289,12 +290,18 @@ function getQty(polo, peca, tamanho){
 
 function allAlerts(){
   const alerts = [];
-  POLOS.forEach(polo=>{
-    Object.keys(PECAS).forEach(peca=>{
-      PECAS[peca].forEach(tam=>{
+  Object.keys(PECAS).forEach(peca=>{
+    PECAS[peca].forEach(tam=>{
+      let total = 0;
+      const porPolo = {};
+      POLOS.forEach(polo=>{
         const q = getQty(polo, peca, tam);
-        if(q < LOW_THRESHOLD) alerts.push({polo, peca, tam, q});
+        porPolo[polo] = q;
+        total += q;
       });
+      if(total < LOW_THRESHOLD){
+        alerts.push({peca, tam, q: total, porPolo});
+      }
     });
   });
   return alerts.sort((a,b)=>a.q-b.q);
@@ -578,7 +585,7 @@ function openAlertas(){
     encCard.querySelector("#encPartilharBtn").onclick = ()=>partilharEncomenda(alerts);
     encCard.querySelector("#encCopiarBtn").onclick = ()=>{
       const text = "Fardamento a encomendar (< " + LOW_THRESHOLD + " un.):\n" +
-        alerts.map(a=>`- ${a.peca} ${a.tam} (${a.polo}): restam ${a.q}`).join("\n");
+        alerts.map(a=>`- ${a.peca} ${a.tam}: total ${a.q} (${Object.entries(a.porPolo).map(([p,q])=>p+": "+q).join(", ")})`).join("\n");
       navigator.clipboard.writeText(text).then(()=>toast("Lista copiada")).catch(()=>toast("Não foi possível copiar"));
     };
   }
@@ -618,7 +625,7 @@ function openAlertas(){
   alerts.forEach(a=>{
     const c = document.createElement("div");
     c.className = "alert-card";
-    c.innerHTML = `<div class="an">${a.peca} · ${a.tam}</div><div class="am">${a.polo} — restam ${a.q}</div>`;
+    c.innerHTML = `<div class="an">${a.peca} · ${a.tam}</div><div class="am">Total: ${a.q} un. (${Object.entries(a.porPolo).map(([p,q])=>p+": "+q).join(" · ")})</div>`;
     main.appendChild(c);
   });
 }
@@ -637,8 +644,8 @@ function gerarEncomendaPDF(alerts){
 
 function gerarEncomendaExcel(alerts){
   const wb = XLSX.utils.book_new();
-  const rows = alerts.slice().sort((a,b)=> a.polo.localeCompare(b.polo) || a.peca.localeCompare(b.peca)).map(a=>({
-    Polo: a.polo, Peça: a.peca, Tamanho: a.tam, "Stock atual": a.q,
+  const rows = alerts.slice().sort((a,b)=> a.peca.localeCompare(b.peca)).map(a=>({
+    Polo: Object.entries(a.porPolo).map(([p,q])=>p+": "+q).join(" | "), Peça: a.peca, Tamanho: a.tam, "Stock atual (total)": a.q,
     "Sugestão a encomendar": Math.max(LOW_THRESHOLD*2 - a.q, LOW_THRESHOLD)
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -670,11 +677,11 @@ function construirPdfEncomenda(alerts){
   y += 6;
   doc.setFont("helvetica", "normal");
 
-  const ordenados = alerts.slice().sort((a,b)=> a.polo.localeCompare(b.polo) || a.peca.localeCompare(b.peca));
+  const ordenados = alerts.slice().sort((a,b)=> a.peca.localeCompare(b.peca));
   ordenados.forEach(a=>{
     if(y > 280){ doc.addPage(); y = 20; }
     const sugestao = Math.max(LOW_THRESHOLD*2 - a.q, LOW_THRESHOLD);
-    doc.text(String(a.polo), 14, y);
+    doc.text("Todos", 14, y);
     doc.text(String(a.peca), 50, y);
     doc.text(String(a.tam), 110, y);
     doc.text(String(a.q), 130, y);
