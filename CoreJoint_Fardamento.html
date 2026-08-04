@@ -193,6 +193,8 @@ const LOJAS = [
   "Carregado","Ponte de Sor","Torres MCH","Torres MH"
 ];
 const LOW_THRESHOLD = 5;
+const LOW_THRESHOLD_POR_PECA = { "Sapatos": 2 };
+function limiteParaPeca(peca){ return LOW_THRESHOLD_POR_PECA[peca] ?? LOW_THRESHOLD; }
 
 let stockRows = [];
 let currentView = ()=>render();
@@ -291,6 +293,7 @@ function getQty(polo, peca, tamanho){
 function allAlerts(){
   const alerts = [];
   Object.keys(PECAS).forEach(peca=>{
+    const limite = limiteParaPeca(peca);
     PECAS[peca].forEach(tam=>{
       let total = 0;
       const porPolo = {};
@@ -299,8 +302,8 @@ function allAlerts(){
         porPolo[polo] = q;
         total += q;
       });
-      if(total < LOW_THRESHOLD){
-        alerts.push({peca, tam, q: total, porPolo});
+      if(total < limite){
+        alerts.push({peca, tam, q: total, porPolo, limite});
       }
     });
   });
@@ -349,7 +352,7 @@ function render(){
     partilharBtn.className = "copybtn";
     partilharBtn.style.cssText = "width:100%; background:var(--terracotta,#C1622E); color:#fff; margin-bottom:12px;";
     partilharBtn.textContent = `📤 Partilhar encomenda (${alertasCount})`;
-    partilharBtn.onclick = ()=>partilharEncomenda(allAlerts());
+    partilharBtn.onclick = ()=>previewEncomenda(allAlerts());
     main.appendChild(partilharBtn);
   }
 
@@ -579,14 +582,14 @@ function openAlertas(){
     encCard.style.cssText = "background:var(--card,#fff); border:1px solid var(--line,#E4DDD0); border-radius:14px; padding:16px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.06);";
     encCard.innerHTML = `
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; margin-bottom:2px;">📦 Encomenda pronta</div>
-      <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">${alerts.length} combinações abaixo de ${LOW_THRESHOLD} unidades</div>
+      <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">${alerts.length} combinações com stock baixo</div>
       <button class="copybtn" style="width:100%; background:var(--terracotta,#C1622E); color:#fff; margin-bottom:8px;" id="encPartilharBtn">📤 Partilhar (email, WhatsApp...)</button>
       <button class="copybtn" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);" id="encXlsBtn">📥 Excel</button>
       <div style="text-align:center; margin-top:8px;"><span style="font-size:12px; text-decoration:underline; cursor:pointer; color:var(--ink-soft);" id="encCopiarBtn">Copiar como texto</span></div>
     `;
     main.appendChild(encCard);
     encCard.querySelector("#encXlsBtn").onclick = ()=>gerarEncomendaExcel(alerts);
-    encCard.querySelector("#encPartilharBtn").onclick = ()=>partilharEncomenda(alerts);
+    encCard.querySelector("#encPartilharBtn").onclick = ()=>previewEncomenda(alerts);
     encCard.querySelector("#encCopiarBtn").onclick = ()=>{
       const text = "Fardamento a encomendar (< " + LOW_THRESHOLD + " un.):\n" +
         alerts.map(a=>`- ${a.peca} ${a.tam}: total ${a.q} (${Object.entries(a.porPolo).map(([p,q])=>p+": "+q).join(", ")})`).join("\n");
@@ -624,7 +627,7 @@ function openAlertas(){
   if(alerts.length===0) return;
   const title = document.createElement("div");
   title.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:10px;";
-  title.textContent = `${alerts.length} combinações abaixo de ${LOW_THRESHOLD} unidades`;
+  title.textContent = `${alerts.length} combinações com stock baixo`;
   main.appendChild(title);
   alerts.forEach(a=>{
     const c = document.createElement("div");
@@ -643,7 +646,7 @@ function gerarEncomendaExcel(alerts){
   const wb = XLSX.utils.book_new();
   const rows = alerts.slice().sort((a,b)=> a.peca.localeCompare(b.peca)).map(a=>({
     Polo: Object.entries(a.porPolo).map(([p,q])=>p+": "+q).join(" | "), Peça: a.peca, Tamanho: a.tam, "Stock atual (total)": a.q,
-    "Sugestão a encomendar": Math.max(LOW_THRESHOLD - a.q, 0)
+    "Sugestão a encomendar": Math.max((a.limite||LOW_THRESHOLD) - a.q, 0)
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(wb, ws, "Encomenda");
@@ -659,7 +662,7 @@ function construirPdfEncomenda(alerts){
   doc.text("CoreJoint · Encomenda de Fardamento", 14, 20);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
-  doc.text(`Gerado em ${new Date().toLocaleDateString('pt-PT')} · ${alerts.length} combinações abaixo de ${LOW_THRESHOLD} unidades (soma dos 3 polos)`, 14, 28);
+  doc.text(`Gerado em ${new Date().toLocaleDateString('pt-PT')} · ${alerts.length} combinações com stock baixo (soma dos 3 polos; sapatos: limite 2, resto: limite 5)`, 14, 28);
 
   let y = 42;
   doc.setFont("helvetica", "bold");
@@ -677,7 +680,7 @@ function construirPdfEncomenda(alerts){
   const ordenados = alerts.slice().sort((a,b)=> a.peca.localeCompare(b.peca));
   ordenados.forEach(a=>{
     if(y > 275){ doc.addPage(); y = 20; }
-    const sugestao = Math.max(LOW_THRESHOLD - a.q, 0);
+    const sugestao = Math.max((a.limite||LOW_THRESHOLD) - a.q, 0);
     doc.setFontSize(13);
     doc.text(String(a.peca), 14, y);
     doc.text(String(a.tam), 100, y);
@@ -693,6 +696,44 @@ function construirPdfEncomenda(alerts){
     y += 10;
   });
   return doc;
+}
+
+function previewEncomenda(alerts){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "previewEncOverlay";
+  const ordenados = alerts.slice().sort((a,b)=> a.peca.localeCompare(b.peca));
+  let linhas = "";
+  ordenados.forEach(a=>{
+    const sugestao = Math.max((a.limite||LOW_THRESHOLD) - a.q, 0);
+    linhas += `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line,#E4DDD0);">
+        <div>
+          <div style="font-weight:700; font-size:14px;">${a.peca} · ${a.tam}</div>
+          <div style="font-size:11.5px; color:var(--ink-soft,#5C564E);">${Object.entries(a.porPolo).map(([p,q])=>p+": "+q).join(" · ")}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:11px; color:var(--ink-soft,#5C564E);">stock: ${a.q}</div>
+          <div style="font-weight:700; color:var(--terracotta,#C1622E);">encomendar ${sugestao}</div>
+        </div>
+      </div>`;
+  });
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>👁️ Pré-visualização da encomenda</h2>
+      <div class="sub">${alerts.length} combinações — confirma que está tudo bem antes de partilhar.</div>
+      <div style="max-height:55vh; overflow-y:auto; margin-top:10px;">${linhas}</div>
+      <div class="modal-actions" style="flex-direction:column; gap:8px; margin-top:16px;">
+        <button class="btn-save" style="width:100%;" id="previewPartilharBtn">📤 Partilhar (email, WhatsApp...)</button>
+        <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('previewEncOverlay').remove()">Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("previewPartilharBtn").onclick = ()=>{
+    overlay.remove();
+    partilharEncomenda(alerts);
+  };
 }
 
 async function partilharEncomenda(alerts){
