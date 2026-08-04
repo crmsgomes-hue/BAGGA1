@@ -634,7 +634,7 @@ function gerarEncomendaPDF(alerts){
   let html = `<h1>CoreJoint · Encomenda de Fardamento</h1><div style="font-size:8px; color:#555; margin-bottom:6px;">Gerado em ${new Date().toLocaleDateString('pt-PT')} · ${alerts.length} combinações abaixo de ${LOW_THRESHOLD} unidades</div>`;
   html += `<table><tr><th style="text-align:left;">Polo</th><th style="text-align:left;">Peça</th><th>Tamanho</th><th>Stock atual</th><th>Sugestão a encomendar</th></tr>`;
   alerts.slice().sort((a,b)=> a.polo.localeCompare(b.polo) || a.peca.localeCompare(b.peca)).forEach(a=>{
-    const sugestao = Math.max(LOW_THRESHOLD*2 - a.q, LOW_THRESHOLD);
+    const sugestao = Math.max(LOW_THRESHOLD - a.q, 0);
     html += `<tr><td class="name">${a.polo}</td><td class="name">${a.peca}</td><td>${a.tam}</td><td>${a.q}</td><td><b>${sugestao}</b></td></tr>`;
   });
   html += `</table>`;
@@ -646,7 +646,7 @@ function gerarEncomendaExcel(alerts){
   const wb = XLSX.utils.book_new();
   const rows = alerts.slice().sort((a,b)=> a.peca.localeCompare(b.peca)).map(a=>({
     Polo: Object.entries(a.porPolo).map(([p,q])=>p+": "+q).join(" | "), Peça: a.peca, Tamanho: a.tam, "Stock atual (total)": a.q,
-    "Sugestão a encomendar": Math.max(LOW_THRESHOLD*2 - a.q, LOW_THRESHOLD)
+    "Sugestão a encomendar": Math.max(LOW_THRESHOLD - a.q, 0)
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(wb, ws, "Encomenda");
@@ -680,7 +680,7 @@ function construirPdfEncomenda(alerts){
   const ordenados = alerts.slice().sort((a,b)=> a.peca.localeCompare(b.peca));
   ordenados.forEach(a=>{
     if(y > 280){ doc.addPage(); y = 20; }
-    const sugestao = Math.max(LOW_THRESHOLD*2 - a.q, LOW_THRESHOLD);
+    const sugestao = Math.max(LOW_THRESHOLD - a.q, 0);
     doc.text("Todos", 14, y);
     doc.text(String(a.peca), 50, y);
     doc.text(String(a.tam), 110, y);
