@@ -424,8 +424,15 @@
   var SETTINGS = loadJSON(KEY_SET, null);
   if(!SETTINGS){
     SETTINGS = { notifEnabled:false, times:{abertura:"07:00", rotina:"11:45", fecho:"17:30"}, lastNotified:{}, adminPin:"1204" };
-    saveJSON(KEY_SET, SETTINGS);
   }
+  // preenche campos que possam faltar em telemóveis com uma versão mais antiga guardada localmente
+  if(!SETTINGS.adminPin) SETTINGS.adminPin = "1204";
+  if(!SETTINGS.times) SETTINGS.times = {};
+  if(!SETTINGS.times.abertura) SETTINGS.times.abertura = "07:00";
+  if(!SETTINGS.times.rotina) SETTINGS.times.rotina = "11:45";
+  if(!SETTINGS.times.fecho) SETTINGS.times.fecho = "17:30";
+  if(!SETTINGS.lastNotified) SETTINGS.lastNotified = {};
+  saveJSON(KEY_SET, SETTINGS);
   var ownerUnlocked = false;
   var CONFIRMATIONS = {}; // {dayNum: {confirmed_at, all_done}} keyed by number
   (function(){
@@ -490,7 +497,7 @@
 
       var newItems = {abertura:[], rotina:[], fecho:[]};
       (itemsRes.data || []).forEach(function(row){
-        if(newItems[row.section]) newItems[row.section].push({id:row.id, label:row.label});
+        if(newItems[row.section]) newItems[row.section].push({id:row.id, label:row.label, weekdays: row.weekdays || []});
       });
       if(newItems.abertura.length || newItems.rotina.length || newItems.fecho.length){
         ITEMS = newItems;
@@ -535,7 +542,7 @@
   }
   function pushAddItem(section, item, position){
     if(!sb) return;
-    sb.from("caldas_items").insert({id:item.id, section:section, label:item.label, position:position})
+    sb.from("caldas_items").insert({id:item.id, section:section, label:item.label, position:position, weekdays:item.weekdays||[]})
       .then(function(r){ setSyncStatus(r.error ? "offline" : "ok"); })
       .catch(function(){ setSyncStatus("offline"); });
   }
@@ -553,6 +560,21 @@
       .catch(function(){ setSyncStatus("offline"); });
   }
 
+  var WEEKDAY_LABELS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+  function getWeekdayForDay(dayNum){
+    var now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), dayNum).getDay();
+  }
+  function itemAppliesOnDay(item, dayNum){
+    return !item.weekdays || item.weekdays.length === 0 || item.weekdays.indexOf(getWeekdayForDay(dayNum)) !== -1;
+  }
+  function itemsForDay(secKey, dayNum){
+    return ITEMS[secKey].filter(function(it){ return itemAppliesOnDay(it, dayNum); });
+  }
+  function dayTotalCount(dayNum){
+    return SECTION_META.reduce(function(a,sm){ return a + itemsForDay(sm.key, dayNum).length; }, 0);
+  }
+
   function totalItemCount(){
     return SECTION_META.reduce(function(a,s){ return a + ITEMS[s.key].length; }, 0);
   }
@@ -568,7 +590,7 @@
     var d = getDayState(dayNum);
     var c = 0;
     SECTION_META.forEach(function(sm){
-      ITEMS[sm.key].forEach(function(it){ if(d[sm.key][it.id]) c++; });
+      itemsForDay(sm.key, dayNum).forEach(function(it){ if(d[sm.key][it.id]) c++; });
     });
     return c;
   }
@@ -584,14 +606,14 @@
     var grid = document.getElementById("dayGrid");
     grid.innerHTML = "";
     var doneDays = 0;
-    var totalPerDay = totalItemCount();
     var todayDay = getTodayDayNumber();
     for(var i=1;i<=TOTAL_DAYS;i++){
       var checked = dayCheckedCount(i);
+      var totalPerDay = dayTotalCount(i);
       var tile = document.createElement("button");
       tile.className = "day-tile";
       if(i === todayDay) tile.className += " today";
-      if(checked === totalPerDay){ tile.className += " done"; doneDays++; }
+      if(totalPerDay > 0 && checked === totalPerDay){ tile.className += " done"; doneDays++; }
       else if(checked > 0){ tile.className += " partial"; }
       tile.innerHTML = '<span class="d-num">'+i+'</span><span class="d-status"></span>';
       tile.addEventListener("click", (function(dayNum){ return function(){ openPanel(dayNum); }; })(i));
@@ -613,7 +635,8 @@
     body.innerHTML = "";
 
     SECTION_META.forEach(function(sm){
-      var items = ITEMS[sm.key];
+      var allItems = ITEMS[sm.key];
+      var items = editMode[sm.key] ? allItems : itemsForDay(sm.key, dayNum);
       var checkedInSec = items.filter(function(it){ return d[sm.key][it.id]; }).length;
 
       var secEl = document.createElement("div");
@@ -637,21 +660,25 @@
       items.forEach(function(it, idx){
         var row = document.createElement("div");
         row.className = "item-row" + (d[sm.key][it.id] ? " checked" : "");
+        var recurBadge = (it.weekdays && it.weekdays.length)
+          ? '<span style="font-size:10px; font-weight:700; color:var(--accent); background:var(--accent-soft); padding:2px 6px; border-radius:8px; margin-left:6px; white-space:nowrap;">'+it.weekdays.map(function(w){return WEEKDAY_LABELS[w];}).join("/")+'</span>'
+          : '';
         if(editMode[sm.key]){
+          var realIdx = allItems.indexOf(it);
           row.innerHTML =
             '<span class="check">'+(d[sm.key][it.id] ? "✓" : "")+'</span>' +
-            '<span class="label">'+it.label+'</span>' +
+            '<span class="label">'+it.label+recurBadge+'</span>' +
             '<button class="del-btn">✕</button>';
           row.querySelector(".del-btn").addEventListener("click", function(ev){
             ev.stopPropagation();
-            removeItem(sm.key, idx, dayNum);
+            removeItem(sm.key, realIdx, dayNum);
           });
           row.querySelector(".check").addEventListener("click", function(){ toggleItem(sm.key, it.id, dayNum); });
           row.querySelector(".label").addEventListener("click", function(){ toggleItem(sm.key, it.id, dayNum); });
         } else {
           row.innerHTML =
             '<span class="check">'+(d[sm.key][it.id] ? "✓" : "")+'</span>' +
-            '<span class="label">'+it.label+'</span>';
+            '<span class="label">'+it.label+recurBadge+'</span>';
           row.addEventListener("click", function(){ toggleItem(sm.key, it.id, dayNum); });
         }
         secEl.appendChild(row);
@@ -660,12 +687,33 @@
       if(editMode[sm.key]){
         var addRow = document.createElement("div");
         addRow.className = "add-item-row";
-        addRow.innerHTML = '<input type="text" placeholder="Nova tarefa..." maxlength="80"><button disabled>Adicionar</button>';
+        addRow.style.flexDirection = "column";
+        addRow.style.alignItems = "stretch";
+        addRow.innerHTML =
+          '<div style="display:flex; gap:8px;"><input type="text" placeholder="Nova tarefa..." maxlength="100"><button disabled>Adicionar</button></div>' +
+          '<div class="wd-chips" style="display:flex; gap:5px; margin-top:9px; flex-wrap:wrap;">' +
+            WEEKDAY_LABELS.map(function(lbl, idx){ return '<button type="button" class="wd-chip" data-day="'+idx+'" style="border:1px solid var(--line); background:var(--bg); color:var(--ink-soft); font-size:11px; font-weight:700; padding:5px 9px; border-radius:8px;">'+lbl+'</button>'; }).join("") +
+          '</div>' +
+          '<div style="font-size:10.5px; color:var(--ink-soft); margin-top:5px;">Sem dias escolhidos = repete todos os dias do mês</div>';
         var input = addRow.querySelector("input");
         var btn = addRow.querySelector("button");
+        var chips = addRow.querySelectorAll(".wd-chip");
+        Array.prototype.forEach.call(chips, function(chip){
+          chip.addEventListener("click", function(){
+            chip.classList.toggle("active");
+            chip.style.background = chip.classList.contains("active") ? "var(--accent)" : "var(--bg)";
+            chip.style.color = chip.classList.contains("active") ? "#fff" : "var(--ink-soft)";
+            chip.style.borderColor = chip.classList.contains("active") ? "var(--accent)" : "var(--line)";
+          });
+        });
+        function collectWeekdays(){
+          var days = [];
+          Array.prototype.forEach.call(chips, function(chip){ if(chip.classList.contains("active")) days.push(parseInt(chip.getAttribute("data-day"),10)); });
+          return days;
+        }
         input.addEventListener("input", function(){ btn.disabled = input.value.trim().length === 0; });
-        input.addEventListener("keydown", function(e){ if(e.key === "Enter" && !btn.disabled){ addItem(sm.key, input.value, dayNum); } });
-        btn.addEventListener("click", function(){ addItem(sm.key, input.value, dayNum); });
+        input.addEventListener("keydown", function(e){ if(e.key === "Enter" && !btn.disabled){ addItem(sm.key, input.value, dayNum, collectWeekdays()); } });
+        btn.addEventListener("click", function(){ addItem(sm.key, input.value, dayNum, collectWeekdays()); });
         secEl.appendChild(addRow);
       }
 
@@ -676,7 +724,7 @@
     confBlock.className = "set-block";
     confBlock.style.textAlign = "center";
     var conf = CONFIRMATIONS[dayNum];
-    var allDone = dayCheckedCount(dayNum) === totalItemCount();
+    var allDone = dayCheckedCount(dayNum) === dayTotalCount(dayNum);
     if(conf){
       var when = new Date(conf.confirmed_at);
       var whenStr = pad(when.getHours())+":"+pad(when.getMinutes());
@@ -697,7 +745,7 @@
   }
 
   function confirmDay(dayNum){
-    var allDone = dayCheckedCount(dayNum) === totalItemCount();
+    var allDone = dayCheckedCount(dayNum) === dayTotalCount(dayNum);
     var record = { confirmed_at: new Date().toISOString(), all_done: allDone };
     CONFIRMATIONS[dayNum] = record;
     saveJSON(KEY_CONFIRM, CONFIRMATIONS);
@@ -720,11 +768,11 @@
     checkOverdueAndNotify();
   }
 
-  function addItem(secKey, label, dayNum){
+  function addItem(secKey, label, dayNum, weekdays){
     label = label.trim();
     if(!label) return;
     var id = secKey + "-" + Date.now();
-    var item = {id:id, label:label};
+    var item = {id:id, label:label, weekdays: weekdays && weekdays.length ? weekdays : []};
     ITEMS[secKey].push(item);
     saveItems();
     pushAddItem(secKey, item, ITEMS[secKey].length);
@@ -745,7 +793,7 @@
 
   function renderPanelHeader(dayNum){
     var checked = dayCheckedCount(dayNum);
-    var total = totalItemCount();
+    var total = dayTotalCount(dayNum);
     var pct = total > 0 ? Math.round((checked/total)*100) : 0;
     document.getElementById("panelFill").style.width = pct + "%";
     document.getElementById("panelLabel").textContent = checked + " de " + total + " tarefas concluídas";
@@ -1013,15 +1061,16 @@
     document.getElementById("weekPrevBtn").style.opacity = currentWeek === 0 ? .35 : 1;
     document.getElementById("weekNextBtn").style.opacity = currentWeek === WEEK_RANGES.length-1 ? .35 : 1;
 
-    var total = totalItemCount();
     var todayDay = getTodayDayNumber();
 
     // ---- bloco "Hoje" (para acompanhar à distância) ----
+    var todayTotal = dayTotalCount(todayDay);
     var todayChecked = dayCheckedCount(todayDay);
     var todayD = getDayState(todayDay);
     var secStatusHtml = SECTION_META.map(function(sm){
-      var c = ITEMS[sm.key].filter(function(it){ return todayD[sm.key][it.id]; }).length;
-      var tot = ITEMS[sm.key].length;
+      var dayItems = itemsForDay(sm.key, todayDay);
+      var c = dayItems.filter(function(it){ return todayD[sm.key][it.id]; }).length;
+      var tot = dayItems.length;
       var ok = c === tot && tot > 0;
       return '<div class="set-row"><span class="rl">'+sm.emoji+' '+sm.title+'</span>' +
         '<span style="font-size:12.5px; font-weight:700; color:'+(ok?"var(--ok)":"var(--warn)")+';">'+c+'/'+tot+'</span></div>';
@@ -1039,7 +1088,7 @@
     body.innerHTML =
       '<div class="set-block">' +
         '<h3>Hoje — Dia '+todayDay+'</h3>' +
-        '<p style="font-size:22px; font-weight:800; color:var(--ink); margin:2px 0 8px;">'+todayChecked+'/'+total+' tarefas</p>' +
+        '<p style="font-size:22px; font-weight:800; color:var(--ink); margin:2px 0 8px;">'+todayChecked+'/'+todayTotal+' tarefas</p>' +
         confHtml +
         secStatusHtml +
       '</div>';
@@ -1048,12 +1097,13 @@
     var rowsHtml = "";
     for(var day = range[0]; day <= range[1]; day++){
       var checked = dayCheckedCount(day);
+      var total = dayTotalCount(day);
       sumChecked += checked; sumTotal += total;
       var pct = total > 0 ? Math.round((checked/total)*100) : 0;
       var d = getDayState(day);
       var pending = [];
       SECTION_META.forEach(function(sm){
-        ITEMS[sm.key].forEach(function(it){ if(!d[sm.key][it.id]) pending.push(it.label); });
+        itemsForDay(sm.key, day).forEach(function(it){ if(!d[sm.key][it.id]) pending.push(it.label); });
       });
       var statusColor = pct === 100 ? "var(--ok)" : (pct === 0 ? "var(--ink-soft)" : "var(--warn)");
       var conf = CONFIRMATIONS[day];
@@ -1084,17 +1134,17 @@
 
   function buildReportText(){
     var range = WEEK_RANGES[currentWeek];
-    var total = totalItemCount();
     var lines = [];
     lines.push("Relatório Semanal — Bagga Caldas da Rainha");
     lines.push("Semana " + (currentWeek+1) + " (Dias " + range[0] + "–" + range[1] + ")");
     lines.push("");
     for(var day = range[0]; day <= range[1]; day++){
       var checked = dayCheckedCount(day);
+      var total = dayTotalCount(day);
       var d = getDayState(day);
       var pending = [];
       SECTION_META.forEach(function(sm){
-        ITEMS[sm.key].forEach(function(it){ if(!d[sm.key][it.id]) pending.push(it.label); });
+        itemsForDay(sm.key, day).forEach(function(it){ if(!d[sm.key][it.id]) pending.push(it.label); });
       });
       var line = "Dia " + day + ": " + checked + "/" + total;
       line += (checked === total) ? " ✅" : (pending.length ? " — pendente: " + pending.join("; ") : "");
