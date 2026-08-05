@@ -237,6 +237,7 @@
         <h1>Checklist Operacional — 30 Dias</h1>
       </div>
       <div style="display:flex; gap:8px;">
+        <button class="icon-btn" id="notifBtn" aria-label="Ativar avisos">🔔</button>
         <button class="icon-btn" id="reportBtn" aria-label="Painel do Gestor">📊</button>
         <button class="icon-btn" id="settingsBtn" aria-label="Definições e avisos">⚙️</button>
       </div>
@@ -284,6 +285,18 @@
     <div class="panel-body" id="setBody"></div>
   </div>
 
+  <!-- Notifications panel (sem PIN — qualquer pessoa neste telemóvel) -->
+  <div class="overlay" id="notifOverlay"></div>
+  <div class="panel" id="notifPanel">
+    <div class="panel-head">
+      <div class="panel-head-top">
+        <h2>Avisos neste telemóvel</h2>
+        <button class="close-btn" id="notifCloseBtn">✕</button>
+      </div>
+    </div>
+    <div class="panel-body" id="notifBody"></div>
+  </div>
+
   <!-- Weekly report panel -->
   <div class="overlay" id="repOverlay"></div>
   <div class="panel" id="repPanel">
@@ -302,6 +315,7 @@
   </div>
 
   <div id="undoToast"><span id="undoMsg"></span><button id="undoBtn">DESFAZER</button></div>
+  <input type="file" id="photoCaptureInput" accept="image/*" capture="environment" style="display:none;">
 
   <!-- Owner PIN modal -->
   <div class="pin-modal" id="pinModal">
@@ -339,6 +353,7 @@
   var KEY_CHECK = "bagga_caldas_checklist_v2";
   var KEY_SET   = "bagga_caldas_settings_v1";
   var KEY_CONFIRM = "bagga_caldas_confirmations_v1";
+  var KEY_PHOTOS = "bagga_caldas_photos_v1";
   var KEY_LEGACY_CHECK = "bagga_caldas_checklist_v1";
   var TOTAL_DAYS = 30;
 
@@ -439,10 +454,17 @@
     var raw = loadJSON(KEY_CONFIRM, {});
     Object.keys(raw).forEach(function(k){ CONFIRMATIONS[parseInt(k,10)] = raw[k]; });
   })();
+  var PHOTOS = loadJSON(KEY_PHOTOS, {}); // {"day-N": {itemId: url}}
 
   function saveItems(){ saveJSON(KEY_ITEMS, ITEMS); }
   function saveCheck(){ saveJSON(KEY_CHECK, CHECK); }
   function saveSettings(){ saveJSON(KEY_SET, SETTINGS); }
+  function savePhotos(){ saveJSON(KEY_PHOTOS, PHOTOS); }
+  function getDayPhotos(dayNum){
+    var k = "day-"+dayNum;
+    if(!PHOTOS[k]) PHOTOS[k] = {};
+    return PHOTOS[k];
+  }
 
   /* ---------- owner PIN gate ---------- */
   var pendingOwnerAction = null;
@@ -479,6 +501,7 @@
     renderGrid();
     if(currentDay){ renderPanel(currentDay); renderPanelHeader(currentDay); }
     if(document.getElementById("setPanel").classList.contains("open")) renderSettings();
+    if(document.getElementById("notifPanel").classList.contains("open")) renderNotifPanel();
     if(document.getElementById("repPanel").classList.contains("open")) renderReport();
     checkOverdueAndNotify();
   }
@@ -497,7 +520,7 @@
 
       var newItems = {abertura:[], rotina:[], fecho:[]};
       (itemsRes.data || []).forEach(function(row){
-        if(newItems[row.section]) newItems[row.section].push({id:row.id, label:row.label, weekdays: row.weekdays || []});
+        if(newItems[row.section]) newItems[row.section].push({id:row.id, label:row.label, weekdays: row.weekdays || [], requiresPhoto: !!row.requires_photo});
       });
       if(newItems.abertura.length || newItems.rotina.length || newItems.fecho.length){
         ITEMS = newItems;
@@ -505,15 +528,20 @@
       }
 
       var newCheck = {};
+      var newPhotos = {};
       (checksRes.data || []).forEach(function(row){
         var k = "day-" + row.day;
         if(!newCheck[k]) newCheck[k] = {abertura:{}, rotina:{}, fecho:{}};
+        if(!newPhotos[k]) newPhotos[k] = {};
         SECTION_META.forEach(function(sm){
           if(ITEMS[sm.key].some(function(it){ return it.id === row.item_id; })) newCheck[k][sm.key][row.item_id] = row.checked;
         });
+        if(row.photo_url) newPhotos[k][row.item_id] = row.photo_url;
       });
       CHECK = newCheck;
       saveCheck();
+      PHOTOS = newPhotos;
+      savePhotos();
 
       if(settingsRes.data){
         // notifEnabled e lastNotified são intencionalmente por-dispositivo — não vêm do servidor.
@@ -534,15 +562,17 @@
     }).catch(function(){ setSyncStatus("offline"); });
   }
 
-  function pushCheck(day, itemId, checked){
+  function pushCheck(day, itemId, checked, photoUrl){
     if(!sb) return;
-    sb.from("caldas_checks").upsert({day:day, item_id:itemId, checked:checked, updated_at:new Date().toISOString()}, {onConflict:"day,item_id"})
+    var payload = {day:day, item_id:itemId, checked:checked, updated_at:new Date().toISOString()};
+    if(photoUrl) payload.photo_url = photoUrl;
+    sb.from("caldas_checks").upsert(payload, {onConflict:"day,item_id"})
       .then(function(r){ setSyncStatus(r.error ? "offline" : "ok"); })
       .catch(function(){ setSyncStatus("offline"); });
   }
   function pushAddItem(section, item, position){
     if(!sb) return;
-    sb.from("caldas_items").insert({id:item.id, section:section, label:item.label, position:position, weekdays:item.weekdays||[]})
+    sb.from("caldas_items").insert({id:item.id, section:section, label:item.label, position:position, weekdays:item.weekdays||[], requires_photo: !!item.requiresPhoto})
       .then(function(r){ setSyncStatus(r.error ? "offline" : "ok"); })
       .catch(function(){ setSyncStatus("offline"); });
   }
@@ -663,11 +693,18 @@
         var recurBadge = (it.weekdays && it.weekdays.length)
           ? '<span style="font-size:10px; font-weight:700; color:var(--accent); background:var(--accent-soft); padding:2px 6px; border-radius:8px; margin-left:6px; white-space:nowrap;">'+it.weekdays.map(function(w){return WEEKDAY_LABELS[w];}).join("/")+'</span>'
           : '';
+        var photoBadge = it.requiresPhoto
+          ? '<span style="font-size:10px; font-weight:700; color:var(--warn); background:var(--warn-soft); padding:2px 6px; border-radius:8px; margin-left:6px; white-space:nowrap;">📷 foto</span>'
+          : '';
+        var dayPhotos = getDayPhotos(dayNum);
+        var thumbHtml = dayPhotos[it.id]
+          ? '<img src="'+dayPhotos[it.id]+'" class="photo-thumb" style="width:34px; height:34px; border-radius:8px; object-fit:cover; margin-left:8px; flex-shrink:0;">'
+          : '';
         if(editMode[sm.key]){
           var realIdx = allItems.indexOf(it);
           row.innerHTML =
             '<span class="check">'+(d[sm.key][it.id] ? "✓" : "")+'</span>' +
-            '<span class="label">'+it.label+recurBadge+'</span>' +
+            '<span class="label">'+it.label+recurBadge+photoBadge+'</span>' +
             '<button class="del-btn">✕</button>';
           row.querySelector(".del-btn").addEventListener("click", function(ev){
             ev.stopPropagation();
@@ -678,8 +715,18 @@
         } else {
           row.innerHTML =
             '<span class="check">'+(d[sm.key][it.id] ? "✓" : "")+'</span>' +
-            '<span class="label">'+it.label+recurBadge+'</span>';
-          row.addEventListener("click", function(){ toggleItem(sm.key, it.id, dayNum); });
+            '<span class="label">'+it.label+photoBadge+'</span>' +
+            thumbHtml;
+          if(thumbHtml){
+            row.querySelector(".photo-thumb").addEventListener("click", function(ev){
+              ev.stopPropagation();
+              window.open(dayPhotos[it.id], "_blank");
+            });
+          }
+          row.addEventListener("click", function(ev){
+            if(ev.target.classList.contains("photo-thumb")) return;
+            toggleItem(sm.key, it.id, dayNum);
+          });
         }
         secEl.appendChild(row);
       });
@@ -693,11 +740,13 @@
           '<div style="display:flex; gap:8px;"><input type="text" placeholder="Nova tarefa..." maxlength="100"><button disabled>Adicionar</button></div>' +
           '<div class="wd-chips" style="display:flex; gap:5px; margin-top:9px; flex-wrap:wrap;">' +
             WEEKDAY_LABELS.map(function(lbl, idx){ return '<button type="button" class="wd-chip" data-day="'+idx+'" style="border:1px solid var(--line); background:var(--bg); color:var(--ink-soft); font-size:11px; font-weight:700; padding:5px 9px; border-radius:8px;">'+lbl+'</button>'; }).join("") +
+            '<button type="button" class="photo-chip" style="border:1px solid var(--line); background:var(--bg); color:var(--ink-soft); font-size:11px; font-weight:700; padding:5px 9px; border-radius:8px;">📷 Pede foto</button>' +
           '</div>' +
-          '<div style="font-size:10.5px; color:var(--ink-soft); margin-top:5px;">Sem dias escolhidos = repete todos os dias do mês</div>';
+          '<div style="font-size:10.5px; color:var(--ink-soft); margin-top:5px;">Sem dias escolhidos = repete todos os dias do mês. "Pede foto" pede uma fotografia como prova ao marcar esta tarefa.</div>';
         var input = addRow.querySelector("input");
         var btn = addRow.querySelector("button");
         var chips = addRow.querySelectorAll(".wd-chip");
+        var photoChip = addRow.querySelector(".photo-chip");
         Array.prototype.forEach.call(chips, function(chip){
           chip.addEventListener("click", function(){
             chip.classList.toggle("active");
@@ -706,14 +755,20 @@
             chip.style.borderColor = chip.classList.contains("active") ? "var(--accent)" : "var(--line)";
           });
         });
+        photoChip.addEventListener("click", function(){
+          photoChip.classList.toggle("active");
+          photoChip.style.background = photoChip.classList.contains("active") ? "var(--warn)" : "var(--bg)";
+          photoChip.style.color = photoChip.classList.contains("active") ? "#fff" : "var(--ink-soft)";
+          photoChip.style.borderColor = photoChip.classList.contains("active") ? "var(--warn)" : "var(--line)";
+        });
         function collectWeekdays(){
           var days = [];
           Array.prototype.forEach.call(chips, function(chip){ if(chip.classList.contains("active")) days.push(parseInt(chip.getAttribute("data-day"),10)); });
           return days;
         }
         input.addEventListener("input", function(){ btn.disabled = input.value.trim().length === 0; });
-        input.addEventListener("keydown", function(e){ if(e.key === "Enter" && !btn.disabled){ addItem(sm.key, input.value, dayNum, collectWeekdays()); } });
-        btn.addEventListener("click", function(){ addItem(sm.key, input.value, dayNum, collectWeekdays()); });
+        input.addEventListener("keydown", function(e){ if(e.key === "Enter" && !btn.disabled){ addItem(sm.key, input.value, dayNum, collectWeekdays(), photoChip.classList.contains("active")); } });
+        btn.addEventListener("click", function(){ addItem(sm.key, input.value, dayNum, collectWeekdays(), photoChip.classList.contains("active")); });
         secEl.appendChild(addRow);
       }
 
@@ -760,7 +815,13 @@
 
   function toggleItem(secKey, itemId, dayNum){
     var d = getDayState(dayNum);
-    d[secKey][itemId] = !d[secKey][itemId];
+    var item = ITEMS[secKey].filter(function(it){ return it.id === itemId; })[0];
+    var willCheck = !d[secKey][itemId];
+    if(item && item.requiresPhoto && willCheck){
+      capturePhotoForItem(secKey, itemId, dayNum);
+      return;
+    }
+    d[secKey][itemId] = willCheck;
     saveCheck();
     pushCheck(dayNum, itemId, d[secKey][itemId]);
     renderPanel(dayNum);
@@ -768,11 +829,40 @@
     checkOverdueAndNotify();
   }
 
-  function addItem(secKey, label, dayNum, weekdays){
+  function capturePhotoForItem(secKey, itemId, dayNum){
+    var input = document.getElementById("photoCaptureInput");
+    input.onchange = function(){
+      var file = input.files && input.files[0];
+      input.value = "";
+      if(!file) return;
+      if(!sb){ alert("Sem ligação — não é possível guardar a foto agora. Tenta mais tarde."); return; }
+      var path = "day-"+dayNum+"/"+itemId+"-"+Date.now()+".jpg";
+      setSyncStatus("syncing");
+      sb.storage.from("caldas-photos").upload(path, file, {contentType: file.type || "image/jpeg"}).then(function(res){
+        if(res.error){ setSyncStatus("offline"); alert("Não foi possível enviar a foto. Tenta outra vez."); return; }
+        var pub = sb.storage.from("caldas-photos").getPublicUrl(path);
+        var url = pub && pub.data ? pub.data.publicUrl : null;
+        var d = getDayState(dayNum);
+        d[secKey][itemId] = true;
+        saveCheck();
+        var dp = getDayPhotos(dayNum);
+        dp[itemId] = url;
+        savePhotos();
+        pushCheck(dayNum, itemId, true, url);
+        setSyncStatus("ok");
+        renderPanel(dayNum);
+        renderPanelHeader(dayNum);
+        checkOverdueAndNotify();
+      }).catch(function(){ setSyncStatus("offline"); alert("Não foi possível enviar a foto. Tenta outra vez."); });
+    };
+    input.click();
+  }
+
+  function addItem(secKey, label, dayNum, weekdays, requiresPhoto){
     label = label.trim();
     if(!label) return;
     var id = secKey + "-" + Date.now();
-    var item = {id:id, label:label, weekdays: weekdays && weekdays.length ? weekdays : []};
+    var item = {id:id, label:label, weekdays: weekdays && weekdays.length ? weekdays : [], requiresPhoto: !!requiresPhoto};
     ITEMS[secKey].push(item);
     saveItems();
     pushAddItem(secKey, item, ITEMS[secKey].length);
@@ -925,22 +1015,10 @@
     renderAlertBanner(overdue);
   }
 
-  /* ---------- settings panel ---------- */
+  /* ---------- settings panel (protegido por PIN) ---------- */
   function renderSettings(){
     var body = document.getElementById("setBody");
     body.innerHTML = "";
-
-    var block1 = document.createElement("div");
-    block1.className = "set-block";
-    var permState = ("Notification" in window) ? Notification.permission : "unsupported";
-    var enabledNow = SETTINGS.notifEnabled && permState === "granted";
-    block1.innerHTML =
-      '<h3>Notificações no telemóvel</h3>' +
-      '<p>Avisa quando uma secção passa da hora e ainda não está concluída, enquanto o telemóvel está a ser usado ou com a app aberta em segundo plano recente. Este ficheiro único não usa um "service worker", por isso a fiabilidade com a app completamente fechada ou o telemóvel bloqueado há muito tempo é limitada — Android costuma aguentar melhor do que iPhone.</p>' +
-      '<div class="set-row"><span class="rl">Ativar notificações<br><span class="status-pill '+(enabledNow?'on':'off')+'">'+(enabledNow?'Ativas':'Inativas')+'</span></span>' +
-      '<label class="switch"><input type="checkbox" id="notifToggle" '+(enabledNow?'checked':'')+'><span class="track"></span></label></div>' +
-      '<button class="btn-secondary" id="testNotifBtn">Testar notificação agora</button>';
-    body.appendChild(block1);
 
     var block2 = document.createElement("div");
     block2.className = "set-block";
@@ -950,7 +1028,7 @@
     }).join("");
     block2.innerHTML =
       '<h3>Horários de referência</h3>' +
-      '<p>A partir desta hora, se a secção ainda tiver tarefas por fazer, a app mostra um alerta e envia notificação (uma vez por dia, por secção).</p>' +
+      '<p>A partir desta hora, se a secção ainda tiver tarefas por fazer, a app mostra um alerta e envia notificação (uma vez por dia, por secção) a quem tiver os avisos ativados neste telemóvel.</p>' +
       rowsHtml;
     body.appendChild(block2);
     Array.prototype.forEach.call(block2.querySelectorAll('input[type=time]'), function(inp){
@@ -965,18 +1043,11 @@
       });
     });
 
-    var block3 = document.createElement("div");
-    block3.className = "set-block";
-    block3.innerHTML =
-      '<h3>Instalar como app</h3>' +
-      '<p>No Android/Chrome: menu ⋮ → "Adicionar ao ecrã principal". No iPhone/Safari: botão Partilhar → "Adicionar ao Ecrã Principal". Depois de instalada, abre como uma app normal, com ícone próprio e sem barra de endereço.</p>';
-    body.appendChild(block3);
-
     var block4 = document.createElement("div");
     block4.className = "set-block";
     block4.innerHTML =
       '<h3>Acesso reservado</h3>' +
-      '<p>Este PIN protege a edição de tarefas, estas definições e o botão "Reiniciar". O dia a dia de marcar tarefas nunca pede PIN.</p>' +
+      '<p>Este PIN protege a edição de tarefas, os horários e o botão "Reiniciar". O dia a dia de marcar tarefas e ativar avisos no telemóvel nunca pede PIN.</p>' +
       '<div style="display:flex; gap:8px;">' +
         '<input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" id="newPinInput" placeholder="Novo PIN" style="flex:1; border:1px solid var(--line); border-radius:9px; padding:9px 10px; font-size:13.5px; background:var(--bg);">' +
         '<button class="btn-secondary" id="savePinBtn" style="width:auto; margin-top:0; padding:0 14px;">Guardar</button>' +
@@ -991,6 +1062,31 @@
       document.getElementById("newPinInput").value = "";
       alert("PIN atualizado.");
     });
+  }
+
+  /* ---------- notifications panel (aberto a qualquer pessoa neste telemóvel) ---------- */
+  function renderNotifPanel(){
+    var body = document.getElementById("notifBody");
+    body.innerHTML = "";
+
+    var block1 = document.createElement("div");
+    block1.className = "set-block";
+    var permState = ("Notification" in window) ? Notification.permission : "unsupported";
+    var enabledNow = SETTINGS.notifEnabled && permState === "granted";
+    block1.innerHTML =
+      '<h3>Notificações neste telemóvel</h3>' +
+      '<p>Avisa quando uma secção passa da hora e ainda não está concluída. Cada telemóvel tem os seus próprios avisos — ativa aqui no teu e também no do Duarte, cada um recebe os seus. Funciona enquanto o telemóvel está a ser usado ou com a app aberta em segundo plano recente; com o telemóvel bloqueado há muito tempo a fiabilidade é limitada (Android costuma aguentar melhor que iPhone).</p>' +
+      '<div class="set-row"><span class="rl">Ativar notificações<br><span class="status-pill '+(enabledNow?'on':'off')+'">'+(enabledNow?'Ativas':'Inativas')+'</span></span>' +
+      '<label class="switch"><input type="checkbox" id="notifToggle" '+(enabledNow?'checked':'')+'><span class="track"></span></label></div>' +
+      '<button class="btn-secondary" id="testNotifBtn">Testar notificação agora</button>';
+    body.appendChild(block1);
+
+    var block3 = document.createElement("div");
+    block3.className = "set-block";
+    block3.innerHTML =
+      '<h3>Instalar como app</h3>' +
+      '<p>No Android/Chrome: menu ⋮ → "Adicionar ao ecrã principal". No iPhone/Safari: botão Partilhar → "Adicionar ao Ecrã Principal". Depois de instalada, abre como uma app normal, com ícone próprio e sem barra de endereço — ajuda os avisos a funcionar melhor.</p>';
+    body.appendChild(block3);
 
     document.getElementById("notifToggle").addEventListener("change", function(e){
       if(e.target.checked){
@@ -998,7 +1094,7 @@
       } else {
         SETTINGS.notifEnabled = false;
         saveSettings();
-        renderSettings();
+        renderNotifPanel();
       }
     });
     document.getElementById("testNotifBtn").addEventListener("click", function(){
@@ -1029,9 +1125,23 @@
         saveSettings();
         alert("Permissão de notificações não concedida. Podes ativar mais tarde nas definições do navegador.");
       }
-      renderSettings();
+      renderNotifPanel();
     });
   }
+
+  document.getElementById("notifBtn").addEventListener("click", function(){
+    renderNotifPanel();
+    document.getElementById("notifOverlay").classList.add("open");
+    document.getElementById("notifPanel").classList.add("open");
+    document.body.style.overflow = "hidden";
+  });
+  function closeNotifPanel(){
+    document.getElementById("notifOverlay").classList.remove("open");
+    document.getElementById("notifPanel").classList.remove("open");
+    document.body.style.overflow = "";
+  }
+  document.getElementById("notifCloseBtn").addEventListener("click", closeNotifPanel);
+  document.getElementById("notifOverlay").addEventListener("click", closeNotifPanel);
 
   document.getElementById("settingsBtn").addEventListener("click", function(){
     requireOwner(function(){
@@ -1095,6 +1205,7 @@
 
     var sumChecked = 0, sumTotal = 0;
     var rowsHtml = "";
+    var missCounts = {}; // label -> quantas vezes ficou pendente esta semana
     for(var day = range[0]; day <= range[1]; day++){
       var checked = dayCheckedCount(day);
       var total = dayTotalCount(day);
@@ -1103,7 +1214,12 @@
       var d = getDayState(day);
       var pending = [];
       SECTION_META.forEach(function(sm){
-        itemsForDay(sm.key, day).forEach(function(it){ if(!d[sm.key][it.id]) pending.push(it.label); });
+        itemsForDay(sm.key, day).forEach(function(it){
+          if(!d[sm.key][it.id]){
+            pending.push(it.label);
+            missCounts[it.label] = (missCounts[it.label] || 0) + 1;
+          }
+        });
       });
       var statusColor = pct === 100 ? "var(--ok)" : (pct === 0 ? "var(--ink-soft)" : "var(--warn)");
       var conf = CONFIRMATIONS[day];
@@ -1118,11 +1234,20 @@
         '</div>';
     }
 
+    var missList = Object.keys(missCounts).sort(function(a,b){ return missCounts[b]-missCounts[a]; });
+    var missHtml = missList.length
+      ? missList.map(function(label){ return '<div class="set-row"><span class="rl">'+label+'</span><span style="font-size:12px; font-weight:700; color:var(--warn);">'+missCounts[label]+'x</span></div>'; }).join("")
+      : '<p style="color:var(--ok); font-weight:700;">Nada ficou por fazer esta semana. 🎉</p>';
+
     var avgPct = sumTotal > 0 ? Math.round((sumChecked/sumTotal)*100) : 0;
     body.innerHTML +=
       '<div class="set-block">' +
         '<h3>Cumprimento da semana</h3>' +
         '<p style="font-size:22px; font-weight:800; color:var(--ink); margin:2px 0 0;">'+avgPct+'%</p>' +
+      '</div>' +
+      '<div class="set-block">' +
+        '<h3>O que ficou por fazer esta semana</h3>' +
+        missHtml +
       '</div>' +
       '<div class="set-block">' + rowsHtml + '</div>' +
       '<button class="btn-primary" id="shareReportBtn">Partilhar relatório</button>' +
