@@ -138,7 +138,7 @@ const MARKETING_CATS = [
 const JSC_LOJAS = ["Almeirim", "Ponte de Sor"];
 const TABACO_EXCLUIR = ["Caldas da Rainha"];
 const CATEGORY_DOW = { raspadinhas: 1, cafe: 2, laranja: 3 };
-const RESET_GRACE_UNTIL = new Date("2026-08-07T00:00:00"); // reset de dados: só conta atrasado com prazo a partir desta data
+const RESET_GRACE_UNTIL = new Date("2026-08-07T08:00:00"); // início real da operação: nada conta como pendente/atrasado antes disto
 
 function categoriasParaLoja(loja){
   return INV_CATS.filter(c=>{
@@ -257,16 +257,19 @@ function bigPhoto(urls, indice){
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   let statReportes = 0, statAtrasados = 0, statFardamento = 0, statAdendas = 0;
+  const aindaNaoComecou = new Date() < RESET_GRACE_UNTIL;
 
   try{
     const daily = await api(`cj_daily_reportes?select=loja,tipo,turno&data=eq.${todayStr}`);
     let reportesPend = 0;
     const semVitrine = [], semVendas = [];
-    LOJAS.forEach(l=>{
-      const turnos = ["manha","almoco","lanche"].filter(t=>daily.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t)).length;
-      if(turnos<3){ reportesPend++; semVitrine.push(l); }
-      if(!daily.some(r=>r.loja===l && r.tipo==="vendas" && r.turno==="unico")){ reportesPend++; semVendas.push(l); }
-    });
+    if(!aindaNaoComecou){
+      LOJAS.forEach(l=>{
+        const turnos = ["manha","almoco","lanche"].filter(t=>daily.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t)).length;
+        if(turnos<3){ reportesPend++; semVitrine.push(l); }
+        if(!daily.some(r=>r.loja===l && r.tipo==="vendas" && r.turno==="unico")){ reportesPend++; semVendas.push(l); }
+      });
+    }
     setBadge("badge-reportes", reportesPend);
     statReportes = reportesPend;
     if(semVitrine.length) addAttn(attn, "CoreJoint_Reportes.html", `🌇 ${semVitrine.length} loja(s) sem vitrine completa hoje`, semVitrine.slice(0,4).join(", ") + (semVitrine.length>4?" e mais...":""), true);
@@ -399,10 +402,12 @@ function bigPhoto(urls, indice){
       let globalNaoMarcado = false;
       if(today.getDate()>5) globalNaoMarcado = !agendamentosPainel.some(a=>a.loja===l);
       const pendencias = [];
-      if(vitOk<3) pendencias.push(`Vitrine ${vitOk}/3`);
-      if(!vendasOk) pendencias.push("Vendas por fazer");
-      if(atrasadosLoja>0) pendencias.push(`${atrasadosLoja} atrasado(s)`);
-      if(globalNaoMarcado) pendencias.push("Global não marcado");
+      if(!aindaNaoComecou){
+        if(vitOk<3) pendencias.push(`Vitrine ${vitOk}/3`);
+        if(!vendasOk) pendencias.push("Vendas por fazer");
+        if(atrasadosLoja>0) pendencias.push(`${atrasadosLoja} atrasado(s)`);
+        if(globalNaoMarcado) pendencias.push("Global não marcado");
+      }
       return {loja:l, pendencias, urgente: pendencias.length};
     });
 
