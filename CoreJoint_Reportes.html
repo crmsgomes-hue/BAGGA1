@@ -2867,6 +2867,179 @@ async function avisosSectionHtml(desde){
 let manualPhoto = null;
 let manualFotoEntrada = null;
 let manualFotoDesperdicio = null;
+function openImportarQuebras(){
+  currentView = openImportarQuebras;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = render;
+  main.appendChild(back);
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <div class="card-title" style="margin-bottom:6px;">📤 Importar Excel de quebras</div>
+    <div class="card-sub" style="margin-bottom:12px;">Colunas esperadas: Loja, Data, Operador, Quebra, Safebag. Só as quebras de 20€ ou mais são importadas e as lojas avisadas.</div>
+    <input type="file" id="quebrasFile" accept=".xlsx,.xls,.csv">
+    <div id="quebrasPreview" style="margin-top:14px;"></div>
+  `;
+  main.appendChild(card);
+  document.getElementById("quebrasFile").addEventListener("change", handleQuebrasFile);
+}
+
+let quebrasParaImportar = [];
+function handleQuebrasFile(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:"array", cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
+      function pegar(row, nome){
+        for(const k of Object.keys(row)){
+          if(k.toLowerCase().trim()===nome) return row[k];
+        }
+        return "";
+      }
+      const todasLinhas = rows.map(r=>{
+        const loja = String(pegar(r,"loja")).trim();
+        const dataRaw = pegar(r,"data");
+        let dataStr = "";
+        if(dataRaw instanceof Date) dataStr = isoDate(dataRaw);
+        else if(typeof dataRaw === "number" && window.XLSX && XLSX.SSF){
+          const d = XLSX.SSF.parse_date_code(dataRaw);
+          dataStr = `${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`;
+        } else {
+          dataStr = String(dataRaw).trim();
+        }
+        const operador = String(pegar(r,"operador")).trim();
+        const quebraRaw = String(pegar(r,"quebra")).replace(",", ".").trim();
+        const quebra = parseFloat(quebraRaw);
+        const safebag = String(pegar(r,"safebag")).trim();
+        return {loja, data:dataStr, operador, valor_quebra:quebra, safebag};
+      }).filter(r=>r.loja && !isNaN(r.valor_quebra));
+
+      quebrasParaImportar = todasLinhas.filter(r=>Math.abs(r.valor_quebra)>=20);
+      renderQuebrasPreview(todasLinhas.length);
+    }catch(err){
+      console.error(err);
+      toast("Erro a ler o ficheiro: " + (err.message||err).slice(0,100));
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderQuebrasPreview(totalLinhas){
+  const prev = document.getElementById("quebrasPreview");
+  if(quebrasParaImportar.length===0){
+    prev.innerHTML = `<div class="empty">${totalLinhas} linhas lidas, nenhuma com quebra ≥ 20€.</div>`;
+    return;
+  }
+  let html = `<div style="font-weight:700; margin-bottom:8px;">${quebrasParaImportar.length} quebra(s) ≥ 20€ (de ${totalLinhas} linhas):</div>`;
+  quebrasParaImportar.forEach(q=>{
+    html += `<div style="padding:8px 0; border-bottom:1px solid var(--line); font-size:13px;">
+      <b>${q.loja}</b> — ${q.data} — ${q.operador||'—'} — <span style="color:var(--red); font-weight:700;">${q.valor_quebra} €</span>${q.safebag?' · Safebag: '+q.safebag:''}
+    </div>`;
+  });
+  html += `<button class="cambtn" style="width:100%; margin-top:14px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-weight:700;" id="confirmarImportarQuebrasBtn">Importar e avisar as lojas</button>`;
+  prev.innerHTML = html;
+  document.getElementById("confirmarImportarQuebrasBtn").onclick = confirmarImportarQuebras;
+}
+
+async function confirmarImportarQuebras(){
+  try{
+    for(const q of quebrasParaImportar){
+      await api("POST", "cj_quebras_reportes", {
+        loja:q.loja, data:q.data, operador:q.operador, valor_quebra:q.valor_quebra, safebag:q.safebag,
+        importado_por: currentUser
+      });
+      const descricao = `Quebra de ${q.valor_quebra} € em ${new Date(q.data+"T00:00:00").toLocaleDateString('pt-PT')} (op: ${q.operador||'-'}) — precisa do nº de registo e justificação`;
+      await api("POST", "cj_avisos", {loja:q.loja, tipo:"outro", descricao, criado_por: currentUser});
+      notificarLojaAviso(q.loja, "outro", descricao);
+    }
+    mostrarSucesso(`${quebrasParaImportar.length} quebra(s) importada(s) e lojas avisadas!`);
+    quebrasParaImportar = [];
+    render();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao importar: " + (e.message||e).slice(0,100));
+  }
+}
+
+function openRelatorioQuebras(){
+  currentView = openRelatorioQuebras;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = render;
+  main.appendChild(back);
+
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:14px;";
+  title.textContent = "Quebras de caixa ≥ 20€ — últimos 30 dias";
+  main.appendChild(title);
+
+  api("GET", "cj_quebras_reportes?select=*&order=data.desc&limit=200").then(rows=>{
+    const trintaDiasAtras = isoDate(new Date(Date.now()-30*86400000));
+    const recentes = rows.filter(r=>r.data>=trintaDiasAtras);
+    if(recentes.length===0){
+      main.innerHTML += '<div class="empty">Nenhuma quebra registada nos últimos 30 dias.</div>';
+      return;
+    }
+    const actionsRow = document.createElement("div");
+    actionsRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px;";
+    actionsRow.innerHTML = `
+      <button class="cambtn secondary" style="flex:1;" id="qbExcelBtn">📥 Excel</button>
+      <button class="cambtn secondary" style="flex:1;" id="qbPdfBtn">👁️ Ver relatório</button>
+    `;
+    main.appendChild(actionsRow);
+    recentes.forEach(r=>{
+      const card = document.createElement("div");
+      card.className = "card";
+      const respondido = !!r.numero_registo;
+      card.innerHTML = `
+        <div class="card-top">
+          <div>
+            <div class="card-title">${r.loja}</div>
+            <div class="card-sub">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')} · ${r.operador||'—'} · Quebra: <b style="color:var(--red);">${r.valor_quebra} €</b>${r.safebag?' · Safebag: '+r.safebag:''}</div>
+          </div>
+          <span class="status-badge ${respondido?'ok':'pend'}">${respondido?'✔ Justificado':'⏳ A aguardar'}</span>
+        </div>
+        ${respondido ? `<div class="card-sub" style="margin-top:8px;">Nº registo: <b>${r.numero_registo}</b><br>${r.justificacao||''}</div>` : ``}
+      `;
+      main.appendChild(card);
+    });
+    document.getElementById("qbExcelBtn").onclick = async ()=>{
+      const wb = XLSX.utils.book_new();
+      const linhas = recentes.map(r=>({
+        Loja:r.loja, Data:r.data, Operador:r.operador, "Quebra (€)":r.valor_quebra, Safebag:r.safebag,
+        "Nº Registo":r.numero_registo||"", Justificação:r.justificacao||"", Estado: r.numero_registo?"Justificado":"Pendente"
+      }));
+      const ws = XLSX.utils.json_to_sheet(linhas);
+      XLSX.utils.book_append_sheet(wb, ws, "Quebras");
+      await salvarOuPartilharExcel(wb, `CoreJoint_quebras_${todayStr()}.xlsx`);
+    };
+    document.getElementById("qbPdfBtn").onclick = ()=>{
+      let html = `<h1>CoreJoint · Relatório de Quebras (≥20€)</h1><div style="font-size:8px; color:#555; margin-bottom:8px;">Últimos 30 dias · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
+      html += `<table><tr><th>Loja</th><th>Data</th><th>Operador</th><th>Quebra</th><th>Nº Registo</th><th>Justificação</th></tr>`;
+      recentes.forEach(r=>{
+        html += `<tr><td class="name">${r.loja}</td><td>${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</td><td>${r.operador||'-'}</td><td>${r.valor_quebra} €</td><td>${r.numero_registo||'—'}</td><td>${r.justificacao||'—'}</td></tr>`;
+      });
+      html += `</table>`;
+      mostrarAcoesRelatorio(html, `CoreJoint_quebras_${todayStr()}.pdf`);
+    };
+  });
+}
+
 function openManualEntry(){
   manualPhoto = null;
   manualFotoEntrada = null;
@@ -3209,6 +3382,10 @@ function renderGestao(){
       {icon:"🖼️", label:"Galeria fotos", fn:openGaleria},
       {icon:"📈", label:"CNVs Global", fn:openEvolucaoCnvs},
       {icon:"📅", label:"Quem marcou o Global", fn:openAgendamentosGlobal}
+    ]},
+    {titulo:"Quebras de caixa", itens:[
+      {icon:"📤", label:"Importar Excel de quebras", fn:openImportarQuebras},
+      {icon:"📊", label:"Relatório de quebras", fn:openRelatorioQuebras}
     ]},
     {titulo:"Utilitários", itens:[
       {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry},
