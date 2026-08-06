@@ -131,6 +131,7 @@ const MARKETING_CATS = [
 const JSC_LOJAS = ["Almeirim", "Ponte de Sor"];
 const TABACO_EXCLUIR = ["Caldas da Rainha"];
 const CATEGORY_DOW = { raspadinhas: 1, cafe: 2, laranja: 3 };
+const RESET_GRACE_UNTIL = new Date("2026-08-07T00:00:00"); // reset de dados: só conta atrasado com prazo a partir desta data
 
 function categoriasParaLoja(loja){
   return INV_CATS.filter(c=>{
@@ -236,12 +237,15 @@ function bigPhoto(urls, indice){
         if(rowsCat.length>0) return;
         const dow = CATEGORY_DOW[cat.key];
         let late = false;
+        let deadline;
         if(dow){
           const target = findWeekdayInRange(w.start,w.end,dow);
-          const graceDate = new Date(target); graceDate.setDate(graceDate.getDate()+1); graceDate.setHours(14,0,0,0);
-          late = today>graceDate;
+          deadline = new Date(target); deadline.setDate(deadline.getDate()+1); deadline.setHours(14,0,0,0);
+        } else {
+          deadline = w.end;
         }
-        else { late = today>w.end; }
+        if(deadline < RESET_GRACE_UNTIL) return; // prazo era antes do reset, não conta
+        late = today > deadline;
         if(late) atrasadosN++;
       });
     });
