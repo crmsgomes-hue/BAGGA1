@@ -487,10 +487,22 @@ function renderCardSimplificada(r){
   const d = daysSince(r.updated_at || r.criado_em);
   const bClass = badgeClass(d);
   const dayLabel = d===0 ? "hoje" : d===1 ? "há 1 dia" : `há ${d} dias`;
+  const docs = (r.documentos && r.documentos.length) ? r.documentos : (r.documento_upload ? [r.documento_upload] : []);
 
-  const docHtml = r.documento_upload
-    ? `<div class="card-meta" style="margin-top:8px; text-decoration:underline; cursor:pointer;" onclick="viewPhoto('${r.documento_upload.replace(/'/g,"")}','${(r.colaborador||'documento').replace(/'/g,"")}')">📄 Ver documento</div>`
-    : `<div class="card-meta" style="margin-top:8px; color:var(--ink-soft);">Sem documento anexado</div>`;
+  let docsHtml;
+  if(docs.length>0){
+    docsHtml = `<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">` +
+      docs.map((u,i)=>`<img src="${u}" data-doc-i="${i}" style="width:76px; height:76px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;">`).join("") +
+      `</div>`;
+  } else {
+    docsHtml = `<div class="card-meta" style="margin-top:8px; color:var(--ink-soft);">Sem documento anexado</div>`;
+  }
+  const addBtnHtml = `
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <label class="btn-save" style="flex:1; text-align:center; display:block; cursor:pointer; padding:8px; font-size:12.5px;">📷 Adicionar foto<input type="file" accept="image/*" capture="environment" data-add-foto="${r.id}" style="display:none;"></label>
+      <label class="btn-undo" style="flex:1; text-align:center; display:block; cursor:pointer; padding:8px; font-size:12.5px;">📁 Ficheiro<input type="file" accept="application/pdf,image/*" data-add-foto="${r.id}" style="display:none;"></label>
+    </div>
+  `;
 
   const assinaturasHtml = r.precisa_assinaturas
     ? `<div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
@@ -513,11 +525,40 @@ function renderCardSimplificada(r){
       </div>
       <span class="badge ${bClass}">${dayLabel}</span>
     </div>
-    ${docHtml}
+    ${docsHtml}
+    ${addBtnHtml}
     ${assinaturasHtml}
     ${rhHtml}
   `;
+  div.querySelectorAll("img[data-doc-i]").forEach(img=>{
+    img.onclick = ()=>bigPhoto(null, docs, +img.dataset.docI);
+  });
+  div.querySelectorAll("input[data-add-foto]").forEach(inp=>{
+    inp.addEventListener("change", (ev)=>adicionarFotoAdenda(r.id, ev.target.files[0]));
+  });
   return div;
+}
+
+async function adicionarFotoAdenda(id, file){
+  if(!file) return;
+  try{
+    const dataUrl = await new Promise((resolve,reject)=>{
+      const reader = new FileReader();
+      reader.onload = ()=>resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const rows = await api("GET", `${TABLE}?select=documentos,documento_upload&id=eq.${id}`);
+    const atual = rows[0];
+    const docsAtuais = (atual.documentos && atual.documentos.length) ? atual.documentos : (atual.documento_upload ? [atual.documento_upload] : []);
+    const novosDocs = [...docsAtuais, dataUrl];
+    await api("PATCH", `${TABLE}?id=eq.${id}`, {documentos: novosDocs, updated_at: new Date().toISOString()});
+    toast("✔ Foto adicionada!");
+    await loadRows();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao adicionar foto: " + (e.message||e).slice(0,100));
+  }
 }
 
 async function toggleCampoSimples(id, campo, valor){
@@ -988,12 +1029,13 @@ async function saveNew(){
       if(payload.enviada_rh){ payload.enviada_em = now; payload.enviada_por = currentUser; payload.arquivada = true; }
       const file = (document.getElementById("fDocumentoFoto").files[0]) || (document.getElementById("fDocumentoUpload").files[0]);
       if(file){
-        payload.documento_upload = await new Promise((resolve,reject)=>{
+        const dataUrl = await new Promise((resolve,reject)=>{
           const reader = new FileReader();
           reader.onload = ()=>resolve(reader.result);
           reader.onerror = reject;
           reader.readAsDataURL(file);
         });
+        payload.documentos = [dataUrl];
       }
     }
     await api("POST", TABLE, payload);
