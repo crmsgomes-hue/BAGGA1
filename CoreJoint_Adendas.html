@@ -1260,8 +1260,9 @@ if('serviceWorker' in navigator){
 let versaoInicial = null;
 async function verificarAtualizacao(){
   try{
-    const res = await fetch(location.pathname, {cache:"no-store", method:"HEAD"});
-    const marca = res.headers.get("etag") || res.headers.get("last-modified");
+    const res = await fetch("version.json?t=" + Date.now(), {cache:"no-store"});
+    const dados = await res.json();
+    const marca = dados.v;
     if(!marca) return;
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
@@ -1272,7 +1273,7 @@ async function verificarAtualizacao(){
     }
   }catch(e){ /* falha silenciosa, tenta outra vez depois */ }
 }
-setInterval(verificarAtualizacao, 3*60*1000);
+setInterval(verificarAtualizacao, 90*1000);
 verificarAtualizacao();
 
 </script>
