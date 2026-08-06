@@ -294,13 +294,18 @@ function mostrarAcoesRelatorio(html, filename){
       <h2>Relatório pronto</h2>
       <div class="sub">Escolhe o que queres fazer com ele.</div>
       <div class="modal-actions" style="flex-direction:column; gap:8px; margin-top:16px;">
-        <button class="btn-save" style="width:100%;" id="raImprimirBtn">🖨️ Imprimir / Guardar PDF</button>
+        <button class="btn-save" style="width:100%;" id="raVerBtn">👁️ Ver relatório</button>
         <button class="btn-save" style="width:100%; background:none; border:1.5px solid var(--terracotta); color:var(--terracotta);" id="raPartilharBtn">📤 Partilhar (email, WhatsApp...)</button>
+        <button class="btn-save" style="width:100%; background:none; border:1.5px solid var(--ink-soft); color:var(--ink-soft);" id="raImprimirBtn">🖨️ Imprimir / Guardar PDF</button>
         <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('relatorioAcoesOverlay').remove()">Fechar</button>
       </div>
     </div>
   `;
   document.body.appendChild(overlay);
+  document.getElementById("raVerBtn").onclick = ()=>{
+    overlay.remove();
+    verRelatorioNoEcra(html);
+  };
   document.getElementById("raImprimirBtn").onclick = ()=>{
     overlay.remove();
     setTimeout(()=>window.print(), 100);
@@ -309,6 +314,37 @@ function mostrarAcoesRelatorio(html, filename){
     overlay.remove();
     compartilharHtmlComoPDF(html, filename);
   };
+}
+
+function verRelatorioNoEcra(html){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "verRelatorioOverlay";
+  overlay.style.cssText = "align-items:flex-start;";
+  overlay.innerHTML = `
+    <div class="modal" style="max-height:92vh; overflow-y:auto; text-align:left; -webkit-user-select:text; user-select:text;">
+      <div id="verRelatorioConteudo" style="font-size:15px; line-height:1.5;"></div>
+      <div class="modal-actions" style="margin-top:16px;">
+        <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('verRelatorioOverlay').remove()">Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const conteudo = document.getElementById("verRelatorioConteudo");
+  conteudo.innerHTML = html;
+  conteudo.querySelectorAll("table").forEach(t=>{
+    t.style.width = "100%";
+    t.style.borderCollapse = "collapse";
+    t.style.marginBottom = "14px";
+    t.style.fontSize = "14px";
+  });
+  conteudo.querySelectorAll("th,td").forEach(c=>{
+    c.style.border = "1px solid var(--line)";
+    c.style.padding = "7px 9px";
+    c.style.textAlign = "center";
+  });
+  conteudo.querySelectorAll("h1").forEach(h=>{ h.style.fontSize="19px"; h.style.marginBottom="4px"; });
+  conteudo.querySelectorAll("h2").forEach(h=>{ h.style.fontSize="15px"; h.style.marginTop="18px"; h.style.marginBottom="6px"; });
 }
 
 function generateComplianceReport(){
@@ -2667,6 +2703,32 @@ async function generateMonthlyReport(){
   mostrarAcoesRelatorio(html, `CoreJoint_mensal_${mesKey(new Date())}.pdf`);
 }
 
+async function generateWeeklyInventoryReport(){
+  const days7 = [];
+  for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days7.push(isoDate(d)); }
+  const inicioSemana = days7[0], fimSemana = days7[6];
+
+  let html = `<h1>CoreJoint · Relatório de Inventário (semanal)</h1><div style="font-size:8px; color:#555; margin-bottom:8px;">Semana de ${new Date(inicioSemana+"T00:00:00").toLocaleDateString('pt-PT')} a ${new Date(fimSemana+"T00:00:00").toLocaleDateString('pt-PT')} · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
+
+  LOJAS.forEach(l=>{
+    const cats = categoriasParaLoja(l);
+    if(cats.length===0) return;
+    html += `<h2>${l}</h2><table><tr><th style="text-align:left;">Categoria</th><th>Estado</th><th>Data</th><th>Valor inventário</th><th>Valor CNVs</th></tr>`;
+    cats.forEach(c=>{
+      const rowsSemana = invRows.filter(r=>r.loja===l && r.categoria===c.key && r.data>=inicioSemana && r.data<=fimSemana).sort((a,b)=> new Date(b.criado_em)-new Date(a.criado_em));
+      const latest = rowsSemana[0];
+      const estado = latest ? "✔ Feito" : "✕ Não enviado";
+      const dataTxt = latest ? new Date(latest.data+"T00:00:00").toLocaleDateString('pt-PT') : "—";
+      const valorInv = latest && latest.valor_inventario!=null ? `${latest.valor_inventario} €` : "—";
+      const valorCnvs = latest && c.key==="global" && latest.valor_cnvs!=null ? `${latest.valor_cnvs} €` : (c.key==="global" ? "—" : "");
+      html += `<tr><td class="name">${c.label}</td><td>${estado}</td><td>${dataTxt}</td><td><b>${valorInv}</b></td><td>${valorCnvs}</td></tr>`;
+    });
+    html += `</table>`;
+  });
+
+  mostrarAcoesRelatorio(html, `CoreJoint_inventario_semanal_${todayStr()}.pdf`);
+}
+
 async function generateWeeklyReport(){
   const days = [];
   for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days.push(d); }
@@ -3113,6 +3175,7 @@ function renderGestao(){
   const grupos = [
     {titulo:"Relatórios", itens:[
       {icon:"🖨️", label:"Relatório PDF (semanal)", fn:generateWeeklyReport},
+      {icon:"📦", label:"Relatório de Inventário (semanal)", fn:generateWeeklyInventoryReport},
       {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport},
       {icon:"🛡️", label:"Relatório de Compliance", fn:generateComplianceReport},
       {icon:"📥", label:"Excel", fn:exportarExcel},
