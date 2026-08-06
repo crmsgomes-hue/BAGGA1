@@ -1541,7 +1541,7 @@ function openRankingLojas(){
       if(dailyStatus(l,"vendas",ds,"unico")) vendOk++;
     });
     const atrasados = categoriasParaLoja(l).filter(c=>invStatus(l,c.key,c.freq).state==="late").length
-      + MARKETING_CATS.filter(c=>invStatus(l,c.key,c.freq).state==="late").length;
+      + marketingCatsParaLoja(l).filter(c=>invStatus(l,c.key,c.freq).state==="late").length;
     const pontuacao = (vitOk + vendOk) - (atrasados*2);
     return {loja:l, vitOk, vendOk, atrasados, pontuacao};
   }).sort((a,b)=> b.pontuacao - a.pontuacao);
@@ -1816,6 +1816,17 @@ function openChecklistMensal(){
     <button class="cambtn secondary" style="width:100%;" id="clHistBtn">📚 Ver meses arquivados</button>
   `;
   main.appendChild(actionsRow);
+
+  const legenda = document.createElement("div");
+  legenda.style.cssText = "display:flex; flex-wrap:wrap; gap:10px; font-size:11px; color:var(--ink-soft); margin-bottom:12px;";
+  legenda.innerHTML = `
+    <span><span style="color:var(--green); font-weight:700;">✔</span> Feito</span>
+    <span><span style="color:var(--red); font-weight:700;">✕</span> Atrasado</span>
+    <span><span style="color:var(--amber); font-weight:700;">…</span> Ainda no prazo</span>
+    <span><span style="font-weight:700;">⏸</span> Pausado (semana do Global)</span>
+    <span><span style="font-weight:700;">—</span> Não aplicável a esta loja</span>
+  `;
+  main.appendChild(legenda);
 
   const globalCat = INV_CATS.find(c=>c.key==="global");
   const colunas = [globalCat, ...MARKETING_CATS];
