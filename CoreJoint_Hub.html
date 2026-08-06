@@ -67,6 +67,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div class="ps">As tuas ferramentas de gestão, num só sítio.</div>
 
   <div id="statsGrid" class="g4"></div>
+  <div id="painelLojasSection"></div>
   <div id="fotosRecentesSection"></div>
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
 
@@ -329,11 +330,71 @@ function bigPhoto(urls, indice){
     }
   }catch(e){ console.error(e); }
 
+  try{
+    const dailyForPainel = await api(`cj_daily_reportes?select=loja,tipo,turno&data=eq.${todayStr}`);
+    const invForPainel = await api("cj_inventario_reportes?select=loja,categoria,data");
+    const naoAplicaveisPainel = await api("cj_categoria_nao_aplicavel?select=loja,categoria");
+    const mesAtualPainel = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+    const agendamentosPainel = await api(`cj_global_agendamento?select=loja,mes&mes=eq.${mesAtualPainel}`);
+
+    const dadosPorLoja = LOJAS.map(l=>{
+      const vitOk = ["manha","almoco","lanche"].filter(t=>dailyForPainel.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t)).length;
+      const vendasOk = dailyForPainel.some(r=>r.loja===l && r.tipo==="vendas" && r.turno==="unico");
+      let atrasadosLoja = 0;
+      [...categoriasParaLoja(l), ...MARKETING_CATS].filter(cat=>!naoAplicaveisPainel.some(n=>n.loja===l && n.categoria===cat.key)).forEach(cat=>{
+        const w = windowFor(cat.freq, today);
+        const rowsCat = invForPainel.filter(r=>r.loja===l && r.categoria===cat.key && inRange(r.data, w.start, w.end));
+        if(rowsCat.length>0) return;
+        const dow = CATEGORY_DOW[cat.key];
+        let deadline;
+        if(dow){ const target = findWeekdayInRange(w.start,w.end,dow); deadline = new Date(target); deadline.setDate(deadline.getDate()+1); deadline.setHours(14,0,0,0); }
+        else deadline = w.end;
+        if(deadline < RESET_GRACE_UNTIL) return;
+        if(today > deadline) atrasadosLoja++;
+      });
+      let globalNaoMarcado = false;
+      if(today.getDate()>5) globalNaoMarcado = !agendamentosPainel.some(a=>a.loja===l);
+      const pendencias = [];
+      if(vitOk<3) pendencias.push(`Vitrine ${vitOk}/3`);
+      if(!vendasOk) pendencias.push("Vendas por fazer");
+      if(atrasadosLoja>0) pendencias.push(`${atrasadosLoja} atrasado(s)`);
+      if(globalNaoMarcado) pendencias.push("Global não marcado");
+      return {loja:l, pendencias, urgente: pendencias.length};
+    });
+
+    const comPendencia = dadosPorLoja.filter(d=>d.pendencias.length>0).sort((a,b)=>b.urgente-a.urgente);
+    const semPendencia = dadosPorLoja.filter(d=>d.pendencias.length===0);
+
+    let html = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Painel de gestão</span>
+      <a href="CoreJoint_Reportes.html" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Ver tudo →</a>
+    </div>`;
+    if(comPendencia.length===0){
+      html += `<div class="all-clear" style="margin-bottom:14px;">✔ Todas as lojas em dia agora.</div>`;
+    } else {
+      html += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
+      comPendencia.slice(0,6).forEach(d=>{
+        html += `<a href="CoreJoint_Reportes.html" style="display:flex; justify-content:space-between; align-items:center; padding:9px 2px; border-bottom:1px solid var(--br); text-decoration:none; color:inherit;">
+          <span style="font-weight:700; font-size:.85rem;">${d.loja}</span>
+          <span style="font-size:.72rem; color:var(--red); font-weight:600; text-align:right;">${d.pendencias.join(" · ")}</span>
+        </a>`;
+      });
+      if(comPendencia.length>6){
+        html += `<a href="CoreJoint_Reportes.html" style="display:block; text-align:center; padding:9px 2px; font-size:.75rem; color:var(--tc); font-weight:700; text-decoration:none;">+${comPendencia.length-6} loja(s) mais — ver tudo</a>`;
+      }
+      html += `</div>`;
+      if(semPendencia.length>0){
+        html += `<div style="font-size:.72rem; color:var(--t2); margin-top:-6px; margin-bottom:14px;">${semPendencia.length} loja(s) em dia: ${semPendencia.map(d=>d.loja).join(", ")}</div>`;
+      }
+    }
+    document.getElementById("painelLojasSection").innerHTML = html;
+  }catch(e){ console.error(e); }
+
   document.getElementById("statsGrid").innerHTML = `
-    <div class="sc"><div class="slb">Reportes</div><div class="svl ${statReportes>0?'cr':'cg'}">${statReportes}</div></div>
-    <div class="sc"><div class="slb">Atrasados</div><div class="svl ${statAtrasados>0?'cr':'cg'}">${statAtrasados}</div></div>
-    <div class="sc"><div class="slb">Fardamento</div><div class="svl ${statFardamento>0?'cr':'cg'}">${statFardamento}</div></div>
-    <div class="sc"><div class="slb">RH</div><div class="svl ${statAdendas>0?'cr':'cg'}">${statAdendas}</div></div>
+    <a class="sc" href="CoreJoint_Reportes.html" style="text-decoration:none; display:block;"><div class="slb">Reportes</div><div class="svl ${statReportes>0?'cr':'cg'}">${statReportes}</div></a>
+    <a class="sc" href="CoreJoint_Reportes.html" style="text-decoration:none; display:block;"><div class="slb">Atrasados</div><div class="svl ${statAtrasados>0?'cr':'cg'}">${statAtrasados}</div></a>
+    <a class="sc" href="CoreJoint_Fardamento.html" style="text-decoration:none; display:block;"><div class="slb">Fardamento</div><div class="svl ${statFardamento>0?'cr':'cg'}">${statFardamento}</div></a>
+    <a class="sc" href="CoreJoint_Adendas.html" style="text-decoration:none; display:block;"><div class="slb">RH</div><div class="svl ${statAdendas>0?'cr':'cg'}">${statAdendas}</div></a>
   `;
 
   const section = document.getElementById("attnSection");
