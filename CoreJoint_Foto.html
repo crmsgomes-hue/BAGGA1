@@ -139,7 +139,7 @@ function categoriasParaLoja(loja){
 
 const params = new URLSearchParams(location.search);
 const currentLoja = params.get("loja") || "Loja não identificada";
-let dailyRows = [], invRows = [], agendamentos = [], sondagensPendentes = [], formulariosPendentes = [], avisosPendentes = [], naoAplicaveis = [];
+let dailyRows = [], invRows = [], agendamentos = [], agendamentosTabaco = [], sondagensPendentes = [], formulariosPendentes = [], avisosPendentes = [], naoAplicaveis = [];
 let pendingPhotos = [];
 window.addEventListener("beforeunload", function(e){
   if(pendingPhotos.length>0){
@@ -265,7 +265,7 @@ function isLastDaysOfMonth(threshold=3){
   const lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
   return d.getDate() > lastDay - threshold;
 }
-const CATEGORY_DOW = { raspadinhas:1, cafe:2, laranja:3, tabaco:4 };
+const CATEGORY_DOW = { raspadinhas:1, cafe:2, laranja:3 };
 const FREQ_DOW_LABELS = {1:"2ª feira", 2:"3ª feira", 3:"4ª feira", 4:"5ª feira", 5:"6ª feira", 6:"sábado", 7:"domingo"};
 function descricaoRegra(catKey, freq){
   if(catKey==="global") return "Mensal — semana de 15 a 21, entre 2ª e 5ª feira";
@@ -400,6 +400,7 @@ async function loadAll(){
     dailyRows = await api("GET", `cj_daily_reportes?select=*${f}&order=data.desc`);
     invRows = await api("GET", `cj_inventario_reportes?select=*${f}&order=data.desc`);
     agendamentos = await api("GET", `cj_global_agendamento?select=*${f}`);
+    agendamentosTabaco = await api("GET", `cj_tabaco_agendamento?select=*${f}`);
     const naoAplicaveisRows = await api("GET", `cj_categoria_nao_aplicavel?select=categoria${f}`);
     naoAplicaveis = naoAplicaveisRows.map(r=>r.categoria);
     const todasSondagens = await api("GET", "cj_sondagens?select=*&ativa=eq.true");
@@ -549,15 +550,27 @@ function render(){
   main.appendChild(hojeGrid);
 
   const dueInv = categoriasParaLoja(currentLoja).filter(c=>!naoAplicaveis.includes(c.key)).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado).filter(c=>{
-    if(c.key!=="global") return true;
-    const mesAtual = mesKey(new Date());
-    const ag = agendamentos.find(a=>a.mes===mesAtual);
-    if(ag){
-      const dataAgendada = new Date(ag.data_agendada+"T00:00:00");
-      const doisDiasAntes = new Date(dataAgendada); doisDiasAntes.setDate(doisDiasAntes.getDate()-2);
-      return new Date() >= doisDiasAntes;
+    if(c.key==="global"){
+      const mesAtual = mesKey(new Date());
+      const ag = agendamentos.find(a=>a.mes===mesAtual);
+      if(ag){
+        const dataAgendada = new Date(ag.data_agendada+"T00:00:00");
+        const doisDiasAntes = new Date(dataAgendada); doisDiasAntes.setDate(doisDiasAntes.getDate()-2);
+        return new Date() >= doisDiasAntes;
+      }
+      return true; // ainda não marcado — deve marcar entre dia 1 e 5
     }
-    return true; // ainda não marcado — deve marcar entre dia 1 e 5
+    if(c.key==="tabaco"){
+      const periodo = periodoQuinzenal(new Date());
+      const agT = agendamentosTabaco.find(a=>a.periodo===periodo);
+      if(agT){
+        const dataAgendada = new Date(agT.data_agendada+"T00:00:00");
+        const doisDiasAntes = new Date(dataAgendada); doisDiasAntes.setDate(doisDiasAntes.getDate()-2);
+        return new Date() >= doisDiasAntes;
+      }
+      return true; // ainda não marcado — deve aparecer sempre para marcar
+    }
+    return true;
   });
 
   if(isLastDaysOfMonth() && dueInv.length>0){
@@ -585,16 +598,21 @@ function render(){
     invGrid.style.cssText = "display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:16px;";
     main.appendChild(invGrid);
     let globalAgRow = null;
+    let tabacoAgRow = null;
     invParaGrid.forEach(c=>{
       const mesAtualTile = mesKey(new Date());
       const agTile = agendamentos.find(a=>a.mes===mesAtualTile);
+      const periodoTile = periodoQuinzenal(new Date());
+      const agTabacoTile = agendamentosTabaco.find(a=>a.periodo===periodoTile);
       const globalPorMarcar = c.key==="global" && !agTile;
-      const atrasadoAMarcar = globalPorMarcar && new Date().getDate() > 5;
+      const tabacoPorMarcar = c.key==="tabaco" && !agTabacoTile;
+      const porMarcar = globalPorMarcar || tabacoPorMarcar;
+      const atrasadoAMarcar = porMarcar && (c.key==="global" ? new Date().getDate()>5 : false);
       const late = atrasadoAMarcar || c.st.state==="late";
       const isAmanha = c.st.targetDate && !late && isoDate(c.st.targetDate)===isoDate(new Date(Date.now()+86400000));
       const cor = late?'var(--red)':isAmanha?'var(--terracotta)':'var(--ink-soft)';
       const corBorda = late?'var(--red)':isAmanha?'var(--terracotta)':'var(--line)';
-      const statusTxt = globalPorMarcar ? (atrasadoAMarcar?'⚠ Atrasado a marcar':'📅 Por marcar') : (late?'⚠ Atrasado':isAmanha?'🔔 Amanhã':'⏳ Por enviar');
+      const statusTxt = porMarcar ? (atrasadoAMarcar?'⚠ Atrasado a marcar':'📅 Por marcar') : (late?'⚠ Atrasado':isAmanha?'🔔 Amanhã':'⏳ Por enviar');
       const tile = document.createElement("button");
       tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:var(--card); border:1.5px solid ${corBorda}; border-radius:12px; padding:12px 4px; text-align:center;`;
       tile.innerHTML = `<span style="font-size:20px;">📦</span><span style="font-size:11px; font-weight:700; line-height:1.2;">${c.label}</span><span style="font-size:9.5px; font-weight:700; color:${cor};">${statusTxt}</span><span style="font-size:8px; color:var(--ink-soft); line-height:1.2;">${descricaoRegra(c.key, c.freq)}</span>`;
@@ -621,6 +639,21 @@ function render(){
           globalAgRow.appendChild(warnGlobal);
         }
       }
+      if(c.key==="tabaco"){
+        const periodo = periodoQuinzenal(new Date());
+        const agT = agendamentosTabaco.find(a=>a.periodo===periodo);
+        tabacoAgRow = document.createElement("div");
+        tabacoAgRow.className = "card";
+        tabacoAgRow.style.padding = "12px 14px";
+        if(agT){
+          tabacoAgRow.innerHTML = `<div style="font-size:12px; color:var(--ink-soft);">📅 Tabaco agendado para ${new Date(agT.data_agendada+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} <span style="text-decoration:underline; cursor:pointer;" id="mudarAgendamentoTabaco">(mudar)</span></div>`;
+        } else {
+          tabacoAgRow.innerHTML = `
+            <div style="font-size:12px; color:var(--ink-soft); margin-bottom:6px;">📅 Marca o dia do Tabaco (2ª a 5ª feira, nunca na semana do Global):</div>
+            <div id="miniCalWrapTabaco"></div>
+          `;
+        }
+      }
     });
     if(globalAgRow){
       main.appendChild(globalAgRow);
@@ -631,6 +664,19 @@ function render(){
       }
       const mudar = document.getElementById("mudarAgendamento");
       if(mudar) mudar.onclick = ()=>{ agendamentos = agendamentos.filter(a=>a.mes!==mes); render(); };
+    }
+    if(tabacoAgRow){
+      main.appendChild(tabacoAgRow);
+      const periodo = periodoQuinzenal(new Date());
+      const agT = agendamentosTabaco.find(a=>a.periodo===periodo);
+      if(!agT){
+        const hoje = new Date();
+        const diaMin = hoje.getDate()<=15 ? 1 : 16;
+        const diaMax = hoje.getDate()<=15 ? 15 : new Date(hoje.getFullYear(), hoje.getMonth()+1, 0).getDate();
+        setTimeout(()=>{ renderMiniCalendarTabaco("miniCalWrapTabaco", hoje.getFullYear(), hoje.getMonth()+1, diaMin, diaMax, (ds)=>agendarTabaco(periodo, ds)); }, 0);
+      }
+      const mudarT = document.getElementById("mudarAgendamentoTabaco");
+      if(mudarT) mudarT.onclick = ()=>{ agendamentosTabaco = agendamentosTabaco.filter(a=>a.periodo!==periodo); render(); };
     }
   }
 
@@ -1093,6 +1139,71 @@ async function responderSondagem(sondagemId, opcao){
   }catch(e){
     console.error(e);
     toast("Erro ao responder: " + (e.message||e).slice(0,100));
+  }
+}
+
+function periodoQuinzenal(d){
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,"0");
+  return `${y}-${m}-${d.getDate()<=15?"1":"2"}`;
+}
+
+function renderMiniCalendarTabaco(containerId, ano, mesNum, diaMin, diaMax, onSelect){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+  const primeiroDiaMes = new Date(ano, mesNum-1, 1);
+  const ultimoDiaMes = new Date(ano, mesNum, 0);
+  const diasNoMes = ultimoDiaMes.getDate();
+  const offset = (primeiroDiaMes.getDay()+6)%7;
+
+  const elegiveis = new Set();
+  for(let dia=diaMin; dia<=Math.min(diaMax, diasNoMes); dia++){
+    const d = new Date(ano, mesNum-1, dia);
+    const dow = d.getDay();
+    const dentroSemanaGlobal = dia>=15 && dia<=21;
+    if(dow>=1 && dow<=4 && !dentroSemanaGlobal) elegiveis.add(dia);
+  }
+
+  let html = `<div style="background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,.06);">
+    <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:13px; margin-bottom:8px; text-transform:capitalize;">${primeiroDiaMes.toLocaleDateString('pt-PT',{month:'long',year:'numeric'})}</div>
+    <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px; font-size:10px; text-align:center; color:var(--ink-soft); font-weight:600; text-transform:uppercase; margin-bottom:4px;">
+    <div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div><div>D</div>
+  </div><div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">`;
+  for(let i=0;i<offset;i++) html += `<div></div>`;
+  for(let dia=1; dia<=diasNoMes; dia++){
+    const isElegivel = elegiveis.has(dia);
+    const foraDoPeriodo = dia<diaMin || dia>diaMax;
+    html += `<div ${isElegivel?`data-dia="${dia}"`:''} style="
+      aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:8px; font-family:'Syne',sans-serif; font-size:13px; font-weight:700;
+      background:${isElegivel?'var(--terracotta)':'var(--cream)'}; color:${isElegivel?'#fff':'var(--ink-soft)'};
+      cursor:${isElegivel?'pointer':'default'}; opacity:${isElegivel?'1':(foraDoPeriodo?'.25':'.45')}; transition:.15s;
+    ">${dia}</div>`;
+  }
+  html += `</div>
+    <div style="font-size:10.5px; color:var(--ink-soft); margin-top:10px; text-align:center;">Só 2ª a 5ª feira, e nunca na semana do Global (15 a 21).</div>
+  </div>`;
+  container.innerHTML = html;
+  container.querySelectorAll("[data-dia]").forEach(el=>{
+    el.onclick = ()=>{
+      const dia = el.getAttribute("data-dia");
+      const ds = `${ano}-${String(mesNum).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
+      onSelect(ds);
+    };
+  });
+}
+
+async function agendarTabaco(periodo, dataIso){
+  try{
+    const existe = agendamentosTabaco.find(a=>a.periodo===periodo);
+    if(existe){
+      await api("PATCH", `cj_tabaco_agendamento?loja=eq.${encodeURIComponent(currentLoja)}&periodo=eq.${periodo}`, {data_agendada: dataIso});
+    } else {
+      await api("POST", "cj_tabaco_agendamento", {loja: currentLoja, periodo, data_agendada: dataIso, criado_por: currentLoja});
+    }
+    toast("Data do Tabaco marcada!");
+    await loadAll();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao marcar: " + (e.message||e).slice(0,100));
   }
 }
 
