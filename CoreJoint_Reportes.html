@@ -3044,13 +3044,14 @@ function openRelatorioQuebras(){
   title.textContent = "Quebras de caixa ≥ 20€ — últimos 30 dias";
   main.appendChild(title);
 
-  api("GET", "cj_quebras_reportes?select=*&order=data.desc&limit=200").then(rows=>{
+  api("GET", "cj_quebras_reportes?select=*&order=data.desc&limit=500").then(rows=>{
     const trintaDiasAtras = isoDate(new Date(Date.now()-30*86400000));
     const recentes = rows.filter(r=>r.data>=trintaDiasAtras);
     if(recentes.length===0){
       main.innerHTML += '<div class="empty">Nenhuma quebra registada nos últimos 30 dias.</div>';
       return;
     }
+
     const actionsRow = document.createElement("div");
     actionsRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px;";
     actionsRow.innerHTML = `
@@ -3058,20 +3059,45 @@ function openRelatorioQuebras(){
       <button class="cambtn secondary" style="flex:1;" id="qbPdfBtn">👁️ Ver relatório</button>
     `;
     main.appendChild(actionsRow);
-    recentes.forEach(r=>{
-      const card = document.createElement("div");
-      card.className = "card";
-      const respondido = !!r.numero_registo;
-      const semLoja = !r.loja;
-      if(semLoja){
+
+    const semLoja = recentes.filter(r=>!r.loja);
+    const comLoja = recentes.filter(r=>r.loja);
+    const pendentes = comLoja.filter(r=>!r.numero_registo);
+    const justificadas = comLoja.filter(r=>r.numero_registo);
+    const totalPendente = pendentes.reduce((s,r)=>s+Number(r.valor_quebra||0),0);
+
+    // Resumo geral
+    const resumo = document.createElement("div");
+    resumo.style.cssText = "display:flex; gap:8px; margin-bottom:16px;";
+    resumo.innerHTML = `
+      <div class="card" style="flex:1; text-align:center; margin-bottom:0; padding:12px;">
+        <div style="font-size:22px; font-weight:800; color:var(--red);">${pendentes.length}</div>
+        <div style="font-size:11px; color:var(--ink-soft);">por justificar</div>
+      </div>
+      <div class="card" style="flex:1; text-align:center; margin-bottom:0; padding:12px;">
+        <div style="font-size:22px; font-weight:800; color:var(--red);">${totalPendente.toFixed(2)} €</div>
+        <div style="font-size:11px; color:var(--ink-soft);">valor pendente</div>
+      </div>
+      <div class="card" style="flex:1; text-align:center; margin-bottom:0; padding:12px;">
+        <div style="font-size:22px; font-weight:800; color:var(--green);">${justificadas.length}</div>
+        <div style="font-size:11px; color:var(--ink-soft);">já justificadas</div>
+      </div>
+    `;
+    main.appendChild(resumo);
+
+    // Sem loja identificada — sempre no topo, precisa da tua ação
+    if(semLoja.length>0){
+      const h = document.createElement("div");
+      h.style.cssText = "font-size:12px; font-weight:700; color:var(--amber); text-transform:uppercase; letter-spacing:.05em; margin:4px 0 8px;";
+      h.textContent = `⚠ Sem loja identificada (${semLoja.length}) — precisa da tua correção`;
+      main.appendChild(h);
+      semLoja.forEach(r=>{
+        const card = document.createElement("div");
+        card.className = "card";
         card.style.borderLeft = "4px solid var(--amber)";
         card.innerHTML = `
-          <div class="card-top">
-            <div>
-              <div class="card-title" style="color:var(--amber);">⚠ Loja não identificada: "${r.loja_original||'?'}"</div>
-              <div class="card-sub">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')} · ${r.operador||'—'} · Quebra: <b style="color:var(--red);">${r.valor_quebra} €</b>${r.safebag?' · Safebag: '+r.safebag:''}</div>
-            </div>
-          </div>
+          <div class="card-title" style="color:var(--amber);">"${r.loja_original||'?'}"</div>
+          <div class="card-sub">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')} · ${r.operador||'—'} · Quebra: <b style="color:var(--red);">${r.valor_quebra} €</b>${r.safebag?' · Safebag: '+r.safebag:''}</div>
           <div style="margin-top:10px; display:flex; gap:8px;">
             <select id="corrigirLoja-${r.id}" style="flex:1; padding:9px; border-radius:8px; border:1px solid var(--line);">
               <option value="">Escolher a loja certa...</option>
@@ -3082,24 +3108,96 @@ function openRelatorioQuebras(){
         `;
         main.appendChild(card);
         card.querySelector(`[data-corrigir]`).onclick = ()=>corrigirLojaQuebra(r.id);
-        return;
-      }
-      card.innerHTML = `
-        <div class="card-top">
-          <div>
-            <div class="card-title">${r.loja}</div>
-            <div class="card-sub">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')} · ${r.operador||'—'} · Quebra: <b style="color:var(--red);">${r.valor_quebra} €</b>${r.safebag?' · Safebag: '+r.safebag:''}</div>
-          </div>
-          <span class="status-badge ${respondido?'ok':'pend'}">${respondido?'✔ Justificado':'⏳ A aguardar'}</span>
-        </div>
-        ${respondido ? `<div class="card-sub" style="margin-top:8px;">Nº registo: <b>${r.numero_registo}</b><br>${r.justificacao||''}</div>` : ``}
-      `;
-      main.appendChild(card);
-    });
+      });
+    }
+
+    // Agrupar por loja
+    const porLoja = {};
+    comLoja.forEach(r=>{ (porLoja[r.loja] ||= []).push(r); });
+    const lojasComPendentes = Object.keys(porLoja).filter(l=>porLoja[l].some(r=>!r.numero_registo))
+      .sort((a,b)=>{
+        const totalA = porLoja[a].filter(r=>!r.numero_registo).reduce((s,r)=>s+Number(r.valor_quebra),0);
+        const totalB = porLoja[b].filter(r=>!r.numero_registo).reduce((s,r)=>s+Number(r.valor_quebra),0);
+        return totalB - totalA;
+      });
+    const lojasSoJustificadas = Object.keys(porLoja).filter(l=>!lojasComPendentes.includes(l));
+
+    if(lojasComPendentes.length>0){
+      const h = document.createElement("div");
+      h.style.cssText = "font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin:16px 0 8px;";
+      h.textContent = `Por loja — com pendências (${lojasComPendentes.length})`;
+      main.appendChild(h);
+      lojasComPendentes.forEach(l=>{
+        const itensLoja = porLoja[l];
+        const pendLoja = itensLoja.filter(r=>!r.numero_registo);
+        const totalLoja = pendLoja.reduce((s,r)=>s+Number(r.valor_quebra),0);
+        const row = document.createElement("div");
+        row.className = "card";
+        row.style.cssText = "padding:0; overflow:hidden; border-left:3px solid var(--red);";
+        row.innerHTML = `
+          <button data-toggle-loja-qb style="width:100%; display:flex; align-items:center; gap:10px; padding:12px 14px; border:none; background:none; text-align:left;">
+            <span style="flex:1;">
+              <span style="font-family:'Syne',sans-serif; font-weight:700; font-size:14.5px;">${l}</span><br>
+              <span style="font-size:11.5px; color:var(--red); font-weight:700;">${pendLoja.length} por justificar · ${totalLoja.toFixed(2)} €</span>
+            </span>
+            <span class="chev-qb" style="font-size:13px; color:var(--ink-soft);">▾</span>
+          </button>
+          <div class="detalhe-qb" style="display:none; padding:0 14px 14px;"></div>
+        `;
+        main.appendChild(row);
+        const detalheEl = row.querySelector(".detalhe-qb");
+        const chev = row.querySelector(".chev-qb");
+        row.querySelector("[data-toggle-loja-qb]").onclick = ()=>{
+          const abrir = detalheEl.style.display === "none";
+          detalheEl.style.display = abrir ? "block" : "none";
+          chev.textContent = abrir ? "▴" : "▾";
+          if(abrir && !detalheEl.dataset.montado){
+            detalheEl.dataset.montado = "1";
+            itensLoja.sort((a,b)=> new Date(b.data)-new Date(a.data)).forEach(r=>{
+              const respondido = !!r.numero_registo;
+              const linha = document.createElement("div");
+              linha.style.cssText = "padding:10px 0; border-top:1px solid var(--line); font-size:13px;";
+              linha.innerHTML = `
+                <div style="display:flex; justify-content:space-between;">
+                  <span>${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')} · ${r.operador||'—'}</span>
+                  <b style="color:var(--red);">${r.valor_quebra} €</b>
+                </div>
+                <div style="color:${respondido?'var(--green)':'var(--amber)'}; font-weight:600; font-size:12px; margin-top:2px;">${respondido?`✔ Nº registo: ${r.numero_registo}`:'⏳ A aguardar justificação'}</div>
+                ${respondido && r.justificacao ? `<div style="color:var(--ink-soft); font-size:12px; margin-top:2px;">${r.justificacao}</div>` : ``}
+              `;
+              detalheEl.appendChild(linha);
+            });
+          }
+        };
+      });
+    }
+
+    if(lojasSoJustificadas.length>0){
+      const folderBtn = document.createElement("button");
+      folderBtn.style.cssText = "width:100%; display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px; margin:16px 0 8px; box-shadow:0 1px 3px rgba(0,0,0,.06);";
+      folderBtn.innerHTML = `<span style="font-size:18px;">✔</span><span style="flex:1; text-align:left; font-weight:700; font-size:14px; color:var(--green);">Já tudo justificado</span><span style="background:var(--green); color:#fff; font-weight:700; font-size:12px; border-radius:99px; padding:3px 9px;">${lojasSoJustificadas.length} loja(s)</span><span id="qbTudoChev" style="font-size:13px; color:var(--ink-soft);">▾</span>`;
+      const wrap = document.createElement("div");
+      wrap.style.display = "none";
+      folderBtn.onclick = ()=>{
+        const abrir = wrap.style.display === "none";
+        wrap.style.display = abrir ? "block" : "none";
+        document.getElementById("qbTudoChev").textContent = abrir ? "▴" : "▾";
+      };
+      main.appendChild(folderBtn);
+      main.appendChild(wrap);
+      lojasSoJustificadas.forEach(l=>{
+        const totalLoja = porLoja[l].reduce((s,r)=>s+Number(r.valor_quebra),0);
+        const item = document.createElement("div");
+        item.style.cssText = "padding:10px 4px; border-bottom:1px solid var(--line); font-size:13px; display:flex; justify-content:space-between;";
+        item.innerHTML = `<span>${l}</span><span style="color:var(--ink-soft);">${porLoja[l].length} · ${totalLoja.toFixed(2)} €</span>`;
+        wrap.appendChild(item);
+      });
+    }
+
     document.getElementById("qbExcelBtn").onclick = async ()=>{
       const wb = XLSX.utils.book_new();
       const linhas = recentes.map(r=>({
-        Loja:r.loja, Data:r.data, Operador:r.operador, "Quebra (€)":r.valor_quebra, Safebag:r.safebag,
+        Loja:r.loja||("(não identificada: "+(r.loja_original||"?")+")"), Data:r.data, Operador:r.operador, "Quebra (€)":r.valor_quebra, Safebag:r.safebag,
         "Nº Registo":r.numero_registo||"", Justificação:r.justificacao||"", Estado: r.numero_registo?"Justificado":"Pendente"
       }));
       const ws = XLSX.utils.json_to_sheet(linhas);
@@ -3110,7 +3208,7 @@ function openRelatorioQuebras(){
       let html = `<h1>CoreJoint · Relatório de Quebras (≥20€)</h1><div style="font-size:8px; color:#555; margin-bottom:8px;">Últimos 30 dias · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
       html += `<table><tr><th>Loja</th><th>Data</th><th>Operador</th><th>Quebra</th><th>Nº Registo</th><th>Justificação</th></tr>`;
       recentes.forEach(r=>{
-        html += `<tr><td class="name">${r.loja}</td><td>${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</td><td>${r.operador||'-'}</td><td>${r.valor_quebra} €</td><td>${r.numero_registo||'—'}</td><td>${r.justificacao||'—'}</td></tr>`;
+        html += `<tr><td class="name">${r.loja||('⚠ '+(r.loja_original||'?'))}</td><td>${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</td><td>${r.operador||'-'}</td><td>${r.valor_quebra} €</td><td>${r.numero_registo||'—'}</td><td>${r.justificacao||'—'}</td></tr>`;
       });
       html += `</table>`;
       mostrarAcoesRelatorio(html, `CoreJoint_quebras_${todayStr()}.pdf`);
