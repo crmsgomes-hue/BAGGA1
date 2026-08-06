@@ -2957,46 +2957,74 @@ function renderQuebrasPreview(totalLinhas){
   if(quebrasComErro.length>0){
     html += `<div style="background:var(--red); color:#fff; border-radius:12px; padding:14px; margin-bottom:14px;">
       <div style="font-weight:800; margin-bottom:6px;">⚠ ${quebrasComErro.length} linha(s) com nome de loja não reconhecido</div>
-      <div style="font-size:12.5px;">Corrige o nome no Excel exatamente como uma destas: ${LOJAS.join(", ")}</div>
+      <div style="font-size:12.5px;">Estas ainda vão ser importadas e guardadas (não se perdem), mas SEM aviso à loja — vais ter de corrigir manualmente a loja no Relatório de quebras para o aviso ser enviado. Nomes válidos: ${LOJAS.join(", ")}</div>
       <div style="margin-top:8px; font-size:12.5px;">
         ${quebrasComErro.map(q=>`• "${q.lojaOriginal}" — ${q.data} — ${q.valor_quebra} €`).join("<br>")}
       </div>
     </div>`;
   }
-  html += `<div style="font-weight:700; margin-bottom:8px;">${quebrasParaImportar.length} quebra(s) ≥ 20€ prontas para importar (de ${totalLinhas} linhas):</div>`;
-  quebrasParaImportar.forEach(q=>{
-    html += `<div style="padding:8px 0; border-bottom:1px solid var(--line); font-size:13px;">
-      <b>${q.loja}</b> — ${q.data} — ${q.operador||'—'} — <span style="color:var(--red); font-weight:700;">${q.valor_quebra} €</span>${q.safebag?' · Safebag: '+q.safebag:''}
-    </div>`;
-  });
-  if(quebrasComErro.length>0){
-    html += `<div style="margin-top:14px; text-align:center; font-size:13px; color:var(--red); font-weight:700;">Corrige os erros acima e volta a carregar o ficheiro antes de importar.</div>`;
-  } else if(quebrasParaImportar.length>0){
-    html += `<button class="cambtn" style="width:100%; margin-top:14px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-weight:700;" id="confirmarImportarQuebrasBtn">Importar e avisar as lojas</button>`;
+  if(quebrasParaImportar.length>0){
+    html += `<div style="font-weight:700; margin-bottom:8px;">${quebrasParaImportar.length} quebra(s) ≥ 20€ com loja identificada (de ${totalLinhas} linhas):</div>`;
+    quebrasParaImportar.forEach(q=>{
+      html += `<div style="padding:8px 0; border-bottom:1px solid var(--line); font-size:13px;">
+        <b>${q.loja}</b> — ${q.data} — ${q.operador||'—'} — <span style="color:var(--red); font-weight:700;">${q.valor_quebra} €</span>${q.safebag?' · Safebag: '+q.safebag:''}
+      </div>`;
+    });
   }
+  html += `<button class="cambtn" style="width:100%; margin-top:14px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-weight:700;" id="confirmarImportarQuebrasBtn">Importar tudo${quebrasComErro.length>0?' ('+quebrasComErro.length+' por corrigir depois)':''}</button>`;
   prev.innerHTML = html;
   const btnConfirmar = document.getElementById("confirmarImportarQuebrasBtn");
   if(btnConfirmar) btnConfirmar.onclick = confirmarImportarQuebras;
 }
 
 async function confirmarImportarQuebras(){
-  if(quebrasComErro.length>0){ toast("Corrige primeiro os nomes de loja não reconhecidos"); return; }
   try{
     for(const q of quebrasParaImportar){
       await api("POST", "cj_quebras_reportes", {
-        loja:q.loja, data:q.data, operador:q.operador, valor_quebra:q.valor_quebra, safebag:q.safebag,
+        loja:q.loja, loja_original:q.lojaOriginal, data:q.data, operador:q.operador, valor_quebra:q.valor_quebra, safebag:q.safebag,
         importado_por: currentUser
       });
       const descricao = `Quebra de ${q.valor_quebra} € em ${new Date(q.data+"T00:00:00").toLocaleDateString('pt-PT')} (op: ${q.operador||'-'}) — precisa do nº de registo e justificação`;
       await api("POST", "cj_avisos", {loja:q.loja, tipo:"outro", descricao, criado_por: currentUser});
       notificarLojaAviso(q.loja, "outro", descricao);
     }
-    mostrarSucesso(`${quebrasParaImportar.length} quebra(s) importada(s) e lojas avisadas!`);
+    for(const q of quebrasComErro){
+      await api("POST", "cj_quebras_reportes", {
+        loja:null, loja_original:q.lojaOriginal, data:q.data, operador:q.operador, valor_quebra:q.valor_quebra, safebag:q.safebag,
+        importado_por: currentUser
+      });
+    }
+    const totalImportado = quebrasParaImportar.length + quebrasComErro.length;
+    if(quebrasComErro.length>0){
+      mostrarSucesso(`${totalImportado} quebra(s) importada(s) — ${quebrasComErro.length} sem loja identificada (corrige no Relatório de quebras)`);
+    } else {
+      mostrarSucesso(`${totalImportado} quebra(s) importada(s) e lojas avisadas!`);
+    }
     quebrasParaImportar = [];
+    quebrasComErro = [];
     render();
   }catch(e){
     console.error(e);
     toast("Erro ao importar: " + (e.message||e).slice(0,100));
+  }
+}
+
+async function corrigirLojaQuebra(id){
+  const select = document.getElementById(`corrigirLoja-${id}`);
+  const loja = select.value;
+  if(!loja){ toast("Escolhe a loja certa primeiro"); return; }
+  try{
+    const rows = await api("GET", `cj_quebras_reportes?select=*&id=eq.${id}`);
+    const r = rows[0];
+    await api("PATCH", `cj_quebras_reportes?id=eq.${id}`, {loja});
+    const descricao = `Quebra de ${r.valor_quebra} € em ${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')} (op: ${r.operador||'-'}) — precisa do nº de registo e justificação`;
+    await api("POST", "cj_avisos", {loja, tipo:"outro", descricao, criado_por: currentUser});
+    notificarLojaAviso(loja, "outro", descricao);
+    mostrarSucesso(`Corrigido para ${loja} — aviso enviado!`);
+    openRelatorioQuebras();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao corrigir: " + (e.message||e).slice(0,100));
   }
 }
 
@@ -3034,6 +3062,28 @@ function openRelatorioQuebras(){
       const card = document.createElement("div");
       card.className = "card";
       const respondido = !!r.numero_registo;
+      const semLoja = !r.loja;
+      if(semLoja){
+        card.style.borderLeft = "4px solid var(--amber)";
+        card.innerHTML = `
+          <div class="card-top">
+            <div>
+              <div class="card-title" style="color:var(--amber);">⚠ Loja não identificada: "${r.loja_original||'?'}"</div>
+              <div class="card-sub">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')} · ${r.operador||'—'} · Quebra: <b style="color:var(--red);">${r.valor_quebra} €</b>${r.safebag?' · Safebag: '+r.safebag:''}</div>
+            </div>
+          </div>
+          <div style="margin-top:10px; display:flex; gap:8px;">
+            <select id="corrigirLoja-${r.id}" style="flex:1; padding:9px; border-radius:8px; border:1px solid var(--line);">
+              <option value="">Escolher a loja certa...</option>
+              ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+            </select>
+            <button data-corrigir="${r.id}" style="background:var(--amber); color:#fff; border:none; border-radius:10px; padding:9px 14px; font-weight:700;">Corrigir</button>
+          </div>
+        `;
+        main.appendChild(card);
+        card.querySelector(`[data-corrigir]`).onclick = ()=>corrigirLojaQuebra(r.id);
+        return;
+      }
       card.innerHTML = `
         <div class="card-top">
           <div>
