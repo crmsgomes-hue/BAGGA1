@@ -3283,42 +3283,116 @@ function renderGestao(){
     lojasListWrap.innerHTML = "";
     const termo = gestaoSearchTerm.trim().toLowerCase();
     const lojasFiltradas = termo ? LOJAS.filter(l=>l.toLowerCase().includes(termo)) : LOJAS;
-    const lojasOrdenadas = [...lojasFiltradas].sort((a,b)=> severidadeLoja(b) - severidadeLoja(a));
-    if(lojasOrdenadas.length===0){
+    if(lojasFiltradas.length===0){
       lojasListWrap.innerHTML = '<div class="empty">Nenhuma loja encontrada.</div>';
       return;
     }
-    lojasOrdenadas.forEach(l=>{
-    const vitOk = VITRINE_TURNOS.filter(t=>!!dailyStatus(l,"vitrine",today,t.key)).length;
-    const vitState = turnoSquareState(vitOk===3, TURNO_HORA_LIMITE.lanche);
-    const vendasDone = !!dailyStatus(l,"vendas",today,"unico");
-    const vendasState = turnoSquareState(vendasDone, VENDAS_HORA_LIMITE);
 
-    let invAtrasados = 0, invPausados = 0, invDiaErrado = 0;
-    categoriasParaLoja(l).forEach(c=>{
-      const st = invStatus(l,c.key,c.freq);
-      if(st.state==="late") invAtrasados++;
-      if(st.state==="pausado") invPausados++;
-      if(st.diaErrado) invDiaErrado++;
+    const dadosLoja = lojasFiltradas.map(l=>{
+      const vitOk = VITRINE_TURNOS.filter(t=>!!dailyStatus(l,"vitrine",today,t.key)).length;
+      const vitState = turnoSquareState(vitOk===3, TURNO_HORA_LIMITE.lanche);
+      const vendasDone = !!dailyStatus(l,"vendas",today,"unico");
+      const vendasState = turnoSquareState(vendasDone, VENDAS_HORA_LIMITE);
+
+      let invAtrasados = 0, invPausados = 0, invDiaErrado = 0;
+      categoriasParaLoja(l).forEach(c=>{
+        const st = invStatus(l,c.key,c.freq);
+        if(st.state==="late") invAtrasados++;
+        if(st.state==="pausado") invPausados++;
+        if(st.diaErrado) invDiaErrado++;
+      });
+      let mktAtrasados = 0;
+      marketingCatsParaLoja(l).forEach(c=>{
+        const st = invStatus(l,c.key,c.freq);
+        if(st.state==="late") mktAtrasados++;
+      });
+      let globalNaoMarcado = false;
+      if(new Date().getDate()>5){
+        const mesAtualPill = mesKey(new Date());
+        globalNaoMarcado = !agendamentos.some(a=>a.loja===l && a.mes===mesAtualPill);
+      }
+
+      const anyLate = vitState==="late" || vendasState==="late" || invAtrasados>0 || invDiaErrado>0 || mktAtrasados>0 || globalNaoMarcado;
+      const anyPend = vitState==="pend" || vendasState==="pend";
+      const overall = anyLate ? "late" : anyPend ? "pend" : "ok";
+      const overallColor = overall==="ok" ? "var(--green)" : overall==="late" ? "var(--red)" : "var(--amber)";
+      const ultimaAtividade = ultimaAtividadeDias(l);
+
+      const pendencias = [];
+      if(vitState!=="ok") pendencias.push(`Vitrine ${vitOk}/3`);
+      if(vendasState!=="ok") pendencias.push("Vendas por fazer");
+      if(invAtrasados>0) pendencias.push(`${invAtrasados} inventário atrasado${invAtrasados>1?'s':''}`);
+      if(invDiaErrado>0) pendencias.push(`${invDiaErrado} dia errado`);
+      if(mktAtrasados>0) pendencias.push(`${mktAtrasados} marketing atrasado`);
+      if(globalNaoMarcado) pendencias.push("Global não marcado");
+      if(ultimaAtividade>=3) pendencias.unshift(`Sem envio há ${ultimaAtividade} dias`);
+
+      return {l, vitOk, vitState, vendasDone, vendasState, invAtrasados, invDiaErrado, mktAtrasados, globalNaoMarcado, overall, overallColor, ultimaAtividade, pendencias};
     });
-    let mktAtrasados = 0;
-    marketingCatsParaLoja(l).forEach(c=>{
-      const st = invStatus(l,c.key,c.freq);
-      if(st.state==="late") mktAtrasados++;
-    });
 
-    const anyLate = vitState==="late" || vendasState==="late" || invAtrasados>0 || invDiaErrado>0 || mktAtrasados>0;
-    const anyPend = vitState==="pend" || vendasState==="pend";
-    const overall = anyLate ? "late" : anyPend ? "pend" : "ok";
-    const overallColor = overall==="ok" ? "var(--green)" : overall==="late" ? "var(--red)" : "var(--amber)";
-    const streak = calcStreak(l);
-    const ultimaAtividade = ultimaAtividadeDias(l);
+    const precisamAtencao = dadosLoja.filter(d=>d.overall!=="ok").sort((a,b)=> severidadeLoja(b.l) - severidadeLoja(a.l));
+    const tudoEmDia = dadosLoja.filter(d=>d.overall==="ok");
 
-    const card = document.createElement("div");
-    card.className = "card";
-    card.style.cssText = "padding:12px 14px; border-left:3px solid " + overallColor + "; cursor:pointer;";
-    card.onclick = ()=>openLojaDetalhe(l);
+    function renderLinha(d){
+      const row = document.createElement("div");
+      row.className = "card";
+      row.style.cssText = "padding:0; margin-bottom:8px; border-left:3px solid " + d.overallColor + "; overflow:hidden;";
+      const resumoTxt = d.pendencias.length ? d.pendencias.slice(0,2).join(" · ") + (d.pendencias.length>2 ? ` +${d.pendencias.length-2}` : '') : "Tudo em dia";
+      row.innerHTML = `
+        <button data-toggle-loja style="width:100%; display:flex; align-items:center; gap:10px; padding:12px 14px; border:none; background:none; text-align:left;">
+          <span style="flex:1;">
+            <span style="font-family:'Syne',sans-serif; font-weight:700; font-size:14.5px;">${d.l}</span><br>
+            <span style="font-size:11.5px; color:${d.overall==='ok'?'var(--green)':d.overall==='late'?'var(--red)':'var(--amber)'};">${resumoTxt}</span>
+          </span>
+          <span class="chev" style="font-size:13px; color:var(--ink-soft);">▾</span>
+        </button>
+        <div class="loja-detalhe" style="display:none; padding:0 14px 14px;"></div>
+      `;
+      const detalheEl = row.querySelector(".loja-detalhe");
+      const chev = row.querySelector(".chev");
+      row.querySelector("[data-toggle-loja]").onclick = ()=>{
+        const abrir = detalheEl.style.display === "none";
+        detalheEl.style.display = abrir ? "block" : "none";
+        chev.textContent = abrir ? "▴" : "▾";
+        if(abrir && !detalheEl.dataset.montado){
+          detalheEl.dataset.montado = "1";
+          montarDetalheLoja(detalheEl, d);
+        }
+      };
+      return row;
+    }
 
+    if(precisamAtencao.length>0){
+      const h = document.createElement("div");
+      h.style.cssText = "font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin:4px 0 8px;";
+      h.textContent = `⚠ Precisam de atenção (${precisamAtencao.length})`;
+      lojasListWrap.appendChild(h);
+      precisamAtencao.forEach(d=>lojasListWrap.appendChild(renderLinha(d)));
+    }
+
+    if(tudoEmDia.length>0){
+      const folderBtn = document.createElement("button");
+      folderBtn.style.cssText = "width:100%; display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px; margin:8px 0; box-shadow:0 1px 3px rgba(0,0,0,.06);";
+      folderBtn.innerHTML = `<span style="font-size:18px;">✔</span><span style="flex:1; text-align:left; font-weight:700; font-size:14px; color:var(--green);">Tudo em dia</span><span style="background:var(--green); color:#fff; font-weight:700; font-size:12px; border-radius:99px; padding:3px 9px;">${tudoEmDia.length}</span><span id="tudoChev" style="font-size:13px; color:var(--ink-soft);">▾</span>`;
+      const tudoWrap = document.createElement("div");
+      tudoWrap.style.display = "none";
+      folderBtn.onclick = ()=>{
+        const abrir = tudoWrap.style.display === "none";
+        tudoWrap.style.display = abrir ? "block" : "none";
+        document.getElementById("tudoChev").textContent = abrir ? "▴" : "▾";
+      };
+      lojasListWrap.appendChild(folderBtn);
+      lojasListWrap.appendChild(tudoWrap);
+      tudoEmDia.forEach(d=>tudoWrap.appendChild(renderLinha(d)));
+    }
+
+    if(precisamAtencao.length===0 && tudoEmDia.length===0){
+      lojasListWrap.innerHTML = '<div class="empty">Nenhuma loja encontrada.</div>';
+    }
+  }
+
+  function montarDetalheLoja(container, d){
+    const l = d.l;
     function pill(icon, texto, tipo){
       const cores = {
         ok: {bg:"#eef3ea", fg:"var(--green)"},
@@ -3328,66 +3402,46 @@ function renderGestao(){
       const c = cores[tipo] || cores.pend;
       return `<span style="display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:600; color:${c.fg}; background:${c.bg}; border-radius:99px; padding:3px 8px;">${icon} ${texto}</span>`;
     }
-    const corVit = vitState==="ok" ? "ok" : vitState==="late" ? "late" : "pend";
-    const corVend = vendasState==="ok" ? "ok" : vendasState==="late" ? "late" : "pend";
-    let pills = pill("🌇", `Vitrine ${vitOk}/3`, corVit) + pill("🧾", vendasDone?"Vendas ✓":"Vendas por fazer", corVend);
-    if(invAtrasados>0) pills += pill("📦", `${invAtrasados} atrasado${invAtrasados>1?'s':''}`, "late");
-    if(invDiaErrado>0) pills += pill("⚠", `${invDiaErrado} dia errado`, "pend");
-    if(mktAtrasados>0) pills += pill("🎪", `${mktAtrasados} marketing atrasado`, "pend");
-    if(new Date().getDate()>5){
-      const mesAtualPill = mesKey(new Date());
-      const temAgendamento = agendamentos.some(a=>a.loja===l && a.mes===mesAtualPill);
-      if(!temAgendamento) pills += pill("📅", "Global não marcado", "late");
-    }
-    if(invAtrasados===0 && invDiaErrado===0 && mktAtrasados===0) pills += pill("✔", "Inventário em dia", "ok");
+    const corVit = d.vitState==="ok" ? "ok" : d.vitState==="late" ? "late" : "pend";
+    const corVend = d.vendasState==="ok" ? "ok" : d.vendasState==="late" ? "late" : "pend";
+    let pills = pill("🌇", `Vitrine ${d.vitOk}/3`, corVit) + pill("🧾", d.vendasDone?"Vendas ✓":"Vendas por fazer", corVend);
+    if(d.invAtrasados>0) pills += pill("📦", `${d.invAtrasados} atrasado${d.invAtrasados>1?'s':''}`, "late");
+    if(d.invDiaErrado>0) pills += pill("⚠", `${d.invDiaErrado} dia errado`, "pend");
+    if(d.mktAtrasados>0) pills += pill("🎪", `${d.mktAtrasados} marketing atrasado`, "pend");
+    if(d.globalNaoMarcado) pills += pill("📅", "Global não marcado", "late");
+    if(d.invAtrasados===0 && d.invDiaErrado===0 && d.mktAtrasados===0) pills += pill("✔", "Inventário em dia", "ok");
 
     let piorTipo = null, piorLabel = null;
-    if(vitState==="late"){
+    if(d.vitState==="late"){
       const turnoFalta = VITRINE_TURNOS.find(t=>!dailyStatus(l,"vitrine",today,t.key));
       if(turnoFalta){ piorTipo = "vitrine_"+turnoFalta.key; piorLabel = "Vitrine — "+turnoFalta.label; }
     }
-    if(!piorTipo && vendasState==="late"){ piorTipo="vendas"; piorLabel="Vendas"; }
+    if(!piorTipo && d.vendasState==="late"){ piorTipo="vendas"; piorLabel="Vendas"; }
     if(!piorTipo){
       for(const c of categoriasParaLoja(l)){
         if(invStatus(l,c.key,c.freq).state==="late"){ piorTipo="inv_"+c.key; piorLabel=c.label; break; }
       }
     }
     if(!piorTipo){
-      for(const c of MARKETING_CATS){
+      for(const c of marketingCatsParaLoja(l)){
         if(invStatus(l,c.key,c.freq).state==="late"){ piorTipo="inv_"+c.key; piorLabel=c.label; break; }
       }
     }
 
-    card.innerHTML = `
-      ${ultimaAtividade>=3 ? `<div style="background:var(--red); color:#fff; font-size:11px; font-weight:700; padding:5px 10px; border-radius:8px; margin-bottom:8px;">⚠ Sem qualquer envio há ${ultimaAtividade} dias</div>` : ``}
-      <div class="card-top" style="margin-bottom:8px;">
-        <div style="font-family:'Syne',sans-serif; font-size:15px; font-weight:700;">${l}</div>
-        <div style="display:flex; gap:6px; align-items:center;">
-          ${streak>=2 ? `<div class="status-badge ok">🔥 ${streak} dias</div>` : ``}
-          <button data-fotos="1" style="background:none; color:var(--ink-soft); border:1.5px solid var(--line); border-radius:99px; padding:4px 9px; font-size:11px; font-weight:700;">📷</button>
-          <button data-ficha="1" style="background:none; color:var(--terracotta); border:1.5px solid var(--terracotta); border-radius:99px; padding:4px 9px; font-size:11px; font-weight:700;">🏪 Ficha</button>
-          ${piorTipo ? `<button data-avisar="1" style="background:var(--terracotta); color:#fff; border:none; border-radius:99px; padding:5px 10px; font-size:11px; font-weight:700;">📢 Avisar</button>` : ``}
-        </div>
+    container.innerHTML = `
+      <div style="display:flex; gap:6px; align-items:center; margin-bottom:10px;">
+        <button data-fotos="1" style="background:none; color:var(--ink-soft); border:1.5px solid var(--line); border-radius:99px; padding:5px 10px; font-size:11.5px; font-weight:700;">📷</button>
+        <button data-ficha="1" style="background:none; color:var(--terracotta); border:1.5px solid var(--terracotta); border-radius:99px; padding:5px 10px; font-size:11.5px; font-weight:700;">🏪 Ficha</button>
+        ${piorTipo ? `<button data-avisar="1" style="background:var(--terracotta); color:#fff; border:none; border-radius:99px; padding:6px 11px; font-size:11.5px; font-weight:700;">📢 Avisar</button>` : ``}
       </div>
       <div style="display:flex; flex-wrap:wrap; gap:6px;">${pills}</div>
-      <div data-aviso-status="${l}"></div>
+      <div data-aviso-status="${l}" style="margin-top:6px;"></div>
     `;
-    card.querySelector('[data-fotos]').onclick = (ev)=>{
-      ev.stopPropagation();
-      verFotosRecentesLoja(l);
-    };
-    card.querySelector('[data-ficha]').onclick = (ev)=>{
-      ev.stopPropagation();
-      openFichaGerente(l);
-    };
+    container.querySelector('[data-fotos]').onclick = ()=>verFotosRecentesLoja(l);
+    container.querySelector('[data-ficha]').onclick = ()=>openFichaGerente(l);
     if(piorTipo){
-      card.querySelector('[data-avisar]').onclick = (ev)=>{
-        ev.stopPropagation();
-        avisarRapido(l, piorTipo, piorLabel);
-      };
+      container.querySelector('[data-avisar]').onclick = ()=>avisarRapido(l, piorTipo, piorLabel);
     }
-    lojasListWrap.appendChild(card);
-    });
     carregarUltimosAvisosNosCartoes();
   }
   renderLojasList();
