@@ -3639,18 +3639,21 @@ function renderGestao(){
   }
 
   const today = todayStr();
+  const aindaNaoComecouResumo = new Date() < RESET_GRACE_UNTIL;
   const vitrineTurnosDone = (l,ds)=>VITRINE_TURNOS.filter(t=>dailyStatus(l,"vitrine",ds,t.key)).length;
-  const missingVitrineList = LOJAS.map(l=>{
+  const missingVitrineList = aindaNaoComecouResumo ? [] : LOJAS.map(l=>{
     const turnoFalta = VITRINE_TURNOS.find(t=>!dailyStatus(l,"vitrine",today,t.key));
     return turnoFalta ? {loja:l, label:"Falta "+turnoFalta.label, tipo:"vitrine_"+turnoFalta.key} : null;
   }).filter(Boolean);
-  const missingVendasList = LOJAS.filter(l=>!dailyStatus(l,"vendas",today,"unico")).map(l=>({loja:l, label:"Vendas por registar", tipo:"vendas"}));
+  const missingVendasList = aindaNaoComecouResumo ? [] : LOJAS.filter(l=>!dailyStatus(l,"vendas",today,"unico")).map(l=>({loja:l, label:"Vendas por registar", tipo:"vendas"}));
   const lateInvList = [];
-  LOJAS.forEach(l=>{
-    categoriasParaLoja(l).forEach(c=>{
-      if(invStatus(l,c.key,c.freq).state==="late") lateInvList.push({loja:l, label:c.label, tipo:"inv_"+c.key});
+  if(!aindaNaoComecouResumo){
+    LOJAS.forEach(l=>{
+      categoriasParaLoja(l).forEach(c=>{
+        if(invStatus(l,c.key,c.freq).state==="late") lateInvList.push({loja:l, label:c.label, tipo:"inv_"+c.key});
+      });
     });
-  });
+  }
   const missingVitrine = missingVitrineList.length;
   const missingVendas = missingVendasList.length;
   const lateInv = lateInvList.length;
@@ -3712,7 +3715,11 @@ function renderGestao(){
       return;
     }
 
+    const aindaNaoComecouPainel = new Date() < RESET_GRACE_UNTIL;
     const dadosLoja = lojasFiltradas.map(l=>{
+      if(aindaNaoComecouPainel){
+        return {l, vitOk:3, vitState:"ok", vendasDone:true, vendasState:"ok", invAtrasados:0, invDiaErrado:0, mktAtrasados:0, globalNaoMarcado:false, overall:"ok", overallColor:"var(--green)", ultimaAtividade:0, pendencias:[]};
+      }
       const vitOk = VITRINE_TURNOS.filter(t=>!!dailyStatus(l,"vitrine",today,t.key)).length;
       const vitState = turnoSquareState(vitOk===3, TURNO_HORA_LIMITE.lanche);
       const vendasDone = !!dailyStatus(l,"vendas",today,"unico");
