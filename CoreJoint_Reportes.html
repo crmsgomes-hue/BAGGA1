@@ -787,6 +787,7 @@ function inRange(dateStr, start, end){
 }
 
 const CATEGORY_DOW = { raspadinhas:1, cafe:2, laranja:3 }; // 1=Segunda...7=Domingo
+const RESET_GRACE_UNTIL = new Date("2026-08-07T00:00:00"); // reset de dados: só conta atrasado com prazo a partir desta data
 const DOW_LABELS = ["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"];
 
 function findWeekdayInRange(start, end, dow){
@@ -818,8 +819,10 @@ function invStatus(loja, catKey, freq){
   if(dow){
     const targetDate = findWeekdayInRange(w.start, w.end, dow);
     const graceDate = new Date(targetDate); graceDate.setDate(graceDate.getDate()+1); graceDate.setHours(14,0,0,0);
+    if(graceDate < RESET_GRACE_UNTIL) return {state:"pend", latest:null, window:w, targetDate, dowLabel:DOW_LABELS[dow-1]};
     return {state: today>graceDate ? "late" : "pend", latest:null, window:w, targetDate, dowLabel:DOW_LABELS[dow-1]};
   }
+  if(w.end < RESET_GRACE_UNTIL) return {state:"pend", latest:null, window:w};
   return {state: today>w.end ? "late" : "pend", latest:null, window:w};
 }
 function dailyStatus(loja, tipo, dateStr, turno){
