@@ -2438,13 +2438,19 @@ function openGaleria(){
     main.appendChild(lojaTitle);
 
     const TURNO_LABELS_G = {manha:"Manhã", almoco:"Almoço", lanche:"Lanche", unico:""};
-    rowsLoja.forEach(r=>{
-      const tituloSecao = r.tipo==="vitrine" ? `Vitrine — ${TURNO_LABELS_G[r.turno]||r.turno}` : "Vendas";
-      renderSecaoFotosVisitas(main, tituloSecao, r.fotos||[], r.data);
-    });
-    rowsInvLoja.forEach(r=>{
-      const catObj = [...INV_CATS, ...MARKETING_CATS].find(c=>c.key===r.categoria);
-      renderSecaoFotosVisitas(main, catObj ? catObj.label : r.categoria, r.fotos||[], r.data, r.valor_inventario, r.categoria==="global" ? r.valor_cnvs : null);
+    const todasSubmissoes = [
+      ...rowsLoja.map(r=>({...r, _tipoOrigem:"daily"})),
+      ...rowsInvLoja.map(r=>({...r, _tipoOrigem:"inv"}))
+    ].sort((a,b)=> new Date(b.criado_em) - new Date(a.criado_em));
+
+    todasSubmissoes.forEach(r=>{
+      if(r._tipoOrigem==="daily"){
+        const tituloSecao = r.tipo==="vitrine" ? `Vitrine — ${TURNO_LABELS_G[r.turno]||r.turno}` : "Vendas";
+        renderSecaoFotosVisitas(main, tituloSecao, r.fotos||[], r.data);
+      } else {
+        const catObj = [...INV_CATS, ...MARKETING_CATS].find(c=>c.key===r.categoria);
+        renderSecaoFotosVisitas(main, catObj ? catObj.label : r.categoria, r.fotos||[], r.data, r.valor_inventario, r.categoria==="global" ? r.valor_cnvs : null);
+      }
     });
   });
 }
