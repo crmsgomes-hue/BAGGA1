@@ -67,6 +67,10 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div class="ps">As tuas ferramentas de gestão, num só sítio.</div>
 
   <div id="statsGrid" class="g4"></div>
+  <div style="display:flex; gap:8px; margin:10px 0;">
+    <a href="CoreJoint_Reportes.html?ferramentas=1" style="flex:1; text-align:center; background:var(--ink,#2B2723); color:#fff; border-radius:12px; padding:13px; font-size:14px; font-weight:700; text-decoration:none;">🛠️ Ferramentas</a>
+    <button onclick="abrirAvisarTodos()" style="flex:1; background:var(--terracotta,#C1622E); color:#fff; border:none; border-radius:12px; padding:13px; font-size:14px; font-weight:700; cursor:pointer;">📢 Avisar todas</button>
+  </div>
   <div id="painelLojasSection"></div>
   <div id="fotosRecentesSection"></div>
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
@@ -104,10 +108,12 @@ if(localStorage.getItem("cj_dark_mode")==="1"){
 
 const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k";
-async function api(path){
-  const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, { headers:{ "apikey":SUPA_KEY, "Authorization":"Bearer "+SUPA_KEY } });
+async function api(path, method, body){
+  const opts = { method: method||"GET", headers:{ "apikey":SUPA_KEY, "Authorization":"Bearer "+SUPA_KEY, "Content-Type":"application/json" } };
+  if(body) opts.body = JSON.stringify(body);
+  const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, opts);
   if(!res.ok) return [];
-  return res.json();
+  return res.status===204 ? null : res.json();
 }
 function setBadge(id, n){
   if(n>0) document.getElementById(id).innerHTML = `<span class="bk">${n}</span>`;
@@ -164,6 +170,44 @@ function inRange(dateStr,start,end){ const d=new Date(dateStr+"T00:00:00"); retu
 
 function addAttn(list, href, titulo, sub, urgente){
   list.push({href, titulo, sub, urgente});
+}
+
+function abrirAvisarTodos(){
+  const overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:400px; width:100%;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:10px;">📢 Avisar todas as lojas</div>
+      <div style="font-size:13px; color:var(--t2); margin-bottom:12px;">Este aviso vai ser enviado a todas as 10 lojas de uma vez.</div>
+      <textarea id="avisoTodosTexto" placeholder="Escreve a mensagem..." style="width:100%; min-height:80px; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:12px;"></textarea>
+      <div style="display:flex; gap:8px;">
+        <button onclick="document.getElementById('avisoTodosOverlay').remove();" style="flex:1; background:none; border:1px solid var(--br); border-radius:10px; padding:11px; font-weight:700;">Cancelar</button>
+        <button id="avisoTodosEnviarBtn" style="flex:1; background:var(--terracotta); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">Enviar</button>
+      </div>
+    </div>
+  `;
+  overlay.id = "avisoTodosOverlay";
+  document.body.appendChild(overlay);
+  document.getElementById("avisoTodosEnviarBtn").onclick = enviarAvisoTodos;
+}
+
+async function enviarAvisoTodos(){
+  const texto = document.getElementById("avisoTodosTexto").value.trim();
+  if(!texto){ alert("Escreve uma mensagem primeiro"); return; }
+  const btn = document.getElementById("avisoTodosEnviarBtn");
+  btn.disabled = true; btn.textContent = "A enviar...";
+  try{
+    for(const loja of LOJAS){
+      await api("cj_avisos", "POST", {loja, tipo:"outro", descricao:texto, criado_por:"CG"});
+      await fetch(`${SUPA_URL}/functions/v1/send-daily-alerts?tipo=aviso&loja=${encodeURIComponent(loja)}&avisoTipo=outro&descricao=${encodeURIComponent(texto)}`);
+    }
+    document.getElementById("avisoTodosOverlay").remove();
+    alert("Aviso enviado a todas as lojas!");
+  }catch(e){
+    console.error(e);
+    alert("Erro ao enviar: " + (e.message||e));
+    btn.disabled = false; btn.textContent = "Enviar";
+  }
 }
 
 function bigPhoto(urls, indice){
