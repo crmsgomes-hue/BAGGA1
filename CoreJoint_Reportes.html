@@ -3633,6 +3633,10 @@ function renderGestao(){
   toolsBtn.innerHTML = `🛠️ Ferramentas <span style="color:var(--ink-soft); font-weight:400;">(${todasFerramentas.length})</span>`;
   toolsBtn.onclick = ()=>abrirMenuFerramentas(grupos);
   main.appendChild(toolsBtn);
+  if(new URLSearchParams(location.search).get("ferramentas")==="1" && !window._ferramentasAutoAbertas){
+    window._ferramentasAutoAbertas = true;
+    abrirMenuFerramentas(grupos);
+  }
 
   const today = todayStr();
   const vitrineTurnosDone = (l,ds)=>VITRINE_TURNOS.filter(t=>dailyStatus(l,"vitrine",ds,t.key)).length;
