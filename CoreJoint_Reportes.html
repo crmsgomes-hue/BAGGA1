@@ -297,6 +297,7 @@ function mostrarAcoesRelatorio(html, filename){
         <button class="btn-save" style="width:100%;" id="raVerBtn">👁️ Ver relatório</button>
         <button class="btn-save" style="width:100%; background:none; border:1.5px solid var(--terracotta); color:var(--terracotta);" id="raPartilharBtn">📤 Partilhar (email, WhatsApp...)</button>
         <button class="btn-save" style="width:100%; background:none; border:1.5px solid var(--ink-soft); color:var(--ink-soft);" id="raImprimirBtn">🖨️ Imprimir / Guardar PDF</button>
+        <button class="btn-save" style="width:100%; background:none; border:1.5px solid var(--green); color:var(--green);" id="raExcelBtn">📥 Excel</button>
         <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('relatorioAcoesOverlay').remove()">Fechar</button>
       </div>
     </div>
@@ -314,6 +315,34 @@ function mostrarAcoesRelatorio(html, filename){
     overlay.remove();
     compartilharHtmlComoPDF(html, filename);
   };
+  document.getElementById("raExcelBtn").onclick = async ()=>{
+    overlay.remove();
+    await exportarHtmlComoExcel(html, filename.replace(/\.pdf$/,".xlsx"));
+  };
+}
+
+async function exportarHtmlComoExcel(html, filename){
+  try{
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    const tabelas = tmp.querySelectorAll("table");
+    if(tabelas.length===0){ toast("Este relatório não tem tabelas para exportar"); return; }
+    const wb = XLSX.utils.book_new();
+    tabelas.forEach((t, i)=>{
+      const linhas = [];
+      t.querySelectorAll("tr").forEach(tr=>{
+        const linha = [];
+        tr.querySelectorAll("th,td").forEach(c=>linha.push(c.textContent.trim()));
+        linhas.push(linha);
+      });
+      const ws = XLSX.utils.aoa_to_sheet(linhas);
+      XLSX.utils.book_append_sheet(wb, ws, `Tabela ${i+1}`.slice(0,31));
+    });
+    await salvarOuPartilharExcel(wb, filename);
+  }catch(e){
+    console.error(e);
+    toast("Erro ao criar Excel: " + (e.message||e).slice(0,100));
+  }
 }
 
 function verRelatorioNoEcra(html){
