@@ -367,6 +367,7 @@ function marketingCatsParaLoja(loja){
 let mode = null; // 'loja' | 'gestao'
 let agendamentos = [];
 let currentView = ()=>render();
+let previousView = null;
 let currentLoja = localStorage.getItem("cj_rep_loja") || null;
 let currentUser = localStorage.getItem("cj_rep_user") || "CG";
 const PERFIS = ["CG", "JM"];
@@ -1210,7 +1211,7 @@ async function openSondagens(){
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
   back.textContent = "← Voltar ao painel";
-  back.onclick = render;
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
   sondagemOpcoes = [];
@@ -1363,7 +1364,7 @@ async function openFormularios(){
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
   back.textContent = "← Voltar ao painel";
-  back.onclick = render;
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
   formPerguntas = [];
@@ -1526,7 +1527,7 @@ function openRankingLojas(){
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
   back.textContent = "← Voltar ao painel";
-  back.onclick = render;
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
   const title = document.createElement("div");
@@ -1575,7 +1576,7 @@ function openRegistoAtividade(){
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
   back.textContent = "← Voltar ao painel";
-  back.onclick = render;
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
   main.innerHTML += '<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:40px 0;"><div style="width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--terracotta);border-radius:50%;animation:cjspin2 .8s linear infinite;"></div><div style="font-size:13px; color:var(--ink-soft);">A carregar…</div></div><style>@keyframes cjspin2{to{transform:rotate(360deg)}}</style>';
@@ -1800,7 +1801,7 @@ function openChecklistMensal(){
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
   back.textContent = "← Voltar ao painel";
-  back.onclick = render;
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
   const mes = mesKey(new Date());
@@ -2082,7 +2083,7 @@ async function openFichaGerente(lojaPreSelecionada){
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
   back.textContent = "← Voltar ao painel";
-  back.onclick = render;
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
   const title = document.createElement("div");
@@ -2327,7 +2328,7 @@ function openAgendamentosGlobal(){
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
   back.textContent = "← Voltar ao painel";
-  back.onclick = render;
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
   const mes = mesKey(new Date());
@@ -2410,7 +2411,7 @@ function openGaleria(){
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
   back.textContent = "← Voltar ao painel";
-  back.onclick = render;
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
   const days = [];
@@ -2487,7 +2488,7 @@ function openEvolucaoCnvs(){
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
   back.textContent = "← Voltar ao painel";
-  back.onclick = render;
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
   const months = [];
@@ -2530,7 +2531,7 @@ function openHistoricoAnual(){
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
   back.textContent = "← Voltar ao painel";
-  back.onclick = render;
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
   const hoje = new Date();
@@ -2884,7 +2885,7 @@ function openImportarQuebras(){
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
   back.textContent = "← Voltar ao painel";
-  back.onclick = render;
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
   const card = document.createElement("div");
@@ -2892,7 +2893,7 @@ function openImportarQuebras(){
   card.innerHTML = `
     <div class="card-title" style="margin-bottom:6px;">📤 Importar Excel de quebras</div>
     <div class="card-sub" style="margin-bottom:12px;">Colunas esperadas: Loja, Data, Operador, Quebra, Safebag. Só as quebras de 20€ ou mais são importadas e as lojas avisadas.</div>
-    <input type="file" id="quebrasFile" accept=".xlsx,.xls,.csv">
+    <label style="display:block; width:100%; text-align:center; background:var(--terracotta); color:#fff; font-weight:700; padding:14px; border-radius:10px; cursor:pointer;">📁 Escolher ficheiro Excel<input type="file" id="quebrasFile" accept=".xlsx,.xls,.csv" style="display:none;"></label>
     <div id="quebrasPreview" style="margin-top:14px;"></div>
   `;
   main.appendChild(card);
@@ -3045,7 +3046,7 @@ function openRelatorioQuebras(){
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
   back.textContent = "← Voltar ao painel";
-  back.onclick = render;
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
   const title = document.createElement("div");
@@ -3528,7 +3529,7 @@ function abrirMenuFerramentas(grupos){
       const isLast = ti === g.itens.length-1;
       item.style.cssText = `display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:11px 8px; border:none; background:none; ${isLast?'':'border-bottom:1px solid rgba(0,0,0,.06);'} font-size:14px; color:var(--ink);`;
       item.innerHTML = `<span style="font-size:18px;">${t.icon}</span><span>${t.label}</span>`;
-      item.onclick = ()=>{ overlay.remove(); t.fn(); };
+      item.onclick = ()=>{ overlay.remove(); previousView = currentView; t.fn(); };
       grupoBox.appendChild(item);
     });
     lista.appendChild(grupoBox);
