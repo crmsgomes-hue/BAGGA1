@@ -1001,11 +1001,14 @@ function renderCapThumbs(){
   if(!wrap) return;
   wrap.innerHTML = pendingPhotos.map((p,i)=>`
     <div class="photo-item">
-      <img src="${p.src}" onclick="bigPhoto('${p.src}')">
+      <img src="${p.src}" data-fi="${i}">
       <button class="photo-del" onclick="removerCapFoto(${i})">✕</button>
       <input class="photo-legend" type="text" placeholder="Legenda…" value="${p.legenda||''}" onchange="setCapFotoLegenda(${i},this.value)">
     </div>
   `).join("");
+  wrap.querySelectorAll("img[data-fi]").forEach(img=>{
+    img.onclick = ()=>bigPhoto(null, pendingPhotos.map(p=>p.src), +img.dataset.fi);
+  });
 }
 function setCapFotoLegenda(idx, val){
   if(pendingPhotos[idx]) pendingPhotos[idx].legenda = val;
