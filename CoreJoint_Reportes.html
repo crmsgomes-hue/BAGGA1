@@ -2441,17 +2441,20 @@ function openGaleria(){
     });
     rowsInvLoja.forEach(r=>{
       const catObj = [...INV_CATS, ...MARKETING_CATS].find(c=>c.key===r.categoria);
-      renderSecaoFotosVisitas(main, catObj ? catObj.label : r.categoria, r.fotos||[], r.data);
+      renderSecaoFotosVisitas(main, catObj ? catObj.label : r.categoria, r.fotos||[], r.data, r.valor_inventario, r.categoria==="global" ? r.valor_cnvs : null);
     });
   });
 }
 
-function renderSecaoFotosVisitas(main, titulo, fotos, data){
+function renderSecaoFotosVisitas(main, titulo, fotos, data, valor, valorCnvs){
   if(fotos.length===0) return;
   const card = document.createElement("div");
   card.className = "card";
   const urls = fotos.map(fotoUrl);
-  let html = `<div class="card-title" style="margin-bottom:2px;">${titulo}</div><div class="card-sub" style="margin-bottom:10px;">${new Date(data+"T00:00:00").toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit',month:'2-digit'})}</div>`;
+  let html = `<div class="card-title" style="margin-bottom:2px;">${titulo}</div><div class="card-sub" style="margin-bottom:${valor!=null?'2px':'10px'};">${new Date(data+"T00:00:00").toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit',month:'2-digit'})}</div>`;
+  if(valor!=null){
+    html += `<div style="font-weight:800; font-size:16px; color:var(--terracotta); margin-bottom:10px;">💰 ${valor} €${valorCnvs!=null?` <span style="font-size:12px; color:var(--ink-soft); font-weight:600;">· CNVs: ${valorCnvs} €</span>`:''}</div>`;
+  }
   html += `<div style="display:flex; flex-wrap:wrap; gap:10px;">`;
   fotos.forEach((f,fi)=>{
     html += `<div style="width:130px;"><img src="${urls[fi]}" data-fi="${fi}" style="width:130px; height:100px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer; display:block;"></div>`;
