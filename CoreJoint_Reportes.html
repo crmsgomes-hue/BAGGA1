@@ -3450,6 +3450,25 @@ function mostrarSucesso(msg){
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js', {scope: './'}).catch(e=>console.warn('sw.js falhou', e));
 }
+// Verifica automaticamente se há uma versão nova publicada e recarrega sozinho
+let versaoInicial = null;
+async function verificarAtualizacao(){
+  try{
+    const res = await fetch(location.pathname, {cache:"no-store", method:"HEAD"});
+    const marca = res.headers.get("etag") || res.headers.get("last-modified");
+    if(!marca) return;
+    if(versaoInicial === null){ versaoInicial = marca; return; }
+    if(marca !== versaoInicial){
+      const overlayAberto = document.querySelector(".overlay");
+      if(!overlayAberto){
+        location.reload();
+      }
+    }
+  }catch(e){ /* falha silenciosa, tenta outra vez depois */ }
+}
+setInterval(verificarAtualizacao, 3*60*1000);
+verificarAtualizacao();
+
 </script>
 </body>
 </html>
