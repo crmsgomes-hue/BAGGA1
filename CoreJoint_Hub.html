@@ -71,6 +71,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
     <a href="CoreJoint_Reportes.html?ferramentas=1" style="flex:1; text-align:center; background:var(--ink,#2B2723); color:#fff; border-radius:12px; padding:13px; font-size:14px; font-weight:700; text-decoration:none;">🛠️ Ferramentas</a>
     <button onclick="abrirAvisarTodos()" style="flex:1; background:var(--terracotta,#C1622E); color:#fff; border:none; border-radius:12px; padding:13px; font-size:14px; font-weight:700; cursor:pointer;">📢 Avisar todas</button>
   </div>
+  <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E); border-radius:12px; padding:12px; font-size:14px; font-weight:700; margin-bottom:10px; cursor:pointer;">🔔 Enviar lembrete dos atrasos a cada loja</button>
   <div id="painelLojasSection"></div>
   <div id="fotosRecentesSection"></div>
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
@@ -170,6 +171,20 @@ function inRange(dateStr,start,end){ const d=new Date(dateStr+"T00:00:00"); retu
 
 function addAttn(list, href, titulo, sub, urgente){
   list.push({href, titulo, sub, urgente});
+}
+
+async function enviarLembretesAtrasos(){
+  const btn = document.getElementById("lembretesAtrasosBtn");
+  btn.disabled = true; btn.textContent = "A enviar...";
+  try{
+    const res = await fetch(`${SUPA_URL}/functions/v1/send-daily-alerts`);
+    const data = await res.json();
+    alert(`Lembretes enviados! ${data.lojas ? data.lojas.sent + ' loja(s) notificada(s)' : 'Sem pendências para lembrar.'}`);
+  }catch(e){
+    console.error(e);
+    alert("Erro ao enviar lembretes: " + (e.message||e));
+  }
+  btn.disabled = false; btn.textContent = "🔔 Enviar lembrete dos atrasos a cada loja";
 }
 
 function abrirAvisarTodos(){
