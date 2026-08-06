@@ -2891,6 +2891,15 @@ function openImportarQuebras(){
 }
 
 let quebrasParaImportar = [];
+function normalizarNomeLoja(s){
+  return String(s).trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ");
+}
+function encontrarLojaCorrespondente(nomeInput){
+  const norm = normalizarNomeLoja(nomeInput);
+  return LOJAS.find(l => normalizarNomeLoja(l) === norm) || null;
+}
+
+let quebrasComErro = [];
 function handleQuebrasFile(ev){
   const file = ev.target.files[0];
   if(!file) return;
@@ -2908,7 +2917,8 @@ function handleQuebrasFile(ev){
         return "";
       }
       const todasLinhas = rows.map(r=>{
-        const loja = String(pegar(r,"loja")).trim();
+        const lojaOriginal = String(pegar(r,"loja")).trim();
+        const lojaCanonica = encontrarLojaCorrespondente(lojaOriginal);
         const dataRaw = pegar(r,"data");
         let dataStr = "";
         if(dataRaw instanceof Date) dataStr = isoDate(dataRaw);
@@ -2922,10 +2932,12 @@ function handleQuebrasFile(ev){
         const quebraRaw = String(pegar(r,"quebra")).replace(",", ".").trim();
         const quebra = parseFloat(quebraRaw);
         const safebag = String(pegar(r,"safebag")).trim();
-        return {loja, data:dataStr, operador, valor_quebra:quebra, safebag};
-      }).filter(r=>r.loja && !isNaN(r.valor_quebra));
+        return {lojaOriginal, loja:lojaCanonica, data:dataStr, operador, valor_quebra:quebra, safebag};
+      }).filter(r=>r.lojaOriginal && !isNaN(r.valor_quebra));
 
-      quebrasParaImportar = todasLinhas.filter(r=>Math.abs(r.valor_quebra)>=20);
+      const comQuebraRelevante = todasLinhas.filter(r=>Math.abs(r.valor_quebra)>=20);
+      quebrasComErro = comQuebraRelevante.filter(r=>!r.loja);
+      quebrasParaImportar = comQuebraRelevante.filter(r=>r.loja);
       renderQuebrasPreview(todasLinhas.length);
     }catch(err){
       console.error(err);
@@ -2937,22 +2949,38 @@ function handleQuebrasFile(ev){
 
 function renderQuebrasPreview(totalLinhas){
   const prev = document.getElementById("quebrasPreview");
-  if(quebrasParaImportar.length===0){
+  if(quebrasParaImportar.length===0 && quebrasComErro.length===0){
     prev.innerHTML = `<div class="empty">${totalLinhas} linhas lidas, nenhuma com quebra ≥ 20€.</div>`;
     return;
   }
-  let html = `<div style="font-weight:700; margin-bottom:8px;">${quebrasParaImportar.length} quebra(s) ≥ 20€ (de ${totalLinhas} linhas):</div>`;
+  let html = "";
+  if(quebrasComErro.length>0){
+    html += `<div style="background:var(--red); color:#fff; border-radius:12px; padding:14px; margin-bottom:14px;">
+      <div style="font-weight:800; margin-bottom:6px;">⚠ ${quebrasComErro.length} linha(s) com nome de loja não reconhecido</div>
+      <div style="font-size:12.5px;">Corrige o nome no Excel exatamente como uma destas: ${LOJAS.join(", ")}</div>
+      <div style="margin-top:8px; font-size:12.5px;">
+        ${quebrasComErro.map(q=>`• "${q.lojaOriginal}" — ${q.data} — ${q.valor_quebra} €`).join("<br>")}
+      </div>
+    </div>`;
+  }
+  html += `<div style="font-weight:700; margin-bottom:8px;">${quebrasParaImportar.length} quebra(s) ≥ 20€ prontas para importar (de ${totalLinhas} linhas):</div>`;
   quebrasParaImportar.forEach(q=>{
     html += `<div style="padding:8px 0; border-bottom:1px solid var(--line); font-size:13px;">
       <b>${q.loja}</b> — ${q.data} — ${q.operador||'—'} — <span style="color:var(--red); font-weight:700;">${q.valor_quebra} €</span>${q.safebag?' · Safebag: '+q.safebag:''}
     </div>`;
   });
-  html += `<button class="cambtn" style="width:100%; margin-top:14px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-weight:700;" id="confirmarImportarQuebrasBtn">Importar e avisar as lojas</button>`;
+  if(quebrasComErro.length>0){
+    html += `<div style="margin-top:14px; text-align:center; font-size:13px; color:var(--red); font-weight:700;">Corrige os erros acima e volta a carregar o ficheiro antes de importar.</div>`;
+  } else if(quebrasParaImportar.length>0){
+    html += `<button class="cambtn" style="width:100%; margin-top:14px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-weight:700;" id="confirmarImportarQuebrasBtn">Importar e avisar as lojas</button>`;
+  }
   prev.innerHTML = html;
-  document.getElementById("confirmarImportarQuebrasBtn").onclick = confirmarImportarQuebras;
+  const btnConfirmar = document.getElementById("confirmarImportarQuebrasBtn");
+  if(btnConfirmar) btnConfirmar.onclick = confirmarImportarQuebras;
 }
 
 async function confirmarImportarQuebras(){
+  if(quebrasComErro.length>0){ toast("Corrige primeiro os nomes de loja não reconhecidos"); return; }
   try{
     for(const q of quebrasParaImportar){
       await api("POST", "cj_quebras_reportes", {
