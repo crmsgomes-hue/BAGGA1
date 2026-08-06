@@ -362,30 +362,20 @@ function bigPhoto(urls, indice){
       return {loja:l, pendencias, urgente: pendencias.length};
     });
 
-    const comPendencia = dadosPorLoja.filter(d=>d.pendencias.length>0).sort((a,b)=>b.urgente-a.urgente);
+    const comPendencia = dadosPorLoja.filter(d=>d.pendencias.length>0);
     const semPendencia = dadosPorLoja.filter(d=>d.pendencias.length===0);
 
     let html = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
       <span>Painel de gestão</span>
-      <a href="CoreJoint_Reportes.html" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Ver tudo →</a>
+      <a href="CoreJoint_Reportes.html" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Ver detalhe →</a>
     </div>`;
     if(comPendencia.length===0){
       html += `<div class="all-clear" style="margin-bottom:14px;">✔ Todas as lojas em dia agora.</div>`;
     } else {
-      html += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
-      comPendencia.slice(0,6).forEach(d=>{
-        html += `<a href="CoreJoint_Reportes.html" style="display:flex; justify-content:space-between; align-items:center; padding:9px 2px; border-bottom:1px solid var(--br); text-decoration:none; color:inherit;">
-          <span style="font-weight:700; font-size:.85rem;">${d.loja}</span>
-          <span style="font-size:.72rem; color:var(--red); font-weight:600; text-align:right;">${d.pendencias.join(" · ")}</span>
-        </a>`;
-      });
-      if(comPendencia.length>6){
-        html += `<a href="CoreJoint_Reportes.html" style="display:block; text-align:center; padding:9px 2px; font-size:.75rem; color:var(--tc); font-weight:700; text-decoration:none;">+${comPendencia.length-6} loja(s) mais — ver tudo</a>`;
-      }
-      html += `</div>`;
-      if(semPendencia.length>0){
-        html += `<div style="font-size:.72rem; color:var(--t2); margin-top:-6px; margin-bottom:14px;">${semPendencia.length} loja(s) em dia: ${semPendencia.map(d=>d.loja).join(", ")}</div>`;
-      }
+      html += `<a href="CoreJoint_Reportes.html" class="card" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit;">
+        <span style="font-weight:700; font-size:.9rem;">${comPendencia.length} loja(s) com pendências</span>
+        <span style="font-size:.78rem; color:var(--t2);">${semPendencia.length} em dia ›</span>
+      </a>`;
     }
     document.getElementById("painelLojasSection").innerHTML = html;
   }catch(e){ console.error(e); }
