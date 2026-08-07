@@ -209,12 +209,12 @@ async function enviarLembretesAtrasos(){
 
 function abrirAvisarTodos(){
   const overlay = document.createElement("div");
-  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px;";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:9999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
   overlay.innerHTML = `
-    <div style="background:#fff; border-radius:14px; padding:20px; max-width:400px; width:100%;">
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:400px; width:100%; margin-top:40px; max-height:80vh; overflow-y:auto;">
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:10px;">📢 Avisar todas as lojas</div>
       <div style="font-size:13px; color:var(--t2); margin-bottom:12px;">Este aviso vai ser enviado a todas as 10 lojas de uma vez.</div>
-      <textarea id="avisoTodosTexto" placeholder="Escreve a mensagem..." style="width:100%; min-height:80px; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:12px;"></textarea>
+      <textarea id="avisoTodosTexto" placeholder="Escreve a mensagem..." style="width:100%; min-height:80px; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:12px; box-sizing:border-box;"></textarea>
       <div style="display:flex; gap:8px;">
         <button onclick="document.getElementById('avisoTodosOverlay').remove();" style="flex:1; background:none; border:1px solid var(--br); border-radius:10px; padding:11px; font-weight:700;">Cancelar</button>
         <button id="avisoTodosEnviarBtn" style="flex:1; background:var(--terracotta); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">Enviar</button>
