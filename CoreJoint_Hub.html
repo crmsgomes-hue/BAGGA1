@@ -177,26 +177,32 @@ function addAttn(list, href, titulo, sub, urgente){
 
 async function enviarLembretesAtrasos(){
   const btn = document.getElementById("lembretesAtrasosBtn");
-  btn.disabled = true; btn.textContent = "A enviar...";
-  try{
-    const res = await fetch(`${SUPA_URL}/functions/v1/send-daily-alerts`);
-    if(!res.ok){
-      alert(`O servidor respondeu com erro (${res.status}). Tenta outra vez daqui a pouco.`);
-      btn.disabled = false; btn.textContent = "🔔 Enviar lembrete dos atrasos a cada loja";
-      return;
+  btn.disabled = true;
+  const MAX_TENTATIVAS = 3;
+  for(let tentativa=1; tentativa<=MAX_TENTATIVAS; tentativa++){
+    btn.textContent = tentativa===1 ? "A enviar..." : `A tentar outra vez (${tentativa}/${MAX_TENTATIVAS})...`;
+    try{
+      const res = await fetch(`${SUPA_URL}/functions/v1/send-daily-alerts`);
+      if(!res.ok){
+        if(tentativa<MAX_TENTATIVAS){ await new Promise(r=>setTimeout(r, 1500)); continue; }
+        alert(`O servidor respondeu com erro (${res.status}) depois de ${MAX_TENTATIVAS} tentativas. Tenta outra vez daqui a um minuto.`);
+        break;
+      }
+      const texto = await res.text();
+      let data;
+      try{ data = JSON.parse(texto); }
+      catch(parseErr){
+        if(tentativa<MAX_TENTATIVAS){ await new Promise(r=>setTimeout(r, 1500)); continue; }
+        alert("A ligação falhou a meio (resposta inválida do servidor), mesmo depois de tentar de novo. Verifica a internet.");
+        break;
+      }
+      alert(`Lembretes enviados! ${data.lojas ? data.lojas.sent + ' loja(s) notificada(s)' : (data.message || 'Sem pendências para lembrar.')}`);
+      break;
+    }catch(e){
+      console.error(e);
+      if(tentativa<MAX_TENTATIVAS){ await new Promise(r=>setTimeout(r, 1500)); continue; }
+      alert("Não foi possível ligar ao servidor, mesmo depois de tentar de novo. Verifica a internet.");
     }
-    const texto = await res.text();
-    let data;
-    try{ data = JSON.parse(texto); }
-    catch(parseErr){
-      alert("A ligação falhou a meio (resposta inválida do servidor). Verifica a internet e tenta outra vez.");
-      btn.disabled = false; btn.textContent = "🔔 Enviar lembrete dos atrasos a cada loja";
-      return;
-    }
-    alert(`Lembretes enviados! ${data.lojas ? data.lojas.sent + ' loja(s) notificada(s)' : (data.message || 'Sem pendências para lembrar.')}`);
-  }catch(e){
-    console.error(e);
-    alert("Não foi possível ligar ao servidor. Verifica a internet e tenta outra vez.");
   }
   btn.disabled = false; btn.textContent = "🔔 Enviar lembrete dos atrasos a cada loja";
 }
@@ -220,22 +226,44 @@ function abrirAvisarTodos(){
   document.getElementById("avisoTodosEnviarBtn").onclick = enviarAvisoTodos;
 }
 
+async function fetchComRetry(url, tentativas=3){
+  for(let i=1; i<=tentativas; i++){
+    try{
+      const res = await fetch(url);
+      if(res.ok) return res;
+      if(i===tentativas) throw new Error(`Servidor respondeu ${res.status}`);
+    }catch(e){
+      if(i===tentativas) throw e;
+    }
+    await new Promise(r=>setTimeout(r, 1200));
+  }
+}
+
 async function enviarAvisoTodos(){
   const texto = document.getElementById("avisoTodosTexto").value.trim();
   if(!texto){ alert("Escreve uma mensagem primeiro"); return; }
   const btn = document.getElementById("avisoTodosEnviarBtn");
   btn.disabled = true; btn.textContent = "A enviar...";
-  try{
-    for(const loja of LOJAS){
+  const falharam = [];
+  for(const loja of LOJAS){
+    try{
       await api("cj_avisos", "POST", {loja, tipo:"outro", descricao:texto, criado_por:"CG"});
-      await fetch(`${SUPA_URL}/functions/v1/send-daily-alerts?tipo=aviso&loja=${encodeURIComponent(loja)}&avisoTipo=outro&descricao=${encodeURIComponent(texto)}`);
+    }catch(e){
+      console.error(`Falhou registar aviso para ${loja}`, e);
+      falharam.push(loja);
+      continue;
     }
-    document.getElementById("avisoTodosOverlay").remove();
+    try{
+      await fetchComRetry(`${SUPA_URL}/functions/v1/send-daily-alerts?tipo=aviso&loja=${encodeURIComponent(loja)}&avisoTipo=outro&descricao=${encodeURIComponent(texto)}`, 2);
+    }catch(e){
+      console.error(`Registo guardado mas notificação push falhou para ${loja}`, e);
+    }
+  }
+  document.getElementById("avisoTodosOverlay").remove();
+  if(falharam.length===0){
     alert("Aviso enviado a todas as lojas!");
-  }catch(e){
-    console.error(e);
-    alert("Erro ao enviar: " + (e.message||e));
-    btn.disabled = false; btn.textContent = "Enviar";
+  } else {
+    alert(`Aviso enviado, mas falhou registar para: ${falharam.join(", ")}. Tenta enviar de novo só para essas.`);
   }
 }
 
