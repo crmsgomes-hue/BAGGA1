@@ -910,6 +910,10 @@ function verEditarFotosSubmissao(rec, label){
       <h2>${label}</h2>
       <div class="sub">Enviado às ${new Date(rec.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}. Toca no ✕ para apagar uma foto que ficou mal ou foi enganada.</div>
       <div id="editFotosGrid" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:12px;"></div>
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" id="editAddFotoCamara" style="display:none;"></label>
+        <label class="filebtn" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);">🖼️ Galeria<input type="file" accept="image/*" id="editAddFotoGaleria" style="display:none;"></label>
+      </div>
       <div class="modal-actions">
         <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('editFotosOverlay').remove()">Fechar</button>
       </div>
@@ -917,6 +921,36 @@ function verEditarFotosSubmissao(rec, label){
   `;
   document.body.appendChild(overlay);
   renderEditFotosGrid(rec);
+  const handler = (ev)=>adicionarFotoSubmissao(rec, ev.target.files[0]);
+  document.getElementById("editAddFotoCamara").addEventListener("change", handler);
+  document.getElementById("editAddFotoGaleria").addEventListener("change", handler);
+}
+
+async function adicionarFotoSubmissao(rec, file){
+  if(!file) return;
+  try{
+    const rows = await api("GET", `cj_daily_reportes?select=fotos&id=eq.${rec.id}`);
+    const fotosAtuais = (rows[0] && rows[0].fotos) || [];
+    await new Promise((resolve)=>{
+      const reader = new FileReader();
+      reader.onload = (evt)=>{
+        compressPhoto(evt.target.result, 1000, 0.7, async function(compressed){
+          if(!compressed){ toast("Não foi possível processar a foto"); resolve(); return; }
+          const novasFotos = [...fotosAtuais, {url: compressed, legenda:''}];
+          await api("PATCH", `cj_daily_reportes?id=eq.${rec.id}`, {fotos: novasFotos});
+          rec.fotos = novasFotos;
+          renderEditFotosGrid(rec);
+          toast("✔ Foto adicionada!");
+          resolve();
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+    await loadAll();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao adicionar foto: " + (e.message||e).slice(0,100));
+  }
 }
 
 function renderEditFotosGrid(rec){
