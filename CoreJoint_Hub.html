@@ -75,6 +75,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="painelLojasSection"></div>
   <div id="resumoOntemSection"></div>
   <div id="quebrasPanoramaSection"></div>
+  <div id="valoresInventarioSection"></div>
   <div id="fotosRecentesSection"></div>
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
 
@@ -603,6 +604,36 @@ function bigPhoto(urls, indice){
       }
     }
     document.getElementById("quebrasPanoramaSection").innerHTML = htmlQb;
+  }catch(e){ console.error(e); }
+
+  try{
+    const seteDiasAtrasInv = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+    const invComValor = await api(`cj_inventario_reportes?select=loja,categoria,data,valor_inventario,valor_cnvs,criado_em&data=gte.${seteDiasAtrasInv}&valor_inventario=not.is.null&order=criado_em.desc&limit=50`);
+    const todasCatsLabelInv = {};
+    [...INV_CATS, ...MARKETING_CATS].forEach(c=>todasCatsLabelInv[c.key]=c.label);
+
+    let htmlInv = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Valores de inventário</span>
+      <a href="CoreJoint_Reportes.html?ferramentas=1" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Relatório →</a>
+    </div>`;
+    if(invComValor.length===0){
+      htmlInv += `<div class="all-clear" style="margin-bottom:14px;">Ainda sem valores de inventário nos últimos 7 dias.</div>`;
+    } else {
+      const totalGeral = invComValor.reduce((s,r)=>s+Number(r.valor_inventario||0),0);
+      htmlInv += `<div class="card" style="text-align:center; margin-bottom:10px;">
+        <div style="font-size:20px; font-weight:800;">${totalGeral.toFixed(2)} €</div>
+        <div style="font-size:10.5px; color:var(--t2);">soma de todos os valores enviados (7 dias)</div>
+      </div>`;
+      htmlInv += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
+      invComValor.slice(0,10).forEach(r=>{
+        htmlInv += `<div style="display:flex; justify-content:space-between; align-items:center; padding:9px 2px; border-bottom:1px solid var(--br);">
+          <span style="font-size:.82rem;"><b>${r.loja}</b> · ${todasCatsLabelInv[r.categoria]||r.categoria} <span style="color:var(--t3); font-size:.7rem;">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}</span></span>
+          <b style="font-size:.85rem;">${r.valor_inventario} €${r.valor_cnvs!=null?` <span style="font-size:.65rem; color:var(--t2); font-weight:400;">(CNVs: ${r.valor_cnvs}€)</span>`:''}</b>
+        </div>`;
+      });
+      htmlInv += `</div>`;
+    }
+    document.getElementById("valoresInventarioSection").innerHTML = htmlInv;
   }catch(e){ console.error(e); }
 
   document.getElementById("statsGrid").innerHTML = `
