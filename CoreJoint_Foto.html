@@ -401,7 +401,7 @@ async function loadAll(){
     invRows = await api("GET", `cj_inventario_reportes?select=*${f}&order=data.desc`);
     agendamentos = await api("GET", `cj_global_agendamento?select=*${f}`);
     agendamentosTabaco = await api("GET", `cj_tabaco_agendamento?select=*${f}`);
-    quebrasPendentes = await api("GET", `cj_quebras_reportes?select=*${f}&numero_registo=is.null&order=data.desc`);
+    quebrasPendentes = await api("GET", `cj_quebras_reportes?select=*${f}&justificacao=is.null&order=data.desc`);
     const naoAplicaveisRows = await api("GET", `cj_categoria_nao_aplicavel?select=categoria${f}`);
     naoAplicaveis = naoAplicaveisRows.map(r=>r.categoria);
     const todasSondagens = await api("GET", "cj_sondagens?select=*&ativa=eq.true");
@@ -508,7 +508,11 @@ function render(){
       </div>
       <div style="padding-left:44px;">
         <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:10px;">${q.operador?('Operador: '+q.operador):''}${q.safebag?(' · Safebag: '+q.safebag):''}</div>
-        <input type="text" id="quebraRegisto-${q.id}" placeholder="Nº do registo" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:8px;">
+        <input type="text" id="quebraRegisto-${q.id}" placeholder="Nº do registo" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:6px;">
+        <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12.5px; color:var(--ink-soft);">
+          <input type="checkbox" id="quebraSemRegisto-${q.id}" style="width:16px; height:16px;" onchange="document.getElementById('quebraRegisto-${q.id}').disabled=this.checked; if(this.checked) document.getElementById('quebraRegisto-${q.id}').value='';">
+          Não se aplica número de registo (sabemos o motivo)
+        </label>
         <textarea id="quebraJustif-${q.id}" placeholder="Justificação..." style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:10px; min-height:60px;"></textarea>
         <button data-enviar-quebra="${q.id}" style="background:var(--red); color:#fff; border:none; border-radius:10px; padding:9px 18px; font-size:13.5px; font-weight:700;">✔ Enviar justificação</button>
       </div>
@@ -1017,16 +1021,25 @@ async function marcarSemFoto(key, label){
 }
 
 async function enviarJustificacaoQuebra(id){
+  const semRegisto = document.getElementById(`quebraSemRegisto-${id}`).checked;
   const registo = document.getElementById(`quebraRegisto-${id}`).value.trim();
   const justif = document.getElementById(`quebraJustif-${id}`).value.trim();
-  if(!registo){ toast("Indica o número do registo"); return; }
+  if(!semRegisto && !registo){ toast("Indica o número do registo, ou marca a opção de não se aplicar"); return; }
   if(!justif){ toast("Escreve a justificação"); return; }
   try{
-    await api("PATCH", `cj_quebras_reportes?id=eq.${id}`, {
-      numero_registo: registo, justificacao: justif,
+    const patch = {
+      justificacao: justif,
       respondido_em: new Date().toISOString(), respondido_por: currentLoja
-    });
-    toast("✔ Justificação enviada!");
+    };
+    if(semRegisto){
+      patch.sem_registo = true;
+      patch.numero_registo = null;
+    } else {
+      patch.numero_registo = registo;
+      patch.sem_registo = false;
+    }
+    await api("PATCH", `cj_quebras_reportes?id=eq.${id}`, patch);
+    toast(semRegisto ? "✔ Enviado — aguarda validação da gestão" : "✔ Justificação enviada!");
     await loadAll();
   }catch(e){
     console.error(e);
