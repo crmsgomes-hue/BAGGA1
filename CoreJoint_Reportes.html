@@ -2947,12 +2947,35 @@ let quebrasParaImportar = [];
 function normalizarNomeLoja(s){
   return String(s).trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ");
 }
+// Mapa das lojas conhecidas do Excel (nome "BAGGA X") para o nome canónico usado na app
+const MAPA_LOJAS_EXCEL = {
+  "BAGGA ALMEIRIM": "Almeirim",
+  "BAGGA BOMBARRAL": "Bombarral",
+  "BAGGA CALDAS RAINHA": "Caldas da Rainha",
+  "BAGGA CARREGADO": "Carregado",
+  "BAGGA PENICHE": "Peniche",
+  "BAGGA PONTE DE SOR": "Ponte de Sor",
+  "BAGGA RIO MAIOR": "Rio Maior",
+  "BAGGA SANTAREM": "Santarém",
+  "BAGGA T. NOVAS MCH": "Torres MCH",
+  "BAGGA TORRES NOVAS": "Torres MH"
+};
 function encontrarLojaCorrespondente(nomeInput){
   const norm = normalizarNomeLoja(nomeInput);
+  // 1. tenta o mapa direto do Excel (nomes BAGGA X)
+  for(const chave of Object.keys(MAPA_LOJAS_EXCEL)){
+    if(normalizarNomeLoja(chave)===norm) return MAPA_LOJAS_EXCEL[chave];
+  }
+  // 2. tenta match direto com o nome canónico
   return LOJAS.find(l => normalizarNomeLoja(l) === norm) || null;
+}
+function ehLojaConhecidaForaDop(nomeInput){
+  // lojas BAGGA que existem no ficheiro mas não pertencem à tua rede (DOP)
+  return normalizarNomeLoja(nomeInput).startsWith("BAGGA") || normalizarNomeLoja(nomeInput).includes("CZ CNT");
 }
 
 let quebrasComErro = [];
+let quebrasForaDop = [];
 function handleQuebrasFile(ev){
   const file = ev.target.files[0];
   if(!file) return;
@@ -2963,16 +2986,17 @@ function handleQuebrasFile(ev){
       const wb = XLSX.read(data, {type:"array", cellDates:true});
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
-      function pegar(row, nome){
+      function pegar(row, ...nomes){
         for(const k of Object.keys(row)){
-          if(k.toLowerCase().trim()===nome) return row[k];
+          const kNorm = k.toLowerCase().trim();
+          if(nomes.includes(kNorm)) return row[k];
         }
         return "";
       }
       const todasLinhas = rows.map(r=>{
-        const lojaOriginal = String(pegar(r,"loja")).trim();
+        const lojaOriginal = String(pegar(r,"loja","cód. loja","cod. loja")).trim();
         const lojaCanonica = encontrarLojaCorrespondente(lojaOriginal);
-        const dataRaw = pegar(r,"data");
+        const dataRaw = pegar(r,"data","data caixa");
         let dataStr = "";
         if(dataRaw instanceof Date) dataStr = isoDate(dataRaw);
         else if(typeof dataRaw === "number" && window.XLSX && XLSX.SSF){
@@ -2981,16 +3005,19 @@ function handleQuebrasFile(ev){
         } else {
           dataStr = String(dataRaw).trim();
         }
-        const operador = String(pegar(r,"operador")).trim();
-        const quebraRaw = String(pegar(r,"quebra")).replace(",", ".").trim();
+        const operador = String(pegar(r,"operador","nome")).trim();
+        const quebraRaw = String(pegar(r,"quebra","diferença","diferenca")).replace(",", ".").trim();
         const quebra = parseFloat(quebraRaw);
-        const safebag = String(pegar(r,"safebag")).trim();
+        const safebagRaw = pegar(r,"safebag");
+        const safebag = safebagRaw==="" ? "" : String(Math.trunc(Number(safebagRaw)) || safebagRaw);
         return {lojaOriginal, loja:lojaCanonica, data:dataStr, operador, valor_quebra:quebra, safebag};
-      }).filter(r=>r.lojaOriginal && !isNaN(r.valor_quebra));
+      }).filter(r=>r.lojaOriginal && r.data && !isNaN(r.valor_quebra));
 
       const comQuebraRelevante = todasLinhas.filter(r=>Math.abs(r.valor_quebra)>=20);
-      quebrasComErro = comQuebraRelevante.filter(r=>!r.loja);
       quebrasParaImportar = comQuebraRelevante.filter(r=>r.loja);
+      const semLoja = comQuebraRelevante.filter(r=>!r.loja);
+      quebrasForaDop = semLoja.filter(r=>ehLojaConhecidaForaDop(r.lojaOriginal));
+      quebrasComErro = semLoja.filter(r=>!ehLojaConhecidaForaDop(r.lojaOriginal));
       renderQuebrasPreview(todasLinhas.length);
     }catch(err){
       console.error(err);
@@ -3002,7 +3029,7 @@ function handleQuebrasFile(ev){
 
 function renderQuebrasPreview(totalLinhas){
   const prev = document.getElementById("quebrasPreview");
-  if(quebrasParaImportar.length===0 && quebrasComErro.length===0){
+  if(quebrasParaImportar.length===0 && quebrasComErro.length===0 && quebrasForaDop.length===0){
     prev.innerHTML = `<div class="empty">${totalLinhas} linhas lidas, nenhuma com quebra ≥ 20€.</div>`;
     return;
   }
@@ -3010,21 +3037,31 @@ function renderQuebrasPreview(totalLinhas){
   if(quebrasComErro.length>0){
     html += `<div style="background:var(--red); color:#fff; border-radius:12px; padding:14px; margin-bottom:14px;">
       <div style="font-weight:800; margin-bottom:6px;">⚠ ${quebrasComErro.length} linha(s) com nome de loja não reconhecido</div>
-      <div style="font-size:12.5px;">Estas ainda vão ser importadas e guardadas (não se perdem), mas SEM aviso à loja — vais ter de corrigir manualmente a loja no Relatório de quebras para o aviso ser enviado. Nomes válidos: ${LOJAS.join(", ")}</div>
+      <div style="font-size:12.5px;">Estas ainda vão ser importadas e guardadas (não se perdem), mas SEM aviso à loja — vais ter de corrigir manualmente a loja no Relatório de quebras para o aviso ser enviado.</div>
       <div style="margin-top:8px; font-size:12.5px;">
         ${quebrasComErro.map(q=>`• "${q.lojaOriginal}" — ${q.data} — ${q.valor_quebra} €`).join("<br>")}
       </div>
     </div>`;
   }
+  if(quebrasForaDop.length>0){
+    html += `<div style="background:var(--amber); color:#fff; border-radius:12px; padding:14px; margin-bottom:14px;">
+      <div style="font-weight:800; margin-bottom:6px;">ℹ️ ${quebrasForaDop.length} quebra(s) de lojas fora da tua rede (DOP)</div>
+      <div style="font-size:12.5px;">Não pertencem às tuas 10 lojas — não vão receber aviso automático (não têm conta na app), mas ficam registadas para tua informação.</div>
+      <div style="margin-top:8px; font-size:12.5px;">
+        ${quebrasForaDop.map(q=>`• ${q.lojaOriginal} — ${q.data} — ${q.valor_quebra} €`).join("<br>")}
+      </div>
+    </div>`;
+  }
   if(quebrasParaImportar.length>0){
-    html += `<div style="font-weight:700; margin-bottom:8px;">${quebrasParaImportar.length} quebra(s) ≥ 20€ com loja identificada (de ${totalLinhas} linhas):</div>`;
+    html += `<div style="font-weight:700; margin-bottom:8px;">${quebrasParaImportar.length} quebra(s) ≥ 20€ na tua rede (de ${totalLinhas} linhas):</div>`;
     quebrasParaImportar.forEach(q=>{
       html += `<div style="padding:8px 0; border-bottom:1px solid var(--line); font-size:13px;">
         <b>${q.loja}</b> — ${q.data} — ${q.operador||'—'} — <span style="color:var(--red); font-weight:700;">${q.valor_quebra} €</span>${q.safebag?' · Safebag: '+q.safebag:''}
       </div>`;
     });
   }
-  html += `<button class="cambtn" style="width:100%; margin-top:14px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-weight:700;" id="confirmarImportarQuebrasBtn">Importar tudo${quebrasComErro.length>0?' ('+quebrasComErro.length+' por corrigir depois)':''}</button>`;
+  const totalPorImportar = quebrasParaImportar.length + quebrasComErro.length + quebrasForaDop.length;
+  html += `<button class="cambtn" style="width:100%; margin-top:14px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-weight:700;" id="confirmarImportarQuebrasBtn">Importar tudo (${totalPorImportar})</button>`;
   prev.innerHTML = html;
   const btnConfirmar = document.getElementById("confirmarImportarQuebrasBtn");
   if(btnConfirmar) btnConfirmar.onclick = confirmarImportarQuebras;
@@ -3047,14 +3084,20 @@ async function confirmarImportarQuebras(){
         importado_por: currentUser
       });
     }
-    const totalImportado = quebrasParaImportar.length + quebrasComErro.length;
-    if(quebrasComErro.length>0){
-      mostrarSucesso(`${totalImportado} quebra(s) importada(s) — ${quebrasComErro.length} sem loja identificada (corrige no Relatório de quebras)`);
-    } else {
-      mostrarSucesso(`${totalImportado} quebra(s) importada(s) e lojas avisadas!`);
+    for(const q of quebrasForaDop){
+      await api("POST", "cj_quebras_reportes", {
+        loja:null, loja_original:q.lojaOriginal, data:q.data, operador:q.operador, valor_quebra:q.valor_quebra, safebag:q.safebag,
+        importado_por: currentUser, fora_dop: true
+      });
     }
+    const totalImportado = quebrasParaImportar.length + quebrasComErro.length + quebrasForaDop.length;
+    let msg = `${totalImportado} quebra(s) importada(s)`;
+    if(quebrasComErro.length>0) msg += ` — ${quebrasComErro.length} sem loja identificada (corrige no Relatório)`;
+    if(quebrasForaDop.length>0) msg += ` — ${quebrasForaDop.length} fora da rede (sem aviso)`;
+    mostrarSucesso(msg);
     quebrasParaImportar = [];
     quebrasComErro = [];
+    quebrasForaDop = [];
     render();
   }catch(e){
     console.error(e);
