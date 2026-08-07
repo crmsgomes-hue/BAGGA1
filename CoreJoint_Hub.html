@@ -178,11 +178,23 @@ async function enviarLembretesAtrasos(){
   btn.disabled = true; btn.textContent = "A enviar...";
   try{
     const res = await fetch(`${SUPA_URL}/functions/v1/send-daily-alerts`);
-    const data = await res.json();
-    alert(`Lembretes enviados! ${data.lojas ? data.lojas.sent + ' loja(s) notificada(s)' : 'Sem pendências para lembrar.'}`);
+    if(!res.ok){
+      alert(`O servidor respondeu com erro (${res.status}). Tenta outra vez daqui a pouco.`);
+      btn.disabled = false; btn.textContent = "🔔 Enviar lembrete dos atrasos a cada loja";
+      return;
+    }
+    const texto = await res.text();
+    let data;
+    try{ data = JSON.parse(texto); }
+    catch(parseErr){
+      alert("A ligação falhou a meio (resposta inválida do servidor). Verifica a internet e tenta outra vez.");
+      btn.disabled = false; btn.textContent = "🔔 Enviar lembrete dos atrasos a cada loja";
+      return;
+    }
+    alert(`Lembretes enviados! ${data.lojas ? data.lojas.sent + ' loja(s) notificada(s)' : (data.message || 'Sem pendências para lembrar.')}`);
   }catch(e){
     console.error(e);
-    alert("Erro ao enviar lembretes: " + (e.message||e));
+    alert("Não foi possível ligar ao servidor. Verifica a internet e tenta outra vez.");
   }
   btn.disabled = false; btn.textContent = "🔔 Enviar lembrete dos atrasos a cada loja";
 }
