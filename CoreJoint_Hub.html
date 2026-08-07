@@ -73,6 +73,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   </div>
   <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E); border-radius:12px; padding:12px; font-size:14px; font-weight:700; margin-bottom:10px; cursor:pointer;">🔔 Enviar lembrete dos atrasos a cada loja</button>
   <div id="painelLojasSection"></div>
+  <div id="resumoOntemSection"></div>
   <div id="fotosRecentesSection"></div>
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
 
@@ -484,6 +485,71 @@ function bigPhoto(urls, indice){
       </a>`;
     }
     document.getElementById("painelLojasSection").innerHTML = html;
+  }catch(e){ console.error(e); }
+
+  try{
+    const ontem = new Date(today); ontem.setDate(ontem.getDate()-1);
+    const ontemStr = `${ontem.getFullYear()}-${String(ontem.getMonth()+1).padStart(2,'0')}-${String(ontem.getDate()).padStart(2,'0')}`;
+    const dailyOntem = await api(`cj_daily_reportes?select=loja,tipo,turno,fotos&data=eq.${ontemStr}`);
+    const invOntem = await api(`cj_inventario_reportes?select=loja,categoria,valor_inventario&data=eq.${ontemStr}`);
+    const avisosOntem = await api(`cj_avisos?select=loja,tipo,criado_em&criado_em=gte.${ontemStr}T00:00:00&criado_em=lt.${todayStr}T00:00:00`);
+    const todasCatsLabelResumo = {};
+    [...INV_CATS, ...MARKETING_CATS].forEach(c=>todasCatsLabelResumo[c.key]=c.label);
+
+    let htmlResumo = `<div class="sec-label">Resumo de ontem por loja</div>
+      <select id="resumoOntemSelect" style="width:100%; padding:12px; border-radius:12px; border:1px solid var(--br); background:var(--sf); font-size:.9rem; margin-bottom:10px;">
+        <option value="">Escolhe uma loja...</option>
+        ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+      </select>
+      <div id="resumoOntemConteudo"></div>`;
+    document.getElementById("resumoOntemSection").innerHTML = htmlResumo;
+
+    document.getElementById("resumoOntemSelect").onchange = (ev)=>{
+      const l = ev.target.value;
+      const conteudo = document.getElementById("resumoOntemConteudo");
+      if(!l){ conteudo.innerHTML = ""; return; }
+      const turnosFeitos = ["manha","almoco","lanche"].filter(t=>dailyOntem.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t));
+      const vendasFeita = dailyOntem.some(r=>r.loja===l && r.tipo==="vendas" && r.turno==="unico");
+      const invLoja = invOntem.filter(r=>r.loja===l);
+      const avisosLoja = avisosOntem.filter(r=>r.loja===l);
+      const TURNO_ICONS = {manha:"🌅", almoco:"☀️", lanche:"🌇"};
+      const TURNO_LABELS_R = {manha:"Manhã", almoco:"Almoço", lanche:"Lanche"};
+
+      let html = `<div class="card" style="flex-direction:column; align-items:stretch;">
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; margin-bottom:12px;">${l} · ${ontem.toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit'})}</div>
+        <div style="display:flex; gap:6px; margin-bottom:10px;">
+          ${["manha","almoco","lanche"].map(t=>`<div style="flex:1; text-align:center; background:${turnosFeitos.includes(t)?'#eef3ea':'var(--sf)'}; border:1px solid var(--br); border-radius:10px; padding:8px 4px;">
+            <div style="font-size:16px;">${TURNO_ICONS[t]}</div>
+            <div style="font-size:.62rem; color:var(--t2); margin-top:2px;">${TURNO_LABELS_R[t]}</div>
+            <div style="font-size:.7rem; font-weight:700; color:${turnosFeitos.includes(t)?'var(--grn)':'var(--red)'};">${turnosFeitos.includes(t)?'✔':'✕'}</div>
+          </div>`).join("")}
+          <div style="flex:1; text-align:center; background:${vendasFeita?'#eef3ea':'var(--sf)'}; border:1px solid var(--br); border-radius:10px; padding:8px 4px;">
+            <div style="font-size:16px;">🧾</div>
+            <div style="font-size:.62rem; color:var(--t2); margin-top:2px;">Vendas</div>
+            <div style="font-size:.7rem; font-weight:700; color:${vendasFeita?'var(--grn)':'var(--red)'};">${vendasFeita?'✔':'✕'}</div>
+          </div>
+        </div>`;
+
+      if(invLoja.length>0){
+        html += `<div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin-bottom:6px;">Inventário enviado</div>`;
+        invLoja.forEach(r=>{
+          html += `<div style="display:flex; justify-content:space-between; font-size:.82rem; padding:4px 0; border-bottom:1px solid var(--br);">
+            <span>${todasCatsLabelResumo[r.categoria]||r.categoria}</span>
+            ${r.valor_inventario!=null ? `<b>${r.valor_inventario} €</b>` : `<span style="color:var(--grn);">✔</span>`}
+          </div>`;
+        });
+      } else {
+        html += `<div style="font-size:.78rem; color:var(--t3); margin-bottom:6px;">Sem inventário enviado ontem.</div>`;
+      }
+
+      if(avisosLoja.length>0){
+        html += `<div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin-top:10px; margin-bottom:4px;">Avisos</div>
+          <div style="font-size:.78rem; color:var(--t2);">${avisosLoja.length} aviso(s) trocado(s)</div>`;
+      }
+
+      html += `</div>`;
+      conteudo.innerHTML = html;
+    };
   }catch(e){ console.error(e); }
 
   document.getElementById("statsGrid").innerHTML = `
