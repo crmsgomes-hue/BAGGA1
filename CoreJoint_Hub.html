@@ -110,11 +110,13 @@ if(localStorage.getItem("cj_dark_mode")==="1"){
 const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k";
 async function api(path, method, body){
-  const opts = { method: method||"GET", headers:{ "apikey":SUPA_KEY, "Authorization":"Bearer "+SUPA_KEY, "Content-Type":"application/json" } };
+  const opts = { method: method||"GET", headers:{ "apikey":SUPA_KEY, "Authorization":"Bearer "+SUPA_KEY, "Content-Type":"application/json", "Prefer": (method==="POST"||method==="PATCH") ? "return=representation" : "" } };
   if(body) opts.body = JSON.stringify(body);
   const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, opts);
-  if(!res.ok) return [];
-  return res.status===204 ? null : res.json();
+  if(!res.ok){ throw new Error(await res.text()); }
+  if(res.status===204) return null;
+  const texto = await res.text();
+  return texto ? JSON.parse(texto) : null;
 }
 function setBadge(id, n){
   if(n>0) document.getElementById(id).innerHTML = `<span class="bk">${n}</span>`;
