@@ -3124,6 +3124,27 @@ async function corrigirLojaQuebra(id){
   }
 }
 
+async function gerarRelatorioSemanalQuebras(){
+  const seteDiasAtras = isoDate(new Date(Date.now()-7*86400000));
+  const rows = await api("GET", "cj_quebras_reportes?select=*&order=data.desc&limit=500");
+  const daSemana = rows.filter(r=>r.data>=seteDiasAtras);
+  if(daSemana.length===0){
+    toast("Sem quebras registadas nos últimos 7 dias.");
+    return;
+  }
+  let html = `<h1>CoreJoint · Relatório Semanal de Quebras</h1><div style="font-size:8px; color:#555; margin-bottom:8px;">Últimos 7 dias · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
+  html += `<table><tr><th style="text-align:left;">Loja</th><th>Data</th><th>Operador</th><th>Quebra</th><th>Nº Registo</th><th>Justificação</th><th>Estado</th></tr>`;
+  daSemana.sort((a,b)=> (a.loja||"").localeCompare(b.loja||"") || new Date(b.data)-new Date(a.data)).forEach(r=>{
+    const loja = r.loja || (r.fora_dop ? `${r.loja_original} (fora DOP)` : `⚠ ${r.loja_original||'?'}`);
+    const estado = r.numero_registo ? "Justificado" : "Pendente";
+    html += `<tr><td class="name">${loja}</td><td>${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</td><td>${r.operador||'-'}</td><td>${r.valor_quebra} €</td><td>${r.numero_registo||'—'}</td><td>${r.justificacao||'—'}</td><td>${estado}</td></tr>`;
+  });
+  html += `</table>`;
+  const pendentes = daSemana.filter(r=>r.loja && !r.numero_registo).length;
+  html += `<div style="font-size:9px; color:#555; margin-top:10px;">${daSemana.length} quebra(s) na semana · ${pendentes} por justificar</div>`;
+  mostrarAcoesRelatorio(html, `CoreJoint_quebras_semanal_${todayStr()}.pdf`);
+}
+
 function openRelatorioQuebras(){
   currentView = openRelatorioQuebras;
   const main = document.getElementById("main");
@@ -3657,7 +3678,8 @@ function renderGestao(){
     ]},
     {titulo:"Quebras de caixa", itens:[
       {icon:"📤", label:"Importar Excel de quebras", fn:openImportarQuebras},
-      {icon:"📊", label:"Relatório de quebras", fn:openRelatorioQuebras}
+      {icon:"📊", label:"Relatório de quebras", fn:openRelatorioQuebras},
+      {icon:"🗓️", label:"Relatório semanal de quebras (PDF/Excel)", fn:gerarRelatorioSemanalQuebras}
     ]},
     {titulo:"Utilitários", itens:[
       {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry},
