@@ -4052,9 +4052,11 @@ async function verificarAtualizacao(){
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
       const overlayAberto = document.querySelector(".overlay");
-      if(!overlayAberto){
+      const noEcraPrincipal = currentView === render;
+      if(!overlayAberto && noEcraPrincipal){
         location.reload();
       }
+      // se estiveres a meio de uma ferramenta/relatório, não interrompe — só atualiza da próxima vez que estiveres no painel principal
     }
   }catch(e){ /* falha silenciosa, tenta outra vez depois */ }
 }
