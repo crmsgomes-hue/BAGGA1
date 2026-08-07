@@ -1084,6 +1084,8 @@ function handleCapFile(e){
       pendingPhotos.push({src:compressed, legenda:''});
       renderCapThumbs();
       document.getElementById("capSaveBtn").disabled = pendingPhotos.length===0;
+      const indiceNova = pendingPhotos.length-1;
+      bigPhoto(null, pendingPhotos.map(p=>p.src), indiceNova);
     });
   };
   r.readAsDataURL(e.target.files[0]);
