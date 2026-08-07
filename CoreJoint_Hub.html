@@ -71,11 +71,14 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
     <a href="CoreJoint_Reportes.html?ferramentas=1" style="flex:1; text-align:center; background:var(--ink,#2B2723); color:#fff; border-radius:12px; padding:13px; font-size:14px; font-weight:700; text-decoration:none;">🛠️ Ferramentas</a>
     <button onclick="abrirAvisarTodos()" style="flex:1; background:var(--terracotta,#C1622E); color:#fff; border:none; border-radius:12px; padding:13px; font-size:14px; font-weight:700; cursor:pointer;">📢 Avisar todas</button>
   </div>
-  <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E); border-radius:12px; padding:12px; font-size:14px; font-weight:700; margin-bottom:10px; cursor:pointer;">🔔 Enviar lembrete dos atrasos a cada loja</button>
-  <div id="painelLojasSection"></div>
-  <div id="resumoOntemSection"></div>
-  <div id="quebrasPanoramaSection"></div>
-  <div id="valoresInventarioSection"></div>
+  <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E); border-radius:12px; padding:12px; font-size:14px; font-weight:700; margin-bottom:14px; cursor:pointer;">🔔 Enviar lembrete dos atrasos a cada loja</button>
+
+  <div id="toggleTilesGrid" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px;"></div>
+  <div id="painelLojasSection" style="display:none;"></div>
+  <div id="resumoOntemSection" style="display:none;"></div>
+  <div id="quebrasPanoramaSection" style="display:none;"></div>
+  <div id="valoresInventarioSection" style="display:none;"></div>
+
   <div id="fotosRecentesSection"></div>
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
 
@@ -646,6 +649,34 @@ function bigPhoto(urls, indice){
     }
     document.getElementById("valoresInventarioSection").innerHTML = htmlInv;
   }catch(e){ console.error(e); }
+
+  document.getElementById("toggleTilesGrid").innerHTML = `
+    <button data-toggle-secao="painelLojasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">📋 Painel de gestão <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Ver lojas com pendências</div>
+    </button>
+    <button data-toggle-secao="resumoOntemSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">📅 Resumo de ontem <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Escolher loja</div>
+    </button>
+    <button data-toggle-secao="quebrasPanoramaSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">💸 Quebras <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Por justificar</div>
+    </button>
+    <button data-toggle-secao="valoresInventarioSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">📦 Inventário <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Valores e envios</div>
+    </button>
+  `;
+  document.querySelectorAll("[data-toggle-secao]").forEach(btn=>{
+    btn.onclick = ()=>{
+      const secao = document.getElementById(btn.dataset.toggleSecao);
+      const chev = btn.querySelector(".chev-toggle");
+      const abrir = secao.style.display === "none";
+      secao.style.display = abrir ? "block" : "none";
+      chev.textContent = abrir ? "▴" : "▾";
+    };
+  });
 
   document.getElementById("statsGrid").innerHTML = `
     <a class="sc" href="CoreJoint_Reportes.html" style="text-decoration:none; display:block;"><div class="slb">Reportes</div><div class="svl ${statReportes>0?'cr':'cg'}">${statReportes}</div></a>
