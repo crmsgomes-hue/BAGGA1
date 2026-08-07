@@ -74,6 +74,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E); border-radius:12px; padding:12px; font-size:14px; font-weight:700; margin-bottom:10px; cursor:pointer;">🔔 Enviar lembrete dos atrasos a cada loja</button>
   <div id="painelLojasSection"></div>
   <div id="resumoOntemSection"></div>
+  <div id="quebrasPanoramaSection"></div>
   <div id="fotosRecentesSection"></div>
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
 
@@ -550,6 +551,58 @@ function bigPhoto(urls, indice){
       html += `</div>`;
       conteudo.innerHTML = html;
     };
+  }catch(e){ console.error(e); }
+
+  try{
+    const quebras = await api("cj_quebras_reportes?select=*&order=data.desc&limit=300");
+    const trintaDiasAtrasQb = new Date(Date.now()-30*86400000).toISOString().slice(0,10);
+    const recentesQb = quebras.filter(r=>r.data>=trintaDiasAtrasQb);
+    const comLojaQb = recentesQb.filter(r=>r.loja);
+    const semLojaQb = recentesQb.filter(r=>!r.loja && !r.fora_dop);
+    const pendentesQb = comLojaQb.filter(r=>!r.numero_registo);
+    const totalPendenteQb = pendentesQb.reduce((s,r)=>s+Number(r.valor_quebra||0),0);
+
+    let htmlQb = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Panorama das quebras</span>
+      <a href="CoreJoint_Reportes.html?ferramentas=1" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Ver tudo →</a>
+    </div>`;
+    if(recentesQb.length===0){
+      htmlQb += `<div class="all-clear" style="margin-bottom:14px;">✔ Sem quebras registadas nos últimos 30 dias.</div>`;
+    } else {
+      htmlQb += `<div style="display:flex; gap:8px; margin-bottom:10px;">
+        <a href="CoreJoint_Reportes.html?ferramentas=1" class="sc" style="text-decoration:none; display:block; flex:1;"><div class="slb">Por justificar</div><div class="svl ${pendentesQb.length>0?'cr':'cg'}">${pendentesQb.length}</div></a>
+        <a href="CoreJoint_Reportes.html?ferramentas=1" class="sc" style="text-decoration:none; display:block; flex:1;"><div class="slb">Valor pendente</div><div class="svl ${totalPendenteQb>0?'cr':'cg'}">${totalPendenteQb.toFixed(0)}€</div></a>
+      </div>`;
+      if(semLojaQb.length>0){
+        htmlQb += `<a href="CoreJoint_Reportes.html?ferramentas=1" class="card" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit; border-left:3px solid var(--org);">
+          <span style="font-weight:700; font-size:.85rem;">⚠ ${semLojaQb.length} sem loja identificada</span>
+          <span style="font-size:.72rem; color:var(--t2);">corrigir ›</span>
+        </a>`;
+      }
+      if(pendentesQb.length>0){
+        const porLojaQb = {};
+        pendentesQb.forEach(r=>{ (porLojaQb[r.loja] ||= []).push(r); });
+        const lojasQbOrdenadas = Object.keys(porLojaQb).sort((a,b)=>{
+          const totalA = porLojaQb[a].reduce((s,r)=>s+Number(r.valor_quebra),0);
+          const totalB = porLojaQb[b].reduce((s,r)=>s+Number(r.valor_quebra),0);
+          return totalB - totalA;
+        });
+        htmlQb += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
+        lojasQbOrdenadas.slice(0,5).forEach(l=>{
+          const itensL = porLojaQb[l];
+          const totalL = itensL.reduce((s,r)=>s+Number(r.valor_quebra),0);
+          htmlQb += `<a href="CoreJoint_Reportes.html?ferramentas=1" style="display:flex; justify-content:space-between; align-items:center; padding:9px 2px; border-bottom:1px solid var(--br); text-decoration:none; color:inherit;">
+            <span style="font-weight:700; font-size:.85rem;">${l}</span>
+            <span style="font-size:.72rem; color:var(--red); font-weight:600;">${itensL.length} · ${totalL.toFixed(2)} €</span>
+          </a>`;
+        });
+        if(lojasQbOrdenadas.length>5){
+          htmlQb += `<a href="CoreJoint_Reportes.html?ferramentas=1" style="display:block; text-align:center; padding:9px 2px; font-size:.75rem; color:var(--tc); font-weight:700; text-decoration:none;">+${lojasQbOrdenadas.length-5} loja(s) mais</a>`;
+        }
+        htmlQb += `</div>`;
+      }
+    }
+    document.getElementById("quebrasPanoramaSection").innerHTML = htmlQb;
   }catch(e){ console.error(e); }
 
   document.getElementById("statsGrid").innerHTML = `
