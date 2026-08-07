@@ -633,6 +633,17 @@ function bigPhoto(urls, indice){
       });
       htmlInv += `</div>`;
     }
+
+    const lojasComEnvio = new Set(invComValor.map(r=>r.loja));
+    const lojasSemEnvio = LOJAS.filter(l=>!lojasComEnvio.has(l));
+    if(invComValor.length>0 && lojasSemEnvio.length>0){
+      htmlInv += `<div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--red); font-weight:700; margin:12px 0 6px;">⚠ Sem nenhum valor enviado esta semana (${lojasSemEnvio.length})</div>
+        <div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
+      lojasSemEnvio.forEach(l=>{
+        htmlInv += `<a href="CoreJoint_Reportes.html?ferramentas=1" style="display:block; padding:8px 2px; border-bottom:1px solid var(--br); text-decoration:none; color:var(--tx); font-size:.82rem; font-weight:600;">${l}</a>`;
+      });
+      htmlInv += `</div>`;
+    }
     document.getElementById("valoresInventarioSection").innerHTML = htmlInv;
   }catch(e){ console.error(e); }
 
