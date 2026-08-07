@@ -3136,13 +3136,33 @@ async function gerarRelatorioSemanalQuebras(){
   html += `<table><tr><th style="text-align:left;">Loja</th><th>Data</th><th>Operador</th><th>Quebra</th><th>Nº Registo</th><th>Justificação</th><th>Estado</th></tr>`;
   daSemana.sort((a,b)=> (a.loja||"").localeCompare(b.loja||"") || new Date(b.data)-new Date(a.data)).forEach(r=>{
     const loja = r.loja || (r.fora_dop ? `${r.loja_original} (fora DOP)` : `⚠ ${r.loja_original||'?'}`);
-    const estado = r.numero_registo ? "Justificado" : "Pendente";
+    const estado = estadoQuebra(r);
     html += `<tr><td class="name">${loja}</td><td>${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</td><td>${r.operador||'-'}</td><td>${r.valor_quebra} €</td><td>${r.numero_registo||'—'}</td><td>${r.justificacao||'—'}</td><td>${estado}</td></tr>`;
   });
   html += `</table>`;
   const pendentes = daSemana.filter(r=>r.loja && !r.numero_registo).length;
   html += `<div style="font-size:9px; color:#555; margin-top:10px;">${daSemana.length} quebra(s) na semana · ${pendentes} por justificar</div>`;
   mostrarAcoesRelatorio(html, `CoreJoint_quebras_semanal_${todayStr()}.pdf`);
+}
+
+async function validarQuebraSemRegisto(id){
+  try{
+    await api("PATCH", `cj_quebras_reportes?id=eq.${id}`, {
+      validado_por: currentUser, validado_em: new Date().toISOString()
+    });
+    mostrarSucesso("Quebra validada!");
+    openRelatorioQuebras();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao validar: " + (e.message||e).slice(0,100));
+  }
+}
+
+function estadoQuebra(r){
+  if(r.numero_registo) return "Justificado (com registo)";
+  if(r.sem_registo && r.validado_em) return "Justificado (validado sem registo)";
+  if(r.sem_registo && r.justificacao) return "Aguarda validação";
+  return "Pendente";
 }
 
 function openRelatorioQuebras(){
@@ -3179,28 +3199,55 @@ function openRelatorioQuebras(){
 
     const semLoja = recentes.filter(r=>!r.loja);
     const comLoja = recentes.filter(r=>r.loja);
-    const pendentes = comLoja.filter(r=>!r.numero_registo);
-    const justificadas = comLoja.filter(r=>r.numero_registo);
+    const pendentes = comLoja.filter(r=>!r.justificacao);
+    const aguardaValidacao = comLoja.filter(r=>r.justificacao && r.sem_registo && !r.validado_em);
+    const justificadas = comLoja.filter(r=>r.numero_registo || (r.sem_registo && r.validado_em));
     const totalPendente = pendentes.reduce((s,r)=>s+Number(r.valor_quebra||0),0);
+    const emAberto = comLoja.filter(r=>!r.numero_registo && !(r.sem_registo && r.validado_em));
 
     // Resumo geral
     const resumo = document.createElement("div");
-    resumo.style.cssText = "display:flex; gap:8px; margin-bottom:16px;";
+    resumo.style.cssText = "display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;";
     resumo.innerHTML = `
-      <div class="card" style="flex:1; text-align:center; margin-bottom:0; padding:12px;">
-        <div style="font-size:22px; font-weight:800; color:var(--red);">${pendentes.length}</div>
-        <div style="font-size:11px; color:var(--ink-soft);">por justificar</div>
+      <div class="card" style="flex:1; text-align:center; margin-bottom:0; padding:12px; min-width:80px;">
+        <div style="font-size:20px; font-weight:800; color:var(--red);">${pendentes.length}</div>
+        <div style="font-size:10.5px; color:var(--ink-soft);">por justificar</div>
       </div>
-      <div class="card" style="flex:1; text-align:center; margin-bottom:0; padding:12px;">
-        <div style="font-size:22px; font-weight:800; color:var(--red);">${totalPendente.toFixed(2)} €</div>
-        <div style="font-size:11px; color:var(--ink-soft);">valor pendente</div>
+      <div class="card" style="flex:1; text-align:center; margin-bottom:0; padding:12px; min-width:80px;">
+        <div style="font-size:20px; font-weight:800; color:var(--amber);">${aguardaValidacao.length}</div>
+        <div style="font-size:10.5px; color:var(--ink-soft);">aguarda validação</div>
       </div>
-      <div class="card" style="flex:1; text-align:center; margin-bottom:0; padding:12px;">
-        <div style="font-size:22px; font-weight:800; color:var(--green);">${justificadas.length}</div>
-        <div style="font-size:11px; color:var(--ink-soft);">já justificadas</div>
+      <div class="card" style="flex:1; text-align:center; margin-bottom:0; padding:12px; min-width:80px;">
+        <div style="font-size:20px; font-weight:800; color:var(--red);">${totalPendente.toFixed(2)} €</div>
+        <div style="font-size:10.5px; color:var(--ink-soft);">valor pendente</div>
+      </div>
+      <div class="card" style="flex:1; text-align:center; margin-bottom:0; padding:12px; min-width:80px;">
+        <div style="font-size:20px; font-weight:800; color:var(--green);">${justificadas.length}</div>
+        <div style="font-size:10.5px; color:var(--ink-soft);">concluídas</div>
       </div>
     `;
     main.appendChild(resumo);
+
+    // Aguarda validação — sempre em destaque, ação para ti/GOP
+    if(aguardaValidacao.length>0){
+      const h2 = document.createElement("div");
+      h2.style.cssText = "font-size:12px; font-weight:700; color:var(--amber); text-transform:uppercase; letter-spacing:.05em; margin:4px 0 8px;";
+      h2.textContent = `🕐 Aguarda validação (${aguardaValidacao.length}) — sem nº de registo, motivo conhecido`;
+      main.appendChild(h2);
+      aguardaValidacao.forEach(r=>{
+        const card = document.createElement("div");
+        card.className = "card";
+        card.style.borderLeft = "4px solid var(--amber)";
+        card.innerHTML = `
+          <div class="card-title">${r.loja}</div>
+          <div class="card-sub">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')} · ${r.operador||'—'} · Quebra: <b style="color:var(--red);">${r.valor_quebra} €</b></div>
+          <div style="margin-top:8px; font-size:13px; color:var(--ink-soft); font-style:italic;">"${r.justificacao}"</div>
+          <button data-validar="${r.id}" style="width:100%; margin-top:10px; background:var(--amber); color:#fff; border:none; border-radius:10px; padding:10px; font-weight:700;">✔ Validar (CG/GOP)</button>
+        `;
+        main.appendChild(card);
+        card.querySelector(`[data-validar]`).onclick = ()=>validarQuebraSemRegisto(r.id);
+      });
+    }
 
     // Sem loja identificada — sempre no topo, precisa da tua ação
     if(semLoja.length>0){
@@ -3231,10 +3278,10 @@ function openRelatorioQuebras(){
     // Agrupar por loja
     const porLoja = {};
     comLoja.forEach(r=>{ (porLoja[r.loja] ||= []).push(r); });
-    const lojasComPendentes = Object.keys(porLoja).filter(l=>porLoja[l].some(r=>!r.numero_registo))
+    const lojasComPendentes = Object.keys(porLoja).filter(l=>porLoja[l].some(r=>!r.numero_registo && !(r.sem_registo && r.validado_em)))
       .sort((a,b)=>{
-        const totalA = porLoja[a].filter(r=>!r.numero_registo).reduce((s,r)=>s+Number(r.valor_quebra),0);
-        const totalB = porLoja[b].filter(r=>!r.numero_registo).reduce((s,r)=>s+Number(r.valor_quebra),0);
+        const totalA = porLoja[a].filter(r=>!r.numero_registo && !(r.sem_registo && r.validado_em)).reduce((s,r)=>s+Number(r.valor_quebra),0);
+        const totalB = porLoja[b].filter(r=>!r.numero_registo && !(r.sem_registo && r.validado_em)).reduce((s,r)=>s+Number(r.valor_quebra),0);
         return totalB - totalA;
       });
     const lojasSoJustificadas = Object.keys(porLoja).filter(l=>!lojasComPendentes.includes(l));
@@ -3246,7 +3293,7 @@ function openRelatorioQuebras(){
       main.appendChild(h);
       lojasComPendentes.forEach(l=>{
         const itensLoja = porLoja[l];
-        const pendLoja = itensLoja.filter(r=>!r.numero_registo);
+        const pendLoja = itensLoja.filter(r=>!r.numero_registo && !(r.sem_registo && r.validado_em));
         const totalLoja = pendLoja.reduce((s,r)=>s+Number(r.valor_quebra),0);
         const row = document.createElement("div");
         row.className = "card";
@@ -3255,7 +3302,7 @@ function openRelatorioQuebras(){
           <button data-toggle-loja-qb style="width:100%; display:flex; align-items:center; gap:10px; padding:12px 14px; border:none; background:none; text-align:left;">
             <span style="flex:1;">
               <span style="font-family:'Syne',sans-serif; font-weight:700; font-size:14.5px;">${l}</span><br>
-              <span style="font-size:11.5px; color:var(--red); font-weight:700;">${pendLoja.length} por justificar · ${totalLoja.toFixed(2)} €</span>
+              <span style="font-size:11.5px; color:var(--red); font-weight:700;">${pendLoja.length} por resolver · ${totalLoja.toFixed(2)} €</span>
             </span>
             <span class="chev-qb" style="font-size:13px; color:var(--ink-soft);">▾</span>
           </button>
@@ -3271,7 +3318,11 @@ function openRelatorioQuebras(){
           if(abrir && !detalheEl.dataset.montado){
             detalheEl.dataset.montado = "1";
             itensLoja.sort((a,b)=> new Date(b.data)-new Date(a.data)).forEach(r=>{
-              const respondido = !!r.numero_registo;
+              const concluido = !!r.numero_registo || (r.sem_registo && r.validado_em);
+              const aAguardar = r.sem_registo && !r.validado_em && r.justificacao;
+              const naoRespondido = !r.justificacao;
+              const cor = concluido?'var(--green)':aAguardar?'var(--amber)':'var(--red)';
+              const texto = concluido ? (r.numero_registo?`✔ Nº registo: ${r.numero_registo}`:'✔ Validado (sem registo)') : aAguardar ? '🕐 Aguarda validação' : '⏳ Sem resposta ainda';
               const linha = document.createElement("div");
               linha.style.cssText = "padding:10px 0; border-top:1px solid var(--line); font-size:13px;";
               linha.innerHTML = `
@@ -3279,8 +3330,8 @@ function openRelatorioQuebras(){
                   <span>${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')} · ${r.operador||'—'}</span>
                   <b style="color:var(--red);">${r.valor_quebra} €</b>
                 </div>
-                <div style="color:${respondido?'var(--green)':'var(--amber)'}; font-weight:600; font-size:12px; margin-top:2px;">${respondido?`✔ Nº registo: ${r.numero_registo}`:'⏳ A aguardar justificação'}</div>
-                ${respondido && r.justificacao ? `<div style="color:var(--ink-soft); font-size:12px; margin-top:2px;">${r.justificacao}</div>` : ``}
+                <div style="color:${cor}; font-weight:600; font-size:12px; margin-top:2px;">${texto}</div>
+                ${r.justificacao ? `<div style="color:var(--ink-soft); font-size:12px; margin-top:2px;">${r.justificacao}</div>` : ``}
               `;
               detalheEl.appendChild(linha);
             });
@@ -3315,7 +3366,7 @@ function openRelatorioQuebras(){
       const wb = XLSX.utils.book_new();
       const linhas = recentes.map(r=>({
         Loja:r.loja||("(não identificada: "+(r.loja_original||"?")+")"), Data:r.data, Operador:r.operador, "Quebra (€)":r.valor_quebra, Safebag:r.safebag,
-        "Nº Registo":r.numero_registo||"", Justificação:r.justificacao||"", Estado: r.numero_registo?"Justificado":"Pendente"
+        "Nº Registo":r.numero_registo||"", Justificação:r.justificacao||"", Estado: estadoQuebra(r)
       }));
       const ws = XLSX.utils.json_to_sheet(linhas);
       XLSX.utils.book_append_sheet(wb, ws, "Quebras");
