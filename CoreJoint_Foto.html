@@ -652,7 +652,7 @@ function render(){
       const tile = document.createElement("button");
       tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:var(--card); border:1.5px solid ${corBorda}; border-radius:12px; padding:12px 4px; text-align:center;`;
       tile.innerHTML = `<span style="font-size:20px;">📦</span><span style="font-size:11px; font-weight:700; line-height:1.2;">${c.label}</span><span style="font-size:9.5px; font-weight:700; color:${cor};">${statusTxt}</span><span style="font-size:8px; color:var(--ink-soft); line-height:1.2;">${descricaoRegra(c.key, c.freq)}</span>`;
-      tile.onclick = ()=>openCapture("inv", c.key, c.label);
+      tile.onclick = ()=>openCapture("inv", c.key, c.label, null, late);
       invGrid.appendChild(tile);
       if(c.key==="global"){
         const mes = mesKey(new Date());
@@ -762,7 +762,7 @@ function render(){
 
 }
 
-function openCapture(kind, key, label, turno){
+function openCapture(kind, key, label, turno, estaAtrasado){
   pendingPhotos = [];
   pendingPhotosEntrada = [];
   pendingPhotosDesperdicio = [];
@@ -773,6 +773,7 @@ function openCapture(kind, key, label, turno){
     <div class="modal">
       <h2>${label}</h2>
       <div class="sub">${currentLoja} · ${new Date().toLocaleDateString('pt-PT')}</div>
+      ${estaAtrasado ? `<div style="background:var(--red); color:#fff; border-radius:10px; padding:12px 14px; margin:10px 0; font-size:13px; font-weight:600;">⚠ Isto está a ser entregue fora do dia certo. É muito importante cumprir o dia correto — este envio vai ficar registado como atrasado no relatório da gestão.</div>` : ``}
       <div style="display:flex; gap:8px;">
         <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" id="capFile"></label>
         <label class="filebtn" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);">🖼️ Galeria<input type="file" accept="image/*" id="capFileGaleria"></label>
