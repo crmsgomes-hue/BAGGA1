@@ -973,7 +973,7 @@ function semanaKey(d){
       <div class="slb">🏆 Ranking de lojas <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Este mês</div>
     </button>
-    <button data-toggle-secao="fichaLojaSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button id="btnToggleFichaLoja" onclick="const el=document.getElementById('fichaLojaSection'); const ab=el.style.display==='none'; document.querySelectorAll('[data-toggle-secao]').forEach(function(b){ const s=document.getElementById(b.dataset.toggleSecao); if(s && s!==el) s.style.display='none'; }); el.style.display= ab?'block':'none'; this.querySelector('.chev-toggle').textContent = ab?'▴':'▾';" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">🏪 Ficha da Loja <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Escolher loja</div>
     </button>
