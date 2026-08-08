@@ -624,6 +624,12 @@ function render(){
     main.appendChild(w);
   });
 
+  const linkCorrigir = document.createElement("div");
+  linkCorrigir.style.cssText = "text-align:center; margin-bottom:14px;";
+  linkCorrigir.innerHTML = `<span style="font-size:12.5px; color:var(--ink-soft); text-decoration:underline; cursor:pointer;" id="verEnviosRecentesLink">✏️ Ver/corrigir envios recentes de inventário</span>`;
+  main.appendChild(linkCorrigir);
+  document.getElementById("verEnviosRecentesLink").onclick = abrirEnviosRecentesInventario;
+
   const invParaGrid = dueInv.filter(c=>!c.st.diaErrado);
   if(invParaGrid.length>0){
     const invTitle = document.createElement("div");
@@ -1054,6 +1060,84 @@ async function enviarJustificacaoQuebra(id){
     console.error(e);
     toast("Erro ao enviar: " + (e.message||e).slice(0,100));
   }
+}
+
+function abrirEnviosRecentesInventario(){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "enviosRecentesOverlay";
+  const seteDiasAtras = isoDate(new Date(Date.now()-7*86400000));
+  const recentes = invRows.filter(r=>r.data>=seteDiasAtras).sort((a,b)=> new Date(b.criado_em)-new Date(a.criado_em));
+  const todasCatsLabelFoto = {};
+  [...INV_CATS, ...MARKETING_CATS].forEach(c=>todasCatsLabelFoto[c.key]=c.label);
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>Envios recentes (7 dias)</h2>
+      <div class="sub">Toca num para corrigir o valor, se estiver em falta ou errado.</div>
+      <div id="enviosRecentesLista" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('enviosRecentesOverlay').remove()">Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const lista = document.getElementById("enviosRecentesLista");
+  if(recentes.length===0){
+    lista.innerHTML = `<div class="empty">Sem envios nos últimos 7 dias.</div>`;
+    return;
+  }
+  recentes.forEach(r=>{
+    const label = todasCatsLabelFoto[r.categoria] || r.categoria;
+    const temValor = r.valor_inventario!=null && r.valor_inventario!=="";
+    const row = document.createElement("div");
+    row.style.cssText = "padding:10px 0; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; cursor:pointer;";
+    row.innerHTML = `
+      <div>
+        <div style="font-weight:700; font-size:14px;">${label}</div>
+        <div style="font-size:12px; color:var(--ink-soft);">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</div>
+      </div>
+      <div style="font-weight:700; ${temValor?'':'color:var(--red);'}">${temValor ? r.valor_inventario+' €' : '⚠ sem valor'}</div>
+    `;
+    row.onclick = ()=>corrigirValorEnvio(r);
+    lista.appendChild(row);
+  });
+}
+
+function corrigirValorEnvio(r){
+  document.getElementById("enviosRecentesOverlay").remove();
+  const todasCatsLabelFoto2 = {};
+  [...INV_CATS, ...MARKETING_CATS].forEach(c=>todasCatsLabelFoto2[c.key]=c.label);
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "corrigirValorOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>${todasCatsLabelFoto2[r.categoria]||r.categoria}</h2>
+      <div class="sub">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</div>
+      <div class="field" style="margin-top:14px;">
+        <label>Valor do inventário (€)</label>
+        <input id="corrigirValorInput" type="number" inputmode="decimal" step="0.01" value="${r.valor_inventario||''}" placeholder="0.00">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" style="flex:1;" onclick="document.getElementById('corrigirValorOverlay').remove()">Cancelar</button>
+        <button class="btn-save" style="flex:1;" id="corrigirValorGuardarBtn">Guardar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("corrigirValorGuardarBtn").onclick = async ()=>{
+    const valor = document.getElementById("corrigirValorInput").value.trim();
+    if(valor===""){ toast("Preenche o valor"); return; }
+    try{
+      await api("PATCH", `cj_inventario_reportes?id=eq.${r.id}`, {valor_inventario: valor});
+      toast("✔ Valor corrigido!");
+      document.getElementById("corrigirValorOverlay").remove();
+      await loadAll();
+    }catch(e){
+      console.error(e);
+      toast("Erro ao guardar: " + (e.message||e).slice(0,100));
+    }
+  };
 }
 
 function abrirAjuda(){
