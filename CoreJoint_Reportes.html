@@ -1286,6 +1286,10 @@ async function openSondagens(){
       <option value="">Todas as lojas</option>
       ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
     </select>
+    <label style="display:flex; align-items:center; gap:8px; margin-top:14px; font-size:13.5px;">
+      <input type="checkbox" id="sondRecorrente" style="width:18px; height:18px;">
+      🔁 Repetir esta sondagem automaticamente todas as semanas
+    </label>
     <button class="cambtn" style="width:100%; margin-top:14px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;" id="sondCriarBtn">📊 Criar e enviar sondagem</button>
   `;
   main.appendChild(formCard);
@@ -1311,6 +1315,29 @@ async function openSondagens(){
   // Sondagens ativas + resultados
   const sondagens = await api("GET", "cj_sondagens?select=*&order=criado_em.desc");
   const respostas = await api("GET", "cj_sondagens_respostas?select=*");
+  const templatesAtivos = await api("GET", "cj_sondagens_templates?select=*&ativo=eq.true&order=criado_em.desc");
+
+  if(templatesAtivos.length>0){
+    const tRec = document.createElement("div");
+    tRec.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--terracotta);margin:18px 0 8px;";
+    tRec.textContent = `🔁 Recorrentes ativas (${templatesAtivos.length})`;
+    main.appendChild(tRec);
+    templatesAtivos.forEach(tpl=>{
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="card-title">${tpl.pergunta}</div>
+        <div class="card-sub">${tpl.loja_alvo||'Todas as lojas'} · repete toda semana</div>
+        <button data-parar-tpl="${tpl.id}" style="width:100%; margin-top:8px; background:none; border:1.5px solid var(--red); color:var(--red); border-radius:10px; padding:8px; font-size:13px; font-weight:700;">Parar repetição</button>
+      `;
+      main.appendChild(card);
+      card.querySelector("[data-parar-tpl]").onclick = async ()=>{
+        await api("PATCH", `cj_sondagens_templates?id=eq.${tpl.id}`, {ativo:false});
+        toast("Repetição parada");
+        openSondagens();
+      };
+    });
+  }
 
   if(sondagens.length>0){
     const t = document.createElement("div");
@@ -1354,11 +1381,21 @@ function escapeHtmlLocal(s){
 async function criarSondagem(){
   const pergunta = document.getElementById("sondPergunta").value.trim();
   const loja = document.getElementById("sondLojaAlvo").value;
+  const recorrente = document.getElementById("sondRecorrente").checked;
   if(!pergunta){ toast("Escreve a pergunta"); return; }
   if(sondagemOpcoes.length<2){ toast("Adiciona pelo menos 2 opções"); return; }
   try{
     await api("POST", "cj_sondagens", {pergunta, opcoes: sondagemOpcoes, loja_alvo: loja || null, criado_por: currentUser});
-    mostrarSucesso("Sondagem criada!");
+    if(recorrente){
+      await api("POST", "cj_sondagens_templates", {pergunta, opcoes: sondagemOpcoes, loja_alvo: loja || null, criado_por: currentUser, ultima_geracao: semanaKey(new Date())});
+    }
+    const lojasAlvoAviso = loja ? [loja] : LOJAS;
+    for(const l of lojasAlvoAviso){
+      const descricaoAviso = `Nova sondagem: "${pergunta}"`;
+      await api("POST", "cj_avisos", {loja:l, tipo:"outro", descricao:descricaoAviso, criado_por: currentUser});
+      notificarLojaAviso(l, "outro", descricaoAviso);
+    }
+    mostrarSucesso(recorrente ? "Sondagem criada e vai repetir todas as semanas!" : "Sondagem criada!");
     openSondagens();
   }catch(e){
     console.error(e);
