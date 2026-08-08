@@ -3397,7 +3397,7 @@ async function abrirPorValidar(){
       </div>
     `;
     main.appendChild(card);
-    card.querySelector("[data-ver-fotos]").onclick = ()=>bigPhoto((r.fotos||[]).map(f=>typeof f==="string"?f:f.url), 0);
+    card.querySelector("[data-ver-fotos]").onclick = ()=>bigPhoto(null, (r.fotos||[]).map(f=>typeof f==="string"?f:f.url), 0);
     card.querySelector("[data-validar]").onclick = async ()=>{
       await api("PATCH", `cj_daily_reportes?id=eq.${r.id}`, {validado_por: currentUser, validado_em: new Date().toISOString()});
       card.remove();
@@ -3417,7 +3417,7 @@ async function abrirPorValidar(){
       </div>
     `;
     main.appendChild(card);
-    card.querySelector("[data-ver-fotos]").onclick = ()=>bigPhoto((r.fotos||[]).map(f=>typeof f==="string"?f:f.url), 0);
+    card.querySelector("[data-ver-fotos]").onclick = ()=>bigPhoto(null, (r.fotos||[]).map(f=>typeof f==="string"?f:f.url), 0);
     card.querySelector("[data-validar]").onclick = async ()=>{
       await api("PATCH", `cj_inventario_reportes?id=eq.${r.id}`, {validado_por: currentUser, validado_em: new Date().toISOString()});
       card.remove();
