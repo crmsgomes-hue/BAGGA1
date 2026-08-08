@@ -121,6 +121,14 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
 </div>
 <script>
+window.addEventListener("error", function(ev){
+  console.error("Erro capturado:", ev.error||ev.message);
+  const aviso = document.createElement("div");
+  aviso.style.cssText = "position:fixed; bottom:10px; left:10px; right:10px; background:#c0392b; color:#fff; padding:12px; border-radius:10px; z-index:999999; font-size:13px; font-family:sans-serif;";
+  aviso.textContent = "⚠️ Erro técnico: " + (ev.message||"erro desconhecido") + " (linha " + (ev.lineno||"?") + ")";
+  document.body.appendChild(aviso);
+  setTimeout(()=>aviso.remove(), 15000);
+});
 function toggleDark(){
   document.body.classList.toggle("dark");
   localStorage.setItem("cj_dark_mode", document.body.classList.contains("dark") ? "1" : "0");
