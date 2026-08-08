@@ -3384,43 +3384,64 @@ async function abrirPorValidar(){
   };
   main.appendChild(validarTodosBtn);
 
-  dailyPorValidar.forEach(r=>{
-    const label = r.tipo==="vitrine" ? `Vitrine — ${TURNO_LABELS_PV[r.turno]||r.turno}` : "Vendas";
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `
-      <div class="card-title">${r.loja}</div>
-      <div class="card-sub">${label} · ${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')} · enviado às ${new Date(r.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}</div>
-      <div style="display:flex; gap:8px; margin-top:10px;">
-        <button data-ver-fotos style="flex:1; background:none; border:1px solid var(--line); color:var(--ink-soft); border-radius:10px; padding:9px; font-size:13px; font-weight:700;">👁️ Ver fotos</button>
-        <button data-validar style="flex:1; background:var(--green); color:#fff; border:none; border-radius:10px; padding:9px; font-size:13px; font-weight:700;">✔ Validar</button>
-      </div>
-    `;
-    main.appendChild(card);
-    card.querySelector("[data-ver-fotos]").onclick = ()=>bigPhoto(null, (r.fotos||[]).map(f=>typeof f==="string"?f:f.url), 0);
-    card.querySelector("[data-validar]").onclick = async ()=>{
-      await api("PATCH", `cj_daily_reportes?id=eq.${r.id}`, {validado_por: currentUser, validado_em: new Date().toISOString()});
-      card.remove();
-    };
-  });
+  // Juntar tudo (daily + inventário) e agrupar por loja
+  const todosItens = [
+    ...dailyPorValidar.map(r=>({...r, _origem:"daily", _label: r.tipo==="vitrine" ? `Vitrine — ${TURNO_LABELS_PV[r.turno]||r.turno}` : "Vendas"})),
+    ...invPorValidar.map(r=>({...r, _origem:"inv", _label: todasCatsLabelPv[r.categoria] || r.categoria}))
+  ];
+  const porLojaPv = {};
+  todosItens.forEach(r=>{ (porLojaPv[r.loja] ||= []).push(r); });
+  const lojasOrdenadasPv = Object.keys(porLojaPv).sort((a,b)=>porLojaPv[b].length-porLojaPv[a].length);
 
-  invPorValidar.forEach(r=>{
-    const label = todasCatsLabelPv[r.categoria] || r.categoria;
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `
-      <div class="card-title">${r.loja}</div>
-      <div class="card-sub">${label} · ${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')} · enviado às ${new Date(r.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}${r.valor_inventario!=null?' · '+r.valor_inventario+' €':''}</div>
-      <div style="display:flex; gap:8px; margin-top:10px;">
-        <button data-ver-fotos style="flex:1; background:none; border:1px solid var(--line); color:var(--ink-soft); border-radius:10px; padding:9px; font-size:13px; font-weight:700;">👁️ Ver fotos</button>
-        <button data-validar style="flex:1; background:var(--green); color:#fff; border:none; border-radius:10px; padding:9px; font-size:13px; font-weight:700;">✔ Validar</button>
-      </div>
+  lojasOrdenadasPv.forEach(loja=>{
+    const itensLoja = porLojaPv[loja].sort((a,b)=> new Date(b.criado_em)-new Date(a.criado_em));
+    const row = document.createElement("div");
+    row.className = "card";
+    row.style.cssText = "padding:0; overflow:hidden;";
+    row.innerHTML = `
+      <button data-toggle-loja-pv style="width:100%; display:flex; align-items:center; gap:10px; padding:12px 14px; border:none; background:none; text-align:left;">
+        <span style="flex:1;">
+          <span style="font-family:'Syne',sans-serif; font-weight:700; font-size:14.5px;">${loja}</span><br>
+          <span style="font-size:11.5px; color:var(--terracotta); font-weight:700;">${itensLoja.length} por validar</span>
+        </span>
+        <span class="chev-pv" style="font-size:13px; color:var(--ink-soft);">▾</span>
+      </button>
+      <div class="detalhe-pv" style="display:none; padding:0 14px 14px;"></div>
     `;
-    main.appendChild(card);
-    card.querySelector("[data-ver-fotos]").onclick = ()=>bigPhoto(null, (r.fotos||[]).map(f=>typeof f==="string"?f:f.url), 0);
-    card.querySelector("[data-validar]").onclick = async ()=>{
-      await api("PATCH", `cj_inventario_reportes?id=eq.${r.id}`, {validado_por: currentUser, validado_em: new Date().toISOString()});
-      card.remove();
+    main.appendChild(row);
+    const detalheEl = row.querySelector(".detalhe-pv");
+    const chev = row.querySelector(".chev-pv");
+    row.querySelector("[data-toggle-loja-pv]").onclick = ()=>{
+      const abrir = detalheEl.style.display === "none";
+      detalheEl.style.display = abrir ? "block" : "none";
+      chev.textContent = abrir ? "▴" : "▾";
+      if(abrir && !detalheEl.dataset.montado){
+        detalheEl.dataset.montado = "1";
+        itensLoja.forEach(r=>{
+          const temFotos = (r.fotos||[]).length>0;
+          const card = document.createElement("div");
+          card.style.cssText = "padding:10px 0; border-top:1px solid var(--line);";
+          card.innerHTML = `
+            <div style="font-size:13.5px; font-weight:700;">${r._label}</div>
+            <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')} · enviado às ${new Date(r.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}${r.valor_inventario!=null?' · '+r.valor_inventario+' €':''}</div>
+            <div style="display:flex; gap:8px;">
+              ${temFotos ? `<button data-ver-fotos style="flex:1; background:none; border:1px solid var(--line); color:var(--ink-soft); border-radius:10px; padding:9px; font-size:13px; font-weight:700;">👁️ Ver fotos</button>` : `<span style="flex:1; text-align:center; font-size:12px; color:var(--ink-soft); align-self:center;">Sem foto (só confirmação)</span>`}
+              <button data-validar style="flex:1; background:var(--green); color:#fff; border:none; border-radius:10px; padding:9px; font-size:13px; font-weight:700;">✔ Validar</button>
+            </div>
+          `;
+          detalheEl.appendChild(card);
+          if(temFotos){
+            card.querySelector("[data-ver-fotos]").onclick = ()=>bigPhoto(null, r.fotos.map(f=>typeof f==="string"?f:f.url), 0);
+          }
+          card.querySelector("[data-validar]").onclick = async ()=>{
+            const tabela = r._origem==="daily" ? "cj_daily_reportes" : "cj_inventario_reportes";
+            await api("PATCH", `${tabela}?id=eq.${r.id}`, {validado_por: currentUser, validado_em: new Date().toISOString()});
+            card.remove();
+            const restantes = detalheEl.querySelectorAll(":scope > div").length;
+            if(restantes===0) row.remove();
+          };
+        });
+      }
     };
   });
 }
