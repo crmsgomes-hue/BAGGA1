@@ -79,7 +79,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="quebrasPanoramaSection" style="display:none;"></div>
   <div id="valoresInventarioSection" style="display:none;"></div>
 
-  <div id="fotosRecentesSection"></div>
+  <div id="fotosRecentesSection" style="display:none;"></div>
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
 
   <div class="sec-label">Apps</div>
@@ -676,6 +676,10 @@ function semanaKey(d){
       <div class="slb">📦 Inventário <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Valores e envios</div>
     </button>
+    <button data-toggle-secao="fotosRecentesSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">📸 Fotos recentes <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Por loja e envio</div>
+    </button>
   `;
   document.querySelectorAll("[data-toggle-secao]").forEach(btn=>{
     btn.onclick = ()=>{
@@ -716,7 +720,7 @@ async function verificarAtualizacao(){
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
       const overlayAberto = document.querySelector(".overlay");
-      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection"]
+      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","fotosRecentesSection"]
         .some(id=>{ const el = document.getElementById(id); return el && el.style.display !== "none"; });
       if(!overlayAberto && !secoesAbertas){
         location.reload();
