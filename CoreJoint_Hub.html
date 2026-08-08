@@ -78,6 +78,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="resumoOntemSection" style="display:none;"></div>
   <div id="quebrasPanoramaSection" style="display:none;"></div>
   <div id="valoresInventarioSection" style="display:none;"></div>
+  <div id="formsExternoSection" style="display:none;"></div>
 
   <div id="fotosRecentesSection"></div>
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
@@ -313,6 +314,15 @@ function bigPhoto(urls, indice){
 
   lb.onclick = ()=>document.body.removeChild(lb);
   document.body.appendChild(lb);
+}
+
+function semanaKey(d){
+  const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = (dt.getUTCDay()+6)%7;
+  dt.setUTCDate(dt.getUTCDate()-dayNum+3);
+  const firstThursday = new Date(Date.UTC(dt.getUTCFullYear(),0,4));
+  const semana = 1 + Math.round(((dt-firstThursday)/86400000-3+((firstThursday.getUTCDay()+6)%7))/7);
+  return `${dt.getUTCFullYear()}-W${String(semana).padStart(2,'0')}`;
 }
 
 (async ()=>{
@@ -650,6 +660,33 @@ function bigPhoto(urls, indice){
     document.getElementById("valoresInventarioSection").innerHTML = htmlInv;
   }catch(e){ console.error(e); }
 
+  try{
+    const semanaAtual = semanaKey(new Date());
+    const feitosForms = await api(`cj_forms_externos?select=loja&semana=eq.${semanaAtual}`);
+    const lojasFeitasForms = feitosForms.map(r=>r.loja);
+    const lojasFaltamForms = LOJAS.filter(l=>!lojasFeitasForms.includes(l));
+
+    let htmlForms = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Formulário da empresa (esta semana)</span>
+      <a href="CoreJoint_Reportes.html?ferramentas=1" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Ver tudo →</a>
+    </div>`;
+    if(lojasFaltamForms.length===0){
+      htmlForms += `<div class="all-clear" style="margin-bottom:14px;">✔ Todas as lojas já preencheram esta semana.</div>`;
+    } else {
+      htmlForms += `<div class="card" style="text-align:center; margin-bottom:10px;">
+        <div style="font-size:20px; font-weight:800;">${lojasFeitasForms.length}/${LOJAS.length}</div>
+        <div style="font-size:10.5px; color:var(--t2);">lojas já preencheram</div>
+      </div>`;
+      htmlForms += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
+      lojasFaltamForms.forEach(l=>{
+        htmlForms += `<div style="padding:8px 2px; border-bottom:1px solid var(--br); font-size:.82rem; font-weight:600;">${l}</div>`;
+      });
+      htmlForms += `</div>
+      <a href="CoreJoint_Reportes.html?ferramentas=1" style="display:block; text-align:center; margin-top:10px; background:var(--terracotta,#C1622E); color:#fff; border-radius:12px; padding:11px; font-size:13.5px; font-weight:700; text-decoration:none;">🔔 Avisar quem falta (Ferramentas)</a>`;
+    }
+    document.getElementById("formsExternoSection").innerHTML = htmlForms;
+  }catch(e){ console.error(e); }
+
   document.getElementById("toggleTilesGrid").innerHTML = `
     <button data-toggle-secao="painelLojasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📋 Painel de gestão <span class="chev-toggle" style="float:right;">▾</span></div>
@@ -666,6 +703,10 @@ function bigPhoto(urls, indice){
     <button data-toggle-secao="valoresInventarioSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📦 Inventário <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Valores e envios</div>
+    </button>
+    <button data-toggle-secao="formsExternoSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">📋 Formulário empresa <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Quem já preencheu</div>
     </button>
   `;
   document.querySelectorAll("[data-toggle-secao]").forEach(btn=>{
@@ -707,7 +748,7 @@ async function verificarAtualizacao(){
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
       const overlayAberto = document.querySelector(".overlay");
-      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection"]
+      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","formsExternoSection"]
         .some(id=>{ const el = document.getElementById(id); return el && el.style.display !== "none"; });
       if(!overlayAberto && !secoesAbertas){
         location.reload();
