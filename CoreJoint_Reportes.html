@@ -3793,8 +3793,6 @@ function renderGestao(){
       {icon:"📦", label:"Relatório de Inventário (semanal)", fn:generateWeeklyInventoryReport},
       {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport},
       {icon:"🛡️", label:"Relatório de Compliance", fn:generateComplianceReport},
-      {icon:"📋", label:"Relatório do Formulário da empresa (semanal)", fn:gerarRelatorioFormsExterno},
-      {icon:"🧪", label:"Relatório do Formulário Legionela (semanal)", fn:gerarRelatorioFormsLegionela},
       {icon:"📥", label:"Excel", fn:exportarExcel},
       {icon:"📅", label:"Histórico 12m", fn:openHistoricoAnual}
     ]},
@@ -3802,9 +3800,7 @@ function renderGestao(){
       {icon:"📲", label:"Resumo p/ WhatsApp", fn:partilharResumoWhatsApp},
       {icon:"📢", label:"Avisos dados", fn:openAvisos},
       {icon:"📊", label:"Sondagem", fn:openSondagens},
-      {icon:"📝", label:"Formulário", fn:openFormularios},
-      {icon:"🔔", label:"Avisar quem falta o Formulário da empresa", fn:avisarFaltaFormsExterno},
-      {icon:"🔔", label:"Avisar quem falta o Formulário Legionela", fn:avisarFaltaFormsLegionela}
+      {icon:"📝", label:"Formulário", fn:openFormularios}
     ]},
     {titulo:"Visão por loja", itens:[
       {icon:"🏪", label:"Ficha da Loja", fn:openFichaGerente},
