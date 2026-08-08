@@ -418,34 +418,47 @@ function semanaKey(d){
     submissoes.forEach(s=>{ (porLoja[s.loja] ||= []).push(s); });
 
     if(Object.keys(porLoja).length>0){
-      let html = `<div class="sec-label">Fotos recentes</div>`;
-      const gruposUrls = [];
-      LOJAS.filter(l=>porLoja[l]).forEach(l=>{
-        html += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">
-          <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.9rem; margin-bottom:10px;">${l}</div>`;
-        porLoja[l].slice(0,4).forEach(s=>{
-          const urls = s.fotos.map(fotoUrlH);
-          const gi = gruposUrls.push(urls) - 1;
-          const leg = fotoLegendaH(s.fotos[0]);
-          html += `
-            <div style="font-size:.72rem; font-weight:700; color:var(--t2); margin-bottom:6px;">${s.titulo} · ${new Date(s.data+"T00:00:00").toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit',month:'2-digit'})}</div>
-            <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:6px;">
-              ${urls.map((u,fi)=>`<img src="${u}" data-gi="${gi}" data-fi="${fi}" style="flex-shrink:0; width:130px; height:100px; object-fit:cover; border-radius:8px; border:1px solid var(--br); cursor:pointer; display:block;">`).join("")}
-            </div>
-            <div style="font-style:italic; font-size:.68rem; color:var(--t3); margin-bottom:12px;">${leg || "Sem comentário"}</div>
-          `;
+      let html = `<div class="sec-label">Fotos recentes</div>
+        <select id="fotosRecentesSelect" style="width:100%; padding:12px; border-radius:12px; border:1px solid var(--br); background:var(--sf); font-size:.9rem; margin-bottom:10px;">
+          <option value="">Todas as lojas</option>
+          ${LOJAS.filter(l=>porLoja[l]).map(l=>`<option value="${l}">${l}</option>`).join("")}
+        </select>
+        <div id="fotosRecentesConteudo"></div>`;
+      document.getElementById("fotosRecentesSection").innerHTML = html;
+
+      function renderFotosRecentes(lojaFiltro){
+        const conteudo = document.getElementById("fotosRecentesConteudo");
+        const gruposUrls = [];
+        let htmlConteudo = "";
+        const lojasAMostrar = lojaFiltro ? [lojaFiltro] : LOJAS.filter(l=>porLoja[l]);
+        lojasAMostrar.forEach(l=>{
+          if(!porLoja[l]) return;
+          htmlConteudo += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">
+            <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.9rem; margin-bottom:10px;">${l}</div>`;
+          porLoja[l].slice(0,4).forEach(s=>{
+            const urls = s.fotos.map(fotoUrlH);
+            const gi = gruposUrls.push(urls) - 1;
+            const leg = fotoLegendaH(s.fotos[0]);
+            htmlConteudo += `
+              <div style="font-size:.72rem; font-weight:700; color:var(--t2); margin-bottom:6px;">${s.titulo} · ${new Date(s.data+"T00:00:00").toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit',month:'2-digit'})}</div>
+              <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:6px;">
+                ${urls.map((u,fi)=>`<img src="${u}" data-gi="${gi}" data-fi="${fi}" style="flex-shrink:0; width:130px; height:100px; object-fit:cover; border-radius:8px; border:1px solid var(--br); cursor:pointer; display:block;">`).join("")}
+              </div>
+              <div style="font-style:italic; font-size:.68rem; color:var(--t3); margin-bottom:12px;">${leg || "Sem comentário"}</div>
+            `;
+          });
+          htmlConteudo += `</div>`;
         });
-        html += `</div>`;
-      });
-      const wrap = document.createElement("div");
-      wrap.innerHTML = html;
-      wrap.querySelectorAll("img[data-gi]").forEach(img=>{
-        img.addEventListener("click", ()=>{
-          bigPhoto(gruposUrls[+img.dataset.gi], +img.dataset.fi);
+        if(!htmlConteudo) htmlConteudo = `<div class="all-clear">Sem fotos recentes desta loja.</div>`;
+        conteudo.innerHTML = htmlConteudo;
+        conteudo.querySelectorAll("img[data-gi]").forEach(img=>{
+          img.addEventListener("click", ()=>{
+            bigPhoto(gruposUrls[+img.dataset.gi], +img.dataset.fi);
+          });
         });
-      });
-      document.getElementById("fotosRecentesSection").innerHTML = "";
-      document.getElementById("fotosRecentesSection").appendChild(wrap);
+      }
+      renderFotosRecentes("");
+      document.getElementById("fotosRecentesSelect").onchange = (ev)=>renderFotosRecentes(ev.target.value);
     }
   }catch(e){ console.error(e); }
 
