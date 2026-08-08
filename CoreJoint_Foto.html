@@ -631,14 +631,22 @@ function render(){
   });
   {
     const rec = dailyStatus("vendas", today, "unico");
-    hojeSquares.push({icon:"🧾", label:"Vendas", done:!!rec, rec, tipo:"vendas", turno:"unico", onclick:()=>openCapture("daily","vendas","Vendas — Final do dia","unico")});
+    const bloqueadoAntes21h = !rec && new Date().getHours() < 21;
+    hojeSquares.push({icon:"🧾", label:"Vendas", done:!!rec, rec, tipo:"vendas", turno:"unico", bloqueado: bloqueadoAntes21h, onclick: bloqueadoAntes21h
+      ? ()=>toast("🔒 As vendas só podem ser enviadas a partir das 21h00 — ainda não é hora.")
+      : ()=>openCapture("daily","vendas","Vendas — Final do dia","unico")
+    });
   }
   const hojeGrid = document.createElement("div");
   hojeGrid.style.cssText = "display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:16px;";
   hojeSquares.forEach(s=>{
     const tile = document.createElement("button");
-    tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:${s.done?'#eef3ea':'var(--card)'}; border:1.5px solid ${s.done?'var(--green)':'var(--line)'}; border-radius:12px; padding:12px 4px; text-align:center;`;
-    tile.innerHTML = `<span style="font-size:20px;">${s.done?'✅':s.icon}</span><span style="font-size:11px; font-weight:700;">${s.label}</span><span style="font-size:8.5px; color:var(--ink-soft);">${s.done?'Ver/editar':'Diário'}</span>`;
+    const corFundo = s.done ? '#eef3ea' : (s.bloqueado ? '#f2f2f2' : 'var(--card)');
+    const corBorda = s.done ? 'var(--green)' : (s.bloqueado ? 'var(--line)' : 'var(--line)');
+    tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:${corFundo}; border:1.5px solid ${corBorda}; border-radius:12px; padding:12px 4px; text-align:center; ${s.bloqueado?'opacity:.6;':''}`;
+    const iconeMostrar = s.done ? '✅' : (s.bloqueado ? '🔒' : s.icon);
+    const subLabel = s.done ? 'Ver/editar' : (s.bloqueado ? 'A partir das 21h' : 'Diário');
+    tile.innerHTML = `<span style="font-size:20px;">${iconeMostrar}</span><span style="font-size:11px; font-weight:700;">${s.label}</span><span style="font-size:8.5px; color:var(--ink-soft);">${subLabel}</span>`;
     tile.onclick = s.done ? ()=>verEditarFotosSubmissao(s.rec, s.label) : s.onclick;
     hojeGrid.appendChild(tile);
   });
