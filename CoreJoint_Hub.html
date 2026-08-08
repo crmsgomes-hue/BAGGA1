@@ -82,7 +82,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="fotosRecentesSection" style="display:none;"></div>
   <div id="checklistMesSection" style="display:none;"></div>
   <div id="rankingLojasSection" style="display:none;"></div>
-  <div id="fichaLojaSection" style="display:none;"></div>
+  <div id="fichaLoja2Panel" style="display:none;"></div>
   <div id="avisosDadosSection" style="display:none;"></div>
   <div id="fardamentoPanoramaSection" style="display:none;"></div>
   <div id="rhPanoramaSection" style="display:none;"></div>
@@ -233,21 +233,43 @@ async function enviarLembretesAtrasos(){
 
 function abrirAvisarTodos(){
   const overlay = document.createElement("div");
-  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:9999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
-  overlay.innerHTML = `
-    <div style="background:#fff; border-radius:14px; padding:20px; max-width:400px; width:100%; margin-top:40px; max-height:80vh; overflow-y:auto;">
-      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:10px;">📢 Avisar todas as lojas</div>
-      <div style="font-size:13px; color:var(--t2); margin-bottom:12px;">Este aviso vai ser enviado a todas as 10 lojas de uma vez.</div>
-      <textarea id="avisoTodosTexto" placeholder="Escreve a mensagem..." style="width:100%; min-height:80px; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:12px; box-sizing:border-box;"></textarea>
-      <div style="display:flex; gap:8px;">
-        <button onclick="document.getElementById('avisoTodosOverlay').remove();" style="flex:1; background:none; border:1px solid var(--br); border-radius:10px; padding:11px; font-weight:700;">Cancelar</button>
-        <button id="avisoTodosEnviarBtn" style="flex:1; background:var(--terracotta); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">Enviar</button>
-      </div>
-    </div>
-  `;
   overlay.id = "avisoTodosOverlay";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:9999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+
+  const box = document.createElement("div");
+  box.style.cssText = "background:#fff; border-radius:14px; padding:20px; max-width:400px; width:100%; margin-top:40px;";
+
+  const titulo = document.createElement("div");
+  titulo.style.cssText = "font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:10px;";
+  titulo.textContent = "📢 Avisar todas as lojas";
+  box.appendChild(titulo);
+
+  const desc = document.createElement("div");
+  desc.style.cssText = "font-size:13px; color:var(--t2); margin-bottom:12px;";
+  desc.textContent = "Este aviso vai ser enviado a todas as 10 lojas de uma vez.";
+  box.appendChild(desc);
+
+  const textarea = document.createElement("textarea");
+  textarea.id = "avisoTodosTexto";
+  textarea.placeholder = "Escreve a mensagem...";
+  textarea.style.cssText = "width:100%; min-height:80px; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:14px; box-sizing:border-box; display:block;";
+  box.appendChild(textarea);
+
+  const btnEnviar = document.createElement("button");
+  btnEnviar.id = "avisoTodosEnviarBtn";
+  btnEnviar.textContent = "Enviar";
+  btnEnviar.style.cssText = "display:block; width:100%; background:var(--terracotta); color:#fff; border:none; border-radius:10px; padding:13px; font-weight:700; font-size:15px; margin-bottom:10px;";
+  box.appendChild(btnEnviar);
+
+  const btnCancelar = document.createElement("button");
+  btnCancelar.textContent = "Cancelar";
+  btnCancelar.style.cssText = "display:block; width:100%; background:none; border:1px solid var(--br); border-radius:10px; padding:13px; font-weight:700; font-size:15px;";
+  btnCancelar.onclick = ()=>overlay.remove();
+  box.appendChild(btnCancelar);
+
+  overlay.appendChild(box);
   document.body.appendChild(overlay);
-  document.getElementById("avisoTodosEnviarBtn").onclick = enviarAvisoTodos;
+  btnEnviar.onclick = enviarAvisoTodos;
 }
 
 async function fetchComRetry(url, tentativas=3){
@@ -758,16 +780,16 @@ function semanaKey(d){
     const avisosMesFicha = await api(`cj_avisos?select=loja,confirmado_em&criado_em=gte.${isoDate(inicioMesFicha)}T00:00:00`);
 
     let htmlFicha = `<div class="sec-label">Ficha da Loja</div>
-      <select id="fichaLojaSelect" style="width:100%; padding:12px; border-radius:12px; border:1px solid var(--br); background:var(--sf); font-size:.9rem; margin-bottom:10px;">
+      <select id="fichaLoja2Select" style="width:100%; padding:12px; border-radius:12px; border:1px solid var(--br); background:var(--sf); font-size:.9rem; margin-bottom:10px;">
         <option value="">Escolhe uma loja...</option>
         ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
       </select>
-      <div id="fichaLojaConteudo"></div>`;
-    document.getElementById("fichaLojaSection").innerHTML = htmlFicha;
+      <div id="fichaLoja2Conteudo"></div>`;
+    document.getElementById("fichaLoja2Panel").innerHTML = htmlFicha;
 
-    document.getElementById("fichaLojaSelect").onchange = (ev)=>{
+    document.getElementById("fichaLoja2Select").onchange = (ev)=>{
       const l = ev.target.value;
-      const conteudo = document.getElementById("fichaLojaConteudo");
+      const conteudo = document.getElementById("fichaLoja2Conteudo");
       if(!l){ conteudo.innerHTML = ""; return; }
 
       const diasNoMes = [];
@@ -1001,7 +1023,7 @@ function semanaKey(d){
       <div class="slb">🏆 Ranking de lojas <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Este mês</div>
     </button>
-    <button data-toggle-secao="fichaLojaSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button data-toggle-secao="fichaLoja2Panel" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">🏪 Ficha da Loja <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Escolher loja</div>
     </button>
@@ -1069,7 +1091,7 @@ async function verificarAtualizacao(){
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
       const overlayAberto = document.querySelector(".overlay");
-      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","fotosRecentesSection","checklistMesSection","rankingLojasSection","fichaLojaSection","avisosDadosSection","fardamentoPanoramaSection","rhPanoramaSection","acoesRapidasSection","porValidarSection","sondagensFormsSection"]
+      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","fotosRecentesSection","checklistMesSection","rankingLojasSection","fichaLoja2Panel","avisosDadosSection","fardamentoPanoramaSection","rhPanoramaSection","acoesRapidasSection","porValidarSection","sondagensFormsSection"]
         .some(id=>{ const el = document.getElementById(id); return el && el.style.display !== "none"; });
       if(!overlayAberto && !secoesAbertas){
         location.reload();
