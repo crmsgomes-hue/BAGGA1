@@ -194,6 +194,11 @@ const LOJAS = [
   "Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim",
   "Carregado","Ponte de Sor","Torres MCH","Torres MH"
 ];
+function lojasAlvoDe(obj){
+  if(obj.lojas_alvo && Array.isArray(obj.lojas_alvo) && obj.lojas_alvo.length>0) return obj.lojas_alvo;
+  if(obj.loja_alvo) return [obj.loja_alvo];
+  return LOJAS;
+}
 const INV_CATS = [
   {key:"raspadinhas", label:"JSC", freq:"semanal"},
   {key:"laranja", label:"Laranja", freq:"semanal"},
@@ -1282,17 +1287,26 @@ async function openSondagens(){
       <button class="cambtn secondary" style="width:auto; padding:9px 14px;" id="sondAddOpcaoBtn">+ Adicionar</button>
     </div>
     <div class="field-label" style="font-weight:600; margin:14px 0 6px;">A quem se destina</div>
-    <select id="sondLojaAlvo" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);">
-      <option value="">Todas as lojas</option>
-      ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
-    </select>
-    <label style="display:flex; align-items:center; gap:8px; margin-top:14px; font-size:13.5px;">
+    <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13.5px;">
+      <input type="radio" name="sondTipoAlvo" id="sondAlvoTodas" checked style="width:16px; height:16px;">
+      Todas as lojas
+    </label>
+    <label style="display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:13.5px;">
+      <input type="radio" name="sondTipoAlvo" id="sondAlvoAlgumas" style="width:16px; height:16px;">
+      Escolher lojas específicas
+    </label>
+    <div id="sondLojasCheckboxes" style="display:none; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px; padding:10px; background:var(--cream); border-radius:10px;">
+      ${LOJAS.map(l=>`<label style="display:flex; align-items:center; gap:6px; font-size:13px;"><input type="checkbox" class="sond-loja-chk" value="${l}"> ${l}</label>`).join("")}
+    </div>
+    <label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:13.5px;">
       <input type="checkbox" id="sondRecorrente" style="width:18px; height:18px;">
       🔁 Repetir esta sondagem automaticamente todas as semanas
     </label>
     <button class="cambtn" style="width:100%; margin-top:14px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;" id="sondCriarBtn">📊 Criar e enviar sondagem</button>
   `;
   main.appendChild(formCard);
+  document.getElementById("sondAlvoAlgumas").onchange = ()=>{ document.getElementById("sondLojasCheckboxes").style.display = "grid"; };
+  document.getElementById("sondAlvoTodas").onchange = ()=>{ document.getElementById("sondLojasCheckboxes").style.display = "none"; };
 
   const chipsWrap = formCard.querySelector("#sondOpcoesChips");
   function renderOpcoes(){
@@ -1327,7 +1341,7 @@ async function openSondagens(){
       card.className = "card";
       card.innerHTML = `
         <div class="card-title">${tpl.pergunta}</div>
-        <div class="card-sub">${tpl.loja_alvo||'Todas as lojas'} · repete toda semana</div>
+        <div class="card-sub">${lojasAlvoDe(tpl).length===LOJAS.length ? 'Todas as lojas' : lojasAlvoDe(tpl).join(", ")} · repete toda semana</div>
         <button data-parar-tpl="${tpl.id}" style="width:100%; margin-top:8px; background:none; border:1.5px solid var(--red); color:var(--red); border-radius:10px; padding:8px; font-size:13px; font-weight:700;">Parar repetição</button>
       `;
       main.appendChild(card);
@@ -1350,7 +1364,7 @@ async function openSondagens(){
     sondagens.forEach(s=>{
       const respostasDesta = respostas.filter(r=>r.sondagem_id===s.id);
       window.__sondagensCache[s.id] = {sondagem: s, respostas: respostasDesta};
-      const lojasAlvo = s.loja_alvo ? [s.loja_alvo] : LOJAS;
+      const lojasAlvo = lojasAlvoDe(s);
       const responderam = respostasDesta.length;
       const card = document.createElement("div");
       card.className = "card";
@@ -1380,16 +1394,19 @@ function escapeHtmlLocal(s){
 }
 async function criarSondagem(){
   const pergunta = document.getElementById("sondPergunta").value.trim();
-  const loja = document.getElementById("sondLojaAlvo").value;
+  const todasSelecionadas = document.getElementById("sondAlvoTodas").checked;
+  const lojasEscolhidas = Array.from(document.querySelectorAll(".sond-loja-chk:checked")).map(c=>c.value);
   const recorrente = document.getElementById("sondRecorrente").checked;
   if(!pergunta){ toast("Escreve a pergunta"); return; }
   if(sondagemOpcoes.length<2){ toast("Adiciona pelo menos 2 opções"); return; }
+  if(!todasSelecionadas && lojasEscolhidas.length===0){ toast("Escolhe pelo menos uma loja"); return; }
+  const lojasAlvoFinal = todasSelecionadas ? null : lojasEscolhidas;
   try{
-    await api("POST", "cj_sondagens", {pergunta, opcoes: sondagemOpcoes, loja_alvo: loja || null, criado_por: currentUser});
+    await api("POST", "cj_sondagens", {pergunta, opcoes: sondagemOpcoes, loja_alvo: (lojasAlvoFinal && lojasAlvoFinal.length===1) ? lojasAlvoFinal[0] : null, lojas_alvo: lojasAlvoFinal, criado_por: currentUser});
     if(recorrente){
-      await api("POST", "cj_sondagens_templates", {pergunta, opcoes: sondagemOpcoes, loja_alvo: loja || null, criado_por: currentUser, ultima_geracao: semanaKey(new Date())});
+      await api("POST", "cj_sondagens_templates", {pergunta, opcoes: sondagemOpcoes, loja_alvo: (lojasAlvoFinal && lojasAlvoFinal.length===1) ? lojasAlvoFinal[0] : null, lojas_alvo: lojasAlvoFinal, criado_por: currentUser, ultima_geracao: semanaKey(new Date())});
     }
-    const lojasAlvoAviso = loja ? [loja] : LOJAS;
+    const lojasAlvoAviso = lojasAlvoFinal || LOJAS;
     for(const l of lojasAlvoAviso){
       const descricaoAviso = `Nova sondagem: "${pergunta}"`;
       await api("POST", "cj_avisos", {loja:l, tipo:"outro", descricao:descricaoAviso, criado_por: currentUser});
@@ -1406,7 +1423,7 @@ function exportarSondagemPDF(id){
   const data = window.__sondagensCache && window.__sondagensCache[id];
   if(!data) return;
   const { sondagem: s, respostas } = data;
-  const lojasAlvo = s.loja_alvo ? [s.loja_alvo] : LOJAS;
+  const lojasAlvo = lojasAlvoDe(s);
   let html = `<h1>CoreJoint · Sondagem</h1><div style="font-size:8px; color:#555; margin-bottom:6px;">Criada em ${new Date(s.criado_em).toLocaleDateString('pt-PT')} · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
   html += `<h2>${s.pergunta}</h2>`;
   html += `<table><tr><th style="text-align:left;">Loja</th><th>Resposta</th></tr>`;
@@ -1422,7 +1439,7 @@ async function exportarSondagemExcel(id){
   const data = window.__sondagensCache && window.__sondagensCache[id];
   if(!data) return;
   const { sondagem: s, respostas } = data;
-  const lojasAlvo = s.loja_alvo ? [s.loja_alvo] : LOJAS;
+  const lojasAlvo = lojasAlvoDe(s);
   const wb = XLSX.utils.book_new();
   const rows = lojasAlvo.map(l=>{
     const r = respostas.find(x=>x.loja===l);
@@ -1533,7 +1550,7 @@ async function openFormularios(){
     formularios.forEach(f=>{
       const respostasDeste = todasRespostas.filter(r=>r.formulario_id===f.id);
       window.__formulariosCache[f.id] = {formulario: f, respostas: respostasDeste};
-      const lojasAlvo = f.loja_alvo ? [f.loja_alvo] : LOJAS;
+      const lojasAlvo = lojasAlvoDe(f);
       const faltam = lojasAlvo.filter(l=>!respostasDeste.some(r=>r.loja===l));
       const card = document.createElement("div");
       card.className = "card";
@@ -1579,7 +1596,7 @@ function exportarFormularioPDF(id){
   const data = window.__formulariosCache && window.__formulariosCache[id];
   if(!data) return;
   const { formulario: f, respostas } = data;
-  const lojasAlvo = f.loja_alvo ? [f.loja_alvo] : LOJAS;
+  const lojasAlvo = lojasAlvoDe(f);
   let html = `<h1>CoreJoint · Formulário</h1><div style="font-size:8px; color:#555; margin-bottom:6px;">${f.titulo} · Criado em ${new Date(f.criado_em).toLocaleDateString('pt-PT')} · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
   html += `<table><tr><th style="text-align:left;">Loja</th>${f.perguntas.map(p=>`<th>${p.texto}</th>`).join("")}</tr>`;
   lojasAlvo.forEach(l=>{
@@ -1595,7 +1612,7 @@ async function exportarFormularioExcel(id){
   const data = window.__formulariosCache && window.__formulariosCache[id];
   if(!data) return;
   const { formulario: f, respostas } = data;
-  const lojasAlvo = f.loja_alvo ? [f.loja_alvo] : LOJAS;
+  const lojasAlvo = lojasAlvoDe(f);
   const wb = XLSX.utils.book_new();
   const rows = lojasAlvo.map(l=>{
     const r = respostas.find(x=>x.loja===l);
