@@ -441,6 +441,11 @@ async function loadAll(){
       minhasRespostasForm.some(r=>r.formulario_id===fm.id)
     );
     const meusAvisos = await api("GET", `cj_avisos?select=*${f}&order=criado_em.desc&limit=20`);
+    const naoConfirmados = meusAvisos.filter(a=>!a.confirmado_em);
+    for(const a of naoConfirmados){
+      await api("PATCH", `cj_avisos?id=eq.${a.id}`, {confirmado_em: new Date().toISOString()});
+      a.confirmado_em = new Date().toISOString();
+    }
     avisosPendentes = meusAvisos.filter(a=>{
       if(a.tipo.startsWith("vitrine_")){
         const turno = a.tipo.replace("vitrine_","");
@@ -608,13 +613,10 @@ function render(){
       </div>
       ${a.descricao ? `<div style="font-size:13px; color:var(--ink-soft); margin-bottom:12px; padding-left:44px;">${a.descricao}</div>` : ``}
       <div style="padding-left:44px;">
-        ${a.confirmado_em ? `<div style="font-size:12.5px; color:var(--green); font-weight:600;">✔ Confirmaste — obrigado</div>` : `<button data-confirm-aviso="${a.id}" style="background:var(--red); color:#fff; border:none; border-radius:10px; padding:9px 18px; font-size:13.5px; font-weight:700;">✔ Confirmar que vi</button>`}
+        <div style="font-size:12.5px; color:var(--green); font-weight:600;">✔ Recebido</div>
       </div>
     `;
     main.appendChild(card);
-    if(!a.confirmado_em){
-      card.querySelector("[data-confirm-aviso]").onclick = (ev)=>confirmarAviso(a.id, ev.target);
-    }
   });
 
   const today = todayStr();
