@@ -83,26 +83,6 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="checklistMesSection" style="display:none;"></div>
   <div id="rankingLojasSection" style="display:none;"></div>
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
-
-  <div class="sec-label">Apps</div>
-  <a class="card" href="CoreJoint_Reportes.html">
-    <div class="icon">📸</div>
-    <div style="flex:1;"><div class="ct">Reportes</div><div class="cd">Vitrine, vendas e inventário por loja</div></div>
-    <span id="badge-reportes"></span>
-    <div class="arrow">›</div>
-  </a>
-  <a class="card" href="CoreJoint_Fardamento.html">
-    <div class="icon">👕</div>
-    <div style="flex:1;"><div class="ct">Fardamento</div><div class="cd">Stock nos 3 polos, saídas e alertas</div></div>
-    <span id="badge-fardamento"></span>
-    <div class="arrow">›</div>
-  </a>
-  <a class="card" href="CoreJoint_Adendas.html">
-    <div class="icon">📋</div>
-    <div style="flex:1;"><div class="ct">RH</div><div class="cd">Controlo de impressão, entrega e assinatura</div></div>
-    <span id="badge-adendas"></span>
-    <div class="arrow">›</div>
-  </a>
 </div>
 <script>
 function toggleDark(){
@@ -785,7 +765,7 @@ function semanaKey(d){
     section.innerHTML = `<div class="all-clear">✔ Tudo em dia — nada precisa da tua atenção agora.</div>`;
     return;
   }
-  section.innerHTML = `<div style="text-align:center; font-size:.8rem; color:var(--t2); margin-bottom:14px;">${attn.length} coisa${attn.length>1?'s':''} a precisar de atenção — toca numa app abaixo para ver.</div>`;
+  section.innerHTML = `<div style="text-align:center; font-size:.8rem; color:var(--t2); margin-bottom:14px;">${attn.length} coisa${attn.length>1?'s':''} a precisar de atenção — toca num dos quadrados acima para ver.</div>`;
 })();
 
 if('serviceWorker' in navigator){
