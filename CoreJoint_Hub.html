@@ -83,6 +83,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="checklistMesSection" style="display:none;"></div>
   <div id="rankingLojasSection" style="display:none;"></div>
   <div id="fichaLojaSection" style="display:none;"></div>
+  <div id="avisosDadosSection" style="display:none;"></div>
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
 </div>
 <script>
@@ -770,6 +771,44 @@ function semanaKey(d){
     };
   }catch(e){ console.error(e); }
 
+  try{
+    const seteDiasAtrasAv = new Date(Date.now()-7*86400000).toISOString();
+    const avisosRecentes = await api(`cj_avisos?select=*&criado_em=gte.${seteDiasAtrasAv}&order=criado_em.desc&limit=100`);
+    const porVer = avisosRecentes.filter(a=>!a.confirmado_em);
+    const vistos = avisosRecentes.filter(a=>a.confirmado_em);
+    const TIPO_AVISO_LABELS_HUB = {
+      vitrine_manha:"Vitrine — Manhã", vitrine_almoco:"Vitrine — Almoço", vitrine_lanche:"Vitrine — Lanche", vendas:"Vendas",
+      inv_raspadinhas:"JSC", inv_laranja:"Laranja", inv_cafe:"Café", inv_tabaco:"Tabaco", inv_global:"Global",
+      inv_cavalete:"Cavalete", inv_toalhetes:"Toalhetes", inv_orelhas:"Orelhas", inv_horarios:"Horários",
+      inv_preventiva_delta:"Preventiva Delta", inv_aps:"APS", outro:"Outro"
+    };
+
+    let htmlAv = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Avisos dados (7 dias)</span>
+      <a href="CoreJoint_Reportes.html?ferramentas=1" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Ver tudo →</a>
+    </div>`;
+    if(avisosRecentes.length===0){
+      htmlAv += `<div class="all-clear" style="margin-bottom:14px;">Sem avisos nos últimos 7 dias.</div>`;
+    } else {
+      htmlAv += `<div style="display:flex; gap:8px; margin-bottom:10px;">
+        <div class="sc" style="flex:1; text-align:center;"><div class="slb">Por ver</div><div class="svl ${porVer.length>0?'cr':'cg'}">${porVer.length}</div></div>
+        <div class="sc" style="flex:1; text-align:center;"><div class="slb">Já vistos</div><div class="svl cg">${vistos.length}</div></div>
+      </div>`;
+      if(porVer.length>0){
+        htmlAv += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
+        porVer.slice(0,8).forEach(a=>{
+          const label = TIPO_AVISO_LABELS_HUB[a.tipo] || a.tipo;
+          htmlAv += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 2px; border-bottom:1px solid var(--br);">
+            <span style="font-size:.82rem;"><b>${a.loja||'Gestão'}</b> · ${label}</span>
+            <span style="font-size:.68rem; color:var(--t3);">${new Date(a.criado_em).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}</span>
+          </div>`;
+        });
+        htmlAv += `</div>`;
+      }
+    }
+    document.getElementById("avisosDadosSection").innerHTML = htmlAv;
+  }catch(e){ console.error(e); }
+
   document.getElementById("toggleTilesGrid").innerHTML = `
     <button data-toggle-secao="painelLojasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📋 Painel de gestão <span class="chev-toggle" style="float:right;">▾</span></div>
@@ -802,6 +841,10 @@ function semanaKey(d){
     <button data-toggle-secao="fichaLojaSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">🏪 Ficha da Loja <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Escolher loja</div>
+    </button>
+    <button data-toggle-secao="avisosDadosSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">📢 Avisos dados <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Vistos e por ver</div>
     </button>
   `;
   document.querySelectorAll("[data-toggle-secao]").forEach(btn=>{
@@ -843,7 +886,7 @@ async function verificarAtualizacao(){
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
       const overlayAberto = document.querySelector(".overlay");
-      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","fotosRecentesSection","checklistMesSection","rankingLojasSection","fichaLojaSection"]
+      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","fotosRecentesSection","checklistMesSection","rankingLojasSection","fichaLojaSection","avisosDadosSection"]
         .some(id=>{ const el = document.getElementById(id); return el && el.style.display !== "none"; });
       if(!overlayAberto && !secoesAbertas){
         location.reload();
