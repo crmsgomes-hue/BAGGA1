@@ -127,6 +127,7 @@ const MARKETING_CATS = [
   {key:"aps", label:"APS", freq:"mensal_dia20", semFoto:true}
 ];
 // Exceções conhecidas por loja (ajustar à medida que se confirma mais informação)
+const LOJAS = ["Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim","Carregado","Ponte de Sor","Torres MCH","Torres MH"];
 const JSC_LOJAS = ["Almeirim", "Ponte de Sor"]; // só estas confirmadas com JSC por agora
 const TABACO_EXCLUIR = ["Caldas da Rainha"]; // não tem tabaco
 function categoriasParaLoja(loja){
@@ -139,7 +140,7 @@ function categoriasParaLoja(loja){
 
 const params = new URLSearchParams(location.search);
 const currentLoja = params.get("loja") || "Loja não identificada";
-let dailyRows = [], invRows = [], agendamentos = [], agendamentosTabaco = [], sondagensPendentes = [], formulariosPendentes = [], avisosPendentes = [], naoAplicaveis = [], quebrasPendentes = [], formsJaPreenchido = false, formsLegionelaJaPreenchido = false;
+let dailyRows = [], invRows = [], agendamentos = [], agendamentosTabaco = [], sondagensPendentes = [], formulariosPendentes = [], avisosPendentes = [], naoAplicaveis = [], quebrasPendentes = [], formsJaPreenchido = false, formsLegionelaJaPreenchido = false, minhasRespostasSondagens = [], sondagensRespondidas = [];
 let pendingPhotos = [];
 window.addEventListener("beforeunload", function(e){
   if(pendingPhotos.length>0){
@@ -414,9 +415,14 @@ async function loadAll(){
     naoAplicaveis = naoAplicaveisRows.map(r=>r.categoria);
     const todasSondagens = await api("GET", "cj_sondagens?select=*&ativa=eq.true");
     const minhasRespostas = await api("GET", `cj_sondagens_respostas?select=*${f}`);
+    minhasRespostasSondagens = minhasRespostas;
     sondagensPendentes = todasSondagens.filter(s=>
       (!s.loja_alvo || s.loja_alvo===currentLoja) &&
       !minhasRespostas.some(r=>r.sondagem_id===s.id)
+    );
+    sondagensRespondidas = todasSondagens.filter(s=>
+      (!s.loja_alvo || s.loja_alvo===currentLoja) &&
+      minhasRespostas.some(r=>r.sondagem_id===s.id)
     );
     const todosFormularios = await api("GET", "cj_formularios?select=*&ativa=eq.true");
     const minhasRespostasForm = await api("GET", `cj_formularios_respostas?select=*${f}`);
@@ -480,6 +486,28 @@ function render(){
       btn.onclick = ()=>responderSondagem(s.id, btn.getAttribute("data-op"));
     });
     main.appendChild(card);
+  });
+
+  sondagensRespondidas.forEach(s=>{
+    const minhaResposta = minhasRespostasSondagens.find(r=>r.sondagem_id===s.id);
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.cssText = "border-left:4px solid var(--line); padding:16px 18px;";
+    card.innerHTML = `
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <div style="width:34px; height:34px; border-radius:50%; background:var(--line); color:var(--ink-soft); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">✔</div>
+        <div>
+          <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:700;">Já respondida</div>
+          <div style="font-weight:700; font-size:15.5px; color:var(--ink);">${s.pergunta}</div>
+        </div>
+      </div>
+      <div style="padding-left:44px;">
+        <div style="font-size:13px; color:var(--ink-soft); margin-bottom:8px;">A tua resposta: <b style="color:var(--ink);">${minhaResposta ? minhaResposta.opcao : '—'}</b></div>
+        <button data-editar-sond="${s.id}" style="background:none; border:1px solid var(--line); color:var(--ink-soft); border-radius:10px; padding:8px 14px; font-size:13px; font-weight:600;">✏️ Editar resposta</button>
+      </div>
+    `;
+    main.appendChild(card);
+    card.querySelector("[data-editar-sond]").onclick = ()=>abrirEditarRespostaSondagem(s);
   });
 
   formulariosPendentes.forEach(fm=>{
@@ -1391,10 +1419,59 @@ async function responderSondagem(sondagemId, opcao){
   try{
     await api("POST", "cj_sondagens_respostas", {sondagem_id: sondagemId, loja: currentLoja, opcao});
     mostrarSucesso("Resposta enviada!");
+    const sondagemAtual = await api("GET", `cj_sondagens?select=*&id=eq.${sondagemId}`);
+    if(sondagemAtual[0]){
+      const lojasAlvo = sondagemAtual[0].loja_alvo ? [sondagemAtual[0].loja_alvo] : LOJAS;
+      const todasRespostas = await api("GET", `cj_sondagens_respostas?select=loja&sondagem_id=eq.${sondagemId}`);
+      const lojasResponderam = todasRespostas.map(r=>r.loja);
+      const todasResponderam = lojasAlvo.every(l=>lojasResponderam.includes(l));
+      if(todasResponderam){
+        await api("PATCH", `cj_sondagens?id=eq.${sondagemId}`, {ativa:false});
+      }
+    }
     await loadAll();
   }catch(e){
     console.error(e);
     toast("Erro ao responder: " + (e.message||e).slice(0,100));
+  }
+}
+
+function abrirEditarRespostaSondagem(s){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "editarSondOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>${s.pergunta}</h2>
+      <div class="sub">Escolhe a nova resposta.</div>
+      <div id="editarSondOpcoes" style="display:flex; flex-direction:column; gap:8px; margin-top:12px;"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('editarSondOverlay').remove()">Cancelar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const opcoesWrap = document.getElementById("editarSondOpcoes");
+  s.opcoes.forEach(op=>{
+    const btn = document.createElement("button");
+    btn.style.cssText = "background:var(--cream); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:11px; font-size:14px; font-weight:600; text-align:left;";
+    btn.textContent = op;
+    btn.onclick = async ()=>{
+      await editarRespostaSondagem(s.id, op);
+      document.getElementById("editarSondOverlay").remove();
+    };
+    opcoesWrap.appendChild(btn);
+  });
+}
+
+async function editarRespostaSondagem(sondagemId, opcao){
+  try{
+    await api("PATCH", `cj_sondagens_respostas?sondagem_id=eq.${sondagemId}&loja=eq.${encodeURIComponent(currentLoja)}`, {opcao});
+    mostrarSucesso("Resposta atualizada!");
+    await loadAll();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao atualizar: " + (e.message||e).slice(0,100));
   }
 }
 
