@@ -3339,6 +3339,119 @@ async function corrigirLojaQuebra(id){
   }
 }
 
+async function abrirRelatorioIntegridade(){
+  currentView = abrirRelatorioIntegridade;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const h = document.createElement("h2");
+  h.textContent = "🕵️ Relatório de Integridade";
+  main.appendChild(h);
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  sub.style.marginBottom = "14px";
+  sub.textContent = "Deteta automaticamente padrões suspeitos, sem precisares de vigiar tudo manualmente.";
+  main.appendChild(sub);
+
+  const seteDiasAtras = isoDate(new Date(Date.now()-7*86400000));
+  const dailyRecente = await api("GET", `cj_daily_reportes?select=*&data=gte.${seteDiasAtras}&order=criado_em.asc`);
+
+  // Deteção 1: várias submissões diferentes no mesmo dia/loja muito próximas no tempo (< 5 min entre elas)
+  const suspeitosBloco = [];
+  const porLojaData = {};
+  dailyRecente.forEach(r=>{
+    const chave = `${r.loja}|${r.data}`;
+    (porLojaData[chave] ||= []).push(r);
+  });
+  Object.entries(porLojaData).forEach(([chave, rows])=>{
+    if(rows.length<2) return;
+    const [loja, data] = chave.split("|");
+    const ordenadas = rows.sort((a,b)=> new Date(a.criado_em)-new Date(b.criado_em));
+    for(let i=1;i<ordenadas.length;i++){
+      const diffMin = (new Date(ordenadas[i].criado_em) - new Date(ordenadas[i-1].criado_em)) / 60000;
+      if(diffMin < 5){
+        suspeitosBloco.push({loja, data, tipos: `${ordenadas[i-1].tipo}${ordenadas[i-1].turno!=='unico'?' ('+ordenadas[i-1].turno+')':''} → ${ordenadas[i].tipo}${ordenadas[i].turno!=='unico'?' ('+ordenadas[i].turno+')':''}`, minutos: diffMin.toFixed(1)});
+      }
+    }
+  });
+
+  // Deteção 2: fotos repetidas (mesmo tamanho de ficheiro em base64) usadas em dias diferentes, mesma loja
+  const suspeitosFotoRepetida = [];
+  const fotosPorLoja = {};
+  dailyRecente.forEach(r=>{
+    (r.fotos||[]).forEach(f=>{
+      const url = typeof f==="string" ? f : f.url;
+      if(!url) return;
+      (fotosPorLoja[r.loja] ||= []).push({url, data:r.data, tipo:r.tipo, turno:r.turno});
+    });
+  });
+  Object.entries(fotosPorLoja).forEach(([loja, fotos])=>{
+    for(let i=0;i<fotos.length;i++){
+      for(let j=i+1;j<fotos.length;j++){
+        if(fotos[i].url===fotos[j].url && fotos[i].data!==fotos[j].data){
+          suspeitosFotoRepetida.push({loja, data1:fotos[i].data, data2:fotos[j].data, tipo:fotos[i].tipo});
+        }
+      }
+    }
+  });
+
+  // Deteção 3: histórico de incidentes já registados manualmente
+  const incidentes = await api("GET", `cj_incidentes_integridade?select=*&order=criado_em.desc&limit=30`);
+
+  let html = "";
+  html += `<div style="font-size:12px; font-weight:700; color:var(--red); text-transform:uppercase; letter-spacing:.05em; margin:14px 0 8px;">⏱️ Envios em bloco (menos de 5 min entre tarefas diferentes)</div>`;
+  if(suspeitosBloco.length===0){
+    html += `<div class="empty" style="margin-bottom:14px;">Nada suspeito nos últimos 7 dias.</div>`;
+  } else {
+    suspeitosBloco.forEach(s=>{
+      html += `<div class="card" style="border-left:3px solid var(--red);"><b>${s.loja}</b> · ${new Date(s.data+"T00:00:00").toLocaleDateString('pt-PT')}<br><span style="font-size:12.5px; color:var(--ink-soft);">${s.tipos} — só ${s.minutos} min de diferença</span></div>`;
+    });
+  }
+
+  html += `<div style="font-size:12px; font-weight:700; color:var(--red); text-transform:uppercase; letter-spacing:.05em; margin:18px 0 8px;">🔁 Fotos repetidas em dias diferentes</div>`;
+  if(suspeitosFotoRepetida.length===0){
+    html += `<div class="empty" style="margin-bottom:14px;">Nenhuma foto repetida detetada.</div>`;
+  } else {
+    suspeitosFotoRepetida.forEach(s=>{
+      html += `<div class="card" style="border-left:3px solid var(--red);"><b>${s.loja}</b> · ${s.tipo}<br><span style="font-size:12.5px; color:var(--ink-soft);">Mesma foto usada em ${new Date(s.data1+"T00:00:00").toLocaleDateString('pt-PT')} e ${new Date(s.data2+"T00:00:00").toLocaleDateString('pt-PT')}</span></div>`;
+    });
+  }
+
+  html += `<div style="font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin:18px 0 8px;">📋 Incidentes registados manualmente</div>`;
+  if(incidentes.length===0){
+    html += `<div class="empty">Nenhum incidente registado.</div>`;
+  } else {
+    incidentes.forEach(inc=>{
+      html += `<div class="card"><b>${inc.loja}</b> · ${new Date(inc.data+"T00:00:00").toLocaleDateString('pt-PT')}<br><span style="font-size:12.5px; color:var(--ink-soft);">${inc.descricao}</span></div>`;
+    });
+  }
+
+  main.innerHTML += html;
+
+  const exportBtn = document.createElement("button");
+  exportBtn.className = "cambtn";
+  exportBtn.style.cssText = "width:100%; margin-top:16px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-weight:700;";
+  exportBtn.textContent = "📄 Exportar relatório";
+  exportBtn.onclick = ()=>{
+    let reportHtml = `<h1>CoreJoint · Relatório de Integridade</h1><div style="font-size:8px; color:#555; margin-bottom:8px;">Últimos 7 dias · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
+    reportHtml += `<h2>Envios em bloco</h2><table><tr><th>Loja</th><th>Data</th><th>Tarefas</th><th>Minutos</th></tr>`;
+    suspeitosBloco.forEach(s=>{ reportHtml += `<tr><td class="name">${s.loja}</td><td>${s.data}</td><td>${s.tipos}</td><td>${s.minutos}</td></tr>`; });
+    reportHtml += `</table><h2>Fotos repetidas</h2><table><tr><th>Loja</th><th>Tipo</th><th>Data 1</th><th>Data 2</th></tr>`;
+    suspeitosFotoRepetida.forEach(s=>{ reportHtml += `<tr><td class="name">${s.loja}</td><td>${s.tipo}</td><td>${s.data1}</td><td>${s.data2}</td></tr>`; });
+    reportHtml += `</table><h2>Incidentes registados</h2><table><tr><th>Loja</th><th>Data</th><th>Descrição</th></tr>`;
+    incidentes.forEach(inc=>{ reportHtml += `<tr><td class="name">${inc.loja}</td><td>${inc.data}</td><td>${inc.descricao}</td></tr>`; });
+    reportHtml += `</table>`;
+    mostrarAcoesRelatorio(reportHtml, `CoreJoint_integridade_${todayStr()}.pdf`);
+  };
+  main.appendChild(exportBtn);
+}
+
 async function gerarRelatorioSemanalQuebras(){
   const seteDiasAtras = isoDate(new Date(Date.now()-7*86400000));
   const rows = await api("GET", "cj_quebras_reportes?select=*&order=data.desc&limit=500");
@@ -3924,7 +4037,8 @@ function renderGestao(){
         {icon:"🖨️", label:"Relatório PDF (semanal)", fn:generateWeeklyReport},
         {icon:"📦", label:"Relatório de Inventário (semanal)", fn:generateWeeklyInventoryReport},
         {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport},
-        {icon:"📅", label:"Histórico 12m", fn:openHistoricoAnual}
+        {icon:"📅", label:"Histórico 12m", fn:openHistoricoAnual},
+        {icon:"🕵️", label:"Relatório de Integridade", fn:abrirRelatorioIntegridade}
       ])}
     ]},
     {titulo:"Comunicação com lojas", itens:[
@@ -3966,7 +4080,7 @@ function renderGestao(){
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
-    manualEntry: openManualEntry, apresentacao: openModoApresentacao
+    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade
   };
 
   const toolsBtn = document.createElement("button");
