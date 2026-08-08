@@ -746,7 +746,7 @@ async function loadAll(){
     invRows = await api("GET", `cj_inventario_reportes?select=*${lojaFilter}&order=data.desc&limit=5000`);
     agendamentos = await api("GET", `cj_global_agendamento?select=*${lojaFilter}`);
     naoAplicaveis = await api("GET", "cj_categoria_nao_aplicavel?select=*");
-    currentView();
+    if(!window._formEmEdicao) currentView();
   }catch(e){ console.error(e); toast("Erro a carregar dados"); }
 }
 
@@ -883,6 +883,7 @@ function turnoSquareState(done, horaLimite){
 /* ---------- RENDER: LOJA ---------- */
 function render(){
   currentView = render;
+  window._formEmEdicao = false;
   if(mode==="gestao"){ renderGestao(); return; }
   const main = document.getElementById("main");
   main.innerHTML = "";
@@ -1256,6 +1257,7 @@ let sondagemLojaAlvo = "";
 
 async function openSondagens(){
   currentView = openSondagens;
+  window._formEmEdicao = true;
   const main = document.getElementById("main");
   main.innerHTML = "";
   const back = document.createElement("button");
@@ -1409,6 +1411,7 @@ let formPerguntas = [];
 
 async function openFormularios(){
   currentView = openFormularios;
+  window._formEmEdicao = true;
   const main = document.getElementById("main");
   main.innerHTML = "";
   const back = document.createElement("button");
@@ -3006,6 +3009,7 @@ let manualFotoEntrada = null;
 let manualFotoDesperdicio = null;
 function openImportarQuebras(){
   currentView = openImportarQuebras;
+  window._formEmEdicao = true;
   const main = document.getElementById("main");
   main.innerHTML = "";
   const back = document.createElement("button");
