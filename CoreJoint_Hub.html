@@ -80,6 +80,8 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="valoresInventarioSection" style="display:none;"></div>
 
   <div id="fotosRecentesSection" style="display:none;"></div>
+  <div id="checklistMesSection" style="display:none;"></div>
+  <div id="rankingLojasSection" style="display:none;"></div>
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
 
   <div class="sec-label">Apps</div>
@@ -672,6 +674,65 @@ function semanaKey(d){
     document.getElementById("valoresInventarioSection").innerHTML = htmlInv;
   }catch(e){ console.error(e); }
 
+  try{
+    const mesAtualChk = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+    const invMesChk = await api("cj_inventario_reportes?select=loja,categoria,data");
+    const naoAplicaveisChk = await api("cj_categoria_nao_aplicavel?select=loja,categoria");
+    const globalCatChk = INV_CATS.find(c=>c.key==="global");
+    const colunasChk = [globalCatChk, ...MARKETING_CATS];
+
+    let htmlChk = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Checklist do mês</span>
+      <a href="CoreJoint_Reportes.html?ferramentas=1" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Relatório completo →</a>
+    </div>`;
+    htmlChk += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
+    LOJAS.forEach(l=>{
+      const colunasLoja = colunasChk.filter(c=>!naoAplicaveisChk.some(n=>n.loja===l && n.categoria===c.key));
+      let feitas = 0;
+      colunasLoja.forEach(c=>{
+        const w = windowFor(c.freq, today);
+        if(invMesChk.some(r=>r.loja===l && r.categoria===c.key && inRange(r.data, w.start, w.end))) feitas++;
+      });
+      const total = colunasLoja.length;
+      const cor = feitas===total ? "var(--grn)" : feitas===0 ? "var(--red)" : "var(--org)";
+      htmlChk += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 2px; border-bottom:1px solid var(--br);">
+        <span style="font-size:.85rem; font-weight:700;">${l}</span>
+        <span style="font-size:.8rem; font-weight:700; color:${cor};">${feitas}/${total}</span>
+      </div>`;
+    });
+    htmlChk += `</div>`;
+    document.getElementById("checklistMesSection").innerHTML = htmlChk;
+  }catch(e){ console.error(e); }
+
+  try{
+    const invParaRanking = await api("cj_inventario_reportes?select=loja,categoria,data");
+    const naoAplicaveisRk = await api("cj_categoria_nao_aplicavel?select=loja,categoria");
+    const ranking = LOJAS.map(l=>{
+      let score = 0;
+      [...categoriasParaLoja(l), ...MARKETING_CATS].filter(c=>!naoAplicaveisRk.some(n=>n.loja===l && n.categoria===c.key)).forEach(c=>{
+        const w = windowFor(c.freq, today);
+        const feito = invParaRanking.some(r=>r.loja===l && r.categoria===c.key && inRange(r.data, w.start, w.end));
+        if(!feito) score += 3;
+      });
+      return {loja:l, score};
+    }).sort((a,b)=>a.score-b.score);
+
+    let htmlRk = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Ranking de lojas</span>
+      <a href="CoreJoint_Reportes.html?ferramentas=1" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Relatório completo →</a>
+    </div>`;
+    htmlRk += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
+    ranking.forEach((r,i)=>{
+      const medalha = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}º`;
+      htmlRk += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 2px; border-bottom:1px solid var(--br);">
+        <span style="font-size:.85rem;"><b>${medalha}</b> ${r.loja}</span>
+        <span style="font-size:.78rem; color:${r.score===0?'var(--grn)':'var(--t2)'};">${r.score===0?'✔ tudo em dia':r.score+' pts'}</span>
+      </div>`;
+    });
+    htmlRk += `</div>`;
+    document.getElementById("rankingLojasSection").innerHTML = htmlRk;
+  }catch(e){ console.error(e); }
+
   document.getElementById("toggleTilesGrid").innerHTML = `
     <button data-toggle-secao="painelLojasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📋 Painel de gestão <span class="chev-toggle" style="float:right;">▾</span></div>
@@ -692,6 +753,14 @@ function semanaKey(d){
     <button data-toggle-secao="fotosRecentesSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📸 Fotos recentes <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Por loja e envio</div>
+    </button>
+    <button data-toggle-secao="checklistMesSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">✅ Checklist do mês <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Por loja</div>
+    </button>
+    <button data-toggle-secao="rankingLojasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">🏆 Ranking de lojas <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Este mês</div>
     </button>
   `;
   document.querySelectorAll("[data-toggle-secao]").forEach(btn=>{
@@ -733,7 +802,7 @@ async function verificarAtualizacao(){
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
       const overlayAberto = document.querySelector(".overlay");
-      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","fotosRecentesSection"]
+      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","fotosRecentesSection","checklistMesSection","rankingLojasSection"]
         .some(id=>{ const el = document.getElementById(id); return el && el.style.display !== "none"; });
       if(!overlayAberto && !secoesAbertas){
         location.reload();
