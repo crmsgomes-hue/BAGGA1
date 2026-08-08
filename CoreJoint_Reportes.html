@@ -2778,6 +2778,44 @@ async function generateMonthlyReport(){
   mostrarAcoesRelatorio(html, `CoreJoint_mensal_${mesKey(new Date())}.pdf`);
 }
 
+async function gerarRelatorioFormsLegionela(){
+  const semana = semanaKey(new Date());
+  const feitos = await api("GET", `cj_forms_legionela?select=*&semana=eq.${semana}`);
+  const lojasFeitas = feitos.map(r=>r.loja);
+  const lojasFaltam = LOJAS.filter(l=>!lojasFeitas.includes(l));
+
+  let html = `<h1>CoreJoint · Formulário Legionela (semanal)</h1><div style="font-size:8px; color:#555; margin-bottom:8px;">Semana ${semana} (2ª a domingo) · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
+  html += `<table><tr><th style="text-align:left;">Loja</th><th>Estado</th><th>Preenchido em</th></tr>`;
+  LOJAS.forEach(l=>{
+    const registo = feitos.find(r=>r.loja===l);
+    html += `<tr><td class="name">${l}</td><td>${registo?'✔ Feito':'✕ Falta'}</td><td>${registo?new Date(registo.criado_em).toLocaleString('pt-PT'):'—'}</td></tr>`;
+  });
+  html += `</table>`;
+  html += `<div style="font-size:9px; color:#555; margin-top:10px;">${lojasFeitas.length}/${LOJAS.length} lojas já preencheram · ${lojasFaltam.length} por fazer</div>`;
+  mostrarAcoesRelatorio(html, `CoreJoint_formulario_legionela_${semana}.pdf`);
+}
+
+async function avisarFaltaFormsLegionela(){
+  const semana = semanaKey(new Date());
+  const feitos = await api("GET", `cj_forms_legionela?select=loja&semana=eq.${semana}`);
+  const lojasFeitas = feitos.map(r=>r.loja);
+  const lojasFaltam = LOJAS.filter(l=>!lojasFeitas.includes(l));
+  if(lojasFaltam.length===0){
+    toast("Todas as lojas já preencheram esta semana!");
+    return;
+  }
+  try{
+    for(const loja of lojasFaltam){
+      await api("POST", "cj_avisos", {loja, tipo:"outro", descricao:"Ainda não preencheste o Formulário da Legionela desta semana — não te esqueças!", criado_por: currentUser});
+      notificarLojaAviso(loja, "outro", "Ainda não preencheste o Formulário da Legionela desta semana — não te esqueças!");
+    }
+    mostrarSucesso(`Avisadas ${lojasFaltam.length} loja(s): ${lojasFaltam.join(", ")}`);
+  }catch(e){
+    console.error(e);
+    toast("Erro ao avisar: " + (e.message||e).slice(0,100));
+  }
+}
+
 async function gerarRelatorioFormsExterno(){
   const semana = semanaKey(new Date());
   const feitos = await api("GET", `cj_forms_externos?select=*&semana=eq.${semana}`);
@@ -3756,6 +3794,7 @@ function renderGestao(){
       {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport},
       {icon:"🛡️", label:"Relatório de Compliance", fn:generateComplianceReport},
       {icon:"📋", label:"Relatório do Formulário da empresa (semanal)", fn:gerarRelatorioFormsExterno},
+      {icon:"🧪", label:"Relatório do Formulário Legionela (semanal)", fn:gerarRelatorioFormsLegionela},
       {icon:"📥", label:"Excel", fn:exportarExcel},
       {icon:"📅", label:"Histórico 12m", fn:openHistoricoAnual}
     ]},
@@ -3764,7 +3803,8 @@ function renderGestao(){
       {icon:"📢", label:"Avisos dados", fn:openAvisos},
       {icon:"📊", label:"Sondagem", fn:openSondagens},
       {icon:"📝", label:"Formulário", fn:openFormularios},
-      {icon:"🔔", label:"Avisar quem falta o Formulário da empresa", fn:avisarFaltaFormsExterno}
+      {icon:"🔔", label:"Avisar quem falta o Formulário da empresa", fn:avisarFaltaFormsExterno},
+      {icon:"🔔", label:"Avisar quem falta o Formulário Legionela", fn:avisarFaltaFormsLegionela}
     ]},
     {titulo:"Visão por loja", itens:[
       {icon:"🏪", label:"Ficha da Loja", fn:openFichaGerente},
