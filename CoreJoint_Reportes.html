@@ -1298,6 +1298,16 @@ async function openSondagens(){
     <div id="sondLojasCheckboxes" style="display:none; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px; padding:10px; background:var(--cream); border-radius:10px;">
       ${LOJAS.map(l=>`<label style="display:flex; align-items:center; gap:6px; font-size:13px;"><input type="checkbox" class="sond-loja-chk" value="${l}"> ${l}</label>`).join("")}
     </div>
+    <div class="field-label" style="font-weight:600; margin:14px 0 6px;">Quando enviar</div>
+    <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13.5px;">
+      <input type="radio" name="sondQuando" id="sondQuandoAgora" checked style="width:16px; height:16px;">
+      Agora
+    </label>
+    <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13.5px;">
+      <input type="radio" name="sondQuando" id="sondQuandoData" style="width:16px; height:16px;">
+      Numa data específica
+    </label>
+    <input type="date" id="sondDataAgendada" style="display:none; width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:8px;">
     <label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:13.5px;">
       <input type="checkbox" id="sondRecorrente" style="width:18px; height:18px;">
       🔁 Repetir esta sondagem automaticamente todas as semanas
@@ -1307,6 +1317,8 @@ async function openSondagens(){
   main.appendChild(formCard);
   document.getElementById("sondAlvoAlgumas").onchange = ()=>{ document.getElementById("sondLojasCheckboxes").style.display = "grid"; };
   document.getElementById("sondAlvoTodas").onchange = ()=>{ document.getElementById("sondLojasCheckboxes").style.display = "none"; };
+  document.getElementById("sondQuandoData").onchange = ()=>{ document.getElementById("sondDataAgendada").style.display = "block"; };
+  document.getElementById("sondQuandoAgora").onchange = ()=>{ document.getElementById("sondDataAgendada").style.display = "none"; };
 
   const chipsWrap = formCard.querySelector("#sondOpcoesChips");
   function renderOpcoes(){
@@ -1396,23 +1408,34 @@ async function criarSondagem(){
   const pergunta = document.getElementById("sondPergunta").value.trim();
   const todasSelecionadas = document.getElementById("sondAlvoTodas").checked;
   const lojasEscolhidas = Array.from(document.querySelectorAll(".sond-loja-chk:checked")).map(c=>c.value);
+  const enviarNumaData = document.getElementById("sondQuandoData").checked;
+  const dataAgendada = document.getElementById("sondDataAgendada").value;
   const recorrente = document.getElementById("sondRecorrente").checked;
   if(!pergunta){ toast("Escreve a pergunta"); return; }
   if(sondagemOpcoes.length<2){ toast("Adiciona pelo menos 2 opções"); return; }
   if(!todasSelecionadas && lojasEscolhidas.length===0){ toast("Escolhe pelo menos uma loja"); return; }
+  if(enviarNumaData && !dataAgendada){ toast("Escolhe a data"); return; }
   const lojasAlvoFinal = todasSelecionadas ? null : lojasEscolhidas;
+  const lojaAlvoUnica = (lojasAlvoFinal && lojasAlvoFinal.length===1) ? lojasAlvoFinal[0] : null;
   try{
-    await api("POST", "cj_sondagens", {pergunta, opcoes: sondagemOpcoes, loja_alvo: (lojasAlvoFinal && lojasAlvoFinal.length===1) ? lojasAlvoFinal[0] : null, lojas_alvo: lojasAlvoFinal, criado_por: currentUser});
+    await api("POST", "cj_sondagens", {
+      pergunta, opcoes: sondagemOpcoes, loja_alvo: lojaAlvoUnica, lojas_alvo: lojasAlvoFinal, criado_por: currentUser,
+      ativa: !enviarNumaData,
+      data_agendada: enviarNumaData ? dataAgendada : null,
+      aviso_enviado: !enviarNumaData
+    });
     if(recorrente){
-      await api("POST", "cj_sondagens_templates", {pergunta, opcoes: sondagemOpcoes, loja_alvo: (lojasAlvoFinal && lojasAlvoFinal.length===1) ? lojasAlvoFinal[0] : null, lojas_alvo: lojasAlvoFinal, criado_por: currentUser, ultima_geracao: semanaKey(new Date())});
+      await api("POST", "cj_sondagens_templates", {pergunta, opcoes: sondagemOpcoes, loja_alvo: lojaAlvoUnica, lojas_alvo: lojasAlvoFinal, criado_por: currentUser, ultima_geracao: enviarNumaData ? null : semanaKey(new Date())});
     }
-    const lojasAlvoAviso = lojasAlvoFinal || LOJAS;
-    for(const l of lojasAlvoAviso){
-      const descricaoAviso = `Nova sondagem: "${pergunta}"`;
-      await api("POST", "cj_avisos", {loja:l, tipo:"outro", descricao:descricaoAviso, criado_por: currentUser});
-      notificarLojaAviso(l, "outro", descricaoAviso);
+    if(!enviarNumaData){
+      const lojasAlvoAviso = lojasAlvoFinal || LOJAS;
+      for(const l of lojasAlvoAviso){
+        const descricaoAviso = `Nova sondagem: "${pergunta}"`;
+        await api("POST", "cj_avisos", {loja:l, tipo:"outro", descricao:descricaoAviso, criado_por: currentUser});
+        notificarLojaAviso(l, "outro", descricaoAviso);
+      }
     }
-    mostrarSucesso(recorrente ? "Sondagem criada e vai repetir todas as semanas!" : "Sondagem criada!");
+    mostrarSucesso(enviarNumaData ? `Sondagem agendada para ${new Date(dataAgendada+"T00:00:00").toLocaleDateString('pt-PT')}!` : (recorrente ? "Sondagem criada e vai repetir todas as semanas!" : "Sondagem criada!"));
     openSondagens();
   }catch(e){
     console.error(e);
@@ -1506,11 +1529,27 @@ async function openFormularios(){
     <div id="formLojasCheckboxes" style="display:none; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px; padding:10px; background:var(--cream); border-radius:10px;">
       ${LOJAS.map(l=>`<label style="display:flex; align-items:center; gap:6px; font-size:13px;"><input type="checkbox" class="form-loja-chk" value="${l}"> ${l}</label>`).join("")}
     </div>
+    <div class="field-label" style="font-weight:600; margin:14px 0 6px;">Quando enviar</div>
+    <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13.5px;">
+      <input type="radio" name="formQuando" id="formQuandoAgora" checked style="width:16px; height:16px;">
+      Agora
+    </label>
+    <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13.5px;">
+      <input type="radio" name="formQuando" id="formQuandoData" style="width:16px; height:16px;">
+      Numa data específica
+    </label>
+    <input type="date" id="formDataAgendada" style="display:none; width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:8px;">
+    <label style="display:flex; align-items:center; gap:8px; margin-bottom:14px; font-size:13.5px;">
+      <input type="checkbox" id="formRecorrente" style="width:18px; height:18px;">
+      🔁 Repetir este formulário automaticamente todas as semanas
+    </label>
     <button class="cambtn" style="width:100%; margin-top:14px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;" id="formCriarBtn">📝 Criar e enviar formulário</button>
   `;
   main.appendChild(formCard);
   document.getElementById("formAlvoAlgumas").onchange = ()=>{ document.getElementById("formLojasCheckboxes").style.display = "grid"; };
   document.getElementById("formAlvoTodas").onchange = ()=>{ document.getElementById("formLojasCheckboxes").style.display = "none"; };
+  document.getElementById("formQuandoData").onchange = ()=>{ document.getElementById("formDataAgendada").style.display = "block"; };
+  document.getElementById("formQuandoAgora").onchange = ()=>{ document.getElementById("formDataAgendada").style.display = "none"; };
 
   const tipoSel = formCard.querySelector("#formNovoTipo");
   const opcoesInp = formCard.querySelector("#formNovasOpcoes");
@@ -1582,19 +1621,35 @@ async function criarFormulario(){
   const titulo = document.getElementById("formTitulo").value.trim();
   const todasSelecionadas = document.getElementById("formAlvoTodas").checked;
   const lojasEscolhidas = Array.from(document.querySelectorAll(".form-loja-chk:checked")).map(c=>c.value);
+  const enviarNumaData = document.getElementById("formQuandoData").checked;
+  const dataAgendada = document.getElementById("formDataAgendada").value;
+  const recorrente = document.getElementById("formRecorrente").checked;
   if(!titulo){ toast("Escreve o título"); return; }
   if(formPerguntas.length===0){ toast("Adiciona pelo menos 1 pergunta"); return; }
   if(!todasSelecionadas && lojasEscolhidas.length===0){ toast("Escolhe pelo menos uma loja"); return; }
+  if(enviarNumaData && !dataAgendada){ toast("Escolhe a data"); return; }
   const lojasAlvoFinal = todasSelecionadas ? null : lojasEscolhidas;
+  const lojaAlvoUnica = (lojasAlvoFinal && lojasAlvoFinal.length===1) ? lojasAlvoFinal[0] : null;
   try{
-    await api("POST", "cj_formularios", {titulo, perguntas: formPerguntas, loja_alvo: (lojasAlvoFinal && lojasAlvoFinal.length===1) ? lojasAlvoFinal[0] : null, lojas_alvo: lojasAlvoFinal, criado_por: currentUser});
-    const lojasAlvoAviso = lojasAlvoFinal || LOJAS;
-    for(const l of lojasAlvoAviso){
-      const descricaoAviso = `Novo formulário: "${titulo}"`;
-      await api("POST", "cj_avisos", {loja:l, tipo:"outro", descricao:descricaoAviso, criado_por: currentUser});
-      notificarLojaAviso(l, "outro", descricaoAviso);
+    const payload = {
+      titulo, perguntas: formPerguntas, loja_alvo: lojaAlvoUnica, lojas_alvo: lojasAlvoFinal, criado_por: currentUser,
+      ativa: !enviarNumaData, // só fica ativo já se for para enviar agora
+      data_agendada: enviarNumaData ? dataAgendada : null,
+      aviso_enviado: !enviarNumaData // se for agendado, o aviso só sai na data certa
+    };
+    await api("POST", "cj_formularios", payload);
+    if(recorrente){
+      await api("POST", "cj_formularios_templates", {titulo, perguntas: formPerguntas, loja_alvo: lojaAlvoUnica, lojas_alvo: lojasAlvoFinal, criado_por: currentUser, ultima_geracao: enviarNumaData ? null : semanaKey(new Date())});
     }
-    mostrarSucesso("Formulário criado!");
+    if(!enviarNumaData){
+      const lojasAlvoAviso = lojasAlvoFinal || LOJAS;
+      for(const l of lojasAlvoAviso){
+        const descricaoAviso = `Novo formulário: "${titulo}"`;
+        await api("POST", "cj_avisos", {loja:l, tipo:"outro", descricao:descricaoAviso, criado_por: currentUser});
+        notificarLojaAviso(l, "outro", descricaoAviso);
+      }
+    }
+    mostrarSucesso(enviarNumaData ? `Formulário agendado para ${new Date(dataAgendada+"T00:00:00").toLocaleDateString('pt-PT')}!` : "Formulário criado!");
     openFormularios();
   }catch(e){
     console.error(e);
