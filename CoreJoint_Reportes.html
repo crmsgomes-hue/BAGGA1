@@ -3339,6 +3339,92 @@ async function corrigirLojaQuebra(id){
   }
 }
 
+async function abrirPorValidar(){
+  currentView = abrirPorValidar;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const h = document.createElement("h2");
+  h.textContent = "🕐 Por validar";
+  main.appendChild(h);
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  sub.style.marginBottom = "14px";
+  sub.textContent = "Toca em ✔ para validar. Ninguém fica bloqueado à espera — isto é só para tu ou o João irem confirmando.";
+  main.appendChild(sub);
+
+  const todasCatsLabelPv = {};
+  [...INV_CATS, ...MARKETING_CATS].forEach(c=>todasCatsLabelPv[c.key]=c.label);
+  const TURNO_LABELS_PV = {manha:"Manhã", almoco:"Almoço", lanche:"Lanche", unico:""};
+
+  const dailyPorValidar = await api("GET", `cj_daily_reportes?select=*&validado_por=is.null&order=criado_em.desc&limit=100`);
+  const invPorValidar = await api("GET", `cj_inventario_reportes?select=*&validado_por=is.null&order=criado_em.desc&limit=100`);
+
+  if(dailyPorValidar.length===0 && invPorValidar.length===0){
+    main.innerHTML += `<div class="all-clear">✔ Tudo validado, nada pendente.</div>`;
+    return;
+  }
+
+  const validarTodosBtn = document.createElement("button");
+  validarTodosBtn.className = "cambtn";
+  validarTodosBtn.style.cssText = "width:100%; margin-bottom:14px; background:var(--terracotta); color:#fff; border:none; padding:11px; border-radius:10px; font-weight:700;";
+  validarTodosBtn.textContent = `✔ Validar tudo (${dailyPorValidar.length + invPorValidar.length})`;
+  validarTodosBtn.onclick = async ()=>{
+    validarTodosBtn.disabled = true;
+    validarTodosBtn.textContent = "A validar...";
+    for(const r of dailyPorValidar) await api("PATCH", `cj_daily_reportes?id=eq.${r.id}`, {validado_por: currentUser, validado_em: new Date().toISOString()});
+    for(const r of invPorValidar) await api("PATCH", `cj_inventario_reportes?id=eq.${r.id}`, {validado_por: currentUser, validado_em: new Date().toISOString()});
+    abrirPorValidar();
+  };
+  main.appendChild(validarTodosBtn);
+
+  dailyPorValidar.forEach(r=>{
+    const label = r.tipo==="vitrine" ? `Vitrine — ${TURNO_LABELS_PV[r.turno]||r.turno}` : "Vendas";
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="card-title">${r.loja}</div>
+      <div class="card-sub">${label} · ${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')} · enviado às ${new Date(r.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}</div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button data-ver-fotos style="flex:1; background:none; border:1px solid var(--line); color:var(--ink-soft); border-radius:10px; padding:9px; font-size:13px; font-weight:700;">👁️ Ver fotos</button>
+        <button data-validar style="flex:1; background:var(--green); color:#fff; border:none; border-radius:10px; padding:9px; font-size:13px; font-weight:700;">✔ Validar</button>
+      </div>
+    `;
+    main.appendChild(card);
+    card.querySelector("[data-ver-fotos]").onclick = ()=>bigPhoto((r.fotos||[]).map(f=>typeof f==="string"?f:f.url), 0);
+    card.querySelector("[data-validar]").onclick = async ()=>{
+      await api("PATCH", `cj_daily_reportes?id=eq.${r.id}`, {validado_por: currentUser, validado_em: new Date().toISOString()});
+      card.remove();
+    };
+  });
+
+  invPorValidar.forEach(r=>{
+    const label = todasCatsLabelPv[r.categoria] || r.categoria;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="card-title">${r.loja}</div>
+      <div class="card-sub">${label} · ${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')} · enviado às ${new Date(r.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}${r.valor_inventario!=null?' · '+r.valor_inventario+' €':''}</div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button data-ver-fotos style="flex:1; background:none; border:1px solid var(--line); color:var(--ink-soft); border-radius:10px; padding:9px; font-size:13px; font-weight:700;">👁️ Ver fotos</button>
+        <button data-validar style="flex:1; background:var(--green); color:#fff; border:none; border-radius:10px; padding:9px; font-size:13px; font-weight:700;">✔ Validar</button>
+      </div>
+    `;
+    main.appendChild(card);
+    card.querySelector("[data-ver-fotos]").onclick = ()=>bigPhoto((r.fotos||[]).map(f=>typeof f==="string"?f:f.url), 0);
+    card.querySelector("[data-validar]").onclick = async ()=>{
+      await api("PATCH", `cj_inventario_reportes?id=eq.${r.id}`, {validado_por: currentUser, validado_em: new Date().toISOString()});
+      card.remove();
+    };
+  });
+}
+
 async function abrirRelatorioIntegridade(){
   currentView = abrirRelatorioIntegridade;
   const main = document.getElementById("main");
@@ -4038,7 +4124,8 @@ function renderGestao(){
         {icon:"📦", label:"Relatório de Inventário (semanal)", fn:generateWeeklyInventoryReport},
         {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport},
         {icon:"📅", label:"Histórico 12m", fn:openHistoricoAnual},
-        {icon:"🕵️", label:"Relatório de Integridade", fn:abrirRelatorioIntegridade}
+        {icon:"🕵️", label:"Relatório de Integridade", fn:abrirRelatorioIntegridade},
+        {icon:"🕐", label:"Por validar", fn:abrirPorValidar}
       ])}
     ]},
     {titulo:"Comunicação com lojas", itens:[
@@ -4080,7 +4167,7 @@ function renderGestao(){
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
-    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade
+    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar
   };
 
   const toolsBtn = document.createElement("button");
