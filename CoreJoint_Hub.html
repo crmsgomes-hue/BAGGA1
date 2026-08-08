@@ -84,6 +84,8 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="rankingLojasSection" style="display:none;"></div>
   <div id="fichaLojaSection" style="display:none;"></div>
   <div id="avisosDadosSection" style="display:none;"></div>
+  <div id="fardamentoPanoramaSection" style="display:none;"></div>
+  <div id="rhPanoramaSection" style="display:none;"></div>
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
 </div>
 <script>
@@ -809,6 +811,61 @@ function semanaKey(d){
     document.getElementById("avisosDadosSection").innerHTML = htmlAv;
   }catch(e){ console.error(e); }
 
+  try{
+    const fardStockLow = await api("cj_fardamento_stock?select=*&quantidade=lt.5");
+    const fardDev = await api("cj_fardamento_devolucoes?select=*&recolhido=eq.false");
+    let htmlFd = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Fardamento</span>
+      <a href="CoreJoint_Fardamento.html" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Abrir →</a>
+    </div>`;
+    if(fardStockLow.length===0 && fardDev.length===0){
+      htmlFd += `<div class="all-clear" style="margin-bottom:14px;">✔ Stock ok, sem devoluções pendentes.</div>`;
+    } else {
+      htmlFd += `<div style="display:flex; gap:8px; margin-bottom:10px;">
+        <a href="CoreJoint_Fardamento.html" class="sc" style="text-decoration:none; display:block; flex:1;"><div class="slb">Stock baixo</div><div class="svl ${fardStockLow.length>0?'cr':'cg'}">${fardStockLow.length}</div></a>
+        <a href="CoreJoint_Fardamento.html" class="sc" style="text-decoration:none; display:block; flex:1;"><div class="slb">Devoluções</div><div class="svl ${fardDev.length>0?'cr':'cg'}">${fardDev.length}</div></a>
+      </div>`;
+      if(fardStockLow.length>0){
+        htmlFd += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
+        fardStockLow.slice(0,8).forEach(f=>{
+          htmlFd += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 2px; border-bottom:1px solid var(--br);">
+            <span style="font-size:.82rem;">${f.polo} · ${f.peca} ${f.tamanho}</span>
+            <span style="font-size:.78rem; color:var(--red); font-weight:700;">${f.quantidade}</span>
+          </div>`;
+        });
+        htmlFd += `</div>`;
+      }
+    }
+    document.getElementById("fardamentoPanoramaSection").innerHTML = htmlFd;
+  }catch(e){ console.error(e); }
+
+  try{
+    const adendasAtivasHub = await api("cj_adendas?select=*&arquivada=eq.false");
+    const porLojaAd = {};
+    adendasAtivasHub.forEach(a=>{ const l = a.loja||"Sem loja"; (porLojaAd[l] ||= []).push(a); });
+    let htmlRh = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>RH — Adendas ativas</span>
+      <a href="CoreJoint_Adendas.html" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Abrir →</a>
+    </div>`;
+    if(adendasAtivasHub.length===0){
+      htmlRh += `<div class="all-clear" style="margin-bottom:14px;">✔ Sem adendas em curso.</div>`;
+    } else {
+      htmlRh += `<div class="card" style="text-align:center; margin-bottom:10px;">
+        <div style="font-size:20px; font-weight:800;">${adendasAtivasHub.length}</div>
+        <div style="font-size:10.5px; color:var(--t2);">adendas em curso</div>
+      </div>`;
+      htmlRh += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
+      Object.keys(porLojaAd).forEach(l=>{
+        htmlRh += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 2px; border-bottom:1px solid var(--br);">
+          <span style="font-size:.85rem; font-weight:700;">${l}</span>
+          <span style="font-size:.78rem; color:var(--t2);">${porLojaAd[l].length}</span>
+        </div>`;
+      });
+      htmlRh += `</div>`;
+    }
+    document.getElementById("rhPanoramaSection").innerHTML = htmlRh;
+  }catch(e){ console.error(e); }
+
   document.getElementById("toggleTilesGrid").innerHTML = `
     <button data-toggle-secao="painelLojasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📋 Painel de gestão <span class="chev-toggle" style="float:right;">▾</span></div>
@@ -845,6 +902,14 @@ function semanaKey(d){
     <button data-toggle-secao="avisosDadosSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📢 Avisos dados <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Vistos e por ver</div>
+    </button>
+    <button data-toggle-secao="fardamentoPanoramaSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">👕 Fardamento <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Stock baixo e devoluções</div>
+    </button>
+    <button data-toggle-secao="rhPanoramaSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">📋 RH <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Adendas por loja</div>
     </button>
   `;
   document.querySelectorAll("[data-toggle-secao]").forEach(btn=>{
@@ -886,7 +951,7 @@ async function verificarAtualizacao(){
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
       const overlayAberto = document.querySelector(".overlay");
-      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","fotosRecentesSection","checklistMesSection","rankingLojasSection","fichaLojaSection","avisosDadosSection"]
+      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","fotosRecentesSection","checklistMesSection","rankingLojasSection","fichaLojaSection","avisosDadosSection","fardamentoPanoramaSection","rhPanoramaSection"]
         .some(id=>{ const el = document.getElementById(id); return el && el.style.display !== "none"; });
       if(!overlayAberto && !secoesAbertas){
         location.reload();
