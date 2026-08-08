@@ -87,6 +87,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="fardamentoPanoramaSection" style="display:none;"></div>
   <div id="rhPanoramaSection" style="display:none;"></div>
   <div id="porValidarSection" style="display:none;"></div>
+  <div id="sondagensFormsSection" style="display:none;"></div>
 
   <div id="acoesRapidasSection" style="display:none;">
     <div class="sec-label">Ações rápidas</div>
@@ -944,6 +945,33 @@ function semanaKey(d){
     document.getElementById("porValidarSection").innerHTML = htmlPv;
   }catch(e){ console.error(e); }
 
+  try{
+    const sondagensAtivas = await api("cj_sondagens?select=*&ativa=eq.true&order=criado_em.desc");
+    const formsAtivos = await api("cj_formularios?select=*&ativa=eq.true&order=criado_em.desc");
+    let htmlSf = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Sondagens e Formulários</span>
+      <a href="CoreJoint_Reportes.html?abrir=sondagem" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Ver tudo →</a>
+    </div>`;
+    if(sondagensAtivas.length===0 && formsAtivos.length===0){
+      htmlSf += `<div class="all-clear" style="margin-bottom:14px;">Nenhuma sondagem ou formulário ativo neste momento.</div>`;
+    } else {
+      htmlSf += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
+      sondagensAtivas.forEach(s=>{
+        htmlSf += `<a href="CoreJoint_Reportes.html?abrir=sondagem" style="display:block; padding:8px 2px; border-bottom:1px solid var(--br); text-decoration:none; color:var(--tx);">
+          <span style="font-size:.82rem; font-weight:600;">📊 ${s.pergunta.length>50?s.pergunta.slice(0,50)+'…':s.pergunta}</span>
+        </a>`;
+      });
+      formsAtivos.forEach(f=>{
+        htmlSf += `<a href="CoreJoint_Reportes.html?abrir=formulario" style="display:block; padding:8px 2px; border-bottom:1px solid var(--br); text-decoration:none; color:var(--tx);">
+          <span style="font-size:.82rem; font-weight:600;">📝 ${f.titulo.length>50?f.titulo.slice(0,50)+'…':f.titulo}</span>
+        </a>`;
+      });
+      htmlSf += `</div>
+      <div style="font-size:.7rem; color:var(--t2); margin-top:6px;">Toca para ver respostas, faltam-a-responder, e exportar PDF/Excel.</div>`;
+    }
+    document.getElementById("sondagensFormsSection").innerHTML = htmlSf;
+  }catch(e){ console.error(e); }
+
   document.getElementById("toggleTilesGrid").innerHTML = `
     <button data-toggle-secao="painelLojasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📋 Painel de gestão <span class="chev-toggle" style="float:right;">▾</span></div>
@@ -973,7 +1001,7 @@ function semanaKey(d){
       <div class="slb">🏆 Ranking de lojas <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Este mês</div>
     </button>
-    <button id="btnToggleFichaLoja" onclick="const el=document.getElementById('fichaLojaSection'); const ab=el.style.display==='none'; document.querySelectorAll('[data-toggle-secao]').forEach(function(b){ const s=document.getElementById(b.dataset.toggleSecao); if(s && s!==el) s.style.display='none'; }); el.style.display= ab?'block':'none'; this.querySelector('.chev-toggle').textContent = ab?'▴':'▾';" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button data-toggle-secao="fichaLojaSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">🏪 Ficha da Loja <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Escolher loja</div>
     </button>
@@ -992,6 +1020,10 @@ function semanaKey(d){
     <button data-toggle-secao="porValidarSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">🕐 Por validar <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Confirmar envios</div>
+    </button>
+    <button data-toggle-secao="sondagensFormsSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">📊 Sondagens/Forms <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Resultados e relatórios</div>
     </button>
     <button data-toggle-secao="acoesRapidasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">⚡ Ações rápidas <span class="chev-toggle" style="float:right;">▾</span></div>
@@ -1037,7 +1069,7 @@ async function verificarAtualizacao(){
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
       const overlayAberto = document.querySelector(".overlay");
-      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","fotosRecentesSection","checklistMesSection","rankingLojasSection","fichaLojaSection","avisosDadosSection","fardamentoPanoramaSection","rhPanoramaSection","acoesRapidasSection","porValidarSection"]
+      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","fotosRecentesSection","checklistMesSection","rankingLojasSection","fichaLojaSection","avisosDadosSection","fardamentoPanoramaSection","rhPanoramaSection","acoesRapidasSection","porValidarSection","sondagensFormsSection"]
         .some(id=>{ const el = document.getElementById(id); return el && el.style.display !== "none"; });
       if(!overlayAberto && !secoesAbertas){
         location.reload();
