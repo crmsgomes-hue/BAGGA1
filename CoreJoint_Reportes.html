@@ -1495,13 +1495,22 @@ async function openFormularios(){
       <button class="cambtn secondary" style="width:100%;" id="formAddPerguntaBtn">+ Adicionar pergunta</button>
     </div>
     <div class="field-label" style="font-weight:600; margin:14px 0 6px;">A quem se destina</div>
-    <select id="formLojaAlvo" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);">
-      <option value="">Todas as lojas</option>
-      ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
-    </select>
+    <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13.5px;">
+      <input type="radio" name="formTipoAlvo" id="formAlvoTodas" checked style="width:16px; height:16px;">
+      Todas as lojas
+    </label>
+    <label style="display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:13.5px;">
+      <input type="radio" name="formTipoAlvo" id="formAlvoAlgumas" style="width:16px; height:16px;">
+      Escolher lojas específicas
+    </label>
+    <div id="formLojasCheckboxes" style="display:none; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px; padding:10px; background:var(--cream); border-radius:10px;">
+      ${LOJAS.map(l=>`<label style="display:flex; align-items:center; gap:6px; font-size:13px;"><input type="checkbox" class="form-loja-chk" value="${l}"> ${l}</label>`).join("")}
+    </div>
     <button class="cambtn" style="width:100%; margin-top:14px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;" id="formCriarBtn">📝 Criar e enviar formulário</button>
   `;
   main.appendChild(formCard);
+  document.getElementById("formAlvoAlgumas").onchange = ()=>{ document.getElementById("formLojasCheckboxes").style.display = "grid"; };
+  document.getElementById("formAlvoTodas").onchange = ()=>{ document.getElementById("formLojasCheckboxes").style.display = "none"; };
 
   const tipoSel = formCard.querySelector("#formNovoTipo");
   const opcoesInp = formCard.querySelector("#formNovasOpcoes");
@@ -1571,11 +1580,20 @@ async function openFormularios(){
 
 async function criarFormulario(){
   const titulo = document.getElementById("formTitulo").value.trim();
-  const loja = document.getElementById("formLojaAlvo").value;
+  const todasSelecionadas = document.getElementById("formAlvoTodas").checked;
+  const lojasEscolhidas = Array.from(document.querySelectorAll(".form-loja-chk:checked")).map(c=>c.value);
   if(!titulo){ toast("Escreve o título"); return; }
   if(formPerguntas.length===0){ toast("Adiciona pelo menos 1 pergunta"); return; }
+  if(!todasSelecionadas && lojasEscolhidas.length===0){ toast("Escolhe pelo menos uma loja"); return; }
+  const lojasAlvoFinal = todasSelecionadas ? null : lojasEscolhidas;
   try{
-    await api("POST", "cj_formularios", {titulo, perguntas: formPerguntas, loja_alvo: loja || null, criado_por: currentUser});
+    await api("POST", "cj_formularios", {titulo, perguntas: formPerguntas, loja_alvo: (lojasAlvoFinal && lojasAlvoFinal.length===1) ? lojasAlvoFinal[0] : null, lojas_alvo: lojasAlvoFinal, criado_por: currentUser});
+    const lojasAlvoAviso = lojasAlvoFinal || LOJAS;
+    for(const l of lojasAlvoAviso){
+      const descricaoAviso = `Novo formulário: "${titulo}"`;
+      await api("POST", "cj_avisos", {loja:l, tipo:"outro", descricao:descricaoAviso, criado_por: currentUser});
+      notificarLojaAviso(l, "outro", descricaoAviso);
+    }
     mostrarSucesso("Formulário criado!");
     openFormularios();
   }catch(e){
