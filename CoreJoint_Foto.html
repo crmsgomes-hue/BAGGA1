@@ -410,11 +410,6 @@ async function loadAll(){
     agendamentos = await api("GET", `cj_global_agendamento?select=*${f}`);
     agendamentosTabaco = await api("GET", `cj_tabaco_agendamento?select=*${f}`);
     quebrasPendentes = await api("GET", `cj_quebras_reportes?select=*${f}&justificacao=is.null&order=data.desc`);
-    const semanaAtualForm = semanaKey(new Date());
-    const formsRows = await api("GET", `cj_forms_externos?select=*${f}&semana=eq.${semanaAtualForm}`);
-    formsJaPreenchido = formsRows.length > 0;
-    const formsLegionelaRows = await api("GET", `cj_forms_legionela?select=*${f}&semana=eq.${semanaAtualForm}`);
-    formsLegionelaJaPreenchido = formsLegionelaRows.length > 0;
     const naoAplicaveisRows = await api("GET", `cj_categoria_nao_aplicavel?select=categoria${f}`);
     naoAplicaveis = naoAplicaveisRows.map(r=>r.categoria);
     const todasSondagens = await api("GET", "cj_sondagens?select=*&ativa=eq.true");
@@ -506,50 +501,6 @@ function render(){
     card.querySelector("button").onclick = ()=>abrirFormularioResposta(fm);
     main.appendChild(card);
   });
-
-  const FORMS_EXTERNO_URL = "https://forms.office.com/Pages/ResponsePage.aspx?id=2qhXV3cE1Ea8irD-q9zHGqGw2g6kuZBGo5h7T2erwmlUOFVMU1lZVjhGNVYzTEVIM1Y2TVZBSVZPMSQlQCN0PWcu";
-  if(!formsJaPreenchido){
-    const formCard = document.createElement("div");
-    formCard.className = "card";
-    formCard.style.cssText = "border-left:4px solid var(--terracotta); padding:16px 18px;";
-    formCard.innerHTML = `
-      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-        <div style="width:34px; height:34px; border-radius:50%; background:var(--terracotta); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">📋</div>
-        <div>
-          <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--terracotta); font-weight:700;">Formulário da empresa</div>
-          <div style="font-weight:700; font-size:15px; color:var(--ink);">A preencher esta semana</div>
-        </div>
-      </div>
-      <div style="padding-left:44px; display:flex; gap:8px;">
-        <a href="${FORMS_EXTERNO_URL}" target="_blank" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta); color:var(--terracotta); border-radius:10px; padding:9px; font-size:13.5px; font-weight:700; text-decoration:none;">Abrir formulário</a>
-        <button id="formsJaPreenchiBtn" style="flex:1; background:var(--terracotta); color:#fff; border:none; border-radius:10px; padding:9px; font-size:13.5px; font-weight:700;">✔ Já preenchi</button>
-      </div>
-    `;
-    main.appendChild(formCard);
-    formCard.querySelector("#formsJaPreenchiBtn").onclick = marcarFormsPreenchido;
-  }
-
-  const FORMS_LEGIONELA_URL = "https://forms.office.com/Pages/ResponsePage.aspx?id=2qhXV3cE1Ea8irD-q9zHGqGw2g6kuZBGo5h7T2erwmlUOFVMU1lZVjhGNVYzTEVIM1Y2TVZBSVZPMSQlQCN0PWcu"; // ⚠ link temporário — pedir o link correto da Legionela
-  if(!formsLegionelaJaPreenchido){
-    const formLegCard = document.createElement("div");
-    formLegCard.className = "card";
-    formLegCard.style.cssText = "border-left:4px solid var(--terracotta); padding:16px 18px;";
-    formLegCard.innerHTML = `
-      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-        <div style="width:34px; height:34px; border-radius:50%; background:var(--terracotta); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">🧪</div>
-        <div>
-          <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--terracotta); font-weight:700;">Formulário Legionela</div>
-          <div style="font-weight:700; font-size:15px; color:var(--ink);">A preencher esta semana</div>
-        </div>
-      </div>
-      <div style="padding-left:44px; display:flex; gap:8px;">
-        <a href="${FORMS_LEGIONELA_URL}" target="_blank" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta); color:var(--terracotta); border-radius:10px; padding:9px; font-size:13.5px; font-weight:700; text-decoration:none;">Abrir formulário</a>
-        <button id="formsLegionelaJaPreenchiBtn" style="flex:1; background:var(--terracotta); color:#fff; border:none; border-radius:10px; padding:9px; font-size:13.5px; font-weight:700;">✔ Já preenchi</button>
-      </div>
-    `;
-    main.appendChild(formLegCard);
-    formLegCard.querySelector("#formsLegionelaJaPreenchiBtn").onclick = marcarFormsLegionelaPreenchido;
-  }
 
   quebrasPendentes.forEach(q=>{
     const card = document.createElement("div");
@@ -1074,30 +1025,6 @@ async function marcarSemFoto(key, label){
   }catch(e){
     console.error(e);
     toast("Erro ao confirmar: " + (e.message||e).slice(0,100));
-  }
-}
-
-async function marcarFormsPreenchido(){
-  try{
-    const semana = semanaKey(new Date());
-    await api("POST", "cj_forms_externos", {loja: currentLoja, semana});
-    toast("✔ Registado, obrigado!");
-    await loadAll();
-  }catch(e){
-    console.error(e);
-    toast("Erro ao registar: " + (e.message||e).slice(0,100));
-  }
-}
-
-async function marcarFormsLegionelaPreenchido(){
-  try{
-    const semana = semanaKey(new Date());
-    await api("POST", "cj_forms_legionela", {loja: currentLoja, semana});
-    toast("✔ Registado, obrigado!");
-    await loadAll();
-  }catch(e){
-    console.error(e);
-    toast("Erro ao registar: " + (e.message||e).slice(0,100));
   }
 }
 
