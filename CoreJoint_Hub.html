@@ -827,13 +827,41 @@ function semanaKey(d){
         <div class="sc" style="flex:1; text-align:center;"><div class="slb">Por ver</div><div class="svl ${porVer.length>0?'cr':'cg'}">${porVer.length}</div></div>
         <div class="sc" style="flex:1; text-align:center;"><div class="slb">Já vistos</div><div class="svl cg">${vistos.length}</div></div>
       </div>`;
+
+      // Agrupar por tema: se for "outro", usa a descrição como chave; senão usa o label do tipo
+      const grupos = {};
+      avisosRecentes.forEach(a=>{
+        const chave = a.tipo==="outro" ? (a.descricao||"Outro") : (TIPO_AVISO_LABELS_HUB[a.tipo]||a.tipo);
+        (grupos[chave] ||= []).push(a);
+      });
+      const gruposOrdenados = Object.entries(grupos).sort((a,b)=>b[1].length-a[1].length);
+
+      htmlAv += `<div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin:10px 0 6px;">Por tema</div>`;
+      htmlAv += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
+      gruposOrdenados.slice(0,10).forEach(([tema, itens])=>{
+        const lojasEnvolvidas = [...new Set(itens.map(i=>i.loja||'Gestão'))];
+        const porVerNoGrupo = itens.filter(i=>!i.confirmado_em).length;
+        htmlAv += `<div style="padding:9px 2px; border-bottom:1px solid var(--br);">
+          <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
+            <span style="font-size:.82rem; font-weight:600; flex:1;">${tema.length>60?tema.slice(0,60)+'…':tema}</span>
+            <span style="font-size:.75rem; color:${porVerNoGrupo>0?'var(--red)':'var(--t2)'}; font-weight:700; white-space:nowrap;">${itens.length}×</span>
+          </div>
+          <div style="font-size:.68rem; color:var(--t3); margin-top:2px;">${lojasEnvolvidas.slice(0,4).join(", ")}${lojasEnvolvidas.length>4?' +'+(lojasEnvolvidas.length-4):''}${porVerNoGrupo>0?' · '+porVerNoGrupo+' por ver':''}</div>
+        </div>`;
+      });
+      htmlAv += `</div>`;
+
       if(porVer.length>0){
+        htmlAv += `<div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin:14px 0 6px;">Por ver, individualmente</div>`;
         htmlAv += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
         porVer.slice(0,8).forEach(a=>{
-          const label = TIPO_AVISO_LABELS_HUB[a.tipo] || a.tipo;
-          htmlAv += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 2px; border-bottom:1px solid var(--br);">
-            <span style="font-size:.82rem;"><b>${a.loja||'Gestão'}</b> · ${label}</span>
-            <span style="font-size:.68rem; color:var(--t3);">${new Date(a.criado_em).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}</span>
+          const label = a.tipo==="outro" ? (a.descricao||"Outro") : (TIPO_AVISO_LABELS_HUB[a.tipo] || a.tipo);
+          htmlAv += `<div style="padding:8px 2px; border-bottom:1px solid var(--br);">
+            <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
+              <span style="font-size:.8rem;"><b>${a.loja||'Gestão'}</b></span>
+              <span style="font-size:.68rem; color:var(--t3); white-space:nowrap;">${new Date(a.criado_em).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}</span>
+            </div>
+            <div style="font-size:.75rem; color:var(--t2); margin-top:2px;">${label.length>70?label.slice(0,70)+'…':label}</div>
           </div>`;
         });
         htmlAv += `</div>`;
