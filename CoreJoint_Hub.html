@@ -707,9 +707,12 @@ async function verificarAtualizacao(){
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
       const overlayAberto = document.querySelector(".overlay");
-      if(!overlayAberto){
+      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection"]
+        .some(id=>{ const el = document.getElementById(id); return el && el.style.display !== "none"; });
+      if(!overlayAberto && !secoesAbertas){
         location.reload();
       }
+      // se tiveres algum quadrado aberto, não interrompe — só atualiza da próxima vez que estiveres com tudo fechado
     }
   }catch(e){ /* falha silenciosa, tenta outra vez depois */ }
 }
