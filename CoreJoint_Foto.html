@@ -128,6 +128,11 @@ const MARKETING_CATS = [
 ];
 // Exceções conhecidas por loja (ajustar à medida que se confirma mais informação)
 const LOJAS = ["Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim","Carregado","Ponte de Sor","Torres MCH","Torres MH"];
+function lojasAlvoDeF(obj){
+  if(obj.lojas_alvo && Array.isArray(obj.lojas_alvo) && obj.lojas_alvo.length>0) return obj.lojas_alvo;
+  if(obj.loja_alvo) return [obj.loja_alvo];
+  return LOJAS;
+}
 const JSC_LOJAS = ["Almeirim", "Ponte de Sor"]; // só estas confirmadas com JSC por agora
 const TABACO_EXCLUIR = ["Caldas da Rainha"]; // não tem tabaco
 function categoriasParaLoja(loja){
@@ -140,7 +145,7 @@ function categoriasParaLoja(loja){
 
 const params = new URLSearchParams(location.search);
 const currentLoja = params.get("loja") || "Loja não identificada";
-let dailyRows = [], invRows = [], agendamentos = [], agendamentosTabaco = [], sondagensPendentes = [], formulariosPendentes = [], avisosPendentes = [], naoAplicaveis = [], quebrasPendentes = [], formsJaPreenchido = false, formsLegionelaJaPreenchido = false, minhasRespostasSondagens = [], sondagensRespondidas = [];
+let dailyRows = [], invRows = [], agendamentos = [], agendamentosTabaco = [], sondagensPendentes = [], formulariosPendentes = [], avisosPendentes = [], naoAplicaveis = [], quebrasPendentes = [], formsJaPreenchido = false, formsLegionelaJaPreenchido = false, minhasRespostasSondagens = [], sondagensRespondidas = [], minhasRespostasFormularios = [], formulariosRespondidos = [];
 let pendingPhotos = [];
 window.addEventListener("beforeunload", function(e){
   if(pendingPhotos.length>0){
@@ -417,18 +422,23 @@ async function loadAll(){
     const minhasRespostas = await api("GET", `cj_sondagens_respostas?select=*${f}`);
     minhasRespostasSondagens = minhasRespostas;
     sondagensPendentes = todasSondagens.filter(s=>
-      (!s.loja_alvo || s.loja_alvo===currentLoja) &&
+      lojasAlvoDeF(s).includes(currentLoja) &&
       !minhasRespostas.some(r=>r.sondagem_id===s.id)
     );
     sondagensRespondidas = todasSondagens.filter(s=>
-      (!s.loja_alvo || s.loja_alvo===currentLoja) &&
+      lojasAlvoDeF(s).includes(currentLoja) &&
       minhasRespostas.some(r=>r.sondagem_id===s.id)
     );
     const todosFormularios = await api("GET", "cj_formularios?select=*&ativa=eq.true");
     const minhasRespostasForm = await api("GET", `cj_formularios_respostas?select=*${f}`);
+    minhasRespostasFormularios = minhasRespostasForm;
     formulariosPendentes = todosFormularios.filter(fm=>
-      (!fm.loja_alvo || fm.loja_alvo===currentLoja) &&
+      lojasAlvoDeF(fm).includes(currentLoja) &&
       !minhasRespostasForm.some(r=>r.formulario_id===fm.id)
+    );
+    formulariosRespondidos = todosFormularios.filter(fm=>
+      lojasAlvoDeF(fm).includes(currentLoja) &&
+      minhasRespostasForm.some(r=>r.formulario_id===fm.id)
     );
     const meusAvisos = await api("GET", `cj_avisos?select=*${f}&order=criado_em.desc&limit=20`);
     avisosPendentes = meusAvisos.filter(a=>{
@@ -528,6 +538,27 @@ function render(){
     `;
     card.querySelector("button").onclick = ()=>abrirFormularioResposta(fm);
     main.appendChild(card);
+  });
+
+  formulariosRespondidos.forEach(fm=>{
+    const minhaResposta = minhasRespostasFormularios.find(r=>r.formulario_id===fm.id);
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.cssText = "border-left:4px solid var(--line); padding:16px 18px;";
+    card.innerHTML = `
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <div style="width:34px; height:34px; border-radius:50%; background:var(--line); color:var(--ink-soft); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">✔</div>
+        <div>
+          <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:700;">Já respondido</div>
+          <div style="font-weight:700; font-size:15.5px; color:var(--ink);">${fm.titulo}</div>
+        </div>
+      </div>
+      <div style="padding-left:44px;">
+        <button data-editar-form="${fm.id}" style="background:none; border:1px solid var(--line); color:var(--ink-soft); border-radius:10px; padding:8px 14px; font-size:13px; font-weight:600;">✏️ Editar respostas</button>
+      </div>
+    `;
+    main.appendChild(card);
+    card.querySelector("[data-editar-form]").onclick = ()=>abrirFormularioResposta(fm, minhaResposta);
   });
 
   quebrasPendentes.forEach(q=>{
@@ -1353,21 +1384,23 @@ function removerCapFoto(i){
   renderCapThumbs();
   document.getElementById("capSaveBtn").disabled = pendingPhotos.length===0;
 }
-function abrirFormularioResposta(fm){
+function abrirFormularioResposta(fm, respostaExistente){
   const overlay = document.createElement("div");
   overlay.className = "overlay";
   overlay.id = "formRespOverlay";
+  const valoresAtuais = respostaExistente ? respostaExistente.respostas : {};
   let camposHtml = fm.perguntas.map(p=>{
+    const valorAtual = valoresAtuais[p.id] || "";
     if(p.tipo==="escolha"){
       return `<div class="field"><label>${p.texto}</label><select id="fresp-${p.id}" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);">
         <option value="">Escolhe...</option>
-        ${p.opcoes.map(o=>`<option>${o}</option>`).join("")}
+        ${p.opcoes.map(o=>`<option ${o===valorAtual?'selected':''}>${o}</option>`).join("")}
       </select></div>`;
     }
     if(p.tipo==="numero"){
-      return `<div class="field"><label>${p.texto}</label><input id="fresp-${p.id}" type="number" inputmode="decimal" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);"></div>`;
+      return `<div class="field"><label>${p.texto}</label><input id="fresp-${p.id}" type="number" inputmode="decimal" value="${valorAtual}" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);"></div>`;
     }
-    return `<div class="field"><label>${p.texto}</label><input id="fresp-${p.id}" type="text" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);"></div>`;
+    return `<div class="field"><label>${p.texto}</label><input id="fresp-${p.id}" type="text" value="${valorAtual}" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);"></div>`;
   }).join("");
   overlay.innerHTML = `
     <div class="modal">
@@ -1375,7 +1408,7 @@ function abrirFormularioResposta(fm){
       ${camposHtml}
       <div class="modal-actions">
         <button class="btn-cancel" onclick="document.getElementById('formRespOverlay').remove()">Cancelar</button>
-        <button class="btn-save" onclick="submeterFormulario(${fm.id})">Enviar respostas</button>
+        <button class="btn-save" onclick="submeterFormulario(${fm.id})">${respostaExistente ? 'Guardar alterações' : 'Enviar respostas'}</button>
       </div>
     </div>
   `;
@@ -1394,9 +1427,24 @@ async function submeterFormulario(formularioId){
     respostas[p.id] = v;
   }
   try{
-    await api("POST", "cj_formularios_respostas", {formulario_id: formularioId, loja: currentLoja, respostas});
+    const existente = minhasRespostasFormularios.find(r=>r.formulario_id===formularioId && r.loja===currentLoja);
+    if(existente){
+      await api("PATCH", `cj_formularios_respostas?id=eq.${existente.id}`, {respostas});
+    } else {
+      await api("POST", "cj_formularios_respostas", {formulario_id: formularioId, loja: currentLoja, respostas});
+    }
     overlay.remove();
-    mostrarSucesso("Formulário enviado!");
+    mostrarSucesso(existente ? "Resposta atualizada!" : "Formulário enviado!");
+    const formAtual = await api("GET", `cj_formularios?select=*&id=eq.${formularioId}`);
+    if(formAtual[0]){
+      const lojasAlvo = lojasAlvoDeF(formAtual[0]);
+      const todasRespostas = await api("GET", `cj_formularios_respostas?select=loja&formulario_id=eq.${formularioId}`);
+      const lojasResponderam = todasRespostas.map(r=>r.loja);
+      const todasResponderam = lojasAlvo.every(l=>lojasResponderam.includes(l));
+      if(todasResponderam){
+        await api("PATCH", `cj_formularios?id=eq.${formularioId}`, {ativa:false});
+      }
+    }
     await loadAll();
   }catch(e){
     console.error(e);
@@ -1421,7 +1469,7 @@ async function responderSondagem(sondagemId, opcao){
     mostrarSucesso("Resposta enviada!");
     const sondagemAtual = await api("GET", `cj_sondagens?select=*&id=eq.${sondagemId}`);
     if(sondagemAtual[0]){
-      const lojasAlvo = sondagemAtual[0].loja_alvo ? [sondagemAtual[0].loja_alvo] : LOJAS;
+      const lojasAlvo = lojasAlvoDeF(sondagemAtual[0]);
       const todasRespostas = await api("GET", `cj_sondagens_respostas?select=loja&sondagem_id=eq.${sondagemId}`);
       const lojasResponderam = todasRespostas.map(r=>r.loja);
       const todasResponderam = lojasAlvo.every(l=>lojasResponderam.includes(l));
