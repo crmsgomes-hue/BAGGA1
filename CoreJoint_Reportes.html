@@ -3826,6 +3826,15 @@ function renderGestao(){
     ]}
   ];
   const todasFerramentas = grupos.flatMap(g=>g.itens);
+  const mapaFerramentasPorChave = {
+    semanal: generateWeeklyReport, invSemanal: generateWeeklyInventoryReport, mensal: generateMonthlyReport,
+    compliance: generateComplianceReport, excel: exportarExcel, historico12m: openHistoricoAnual,
+    whatsapp: partilharResumoWhatsApp, avisosLista: openAvisos, sondagem: openSondagens, formulario: openFormularios,
+    fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
+    atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
+    importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
+    manualEntry: openManualEntry, apresentacao: openModoApresentacao
+  };
 
   const toolsBtn = document.createElement("button");
   toolsBtn.className = "cambtn secondary";
@@ -3833,9 +3842,16 @@ function renderGestao(){
   toolsBtn.innerHTML = `🛠️ Ferramentas <span style="color:var(--ink-soft); font-weight:400;">(${todasFerramentas.length})</span>`;
   toolsBtn.onclick = ()=>abrirMenuFerramentas(grupos);
   main.appendChild(toolsBtn);
-  if(new URLSearchParams(location.search).get("ferramentas")==="1" && !window._ferramentasAutoAbertas){
-    window._ferramentasAutoAbertas = true;
-    abrirMenuFerramentas(grupos);
+  const paramsUrl = new URLSearchParams(location.search);
+  if(!window._ferramentasAutoAbertas){
+    const chaveAbrir = paramsUrl.get("abrir");
+    if(chaveAbrir && mapaFerramentasPorChave[chaveAbrir]){
+      window._ferramentasAutoAbertas = true;
+      mapaFerramentasPorChave[chaveAbrir]();
+    } else if(paramsUrl.get("ferramentas")==="1"){
+      window._ferramentasAutoAbertas = true;
+      abrirMenuFerramentas(grupos);
+    }
   }
 
   const today = todayStr();
