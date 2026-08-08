@@ -86,6 +86,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="avisosDadosSection" style="display:none;"></div>
   <div id="fardamentoPanoramaSection" style="display:none;"></div>
   <div id="rhPanoramaSection" style="display:none;"></div>
+  <div id="porValidarSection" style="display:none;"></div>
 
   <div id="acoesRapidasSection" style="display:none;">
     <div class="sec-label">Ações rápidas</div>
@@ -896,6 +897,25 @@ function semanaKey(d){
     document.getElementById("rhPanoramaSection").innerHTML = htmlRh;
   }catch(e){ console.error(e); }
 
+  try{
+    const dailyNaoValidados = await api("cj_daily_reportes?select=id&validado_por=is.null");
+    const invNaoValidados = await api("cj_inventario_reportes?select=id&validado_por=is.null");
+    const totalPorValidar = dailyNaoValidados.length + invNaoValidados.length;
+    let htmlPv = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Por validar</span>
+      <a href="CoreJoint_Reportes.html?abrir=porValidar" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Ver e validar →</a>
+    </div>`;
+    if(totalPorValidar===0){
+      htmlPv += `<div class="all-clear" style="margin-bottom:14px;">✔ Tudo validado.</div>`;
+    } else {
+      htmlPv += `<a href="CoreJoint_Reportes.html?abrir=porValidar" class="card" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit;">
+        <span style="font-weight:700; font-size:.9rem;">${totalPorValidar} envio(s) por validar</span>
+        <span style="font-size:.78rem; color:var(--terracotta,#C1622E); font-weight:700;">Rever ›</span>
+      </a>`;
+    }
+    document.getElementById("porValidarSection").innerHTML = htmlPv;
+  }catch(e){ console.error(e); }
+
   document.getElementById("toggleTilesGrid").innerHTML = `
     <button data-toggle-secao="painelLojasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📋 Painel de gestão <span class="chev-toggle" style="float:right;">▾</span></div>
@@ -941,6 +961,10 @@ function semanaKey(d){
       <div class="slb">📋 RH <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Adendas por loja</div>
     </button>
+    <button data-toggle-secao="porValidarSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">🕐 Por validar <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Confirmar envios</div>
+    </button>
     <button data-toggle-secao="acoesRapidasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">⚡ Ações rápidas <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Criar, relatórios, tudo</div>
@@ -985,7 +1009,7 @@ async function verificarAtualizacao(){
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
       const overlayAberto = document.querySelector(".overlay");
-      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","fotosRecentesSection","checklistMesSection","rankingLojasSection","fichaLojaSection","avisosDadosSection","fardamentoPanoramaSection","rhPanoramaSection","acoesRapidasSection"]
+      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","fotosRecentesSection","checklistMesSection","rankingLojasSection","fichaLojaSection","avisosDadosSection","fardamentoPanoramaSection","rhPanoramaSection","acoesRapidasSection","porValidarSection"]
         .some(id=>{ const el = document.getElementById(id); return el && el.style.display !== "none"; });
       if(!overlayAberto && !secoesAbertas){
         location.reload();
