@@ -1368,6 +1368,12 @@ async function agendarGlobal(mes, dataIso){
 
 async function confirmCapture(kind, key, turno){
   if(pendingPhotos.length===0){ toast("Tira pelo menos uma foto"); return; }
+  if(kind==="inv"){
+    const vInvEl = document.getElementById("vInv");
+    if(vInvEl && vInvEl.value.trim()===""){ toast("Preenche o valor do inventário antes de enviar"); return; }
+    const vCnvsEl = document.getElementById("vCnvs");
+    if(vCnvsEl && vCnvsEl.value.trim()===""){ toast("Preenche o valor de CNVs antes de enviar"); return; }
+  }
   const ontemCheckbox = document.getElementById("capOntem");
   const usarOntem = ontemCheckbox && ontemCheckbox.checked;
   const dataAlvo = usarOntem ? new Date(Date.now() - 86400000) : new Date();
