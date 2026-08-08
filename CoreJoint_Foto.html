@@ -1118,13 +1118,24 @@ function corrigirValorEnvio(r){
         <label>Valor do inventário (€)</label>
         <input id="corrigirValorInput" type="number" inputmode="decimal" step="0.01" value="${r.valor_inventario||''}" placeholder="0.00">
       </div>
+      <div class="field">
+        <label>Foto(s) — toca no ✕ se estiver errada, e tira/escolhe outra</label>
+        <div id="corrigirFotosGrid" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;"></div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" id="corrigirFotoCamara" style="display:none;"></label>
+          <label class="filebtn" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);">🖼️ Galeria<input type="file" accept="image/*" id="corrigirFotoGaleria" style="display:none;"></label>
+        </div>
+      </div>
       <div class="modal-actions">
         <button class="btn-cancel" style="flex:1;" onclick="document.getElementById('corrigirValorOverlay').remove()">Cancelar</button>
-        <button class="btn-save" style="flex:1;" id="corrigirValorGuardarBtn">Guardar</button>
+        <button class="btn-save" style="flex:1;" id="corrigirValorGuardarBtn">Guardar valor</button>
       </div>
     </div>
   `;
   document.body.appendChild(overlay);
+  renderCorrigirFotosGrid(r);
+  document.getElementById("corrigirFotoCamara").addEventListener("change", (ev)=>adicionarFotoEnvio(r, ev.target.files[0]));
+  document.getElementById("corrigirFotoGaleria").addEventListener("change", (ev)=>adicionarFotoEnvio(r, ev.target.files[0]));
   document.getElementById("corrigirValorGuardarBtn").onclick = async ()=>{
     const valor = document.getElementById("corrigirValorInput").value.trim();
     if(valor===""){ toast("Preenche o valor"); return; }
@@ -1138,6 +1149,67 @@ function corrigirValorEnvio(r){
       toast("Erro ao guardar: " + (e.message||e).slice(0,100));
     }
   };
+}
+
+function renderCorrigirFotosGrid(r){
+  const grid = document.getElementById("corrigirFotosGrid");
+  if(!grid) return;
+  const fotos = r.fotos || [];
+  if(fotos.length===0){
+    grid.innerHTML = `<div style="font-size:12.5px; color:var(--ink-soft);">Sem fotos.</div>`;
+    return;
+  }
+  grid.innerHTML = fotos.map((f,i)=>{
+    const url = typeof f === "string" ? f : (f && f.url) || "";
+    return `<div class="photo-item"><img src="${url}" data-fi="${i}" style="width:90px; height:90px; object-fit:cover; border-radius:8px;"><button class="photo-del" data-del-foto="${i}">✕</button></div>`;
+  }).join("");
+  grid.querySelectorAll("img[data-fi]").forEach(img=>{
+    img.onclick = ()=>bigPhoto(null, fotos.map(f=>typeof f==="string"?f:f.url), +img.dataset.fi);
+  });
+  grid.querySelectorAll("[data-del-foto]").forEach(btn=>{
+    btn.onclick = ()=>removerFotoEnvio(r, +btn.dataset.delFoto);
+  });
+}
+
+async function removerFotoEnvio(r, indice){
+  try{
+    const novasFotos = (r.fotos||[]).filter((_,i)=>i!==indice);
+    await api("PATCH", `cj_inventario_reportes?id=eq.${r.id}`, {fotos: novasFotos});
+    r.fotos = novasFotos;
+    renderCorrigirFotosGrid(r);
+    toast("Foto removida");
+    await loadAll();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao remover foto: " + (e.message||e).slice(0,100));
+  }
+}
+
+async function adicionarFotoEnvio(r, file){
+  if(!file) return;
+  try{
+    await new Promise((resolve)=>{
+      const reader = new FileReader();
+      reader.onload = (evt)=>{
+        compressPhoto(evt.target.result, 1000, 0.7, async function(compressed){
+          if(!compressed){ toast("Não foi possível processar a foto"); resolve(); return; }
+          const path = `${slug(r.loja)}/inventario/${r.categoria}/${r.data}_${Date.now()}_${Math.random().toString(36).slice(2,6)}.jpg`;
+          const url = await uploadPhoto(compressed, path);
+          const novasFotos = [...(r.fotos||[]), {url, legenda:""}];
+          await api("PATCH", `cj_inventario_reportes?id=eq.${r.id}`, {fotos: novasFotos});
+          r.fotos = novasFotos;
+          renderCorrigirFotosGrid(r);
+          toast("✔ Foto adicionada!");
+          resolve();
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+    await loadAll();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao adicionar foto: " + (e.message||e).slice(0,100));
+  }
 }
 
 function abrirAjuda(){
