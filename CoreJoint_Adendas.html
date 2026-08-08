@@ -563,10 +563,22 @@ async function adicionarFotoAdenda(id, file){
 
 async function toggleCampoSimples(id, campo, valor){
   try{
+    const rows = await api("GET", `${TABLE}?select=precisa_assinaturas,assinaturas_recolhidas,enviada_rh&id=eq.${id}`);
+    const atual = rows[0] || {};
+    const novoEstado = {
+      precisa_assinaturas: atual.precisa_assinaturas,
+      assinaturas_recolhidas: campo==="assinaturas_recolhidas" ? valor : atual.assinaturas_recolhidas,
+      enviada_rh: campo==="enviada_rh" ? valor : atual.enviada_rh
+    };
+    const checklistCompleto = (!novoEstado.precisa_assinaturas || novoEstado.assinaturas_recolhidas) && novoEstado.enviada_rh;
+
     const patch = {[campo]: valor, updated_at: new Date().toISOString()};
-    if(campo==="enviada_rh" && valor){ patch.enviada_em = new Date().toISOString(); patch.enviada_por = currentUser; patch.arquivada = true; }
-    if(campo==="enviada_rh" && !valor){ patch.arquivada = false; }
+    if(campo==="enviada_rh" && valor){ patch.enviada_em = new Date().toISOString(); patch.enviada_por = currentUser; }
+    patch.arquivada = checklistCompleto;
     await api("PATCH", `${TABLE}?id=eq.${id}`, patch);
+    if(!checklistCompleto && novoEstado.enviada_rh && novoEstado.precisa_assinaturas && !novoEstado.assinaturas_recolhidas){
+      toast("Falta recolher as assinaturas antes de concluir");
+    }
     await loadRows();
   }catch(e){
     console.error(e);
@@ -1026,7 +1038,10 @@ async function saveNew(){
     if(isSimplificada){
       payload.precisa_assinaturas = document.getElementById("fPrecisaAssinaturas").checked;
       payload.enviada_rh = document.getElementById("fEnviadaRh").checked;
-      if(payload.enviada_rh){ payload.enviada_em = now; payload.enviada_por = currentUser; payload.arquivada = true; }
+      payload.assinaturas_recolhidas = false;
+      const checklistCompletoNovo = (!payload.precisa_assinaturas) && payload.enviada_rh;
+      if(payload.enviada_rh){ payload.enviada_em = now; payload.enviada_por = currentUser; }
+      payload.arquivada = checklistCompletoNovo;
       const file = (document.getElementById("fDocumentoFoto").files[0]) || (document.getElementById("fDocumentoUpload").files[0]);
       if(file){
         const dataUrl = await new Promise((resolve,reject)=>{
