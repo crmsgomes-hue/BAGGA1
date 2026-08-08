@@ -3830,12 +3830,14 @@ function renderGestao(){
   ];
   const grupos = [
     {titulo:"Relatórios", itens:[
-      {icon:"🖨️", label:"Relatório PDF (semanal)", fn:generateWeeklyReport},
-      {icon:"📦", label:"Relatório de Inventário (semanal)", fn:generateWeeklyInventoryReport},
-      {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport},
-      {icon:"🛡️", label:"Relatório de Compliance", fn:generateComplianceReport},
-      {icon:"📥", label:"Excel", fn:exportarExcel},
-      {icon:"📅", label:"Histórico 12m", fn:openHistoricoAnual}
+      {icon:"📊", label:"Ver todos os relatórios", fn: ()=>abrirEcraComAbas("Relatórios", [
+        {icon:"🖨️", label:"Relatório PDF (semanal)", fn:generateWeeklyReport},
+        {icon:"📦", label:"Relatório de Inventário (semanal)", fn:generateWeeklyInventoryReport},
+        {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport},
+        {icon:"🛡️", label:"Relatório de Compliance", fn:generateComplianceReport},
+        {icon:"📥", label:"Excel", fn:exportarExcel},
+        {icon:"📅", label:"Histórico 12m", fn:openHistoricoAnual}
+      ])}
     ]},
     {titulo:"Comunicação com lojas", itens:[
       {icon:"📲", label:"Resumo p/ WhatsApp", fn:partilharResumoWhatsApp},
@@ -3844,13 +3846,15 @@ function renderGestao(){
       {icon:"📝", label:"Formulário", fn:openFormularios}
     ]},
     {titulo:"Visão por loja", itens:[
-      {icon:"🏪", label:"Ficha da Loja", fn:openFichaGerente},
-      {icon:"🏆", label:"Ranking de lojas", fn:openRankingLojas},
-      {icon:"✅", label:"Checklist do mês", fn:openChecklistMensal},
-      {icon:"🕓", label:"Registo de atividade", fn:openRegistoAtividade},
-      {icon:"🖼️", label:"Galeria fotos", fn:openGaleria},
-      {icon:"📈", label:"CNVs Global", fn:openEvolucaoCnvs},
-      {icon:"📅", label:"Quem marcou o Global", fn:openAgendamentosGlobal}
+      {icon:"🏪", label:"Ver tudo por loja", fn: ()=>abrirEcraComAbas("Visão por loja", [
+        {icon:"🏪", label:"Ficha da Loja", fn:openFichaGerente},
+        {icon:"🏆", label:"Ranking de lojas", fn:openRankingLojas},
+        {icon:"✅", label:"Checklist do mês", fn:openChecklistMensal},
+        {icon:"🕓", label:"Registo de atividade", fn:openRegistoAtividade},
+        {icon:"🖼️", label:"Galeria fotos", fn:openGaleria},
+        {icon:"📈", label:"CNVs Global", fn:openEvolucaoCnvs},
+        {icon:"📅", label:"Quem marcou o Global", fn:openAgendamentosGlobal}
+      ])}
     ]},
     {titulo:"Quebras de caixa", itens:[
       {icon:"📤", label:"Importar Excel de quebras", fn:openImportarQuebras},
