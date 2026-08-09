@@ -1401,16 +1401,19 @@ function abrirFormularioResposta(fm, respostaExistente){
   const valoresAtuais = respostaExistente ? respostaExistente.respostas : {};
   let camposHtml = fm.perguntas.map(p=>{
     const valorAtual = valoresAtuais[p.id] || "";
+    const escondido = p.condicao ? "display:none;" : "";
+    let campoInterno;
     if(p.tipo==="escolha"){
-      return `<div class="field"><label>${p.texto}</label><select id="fresp-${p.id}" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);">
+      campoInterno = `<select id="fresp-${p.id}" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);">
         <option value="">Escolhe...</option>
         ${p.opcoes.map(o=>`<option ${o===valorAtual?'selected':''}>${o}</option>`).join("")}
-      </select></div>`;
+      </select>`;
+    } else if(p.tipo==="numero"){
+      campoInterno = `<input id="fresp-${p.id}" type="number" inputmode="decimal" value="${valorAtual}" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);">`;
+    } else {
+      campoInterno = `<input id="fresp-${p.id}" type="text" value="${valorAtual}" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);">`;
     }
-    if(p.tipo==="numero"){
-      return `<div class="field"><label>${p.texto}</label><input id="fresp-${p.id}" type="number" inputmode="decimal" value="${valorAtual}" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);"></div>`;
-    }
-    return `<div class="field"><label>${p.texto}</label><input id="fresp-${p.id}" type="text" value="${valorAtual}" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);"></div>`;
+    return `<div class="field" id="fcampo-${p.id}" style="${escondido}" ${p.condicao?`data-cond-pergunta="${p.condicao.perguntaId}" data-cond-valor="${p.condicao.valorEsperado}"`:''}><label>${p.texto}</label>${campoInterno}</div>`;
   }).join("");
   overlay.innerHTML = `
     <div class="modal">
@@ -1423,6 +1426,20 @@ function abrirFormularioResposta(fm, respostaExistente){
     </div>
   `;
   document.body.appendChild(overlay);
+
+  // Ligar as perguntas que controlam condições, para mostrar/esconder as dependentes
+  fm.perguntas.filter(p=>p.tipo==="escolha").forEach(p=>{
+    const el = document.getElementById(`fresp-${p.id}`);
+    if(!el) return;
+    const atualizarDependentes = ()=>{
+      overlay.querySelectorAll(`[data-cond-pergunta="${p.id}"]`).forEach(campo=>{
+        const valorEsperado = campo.getAttribute("data-cond-valor");
+        campo.style.display = (el.value===valorEsperado) ? "block" : "none";
+      });
+    };
+    el.addEventListener("change", atualizarDependentes);
+    atualizarDependentes();
+  });
   overlay.__perguntas = fm.perguntas;
 }
 
@@ -1431,8 +1448,11 @@ async function submeterFormulario(formularioId){
   const perguntas = overlay.__perguntas;
   const respostas = {};
   for(const p of perguntas){
+    const campoDiv = document.getElementById(`fcampo-${p.id}`);
+    const escondidoPorCondicao = campoDiv && campoDiv.style.display === "none";
     const el = document.getElementById(`fresp-${p.id}`);
     const v = el ? el.value.trim() : "";
+    if(escondidoPorCondicao) continue; // não se aplica agora, não exige nem guarda
     if(!v){ toast(`Responde a: ${p.texto}`); return; }
     respostas[p.id] = v;
   }
