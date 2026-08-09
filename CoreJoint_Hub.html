@@ -94,8 +94,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
     <div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin:8px 0 6px;">Criar</div>
     <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:14px;">
       <a href="CoreJoint_Reportes.html?abrir=importarQuebras" class="sc" style="text-decoration:none; display:flex; align-items:center; gap:8px; color:var(--tx); font-size:.82rem; font-weight:600;"><span style="font-size:17px;">📤</span> Importar Excel quebras</a>
-      <a href="CoreJoint_Reportes.html?abrir=sondagem" class="sc" style="text-decoration:none; display:flex; align-items:center; gap:8px; color:var(--tx); font-size:.82rem; font-weight:600;"><span style="font-size:17px;">📊</span> Nova Sondagem</a>
-      <a href="CoreJoint_Reportes.html?abrir=formulario" class="sc" style="text-decoration:none; display:flex; align-items:center; gap:8px; color:var(--tx); font-size:.82rem; font-weight:600;"><span style="font-size:17px;">📝</span> Novo Formulário</a>
+      <button onclick="abrirEscolherCriar()" class="sc" style="text-decoration:none; display:flex; align-items:center; gap:8px; color:var(--tx); font-size:.82rem; font-weight:600; border:none; width:100%; text-align:left; font-family:inherit; cursor:pointer;"><span style="font-size:17px;">➕</span> Criar (Sondagem/Formulário)</button>
       <a href="CoreJoint_Reportes.html?abrir=manualEntry" class="sc" style="text-decoration:none; display:flex; align-items:center; gap:8px; color:var(--tx); font-size:.82rem; font-weight:600;"><span style="font-size:17px;">📲</span> Inserir do WhatsApp</a>
     </div>
     <div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin:8px 0 6px;">Relatórios</div>
@@ -237,6 +236,41 @@ async function enviarLembretesAtrasos(){
     }
   }
   btn.disabled = false; btn.textContent = "🔔 Enviar lembrete dos atrasos a cada loja";
+}
+
+function abrirEscolherCriar(){
+  const overlay = document.createElement("div");
+  overlay.id = "escolherCriarOverlay";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:9999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+
+  const box = document.createElement("div");
+  box.style.cssText = "background:#fff; border-radius:14px; padding:20px; max-width:400px; width:100%; margin-top:60px;";
+
+  const titulo = document.createElement("div");
+  titulo.style.cssText = "font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:14px;";
+  titulo.textContent = "O que queres criar?";
+  box.appendChild(titulo);
+
+  const btnSondagem = document.createElement("a");
+  btnSondagem.href = "CoreJoint_Reportes.html?abrir=sondagem";
+  btnSondagem.style.cssText = "display:block; text-decoration:none; background:var(--sf2); border:1.5px solid var(--br); border-radius:12px; padding:14px; margin-bottom:10px; color:var(--tx);";
+  btnSondagem.innerHTML = `<div style="font-weight:700; font-size:15px;">📊 Sondagem</div><div style="font-size:12.5px; color:var(--t2); margin-top:2px;">1 pergunta rápida, com opções para escolher</div>`;
+  box.appendChild(btnSondagem);
+
+  const btnFormulario = document.createElement("a");
+  btnFormulario.href = "CoreJoint_Reportes.html?abrir=formulario";
+  btnFormulario.style.cssText = "display:block; text-decoration:none; background:var(--sf2); border:1.5px solid var(--br); border-radius:12px; padding:14px; margin-bottom:14px; color:var(--tx);";
+  btnFormulario.innerHTML = `<div style="font-weight:700; font-size:15px;">📝 Formulário</div><div style="font-size:12.5px; color:var(--t2); margin-top:2px;">Várias perguntas (texto, número, escolha) — questionário completo</div>`;
+  box.appendChild(btnFormulario);
+
+  const btnCancelar = document.createElement("button");
+  btnCancelar.textContent = "Cancelar";
+  btnCancelar.style.cssText = "display:block; width:100%; background:none; border:1px solid var(--br); border-radius:10px; padding:12px; font-weight:700; font-size:14px;";
+  btnCancelar.onclick = ()=>overlay.remove();
+  box.appendChild(btnCancelar);
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 }
 
 function abrirAvisarTodos(){
