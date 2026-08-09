@@ -468,6 +468,11 @@ function semanaKey(d){
   try{
     const stock = await api("cj_fardamento_stock?select=quantidade&quantidade=lt.5");
     const dev = await api("cj_fardamento_devolucoes?select=id&recolhido=eq.false");
+    const adendasDebug = await api("cj_adendas?select=id&arquivada=eq.false");
+    const diag = document.createElement("div");
+    diag.style.cssText = "position:fixed; bottom:70px; left:10px; right:10px; background:#2c3e50; color:#fff; padding:10px; border-radius:8px; z-index:999998; font-size:11px; font-family:monospace;";
+    diag.textContent = `DIAGNÓSTICO: stock=${stock.length} dev=${dev.length} adendas=${adendasDebug.length}`;
+    document.body.appendChild(diag);
     setBadge("badge-fardamento", stock.length + dev.length);
     statFardamento = stock.length + dev.length;
     if(stock.length) addAttn(attn, "CoreJoint_Fardamento.html", `👕 ${stock.length} combinação(ões) de fardamento com stock baixo`, "Toca para ver quais peças e tamanhos", false);
