@@ -1104,6 +1104,12 @@ async function marcarSemFoto(key, label){
   }
 }
 
+async function notificarGestao(titulo, mensagem){
+  try{
+    await fetch(`https://isdaegejkxgtzjcpzstr.supabase.co/functions/v1/send-daily-alerts?tipo=notificar_gestao&titulo=${encodeURIComponent(titulo)}&mensagem=${encodeURIComponent(mensagem)}`);
+  }catch(e){ console.error("Erro ao notificar gestão:", e); }
+}
+
 async function enviarJustificacaoQuebra(id){
   const semRegisto = document.getElementById(`quebraSemRegisto-${id}`).checked;
   const registo = document.getElementById(`quebraRegisto-${id}`).value.trim();
@@ -1124,6 +1130,11 @@ async function enviarJustificacaoQuebra(id){
     }
     await api("PATCH", `cj_quebras_reportes?id=eq.${id}`, patch);
     toast(semRegisto ? "✔ Enviado — aguarda validação da gestão" : "✔ Justificação enviada!");
+    if(semRegisto){
+      notificarGestao("CoreJoint · Quebra a validar", `${currentLoja} justificou uma quebra sem número de registo — precisa da tua validação.`);
+    } else {
+      notificarGestao("CoreJoint · Quebra justificada", `${currentLoja} justificou uma quebra (registo ${registo}).`);
+    }
     await loadAll();
   }catch(e){
     console.error(e);
@@ -1473,6 +1484,7 @@ async function submeterFormulario(formularioId){
       const todasResponderam = lojasAlvo.every(l=>lojasResponderam.includes(l));
       if(todasResponderam){
         await api("PATCH", `cj_formularios?id=eq.${formularioId}`, {ativa:false});
+        notificarGestao("CoreJoint · Formulário completo", `"${formAtual[0].titulo}" — todas as lojas já responderam.`);
       }
     }
     await loadAll();
@@ -1505,6 +1517,7 @@ async function responderSondagem(sondagemId, opcao){
       const todasResponderam = lojasAlvo.every(l=>lojasResponderam.includes(l));
       if(todasResponderam){
         await api("PATCH", `cj_sondagens?id=eq.${sondagemId}`, {ativa:false});
+        notificarGestao("CoreJoint · Sondagem completa", `"${sondagemAtual[0].pergunta}" — todas as lojas já responderam.`);
       }
     }
     await loadAll();
