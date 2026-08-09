@@ -4181,6 +4181,40 @@ function verFotosRecentesLoja(loja){
   bigPhoto(null, todasFotos, 0);
 }
 
+function abrirEcraComAbas(titulo, abas){
+  currentView = ()=>abrirEcraComAbas(titulo, abas);
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const h = document.createElement("h2");
+  h.style.marginBottom = "4px";
+  h.textContent = titulo;
+  main.appendChild(h);
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  sub.style.marginBottom = "14px";
+  sub.textContent = "Escolhe o que queres ver — depois de abrires, o botão \"Voltar\" traz-te sempre de volta aqui.";
+  main.appendChild(sub);
+
+  abas.forEach(aba=>{
+    const item = document.createElement("button");
+    item.className = "cambtn secondary";
+    item.style.cssText = "width:100%; margin-bottom:8px; text-align:left; display:flex; align-items:center; gap:10px;";
+    item.innerHTML = `<span style="font-size:18px;">${aba.icon}</span> ${aba.label}`;
+    item.onclick = ()=>{
+      previousView = ()=>abrirEcraComAbas(titulo, abas);
+      aba.fn();
+    };
+    main.appendChild(item);
+  });
+}
+
 function abrirMenuFerramentas(grupos){
   const overlay = document.createElement("div");
   overlay.className = "overlay";
