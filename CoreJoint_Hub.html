@@ -397,6 +397,12 @@ function bigPhoto(urls, indice){
   document.body.appendChild(lb);
 }
 
+function isoDate(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
 function semanaKey(d){
   const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const dayNum = (dt.getUTCDay()+6)%7;
@@ -453,7 +459,7 @@ function semanaKey(d){
     });
     if(atrasadosN>0) addAttn(attn, "CoreJoint_Reportes.html", `📦 ${atrasadosN} inventário(s)/marketing atrasado(s)`, "Toca para ver quais lojas e categorias", true);
     statAtrasados = atrasadosN;
-  }catch(e){}
+  }catch(e){ console.error("Erro no Dashboard (estatísticas):", e); }
 
   try{
     const stock = await api("cj_fardamento_stock?select=quantidade&quantidade=lt.5");
@@ -462,7 +468,7 @@ function semanaKey(d){
     statFardamento = stock.length + dev.length;
     if(stock.length) addAttn(attn, "CoreJoint_Fardamento.html", `👕 ${stock.length} combinação(ões) de fardamento com stock baixo`, "Toca para ver quais peças e tamanhos", false);
     if(dev.length) addAttn(attn, "CoreJoint_Fardamento.html", `↩ ${dev.length} devolução(ões) por recolher`, "Toca para ver em que lojas", false);
-  }catch(e){}
+  }catch(e){ console.error("Erro no Dashboard (estatísticas):", e); }
 
   try{
     const adendas = await api("cj_adendas?select=id,updated_at,criado_em&arquivada=eq.false");
@@ -474,7 +480,7 @@ function semanaKey(d){
       return dias>=3;
     });
     if(paradas.length) addAttn(attn, "CoreJoint_Adendas.html", `📋 ${paradas.length} adenda(s) parada(s) há 3+ dias`, "Toca para ver quais precisam de ação", true);
-  }catch(e){}
+  }catch(e){ console.error("Erro no Dashboard (estatísticas):", e); }
 
   try{
     const desde = new Date(Date.now() - 2*86400000).toISOString().slice(0,10);
