@@ -1515,24 +1515,40 @@ async function openFormularios(){
     <input id="formTitulo" placeholder="Ex: Checklist de abertura" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:14px;">
     <div class="field-label" style="font-weight:600; margin-bottom:6px;">Perguntas</div>
     <div id="formPerguntasList"></div>
-    <div style="background:var(--cream); border-radius:10px; padding:12px; margin-top:8px;">
-      <input id="formNovaPergunta" placeholder="Escreve a pergunta..." style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:8px;">
-      <select id="formNovoTipo" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:8px;">
-        <option value="texto">Resposta de texto</option>
+    <div style="background:var(--cream); border-radius:10px; padding:14px; margin-top:8px;">
+      <div style="font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;">1. Escreve a pergunta</div>
+      <input id="formNovaPergunta" placeholder="Ex: Já receberam a encomenda?" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:12px;">
+
+      <div style="font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;">2. Tipo de resposta</div>
+      <select id="formNovoTipo" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:12px;">
+        <option value="texto">Texto livre</option>
         <option value="numero">Número</option>
-        <option value="escolha">Escolha (opções)</option>
+        <option value="escolha">Escolha entre opções (ex: Sim/Não)</option>
       </select>
-      <input id="formNovasOpcoes" placeholder="Opções separadas por vírgula (só se for Escolha)" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:8px; display:none;">
-      <div id="formCondicaoWrap" style="display:none; margin-bottom:8px;">
-        <div style="font-size:12px; color:var(--ink-soft); margin-bottom:4px;">Só mostrar esta pergunta se:</div>
-        <select id="formCondicaoPergunta" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:6px;"></select>
-        <select id="formCondicaoValor" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);"></select>
+
+      <div id="formOpcoesBloco" style="display:none; margin-bottom:12px;">
+        <div style="font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;">3. Opções para escolher</div>
+        <div id="formOpcoesLista" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;"></div>
+        <div style="display:flex; gap:8px;">
+          <input id="formNovaOpcao" placeholder="Ex: Sim" style="flex:1; padding:9px; border-radius:8px; border:1px solid var(--line);">
+          <button type="button" class="cambtn secondary" id="formAddOpcaoBtn" style="padding:0 16px;">+</button>
+        </div>
       </div>
-      <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px;">
-        <input type="checkbox" id="formTemCondicao" style="width:16px; height:16px;">
-        Só aparece dependendo de outra resposta
-      </label>
-      <button class="cambtn secondary" style="width:100%;" id="formAddPerguntaBtn">+ Adicionar pergunta</button>
+
+      <div id="formCondicaoBloco" style="display:none; margin-bottom:8px;">
+        <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px;">
+          <input type="checkbox" id="formTemCondicao" style="width:16px; height:16px;">
+          Esta pergunta só aparece dependendo de uma resposta anterior
+        </label>
+        <div id="formCondicaoWrap" style="display:none;">
+          <div style="font-size:12px; color:var(--ink-soft); margin-bottom:4px;">Só mostrar se a pergunta:</div>
+          <select id="formCondicaoPergunta" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:6px;"></select>
+          <div style="font-size:12px; color:var(--ink-soft); margin-bottom:4px;">...for respondida com:</div>
+          <select id="formCondicaoValor" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);"></select>
+        </div>
+      </div>
+
+      <button class="cambtn secondary" style="width:100%; margin-top:8px;" id="formAddPerguntaBtn">+ Adicionar esta pergunta ao formulário</button>
     </div>
     <div class="field-label" style="font-weight:600; margin:14px 0 6px;">A quem se destina</div>
     <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13.5px;">
@@ -1569,8 +1585,29 @@ async function openFormularios(){
   document.getElementById("formQuandoAgora").onchange = ()=>{ document.getElementById("formDataAgendada").style.display = "none"; };
 
   const tipoSel = formCard.querySelector("#formNovoTipo");
-  const opcoesInp = formCard.querySelector("#formNovasOpcoes");
-  tipoSel.onchange = ()=>{ opcoesInp.style.display = tipoSel.value==="escolha" ? "block" : "none"; };
+  const opcoesBloco = formCard.querySelector("#formOpcoesBloco");
+  const condicaoBloco = formCard.querySelector("#formCondicaoBloco");
+  let opcoesTemp = [];
+  const opcoesListaEl = formCard.querySelector("#formOpcoesLista");
+  function renderOpcoesTemp(){
+    opcoesListaEl.innerHTML = opcoesTemp.map((o,i)=>
+      `<span style="background:var(--terracotta); color:#fff; border-radius:16px; padding:5px 12px; font-size:12.5px; display:inline-flex; align-items:center; gap:6px;">${escapeHtmlLocal(o)} <span data-del-op="${i}" style="cursor:pointer; font-weight:700;">✕</span></span>`
+    ).join("");
+    opcoesListaEl.querySelectorAll("[data-del-op]").forEach(el=>{
+      el.onclick = ()=>{ opcoesTemp.splice(parseInt(el.getAttribute("data-del-op")),1); renderOpcoesTemp(); };
+    });
+  }
+  formCard.querySelector("#formAddOpcaoBtn").onclick = ()=>{
+    const v = document.getElementById("formNovaOpcao").value.trim();
+    if(!v){ toast("Escreve o texto da opção"); return; }
+    opcoesTemp.push(v);
+    document.getElementById("formNovaOpcao").value = "";
+    renderOpcoesTemp();
+  };
+  tipoSel.onchange = ()=>{
+    opcoesBloco.style.display = tipoSel.value==="escolha" ? "block" : "none";
+    condicaoBloco.style.display = (formPerguntas.some(p=>p.tipo==="escolha")) ? "block" : "none";
+  };
 
   const listWrap = formCard.querySelector("#formPerguntasList");
   function renderPerguntas(){
@@ -1613,9 +1650,8 @@ async function openFormularios(){
     if(!texto){ toast("Escreve a pergunta"); return; }
     const p = {id: "p"+Date.now(), texto, tipo};
     if(tipo==="escolha"){
-      const ops = document.getElementById("formNovasOpcoes").value.split(",").map(o=>o.trim()).filter(Boolean);
-      if(ops.length<2){ toast("Escreve pelo menos 2 opções separadas por vírgula"); return; }
-      p.opcoes = ops;
+      if(opcoesTemp.length<2){ toast("Adiciona pelo menos 2 opções"); return; }
+      p.opcoes = [...opcoesTemp];
     }
     if(condChk.checked){
       if(!condPerguntaSel.value){ toast("Escolhe de que pergunta depende, ou desmarca a condição"); return; }
@@ -1623,9 +1659,13 @@ async function openFormularios(){
     }
     formPerguntas.push(p);
     document.getElementById("formNovaPergunta").value = "";
-    document.getElementById("formNovasOpcoes").value = "";
+    opcoesTemp = [];
+    renderOpcoesTemp();
+    opcoesBloco.style.display = "none";
     condChk.checked = false;
     condWrap.style.display = "none";
+    condicaoBloco.style.display = formPerguntas.some(pp=>pp.tipo==="escolha") ? "block" : "none";
+    tipoSel.value = "texto";
     renderPerguntas();
   };
   formCard.querySelector("#formCriarBtn").onclick = criarFormulario;
