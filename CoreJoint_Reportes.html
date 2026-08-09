@@ -1523,6 +1523,15 @@ async function openFormularios(){
         <option value="escolha">Escolha (opções)</option>
       </select>
       <input id="formNovasOpcoes" placeholder="Opções separadas por vírgula (só se for Escolha)" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:8px; display:none;">
+      <div id="formCondicaoWrap" style="display:none; margin-bottom:8px;">
+        <div style="font-size:12px; color:var(--ink-soft); margin-bottom:4px;">Só mostrar esta pergunta se:</div>
+        <select id="formCondicaoPergunta" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:6px;"></select>
+        <select id="formCondicaoValor" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line);"></select>
+      </div>
+      <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px;">
+        <input type="checkbox" id="formTemCondicao" style="width:16px; height:16px;">
+        Só aparece dependendo de outra resposta
+      </label>
       <button class="cambtn secondary" style="width:100%;" id="formAddPerguntaBtn">+ Adicionar pergunta</button>
     </div>
     <div class="field-label" style="font-weight:600; margin:14px 0 6px;">A quem se destina</div>
@@ -1567,7 +1576,7 @@ async function openFormularios(){
   function renderPerguntas(){
     listWrap.innerHTML = formPerguntas.map((p,i)=>
       `<div style="display:flex; justify-content:space-between; align-items:center; background:var(--cream); border-radius:8px; padding:8px 10px; margin-bottom:6px; font-size:13px;">
-        <span>${i+1}. ${escapeHtmlLocal(p.texto)} <span style="color:var(--ink-soft);">(${p.tipo}${p.opcoes?': '+p.opcoes.join(', '):''})</span></span>
+        <span>${i+1}. ${escapeHtmlLocal(p.texto)} <span style="color:var(--ink-soft);">(${p.tipo}${p.opcoes?': '+p.opcoes.join(', '):''})</span>${p.condicao ? `<br><span style="font-size:11px; color:var(--terracotta);">só se "${escapeHtmlLocal((formPerguntas.find(x=>x.id===p.condicao.perguntaId)||{}).texto||'?')}" = "${escapeHtmlLocal(p.condicao.valorEsperado)}"</span>` : ''}</span>
         <span style="cursor:pointer;" data-del="${i}">✕</span>
       </div>`
     ).join("");
@@ -1575,6 +1584,29 @@ async function openFormularios(){
       el.onclick = ()=>{ formPerguntas.splice(parseInt(el.getAttribute("data-del")),1); renderPerguntas(); };
     });
   }
+  const condChk = formCard.querySelector("#formTemCondicao");
+  const condWrap = formCard.querySelector("#formCondicaoWrap");
+  const condPerguntaSel = formCard.querySelector("#formCondicaoPergunta");
+  const condValorSel = formCard.querySelector("#formCondicaoValor");
+  function atualizarOpcoesCondicao(){
+    const perguntasComOpcoes = formPerguntas.filter(p=>p.tipo==="escolha");
+    condPerguntaSel.innerHTML = perguntasComOpcoes.map(p=>`<option value="${p.id}">${escapeHtmlLocal(p.texto)}</option>`).join("");
+    if(perguntasComOpcoes.length===0){
+      condPerguntaSel.innerHTML = `<option value="">— cria primeiro uma pergunta de Escolha —</option>`;
+      condValorSel.innerHTML = "";
+    } else {
+      condPerguntaSel.onchange();
+    }
+  }
+  condPerguntaSel.onchange = ()=>{
+    const p = formPerguntas.find(x=>x.id===condPerguntaSel.value);
+    condValorSel.innerHTML = p ? p.opcoes.map(o=>`<option>${o}</option>`).join("") : "";
+  };
+  condChk.onchange = ()=>{
+    condWrap.style.display = condChk.checked ? "block" : "none";
+    if(condChk.checked) atualizarOpcoesCondicao();
+  };
+
   formCard.querySelector("#formAddPerguntaBtn").onclick = ()=>{
     const texto = document.getElementById("formNovaPergunta").value.trim();
     const tipo = tipoSel.value;
@@ -1585,9 +1617,15 @@ async function openFormularios(){
       if(ops.length<2){ toast("Escreve pelo menos 2 opções separadas por vírgula"); return; }
       p.opcoes = ops;
     }
+    if(condChk.checked){
+      if(!condPerguntaSel.value){ toast("Escolhe de que pergunta depende, ou desmarca a condição"); return; }
+      p.condicao = {perguntaId: condPerguntaSel.value, valorEsperado: condValorSel.value};
+    }
     formPerguntas.push(p);
     document.getElementById("formNovaPergunta").value = "";
     document.getElementById("formNovasOpcoes").value = "";
+    condChk.checked = false;
+    condWrap.style.display = "none";
     renderPerguntas();
   };
   formCard.querySelector("#formCriarBtn").onclick = criarFormulario;
