@@ -82,6 +82,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="fotosRecentesSection" style="display:none;"></div>
   <div id="checklistMesSection" style="display:none;"></div>
   <div id="rankingLojasSection" style="display:none;"></div>
+  <div id="painelFichaLoja" style="display:none;"></div>
   <div id="avisosDadosSection" style="display:none;"></div>
   <div id="fardamentoPanoramaSection" style="display:none;"></div>
   <div id="rhPanoramaSection" style="display:none;"></div>
@@ -815,15 +816,9 @@ function semanaKey(d){
     document.getElementById("rankingLojasSection").innerHTML = htmlRk;
   }catch(e){ console.error(e); }
 
+  // Preencher sempre o esqueleto (grid de lojas) já no HTML, mesmo antes de saber se os dados vêm bem
   try{
-    const inicioMesFicha = new Date(today.getFullYear(), today.getMonth(), 1);
-    const dailyMesFicha = await api(`cj_daily_reportes?select=loja,tipo,turno,data&data=gte.${isoDate(inicioMesFicha)}`);
-    const avisosMesFicha = await api(`cj_avisos?select=loja,confirmado_em&criado_em=gte.${isoDate(inicioMesFicha)}T00:00:00`);
-
-    const painelFichaLoja = document.createElement("div");
-    painelFichaLoja.id = "painelFichaLoja";
-    painelFichaLoja.style.display = "none";
-
+    const painelFichaLoja = document.getElementById("painelFichaLoja");
     const rotulo = document.createElement("div");
     rotulo.className = "sec-label";
     rotulo.textContent = "Ficha da Loja";
@@ -835,6 +830,13 @@ function semanaKey(d){
 
     const areaConteudoFicha = document.createElement("div");
     painelFichaLoja.appendChild(areaConteudoFicha);
+
+    const inicioMesFicha = new Date(today.getFullYear(), today.getMonth(), 1);
+    let dailyMesFicha = [], avisosMesFicha = [];
+    try{
+      dailyMesFicha = await api(`cj_daily_reportes?select=loja,tipo,turno,data&data=gte.${isoDate(inicioMesFicha)}`);
+      avisosMesFicha = await api(`cj_avisos?select=loja,confirmado_em&criado_em=gte.${isoDate(inicioMesFicha)}T00:00:00`);
+    }catch(erroDados){ console.error("Ficha da Loja: erro a carregar dados", erroDados); }
 
     LOJAS.forEach(l=>{
       const btnLoja = document.createElement("button");
@@ -882,11 +884,7 @@ function semanaKey(d){
       });
       gridBotoesLoja.appendChild(btnLoja);
     });
-
-    const antigoFicha = document.getElementById("painelFichaLoja");
-    if(antigoFicha) antigoFicha.remove();
-    document.getElementById("avisosDadosSection").insertAdjacentElement("beforebegin", painelFichaLoja);
-  }catch(e){ console.error(e); }
+  }catch(e){ console.error("Ficha da Loja: erro geral", e); }
 
   try{
     const seteDiasAtrasAv = new Date(Date.now()-7*86400000).toISOString();
@@ -1116,10 +1114,11 @@ function semanaKey(d){
   document.querySelectorAll("[data-toggle-secao]").forEach(btn=>{
     btn.onclick = ()=>{
       const secao = document.getElementById(btn.dataset.toggleSecao);
+      if(!secao){ console.error("Secção não encontrada:", btn.dataset.toggleSecao); return; }
       const chev = btn.querySelector(".chev-toggle");
       const abrir = secao.style.display === "none";
       secao.style.display = abrir ? "block" : "none";
-      chev.textContent = abrir ? "▴" : "▾";
+      if(chev) chev.textContent = abrir ? "▴" : "▾";
     };
   });
 
