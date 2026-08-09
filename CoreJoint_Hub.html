@@ -66,6 +66,10 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div class="pt">Dashboard</div>
   <div class="ps">As tuas ferramentas de gestão, num só sítio.</div>
 
+  <div style="text-align:center; margin-bottom:8px;">
+    <span id="ultimaAtualizacao" style="font-size:11px; color:var(--t2);"></span>
+    <button onclick="location.reload(true)" style="background:none; border:1px solid var(--br); border-radius:20px; padding:3px 10px; font-size:11px; color:var(--tc); margin-left:6px;">🔄 Atualizar agora</button>
+  </div>
   <div id="statsGrid" class="g4"></div>
   <div style="display:flex; gap:8px; margin:10px 0;">
     <a href="CoreJoint_Reportes.html?ferramentas=1" style="flex:1; text-align:center; background:var(--ink,#2B2723); color:#fff; border-radius:12px; padding:13px; font-size:14px; font-weight:700; text-decoration:none;">🛠️ Ferramentas</a>
@@ -1127,6 +1131,8 @@ function semanaKey(d){
       if(chev) chev.textContent = abrir ? "▴" : "▾";
     };
   });
+
+  document.getElementById("ultimaAtualizacao").textContent = `Dados de agora — atualizado às ${new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
 
   document.getElementById("statsGrid").innerHTML = `
     <a class="sc" href="CoreJoint_Reportes.html" style="text-decoration:none; display:block;"><div class="slb">Reportes</div><div class="svl ${statReportes>0?'cr':'cg'}">${statReportes}</div></a>
