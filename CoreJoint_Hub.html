@@ -1134,22 +1134,12 @@ function semanaKey(d){
     </button>
 
     <div class="sec-divider" style="grid-column:1/-1; margin-top:6px; font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--t3); font-weight:700;">📋 Gestão</div>
-    <button data-toggle-secao="painelLojasSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
-      <div class="slb">📋 Painel de gestão <span class="chev-toggle" style="float:right;">▾</span></div>
-      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Ver lojas com pendências</div>
-    </button>
-    <button data-toggle-secao="resumoOntemSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
-      <div class="slb">📅 Resumo de ontem <span class="chev-toggle" style="float:right;">▾</span></div>
-      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Escolher loja</div>
-    </button>
-    <button data-toggle-secao="avisosDadosSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
-      <div class="slb">📢 Avisos dados <span class="chev-toggle" style="float:right;">▾</span></div>
-      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Vistos e por ver</div>
-    </button>
-    <button data-toggle-secao="porValidarSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
-      <div class="slb">🕐 Por validar <span class="chev-toggle" style="float:right;">▾</span></div>
-      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Confirmar envios</div>
-    </button>
+    <div id="gestaoLinksRow" style="grid-column:1/-1; display:flex; gap:14px; flex-wrap:wrap; font-size:.76rem; padding:4px 2px 8px;">
+      <button data-toggle-secao="painelLojasSection" data-nomove="1" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">📋 Painel de gestão</button>
+      <button data-toggle-secao="resumoOntemSection" data-nomove="1" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">📅 Resumo de ontem</button>
+      <button data-toggle-secao="avisosDadosSection" data-nomove="1" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">📢 Avisos dados</button>
+      <button data-toggle-secao="porValidarSection" data-nomove="1" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">🕐 Por validar</button>
+    </div>
 
     <div class="sec-divider" style="grid-column:1/-1; margin-top:6px; font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--t3); font-weight:700;">📦 Inventário</div>
     <button data-toggle-secao="valoresInventarioSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
@@ -1207,13 +1197,27 @@ function semanaKey(d){
   // Abas removidas — página agora corre contínua, na ordem: dashboard/calendário, fotos, inventário, quebras, formulários, relatórios, RH, fardamento
 
   // Cada secção de conteúdo mora fisicamente logo a seguir ao seu botão, para abrir ali mesmo (não ir para o fundo da página)
-  document.querySelectorAll("#toggleTilesGrid [data-toggle-secao]").forEach(btn=>{
+  document.querySelectorAll("#toggleTilesGrid [data-toggle-secao]:not([data-nomove])").forEach(btn=>{
     const secao = document.getElementById(btn.dataset.toggleSecao);
     if(secao){
       secao.style.gridColumn = "1 / -1";
       btn.insertAdjacentElement("afterend", secao);
     }
   });
+
+  // Grupo pequeno "Gestão" (Painel/Resumo/Avisos/Por validar): as secções abrem em bloco logo abaixo da linha de links, não coladas a cada botão individual
+  const gestaoRow = document.getElementById("gestaoLinksRow");
+  if(gestaoRow){
+    let ancora = gestaoRow;
+    ["painelLojasSection","resumoOntemSection","avisosDadosSection","porValidarSection"].forEach(id=>{
+      const secao = document.getElementById(id);
+      if(secao){
+        secao.style.gridColumn = "1 / -1";
+        ancora.insertAdjacentElement("afterend", secao);
+        ancora = secao;
+      }
+    });
+  }
 
   document.querySelectorAll("[data-toggle-secao]").forEach(btn=>{
     btn.onclick = ()=>{
