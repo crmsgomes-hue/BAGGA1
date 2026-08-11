@@ -1696,6 +1696,41 @@ async function confirmCapture(kind, key, turno){
     const vCnvsEl = document.getElementById("vCnvs");
     if(vCnvsEl && vCnvsEl.value.trim()===""){ toast("Preenche o valor de CNVs antes de enviar"); return; }
   }
+  const labelAtual = document.querySelector("#capOverlay h2") ? document.querySelector("#capOverlay h2").textContent : "";
+  abrirConfirmarEnvio(labelAtual, pendingPhotos.slice(), ()=>confirmCaptureReal(kind, key, turno));
+}
+
+function abrirConfirmarEnvio(label, fotos, onConfirmar){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "confirmarEnvioOverlay";
+  overlay.style.zIndex = "10001";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>Confirmar envio</h2>
+      <div class="sub">Vais enviar ${fotos.length} foto${fotos.length>1?'s':''} de <b>${label}</b>. Confirma que é mesmo isto que queres gravar.</div>
+      <div id="confirmarEnvioThumbs" style="display:flex; flex-wrap:wrap; gap:8px; margin:12px 0;"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" style="flex:1;">Voltar e corrigir</button>
+        <button class="btn-save" style="flex:1;">✔ Sim, enviar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const thumbsWrap = document.getElementById("confirmarEnvioThumbs");
+  fotos.forEach((f,i)=>{
+    const src = f.src !== undefined ? f.src : f;
+    const img = document.createElement("img");
+    img.src = src;
+    img.style.cssText = "width:70px; height:70px; object-fit:cover; border-radius:8px; border:1px solid var(--line);";
+    img.onclick = ()=>bigPhoto(null, fotos.map(x=>x.src!==undefined?x.src:x), i);
+    thumbsWrap.appendChild(img);
+  });
+  overlay.querySelector(".btn-cancel").onclick = ()=>overlay.remove();
+  overlay.querySelector(".btn-save").onclick = ()=>{ overlay.remove(); onConfirmar(); };
+}
+
+async function confirmCaptureReal(kind, key, turno){
   const ontemCheckbox = document.getElementById("capOntem");
   const usarOntem = ontemCheckbox && ontemCheckbox.checked;
   const dataAlvo = usarOntem ? new Date(Date.now() - 86400000) : new Date();
@@ -1710,7 +1745,7 @@ async function confirmCapture(kind, key, turno){
   };
   try{
     await enviarItem(item);
-    mostrarSucesso(`Registado! ${item.fotos.length} foto${item.fotos.length>1?'s':''} guardada${item.fotos.length>1?'s':''} 🙌`);
+    mostrarSucessoComFoto(item.fotos);
     closeCapture();
     await loadAll();
   }catch(e){
@@ -1879,6 +1914,21 @@ function mostrarSucesso(msg){
   document.getElementById("successMsg").textContent = msg || "Guardado!";
   o.style.display = "flex";
   setTimeout(()=>{ o.style.display = "none"; }, 1300);
+}
+
+function mostrarSucessoComFoto(fotos){
+  const overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(20,60,30,.96); z-index:10002; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center;";
+  const primeiraFoto = fotos[0] ? (fotos[0].src!==undefined?fotos[0].src:fotos[0]) : null;
+  overlay.innerHTML = `
+    <div style="font-size:52px; margin-bottom:10px;">✔</div>
+    <div style="color:#fff; font-weight:800; font-size:20px; margin-bottom:6px; font-family:'Syne',sans-serif;">Enviado com sucesso!</div>
+    <div style="color:#dfe; font-size:13.5px; margin-bottom:18px;">${fotos.length} foto${fotos.length>1?'s':''} gravada${fotos.length>1?'s':''} — já está tudo registado.</div>
+    ${primeiraFoto ? `<img src="${primeiraFoto}" style="width:160px; height:160px; object-fit:cover; border-radius:14px; border:3px solid #fff; margin-bottom:20px;">` : ``}
+    <button style="background:#fff; color:#1a4; border:none; border-radius:12px; padding:13px 32px; font-weight:700; font-size:15px;">OK, entendido</button>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector("button").onclick = ()=>overlay.remove();
 }
 
 if('serviceWorker' in navigator){
