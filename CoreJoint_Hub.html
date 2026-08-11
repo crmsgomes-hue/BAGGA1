@@ -467,7 +467,6 @@ function semanaKey(d){
         if(late) atrasadosN++;
       });
     });
-    if(atrasadosN>0) addAttn(attn, "CoreJoint_Reportes.html", `📦 ${atrasadosN} inventário(s)/marketing atrasado(s)`, "Toca para ver quais lojas e categorias", true);
     statAtrasados = atrasadosN;
   }catch(e){ console.error("Erro no Dashboard (estatísticas):", e); }
 
@@ -585,7 +584,6 @@ function semanaKey(d){
       const pendencias = [];
       if(!aindaNaoComecou){
         if(!vendasOk) pendencias.push("Vendas por fazer");
-        if(atrasadosLoja>0) pendencias.push(`${atrasadosLoja} atrasado(s)`);
         if(globalNaoMarcado) pendencias.push("Global não marcado");
       }
       return {loja:l, pendencias, urgente: pendencias.length};
@@ -789,7 +787,10 @@ function semanaKey(d){
       }
       return {feito:true, diaErrado, latest: rows[0]};
     }
-    let htmlCat = `<div class="sec-label">📦 Inventário por categoria</div>
+    let htmlCat = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>📦 Inventário por categoria</span>
+        <span style="font-size:.72rem; font-weight:700; color:${statAtrasados>0?'var(--red)':'var(--grn)'};">${statAtrasados} atrasado${statAtrasados===1?'':'s'}</span>
+      </div>
       <div style="font-size:.72rem; color:var(--t2); margin-bottom:10px;">O nome da loja fica verde quando envia. Toca num nome verde para ver o que puseram.</div>`;
     [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
       const lojasAplic = LOJAS.filter(l=>!naoAplicaveisCat.some(n=>n.loja===l && n.categoria===cat.key) && (INV_CATS.includes(cat) ? categoriasParaLoja(l).some(c=>c.key===cat.key) : true));
@@ -1198,10 +1199,10 @@ function semanaKey(d){
 
   document.getElementById("statsGrid").innerHTML = `
     <a class="sc" href="CoreJoint_Reportes.html" style="text-decoration:none; display:block;"><div class="slb">Reportes</div><div class="svl ${statReportes>0?'cr':'cg'}">${statReportes}</div></a>
-    <a class="sc" href="CoreJoint_Reportes.html" style="text-decoration:none; display:block;"><div class="slb">Atrasados</div><div class="svl ${statAtrasados>0?'cr':'cg'}">${statAtrasados}</div></a>
     <a class="sc" href="CoreJoint_Fardamento.html" style="text-decoration:none; display:block;"><div class="slb">Fardamento</div><div class="svl ${statFardamento>0?'cr':'cg'}">${statFardamento}</div></a>
     <a class="sc" href="CoreJoint_Adendas.html" style="text-decoration:none; display:block;"><div class="slb">RH</div><div class="svl ${statAdendas>0?'cr':'cg'}">${statAdendas}</div></a>
   `;
+  document.getElementById("statsGrid").style.gridTemplateColumns = "repeat(3,1fr)";
 
   const section = document.getElementById("attnSection");
   if(attn.length===0){
