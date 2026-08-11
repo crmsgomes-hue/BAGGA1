@@ -33,7 +33,7 @@
   #login p{color:var(--ink-soft); text-align:center; margin:6px 0 20px; font-size:14px;}
   .loja-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; max-width:420px;}
   .loja-btn{padding:16px 8px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:15px; font-weight:700; color:var(--ink);}
-  .mgmt-btn{margin-top:22px; width:100%; max-width:420px; padding:14px; border-radius:12px; border:none; background:var(--ink); color:#fff; font-size:15px; font-weight:600;}
+  .mgmt-btn{margin-top:22px; width:100%; max-width:420px; padding:14px; border-radius:12px; border:none; background:var(--terracotta); color:#fff; font-size:15px; font-weight:600;}
 
   header{position:sticky; top:0; z-index:20; background:var(--cream); padding:0 14px; height:50px; display:flex; align-items:center; border-bottom:1px solid var(--line); box-shadow:0 1px 4px rgba(0,0,0,.06);}
   .headrow{display:flex; align-items:center; gap:8px; flex:1;}
@@ -42,7 +42,7 @@
   .switch{background:none; border:1px solid var(--line); color:var(--ink-soft); font-size:12px; padding:7px 11px; border-radius:10px;}
   .tabs{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin:10px 16px 0;}
   .tab{padding:10px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:14px; font-weight:700; color:var(--ink-soft); text-align:center;}
-  .tab.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+  .tab.active{background:var(--terracotta); color:#fff; border-color:var(--terracotta);}
 
   main{padding:14px 16px 60px; max-width:640px; margin:0 auto;}
   .card{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.06);}
@@ -91,7 +91,7 @@
   .btn-save{flex:1.4; background:var(--terracotta); color:#fff; border:none; padding:13px; border-radius:10px; font-size:15px; font-weight:600;}
   .btn-save:disabled{opacity:.5;}
 
-  .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:14px; font-size:13px; z-index:99; opacity:0; transition:opacity .25s; max-width:90vw; white-space:pre-wrap; word-break:break-word; text-align:center;}
+  .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--terracotta-dark); color:#fff; padding:10px 18px; border-radius:14px; font-size:13px; z-index:99; opacity:0; transition:opacity .25s; max-width:90vw; white-space:pre-wrap; word-break:break-word; text-align:center;}
   .toast.show{opacity:1;}
 
   body.dark{ --cream:#1c1a18; --ink:#EDE8E1; --ink-soft:#B8B0A5; --terracotta:#E08A52; --terracotta-dark:#F0A876; --line:#3a3632; --card:#2A2724; }
@@ -267,12 +267,13 @@ async function compartilharHtmlComoPDF(htmlContent, filename){
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({unit:"pt", format:"a4"});
     const container = document.createElement("div");
-    container.style.cssText = "width:550px; font-family:Georgia,serif; font-size:9px; color:#000; background:#fff; padding:10px;";
+    container.style.cssText = "width:550px; font-family:'DM Sans',sans-serif; font-size:9px; color:var(--ink,#2B2723); background:#fff; padding:14px;";
     container.innerHTML = htmlContent;
     container.querySelectorAll("table").forEach(t=>{ t.style.width="100%"; t.style.borderCollapse="collapse"; t.style.marginBottom="8px"; });
-    container.querySelectorAll("th,td").forEach(c=>{ c.style.border="1px solid #999"; c.style.padding="3px 5px"; c.style.fontSize="8px"; c.style.textAlign="center"; });
-    container.querySelectorAll("h1").forEach(h=>{ h.style.fontSize="15px"; h.style.margin="0 0 2px"; });
-    container.querySelectorAll("h2").forEach(h=>{ h.style.fontSize="11px"; h.style.margin="10px 0 3px"; });
+    container.querySelectorAll("th").forEach(c=>{ c.style.border="1px solid var(--line,#E4DDD0)"; c.style.padding="4px 5px"; c.style.fontSize="8px"; c.style.textAlign="center"; c.style.background="var(--cream,#F4F1EA)"; c.style.color="var(--terracotta-dark,#9C4C22)"; c.style.fontWeight="700"; });
+    container.querySelectorAll("td").forEach(c=>{ c.style.border="1px solid var(--line,#E4DDD0)"; c.style.padding="4px 5px"; c.style.fontSize="8px"; c.style.textAlign="center"; });
+    container.querySelectorAll("h1").forEach(h=>{ h.style.fontFamily="'Syne',sans-serif"; h.style.fontWeight="800"; h.style.color="var(--terracotta,#C1622E)"; h.style.fontSize="16px"; h.style.margin="0 0 3px"; });
+    container.querySelectorAll("h2").forEach(h=>{ h.style.fontFamily="'Syne',sans-serif"; h.style.fontWeight="700"; h.style.color="var(--terracotta-dark,#9C4C22)"; h.style.fontSize="11px"; h.style.margin="10px 0 3px"; });
     document.body.appendChild(container);
     await doc.html(container, {margin:[24,24,24,24], autoPaging:"text", width:550, windowWidth:550, html2canvas:{scale:3, useCORS:true}});
     document.body.removeChild(container);
@@ -378,13 +379,21 @@ function verRelatorioNoEcra(html){
     t.style.marginBottom = "14px";
     t.style.fontSize = "14px";
   });
-  conteudo.querySelectorAll("th,td").forEach(c=>{
+  conteudo.querySelectorAll("th").forEach(c=>{
+    c.style.border = "1px solid var(--line)";
+    c.style.padding = "7px 9px";
+    c.style.textAlign = "center";
+    c.style.background = "var(--cream)";
+    c.style.color = "var(--terracotta-dark)";
+    c.style.fontWeight = "700";
+  });
+  conteudo.querySelectorAll("td").forEach(c=>{
     c.style.border = "1px solid var(--line)";
     c.style.padding = "7px 9px";
     c.style.textAlign = "center";
   });
-  conteudo.querySelectorAll("h1").forEach(h=>{ h.style.fontSize="19px"; h.style.marginBottom="4px"; });
-  conteudo.querySelectorAll("h2").forEach(h=>{ h.style.fontSize="15px"; h.style.marginTop="18px"; h.style.marginBottom="6px"; });
+  conteudo.querySelectorAll("h1").forEach(h=>{ h.style.fontFamily="'Syne',sans-serif"; h.style.fontWeight="800"; h.style.color="var(--terracotta)"; h.style.fontSize="19px"; h.style.marginBottom="4px"; });
+  conteudo.querySelectorAll("h2").forEach(h=>{ h.style.fontFamily="'Syne',sans-serif"; h.style.fontWeight="700"; h.style.color="var(--terracotta-dark)"; h.style.fontSize="15px"; h.style.marginTop="18px"; h.style.marginBottom="6px"; });
 }
 
 function generateComplianceReport(){
@@ -4442,18 +4451,15 @@ function calRenderMesDop(){
     const evs = calEventosNoDiaDop(dataStr);
     const isHoje = dataStr===hoje;
     const isSel = dataStr===_calDiaSel;
-    let dotColor = "";
-    if(evs.length){
-      const todosFeitos = evs.every(ev=>{
-        const lj = calLojasDoEvento(ev);
-        return lj.every(l=>_calChecks.some(c=>c.evento_id===ev.id && c.data===dataStr && c.loja===l));
-      });
-      dotColor = todosFeitos ? "var(--green)" : "var(--red)";
-    }
+    const dotsHtml = evs.slice(0,4).map(ev=>{
+      const lj = calLojasDoEvento(ev);
+      const feito = lj.length>0 && lj.every(l=>_calChecks.some(c=>c.evento_id===ev.id && c.data===dataStr && c.loja===l));
+      return `<div style="width:6px; height:6px; border-radius:50%; background:${feito?'var(--green)':'var(--red)'};"></div>`;
+    }).join("");
     const bg = isSel ? "background:var(--terracotta); color:#fff;" : isHoje ? "background:#fef3e2;" : "";
     html += `<div data-date="${dataStr}" style="${bg} min-height:48px; padding:4px 5px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); cursor:pointer;">
       <div style="font-size:12.5px; font-weight:${isHoje?'800':'500'};">${d}</div>
-      ${evs.length ? `<div style="display:flex; gap:2px; margin-top:2px; flex-wrap:wrap;">${evs.slice(0,3).map(()=>`<div style="width:6px; height:6px; border-radius:50%; background:${dotColor};"></div>`).join("")}${evs.length>3?'<span style="font-size:9px;">+</span>':''}</div>` : ``}
+      ${evs.length ? `<div style="display:flex; gap:2px; margin-top:2px; flex-wrap:wrap;">${dotsHtml}${evs.length>4?'<span style="font-size:9px;">+</span>':''}</div>` : ``}
     </div>`;
   }
   const totalCells = inicioSem + ultimoDia.getDate();
