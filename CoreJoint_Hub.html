@@ -729,7 +729,7 @@ function semanaKey(d){
 
     let htmlInv = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
       <span>Valores de inventário</span>
-      <a href="CoreJoint_Reportes.html?ferramentas=1" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Relatório →</a>
+      <a href="CoreJoint_Reportes.html?abrir=porCategoria" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Ver por categoria →</a>
     </div>`;
     if(invComValor.length===0){
       htmlInv += `<div class="all-clear" style="margin-bottom:14px;">Ainda sem valores de inventário enviados esta semana.</div>`;
@@ -755,7 +755,7 @@ function semanaKey(d){
       htmlInv += `<div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--red); font-weight:700; margin:12px 0 6px;">⚠ Sem nenhum valor enviado esta semana (${lojasSemEnvio.length})</div>
         <div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
       lojasSemEnvio.forEach(l=>{
-        htmlInv += `<a href="CoreJoint_Reportes.html?ferramentas=1" style="display:block; padding:8px 2px; border-bottom:1px solid var(--br); text-decoration:none; color:var(--tx); font-size:.82rem; font-weight:600;">${l}</a>`;
+        htmlInv += `<a href="CoreJoint_Reportes.html?abrir=porCategoria" style="display:block; padding:8px 2px; border-bottom:1px solid var(--br); text-decoration:none; color:var(--tx); font-size:.82rem; font-weight:600;">${l}</a>`;
       });
       htmlInv += `</div>`;
     }

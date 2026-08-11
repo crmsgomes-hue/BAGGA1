@@ -320,11 +320,17 @@ function invStatus(catKey, freq){
     if(dow){
       const dataCerta = findWeekdayInRange(w.start, w.end, dow);
       const dataCertaStr = isoDate(dataCerta);
+      const graceDate = new Date(dataCerta); graceDate.setDate(graceDate.getDate()+1); graceDate.setHours(14,0,0,0);
       const rowNoDataCerta = rows.find(r=>r.data===dataCertaStr);
-      diaErrado = !rowNoDataCerta;
-      if(rowNoDataCerta && rowNoDataCerta.criado_em){
-        const horaEnvio = new Date(rowNoDataCerta.criado_em);
-        entregueTarde = horaEnvio.getHours() >= 14;
+      const rowDentroDoPrazo = rowNoDataCerta || rows.find(r=>{
+        if(!r.criado_em) return false;
+        const t = new Date(r.criado_em);
+        return t >= dataCerta && t <= graceDate;
+      });
+      diaErrado = !rowDentroDoPrazo;
+      if(rowDentroDoPrazo && rowDentroDoPrazo.criado_em){
+        const horaEnvio = new Date(rowDentroDoPrazo.criado_em);
+        entregueTarde = horaEnvio.getHours() >= 14 || rowDentroDoPrazo.data !== dataCertaStr;
       }
     }
     return {state:"ok", latest: rows[0], window:w, diaErrado, entregueTarde, dowLabel: dow?DOW_LABELS[dow-1]:null};

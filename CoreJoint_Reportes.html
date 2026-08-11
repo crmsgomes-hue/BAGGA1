@@ -863,7 +863,16 @@ function invStatus(loja, catKey, freq){
     if(dow){
       dataCerta = findWeekdayInRange(w.start, w.end, dow);
       const dataCertaStr = isoDate(dataCerta);
-      diaErrado = !rows.some(r=>r.data===dataCertaStr);
+      const graceDate = new Date(dataCerta); graceDate.setDate(graceDate.getDate()+1); graceDate.setHours(14,0,0,0);
+      // Feito no dia certo OU dentro da tolerância (até às 14h do dia seguinte) não é "dia errado" — só passou da hora
+      diaErrado = !rows.some(r=>{
+        if(r.data===dataCertaStr) return true;
+        if(r.criado_em){
+          const t = new Date(r.criado_em);
+          return t >= dataCerta && t <= graceDate;
+        }
+        return false;
+      });
     }
     return {state:"ok", latest: rows[0], window:w, diaErrado, dowLabel: dow?DOW_LABELS[dow-1]:null};
   }
@@ -3540,6 +3549,99 @@ async function abrirPorValidar(){
   });
 }
 
+function detalheEnvioHtml(st){
+  const dataLbl = st.latest && st.latest.data ? new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT') : "-";
+  const horaLbl = st.latest && st.latest.criado_em ? new Date(st.latest.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : "";
+  const fotos = st.latest ? (st.latest.fotos && st.latest.fotos.length ? st.latest.fotos : [st.latest.foto_path]).filter(Boolean) : [];
+  return `
+    <div style="font-size:13px; color:var(--ink-soft); margin-bottom:8px;">Enviado ${dataLbl}${horaLbl?' às '+horaLbl:''}${st.diaErrado?' · <span style="color:var(--red); font-weight:700;">⚠ fora do dia certo</span>':''}</div>
+    ${st.latest && st.latest.valor_inventario!=null ? `<div style="font-size:14px; margin-bottom:6px;">Inventário: <b>${st.latest.valor_inventario} €</b></div>` : ``}
+    ${st.latest && st.latest.valor_cnvs!=null ? `<div style="font-size:14px; margin-bottom:6px;">CNVs: <b>${st.latest.valor_cnvs} €</b></div>` : ``}
+    ${fotos.length ? `<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;" id="detFotosWrap"></div>` : `<div style="font-size:13px; color:var(--ink-soft);">Sem foto (só confirmação)</div>`}
+  `;
+}
+function abrirDetalheEnvioLoja(loja, catLabel, st){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "detalheEnvioOverlay";
+  overlay.innerHTML = `
+    <div class="modal" style="text-align:left; max-height:85vh; overflow-y:auto;">
+      <h2 style="margin-bottom:2px;">${loja}</h2>
+      <div class="sub" style="margin-bottom:12px;">${catLabel}</div>
+      ${detalheEnvioHtml(st)}
+      <div class="modal-actions" style="margin-top:16px;">
+        <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('detalheEnvioOverlay').remove()">Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const fotosWrap = document.getElementById("detFotosWrap");
+  if(fotosWrap && st.latest){
+    const fotos = (st.latest.fotos && st.latest.fotos.length ? st.latest.fotos : [st.latest.foto_path]).filter(Boolean);
+    fotos.forEach((f,fi)=>{
+      const img = document.createElement("img");
+      img.src = fotoUrl(f);
+      img.style.cssText = "width:130px; height:100px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;";
+      img.onclick = ()=>bigPhoto(null, fotos.map(x=>typeof x==="string"?x:x.url), fi);
+      fotosWrap.appendChild(img);
+    });
+  }
+}
+async function abrirVisaoPorCategoria(){
+  currentView = abrirVisaoPorCategoria;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const h = document.createElement("h2");
+  h.textContent = "📦 Inventário — por categoria";
+  main.appendChild(h);
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  sub.style.marginBottom = "14px";
+  sub.textContent = "O nome da loja fica verde à medida que envia. Toca num nome verde para ver o que enviaram.";
+  main.appendChild(sub);
+
+  [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
+    const lojasAplicaveis = LOJAS.filter(l=>!categoriaNaoAplicavel(l, cat.key));
+    if(lojasAplicaveis.length===0) return;
+    const statusPorLoja = lojasAplicaveis.map(l=>({l, st: invStatus(l, cat.key, cat.freq)}));
+    const ativos = statusPorLoja.filter(x=>x.st.state!=="pausado");
+    if(ativos.length===0) return; // categoria toda pausada esta semana (ex: semana do Global)
+    const feitas = ativos.filter(x=>x.st.state==="ok").length;
+
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="card-title">${cat.label}</div>
+        <div class="status-badge ${feitas===ativos.length?'ok':'pend'}">${feitas}/${ativos.length} feito</div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:7px; margin-top:10px;" data-chips></div>
+    `;
+    const chipsWrap = card.querySelector("[data-chips]");
+    ativos.forEach(({l, st})=>{
+      const chip = document.createElement("button");
+      const feito = st.state==="ok";
+      const problema = feito && st.diaErrado;
+      let bg = "var(--card)", fg = "var(--ink-soft)", border = "1px solid var(--line)";
+      if(feito && !problema){ bg = "var(--green)"; fg = "#fff"; border = "none"; }
+      else if(problema){ bg = "var(--amber)"; fg = "#fff"; border = "none"; }
+      else if(st.state==="late"){ bg = "var(--red)"; fg = "#fff"; border = "none"; }
+      chip.style.cssText = `background:${bg}; color:${fg}; border:${border}; border-radius:99px; padding:6px 12px; font-size:12.5px; font-weight:700; cursor:${feito?'pointer':'default'};`;
+      chip.textContent = feito ? `✔ ${l}${problema?' ⚠':''}` : l;
+      if(feito){ chip.onclick = ()=>abrirDetalheEnvioLoja(l, cat.label, st); }
+      chipsWrap.appendChild(chip);
+    });
+    main.appendChild(card);
+  });
+}
+
 async function abrirRelatorioIntegridade(){
   currentView = abrirRelatorioIntegridade;
   const main = document.getElementById("main");
@@ -4581,6 +4683,9 @@ function renderGestao(){
       {icon:"📊", label:"Relatório de quebras", fn:openRelatorioQuebras},
       {icon:"🗓️", label:"Relatório semanal de quebras (PDF/Excel)", fn:gerarRelatorioSemanalQuebras}
     ]},
+    {titulo:"Visão por categoria", itens:[
+      {icon:"📦", label:"Inventário por categoria (lojas)", fn:abrirVisaoPorCategoria}
+    ]},
     {titulo:"Utilitários", itens:[
       {icon:"📅", label:"Calendário", fn:abrirCalendarioDop},
       {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry},
@@ -4599,7 +4704,7 @@ function renderGestao(){
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
-    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar, calendario: abrirCalendarioDop
+    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar, calendario: abrirCalendarioDop, porCategoria: abrirVisaoPorCategoria
   };
 
   const toolsBtn = document.createElement("button");
