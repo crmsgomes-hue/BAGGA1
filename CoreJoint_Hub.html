@@ -77,6 +77,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   </div>
   <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E); border-radius:12px; padding:12px; font-size:14px; font-weight:700; margin-bottom:14px; cursor:pointer;">🔔 Enviar lembrete dos atrasos a cada loja</button>
 
+  <div id="abasBar" style="display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-bottom:12px;"></div>
   <div id="toggleTilesGrid" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px;"></div>
   <div id="painelLojasSection" style="display:none;"></div>
   <div id="resumoOntemSection" style="display:none;"></div>
@@ -1045,59 +1046,84 @@ function semanaKey(d){
   }catch(e){ console.error(e); }
 
   document.getElementById("toggleTilesGrid").innerHTML = `
-    <button data-toggle-secao="painelLojasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button data-aba="hoje" data-toggle-secao="painelLojasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📋 Painel de gestão <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Ver lojas com pendências</div>
     </button>
-    <button data-toggle-secao="resumoOntemSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button data-aba="hoje" data-toggle-secao="resumoOntemSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📅 Resumo de ontem <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Escolher loja</div>
     </button>
-    <button data-toggle-secao="quebrasPanoramaSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button data-aba="semana" data-toggle-secao="quebrasPanoramaSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">💸 Quebras <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Por justificar</div>
     </button>
-    <button data-toggle-secao="valoresInventarioSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button data-aba="semana" data-toggle-secao="valoresInventarioSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📦 Inventário <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Valores e envios</div>
     </button>
-    <button data-toggle-secao="fotosRecentesSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button data-aba="lojas" data-toggle-secao="fotosRecentesSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📸 Fotos recentes <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Por loja e envio</div>
     </button>
-    <button data-toggle-secao="checklistMesSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button data-aba="semana" data-toggle-secao="checklistMesSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">✅ Checklist do mês <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Por loja</div>
     </button>
-    <button data-toggle-secao="painelFichaLoja" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button data-aba="lojas" data-toggle-secao="painelFichaLoja" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">🏪 Ficha da Loja <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Escolher loja</div>
     </button>
-    <button data-toggle-secao="avisosDadosSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button data-aba="hoje" data-toggle-secao="avisosDadosSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📢 Avisos dados <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Vistos e por ver</div>
     </button>
-    <button data-toggle-secao="fardamentoPanoramaSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button data-aba="mais" data-toggle-secao="fardamentoPanoramaSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">👕 Fardamento <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Stock baixo e devoluções</div>
     </button>
-    <button data-toggle-secao="rhPanoramaSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button data-aba="mais" data-toggle-secao="rhPanoramaSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📋 RH <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Adendas por loja</div>
     </button>
-    <button data-toggle-secao="porValidarSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button data-aba="hoje" data-toggle-secao="porValidarSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">🕐 Por validar <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Confirmar envios</div>
     </button>
-    <button data-toggle-secao="sondagensFormsSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button data-aba="semana" data-toggle-secao="sondagensFormsSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📊 Sondagens/Forms <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Resultados e relatórios</div>
     </button>
-    <button data-toggle-secao="acoesRapidasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+    <button data-aba="mais" data-toggle-secao="acoesRapidasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">⚡ Ações rápidas <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Criar, relatórios, tudo</div>
     </button>
   `;
+
+  const ABAS_DEF = [
+    {id:"hoje", label:"📊 Hoje"},
+    {id:"semana", label:"📈 Semana/Mês"},
+    {id:"lojas", label:"🏪 Lojas"},
+    {id:"mais", label:"⚙️ Mais"}
+  ];
+  let abaAtiva = "hoje";
+  function renderAbas(){
+    const abasBar = document.getElementById("abasBar");
+    abasBar.innerHTML = ABAS_DEF.map(a=>
+      `<button data-aba-btn="${a.id}" style="flex-shrink:0; padding:9px 14px; border-radius:20px; border:1.5px solid var(--terracotta,#C1622D); background:${a.id===abaAtiva?'var(--terracotta,#C1622D)':'none'}; color:${a.id===abaAtiva?'#fff':'var(--terracotta,#C1622D)'}; font-size:13px; font-weight:700; white-space:nowrap;">${a.label}</button>`
+    ).join("");
+    abasBar.querySelectorAll("[data-aba-btn]").forEach(btn=>{
+      btn.onclick = ()=>{ abaAtiva = btn.dataset.abaBtn; renderAbas(); aplicarFiltroAbas(); };
+    });
+  }
+  function aplicarFiltroAbas(){
+    document.querySelectorAll("#toggleTilesGrid [data-aba]").forEach(btn=>{
+      btn.style.display = btn.dataset.aba===abaAtiva ? "block" : "none";
+    });
+  }
+  renderAbas();
+  aplicarFiltroAbas();
+
   document.querySelectorAll("[data-toggle-secao]").forEach(btn=>{
     btn.onclick = ()=>{
       const secao = document.getElementById(btn.dataset.toggleSecao);
