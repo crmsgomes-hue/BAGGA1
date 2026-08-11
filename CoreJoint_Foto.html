@@ -477,7 +477,7 @@ async function loadAll(){
   }catch(e){ console.error(e); toast("Erro a carregar"); }
 }
 
-function render(){
+async function render(){
   document.getElementById("titleLoja").textContent = currentLoja;
   document.getElementById("dateSub").textContent = new Date().toLocaleDateString('pt-PT', {weekday:'long', day:'2-digit', month:'long'});
   const main = document.getElementById("main");
@@ -591,6 +591,58 @@ function render(){
   }
 
   const today = todayStr();
+
+  try{
+    const eventosCal = await api("GET", "cj_calendario_dop?select=*&order=data_inicio.asc");
+    const checksCalHoje = await api("GET", `cj_calendario_dop_checks?select=*&data=eq.${today}`);
+    function lojasDoEventoCal(ev){
+      let lj; try{ lj = typeof ev.lojas==="string" ? JSON.parse(ev.lojas) : ev.lojas; }catch(e){ lj = null; }
+      if(!lj || lj==="todas" || (Array.isArray(lj) && lj.includes("todas"))) return LOJAS;
+      return Array.isArray(lj) ? lj : [];
+    }
+    const eventosHojeLoja = eventosCal.filter(ev=>{
+      if(!lojasDoEventoCal(ev).includes(currentLoja)) return false;
+      if(ev.data_inicio > today) return false;
+      if(ev.recorrencia==="unica") return ev.data_inicio===today;
+      const d0 = new Date(ev.data_inicio+"T00:00:00");
+      const d1 = new Date(today+"T00:00:00");
+      const diff = Math.round((d1-d0)/86400000);
+      return diff>=0 && diff%7===0;
+    });
+    if(eventosHojeLoja.length>0){
+      const tituloCal = document.createElement("div");
+      tituloCal.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:14px 0 8px;";
+      tituloCal.textContent = "📅 Tarefas de hoje";
+      main.appendChild(tituloCal);
+      eventosHojeLoja.forEach(ev=>{
+        const jaFeito = checksCalHoje.some(c=>c.evento_id===ev.id && c.loja===currentLoja);
+        const card = document.createElement("div");
+        card.className = "card";
+        card.style.cssText = `border-left:4px solid ${jaFeito?'var(--green)':'var(--terracotta)'}; padding:14px 16px;`;
+        card.innerHTML = `
+          <div style="font-weight:700; font-size:14.5px; color:var(--ink);">${ev.titulo}</div>
+          ${ev.descricao ? `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:3px;">${ev.descricao}</div>` : ``}
+          <div style="margin-top:8px;">
+            ${jaFeito ? `<span style="font-size:12.5px; color:var(--green); font-weight:600;">✔ Já marcaste como feito</span>` : `<button data-cal-feito="${ev.id}" style="background:var(--green); color:#fff; border:none; border-radius:10px; padding:8px 16px; font-size:13px; font-weight:700;">✔ Marcar como feito</button>`}
+          </div>
+        `;
+        main.appendChild(card);
+        if(!jaFeito){
+          card.querySelector("[data-cal-feito]").onclick = async ()=>{
+            try{
+              await api("POST", "cj_calendario_dop_checks", {evento_id: ev.id, data: today, loja: currentLoja, feito_por: currentLoja});
+              mostrarSucesso("Tarefa marcada como feita!");
+              await loadAll();
+            }catch(e){
+              console.error(e);
+              toast("Erro: " + (e.message||e).slice(0,100));
+            }
+          };
+        }
+      });
+    }
+  }catch(e){ console.error("Erro no calendário:", e); }
+
   const VITRINE_TURNOS = [
     {key:"manha", label:"Manhã", icon:"🌅"},
     {key:"almoco", label:"Almoço", icon:"🌞"},
