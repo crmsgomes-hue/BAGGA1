@@ -563,26 +563,23 @@ function render(){
     inv_raspadinhas:"JSC", inv_laranja:"Laranja", inv_cafe:"Café", inv_tabaco:"Tabaco", inv_global:"Global",
     inv_cavalete:"Cavalete", inv_toalhetes:"Toalhetes", inv_orelhas:"Orelhas"
   };
-  avisosPendentes.forEach(a=>{
+  if(avisosPendentes.length>0){
+    const a = avisosPendentes[0]; // só o mais recente, para não encher o ecrã de avisos
     const card = document.createElement("div");
     card.className = "card";
-    card.style.cssText = "border-left:4px solid var(--red); padding:16px 18px;";
+    card.style.cssText = "border-left:4px solid var(--terracotta); padding:14px 16px;";
     const label = TIPO_AVISO_LABELS[a.tipo] || a.tipo;
     card.innerHTML = `
-      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-        <div style="width:34px; height:34px; border-radius:50%; background:var(--red); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">📢</div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:30px; height:30px; border-radius:50%; background:var(--terracotta); color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;">📢</div>
         <div>
-          <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--red); font-weight:700;">A gestão pediu</div>
-          <div style="font-weight:700; font-size:15.5px; color:var(--ink);">${label}</div>
+          <div style="font-weight:700; font-size:14.5px; color:var(--ink);">${label}</div>
+          ${a.descricao ? `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:2px;">${a.descricao}</div>` : ``}
         </div>
-      </div>
-      ${a.descricao ? `<div style="font-size:13px; color:var(--ink-soft); margin-bottom:12px; padding-left:44px;">${a.descricao}</div>` : ``}
-      <div style="padding-left:44px;">
-        <div style="font-size:12.5px; color:var(--green); font-weight:600;">✔ Recebido</div>
       </div>
     `;
     main.appendChild(card);
-  });
+  }
 
   const today = todayStr();
   const VITRINE_TURNOS = [
@@ -806,7 +803,8 @@ function openCapture(kind, key, label, turno, estaAtrasado){
   pendingPhotos = [];
   pendingPhotosEntrada = [];
   pendingPhotosDesperdicio = [];
-  const isInv = kind==="inv";
+  const CATEGORIAS_SEM_VALOR = ["cavalete","toalhetes","orelhas","horarios","preventiva_delta","aps"];
+  const isInv = kind==="inv" && !CATEGORIAS_SEM_VALOR.includes(key);
   const overlay = document.createElement("div");
   overlay.className = "overlay"; overlay.id = "capOverlay";
   overlay.innerHTML = `
@@ -1691,7 +1689,8 @@ async function agendarGlobal(mes, dataIso){
 
 async function confirmCapture(kind, key, turno){
   if(pendingPhotos.length===0){ toast("Tira pelo menos uma foto"); return; }
-  if(kind==="inv"){
+  const CATEGORIAS_SEM_VALOR_CC = ["cavalete","toalhetes","orelhas","horarios","preventiva_delta","aps"];
+  if(kind==="inv" && !CATEGORIAS_SEM_VALOR_CC.includes(key)){
     const vInvEl = document.getElementById("vInv");
     if(vInvEl && vInvEl.value.trim()===""){ toast("Preenche o valor do inventário antes de enviar"); return; }
     const vCnvsEl = document.getElementById("vCnvs");
@@ -1706,7 +1705,7 @@ async function confirmCapture(kind, key, turno){
     fotos: pendingPhotos.slice(),
     fotosEntrada: pendingPhotosEntrada.slice(),
     fotosDesperdicio: pendingPhotosDesperdicio.slice(),
-    vInv: kind==="inv" ? document.getElementById("vInv").value : null,
+    vInv: (kind==="inv" && document.getElementById("vInv")) ? document.getElementById("vInv").value : null,
     vCnvs: (kind==="inv" && document.getElementById("vCnvs")) ? document.getElementById("vCnvs").value : null
   };
   try{
