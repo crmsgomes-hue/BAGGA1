@@ -680,17 +680,17 @@ function semanaKey(d){
 
     let htmlQb = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
       <span>Panorama das quebras</span>
-      <a href="CoreJoint_Reportes.html?ferramentas=1" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Ver tudo →</a>
+      <a href="CoreJoint_Reportes.html?abrir=relatorioQuebras" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Ver tudo →</a>
     </div>`;
     if(recentesQb.length===0){
       htmlQb += `<div class="all-clear" style="margin-bottom:14px;">✔ Sem quebras registadas nos últimos 30 dias.</div>`;
     } else {
       htmlQb += `<div style="display:flex; gap:8px; margin-bottom:10px;">
-        <a href="CoreJoint_Reportes.html?ferramentas=1" class="sc" style="text-decoration:none; display:block; flex:1;"><div class="slb">Por justificar</div><div class="svl ${pendentesQb.length>0?'cr':'cg'}">${pendentesQb.length}</div></a>
-        <a href="CoreJoint_Reportes.html?ferramentas=1" class="sc" style="text-decoration:none; display:block; flex:1;"><div class="slb">Valor pendente</div><div class="svl ${totalPendenteQb>0?'cr':'cg'}">${totalPendenteQb.toFixed(0)}€</div></a>
+        <a href="CoreJoint_Reportes.html?abrir=relatorioQuebras" class="sc" style="text-decoration:none; display:block; flex:1;"><div class="slb">Por justificar</div><div class="svl ${pendentesQb.length>0?'cr':'cg'}">${pendentesQb.length}</div></a>
+        <a href="CoreJoint_Reportes.html?abrir=relatorioQuebras" class="sc" style="text-decoration:none; display:block; flex:1;"><div class="slb">Valor pendente</div><div class="svl ${totalPendenteQb>0?'cr':'cg'}">${totalPendenteQb.toFixed(0)}€</div></a>
       </div>`;
       if(semLojaQb.length>0){
-        htmlQb += `<a href="CoreJoint_Reportes.html?ferramentas=1" class="card" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit; border-left:3px solid var(--org);">
+        htmlQb += `<a href="CoreJoint_Reportes.html?abrir=relatorioQuebras" class="card" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit; border-left:3px solid var(--org);">
           <span style="font-weight:700; font-size:.85rem;">⚠ ${semLojaQb.length} sem loja identificada</span>
           <span style="font-size:.72rem; color:var(--t2);">corrigir ›</span>
         </a>`;
@@ -707,13 +707,13 @@ function semanaKey(d){
         lojasQbOrdenadas.slice(0,5).forEach(l=>{
           const itensL = porLojaQb[l];
           const totalL = itensL.reduce((s,r)=>s+Number(r.valor_quebra),0);
-          htmlQb += `<a href="CoreJoint_Reportes.html?ferramentas=1" style="display:flex; justify-content:space-between; align-items:center; padding:9px 2px; border-bottom:1px solid var(--br); text-decoration:none; color:inherit;">
+          htmlQb += `<a href="CoreJoint_Reportes.html?abrir=relatorioQuebras" style="display:flex; justify-content:space-between; align-items:center; padding:9px 2px; border-bottom:1px solid var(--br); text-decoration:none; color:inherit;">
             <span style="font-weight:700; font-size:.85rem;">${l}</span>
             <span style="font-size:.72rem; color:var(--red); font-weight:600;">${itensL.length} · ${totalL.toFixed(2)} €</span>
           </a>`;
         });
         if(lojasQbOrdenadas.length>5){
-          htmlQb += `<a href="CoreJoint_Reportes.html?ferramentas=1" style="display:block; text-align:center; padding:9px 2px; font-size:.75rem; color:var(--tc); font-weight:700; text-decoration:none;">+${lojasQbOrdenadas.length-5} loja(s) mais</a>`;
+          htmlQb += `<a href="CoreJoint_Reportes.html?abrir=relatorioQuebras" style="display:block; text-align:center; padding:9px 2px; font-size:.75rem; color:var(--tc); font-weight:700; text-decoration:none;">+${lojasQbOrdenadas.length-5} loja(s) mais</a>`;
         }
         htmlQb += `</div>`;
       }
