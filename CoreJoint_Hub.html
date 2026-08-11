@@ -92,7 +92,6 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="categoriaLojasSection" style="display:none;"></div>
 
   <div id="fotosRecentesSection" style="display:none;"></div>
-  <div id="checklistMesSection" style="display:none;"></div>
   <div id="painelFichaLoja" style="display:none;"></div>
   <div id="avisosDadosSection" style="display:none;"></div>
   <div id="fardamentoPanoramaSection" style="display:none;"></div>
@@ -837,36 +836,6 @@ function semanaKey(d){
     });
   }catch(e){ console.error(e); }
 
-  try{
-    const mesAtualChk = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
-    const invMesChk = await api("cj_inventario_reportes?select=loja,categoria,data");
-    const naoAplicaveisChk = await api("cj_categoria_nao_aplicavel?select=loja,categoria");
-    const globalCatChk = INV_CATS.find(c=>c.key==="global");
-    const colunasChk = [globalCatChk, ...MARKETING_CATS];
-
-    let htmlChk = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
-      <span>Checklist do mês</span>
-      <a href="CoreJoint_Reportes.html?ferramentas=1" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Relatório completo →</a>
-    </div>
-    <div style="font-size:.72rem; color:var(--t2); margin-bottom:8px;">Só conta o que foi enviado dentro do prazo certo de cada categoria (não conta o que foi enviado fora do prazo).</div>`;
-    htmlChk += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
-    LOJAS.forEach(l=>{
-      const colunasLoja = colunasChk.filter(c=>!naoAplicaveisChk.some(n=>n.loja===l && n.categoria===c.key));
-      let feitas = 0;
-      colunasLoja.forEach(c=>{
-        const w = windowFor(c.freq, today);
-        if(invMesChk.some(r=>r.loja===l && r.categoria===c.key && inRange(r.data, w.start, w.end))) feitas++;
-      });
-      const total = colunasLoja.length;
-      const cor = feitas===total ? "var(--grn)" : feitas===0 ? "var(--red)" : "var(--org)";
-      htmlChk += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 2px; border-bottom:1px solid var(--br);">
-        <span style="font-size:.85rem; font-weight:700;">${l}</span>
-        <span style="font-size:.8rem; font-weight:700; color:${cor};">${feitas}/${total}</span>
-      </div>`;
-    });
-    htmlChk += `</div>`;
-    document.getElementById("checklistMesSection").innerHTML = htmlChk;
-  }catch(e){ console.error(e); }
 
   try{
     const invParaRanking = await api("cj_inventario_reportes?select=loja,categoria,data");
@@ -1145,10 +1114,6 @@ function semanaKey(d){
       <div class="slb">📦 Valores e envios <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Todas as lojas, semana em curso</div>
     </button>
-    <button data-toggle-secao="checklistMesSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
-      <div class="slb">✅ Checklist do mês <span class="chev-toggle" style="float:right;">▾</span></div>
-      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Por loja</div>
-    </button>
     <button data-toggle-secao="painelFichaLoja" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">🏪 Ficha da Loja <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Escolher loja</div>
@@ -1260,7 +1225,7 @@ async function verificarAtualizacao(){
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
       const overlayAberto = document.querySelector(".overlay");
-      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","categoriaLojasSection","fotosRecentesSection","checklistMesSection","painelFichaLoja","avisosDadosSection","fardamentoPanoramaSection","rhPanoramaSection","acoesRapidasSection","porValidarSection","sondagensFormsSection"]
+      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","categoriaLojasSection","fotosRecentesSection","painelFichaLoja","avisosDadosSection","fardamentoPanoramaSection","rhPanoramaSection","acoesRapidasSection","porValidarSection","sondagensFormsSection"]
         .some(id=>{ const el = document.getElementById(id); return el && el.style.display !== "none"; });
       if(!overlayAberto && !secoesAbertas){
         location.reload();
