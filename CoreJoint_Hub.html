@@ -85,7 +85,6 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
 
   <div id="fotosRecentesSection" style="display:none;"></div>
   <div id="checklistMesSection" style="display:none;"></div>
-  <div id="rankingLojasSection" style="display:none;"></div>
   <div id="painelFichaLoja" style="display:none;"></div>
   <div id="avisosDadosSection" style="display:none;"></div>
   <div id="fardamentoPanoramaSection" style="display:none;"></div>
@@ -674,7 +673,7 @@ function semanaKey(d){
     const recentesQb = quebras.filter(r=>r.data>=trintaDiasAtrasQb);
     const comLojaQb = recentesQb.filter(r=>r.loja);
     const semLojaQb = recentesQb.filter(r=>!r.loja && !r.fora_dop);
-    const pendentesQb = comLojaQb.filter(r=>!r.numero_registo);
+    const pendentesQb = comLojaQb.filter(r=>!r.numero_registo && !(r.sem_registo && r.validado_em));
     const totalPendenteQb = pendentesQb.reduce((s,r)=>s+Number(r.valor_quebra||0),0);
 
     let htmlQb = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
@@ -721,8 +720,8 @@ function semanaKey(d){
   }catch(e){ console.error(e); }
 
   try{
-    const seteDiasAtrasInv = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
-    const invComValor = await api(`cj_inventario_reportes?select=loja,categoria,data,valor_inventario,valor_cnvs,criado_em&data=gte.${seteDiasAtrasInv}&valor_inventario=not.is.null&order=criado_em.desc&limit=50`);
+    const inicioSemanaInv = isoDate(weekWindow(new Date()).start);
+    const invComValor = await api(`cj_inventario_reportes?select=loja,categoria,data,valor_inventario,valor_cnvs,criado_em&data=gte.${inicioSemanaInv}&valor_inventario=not.is.null&order=criado_em.desc&limit=50`);
     const todasCatsLabelInv = {};
     [...INV_CATS, ...MARKETING_CATS].forEach(c=>todasCatsLabelInv[c.key]=c.label);
 
@@ -731,12 +730,12 @@ function semanaKey(d){
       <a href="CoreJoint_Reportes.html?ferramentas=1" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Relatório →</a>
     </div>`;
     if(invComValor.length===0){
-      htmlInv += `<div class="all-clear" style="margin-bottom:14px;">Ainda sem valores de inventário nos últimos 7 dias.</div>`;
+      htmlInv += `<div class="all-clear" style="margin-bottom:14px;">Ainda sem valores de inventário enviados esta semana.</div>`;
     } else {
       const totalGeral = invComValor.reduce((s,r)=>s+Number(r.valor_inventario||0),0);
       htmlInv += `<div class="card" style="text-align:center; margin-bottom:10px;">
         <div style="font-size:20px; font-weight:800;">${totalGeral.toFixed(2)} €</div>
-        <div style="font-size:10.5px; color:var(--t2);">soma de todos os valores enviados (7 dias)</div>
+        <div style="font-size:10.5px; color:var(--t2);">soma dos valores enviados esta semana</div>
       </div>`;
       htmlInv += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
       invComValor.slice(0,10).forEach(r=>{
@@ -805,22 +804,7 @@ function semanaKey(d){
       });
       return {loja:l, feitas, total: colunas.length};
     }).sort((a,b)=>(b.feitas/b.total)-(a.feitas/a.total) || b.feitas-a.feitas);
-
-    let htmlRk = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
-      <span>Ranking de lojas</span>
-      <a href="CoreJoint_Reportes.html?ferramentas=1" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Relatório completo →</a>
-    </div>`;
-    htmlRk += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
-    ranking.forEach((r,i)=>{
-      const medalha = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}º`;
-      const tudoOk = r.feitas===r.total;
-      htmlRk += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 2px; border-bottom:1px solid var(--br);">
-        <span style="font-size:.85rem;"><b>${medalha}</b> ${r.loja}</span>
-        <span style="font-size:.78rem; color:${tudoOk?'var(--grn)':'var(--t2)'}; font-weight:700;">${tudoOk?'✔ tudo em dia':r.feitas+'/'+r.total+' feitas'}</span>
-      </div>`;
-    });
-    htmlRk += `</div>`;
-    document.getElementById("rankingLojasSection").innerHTML = htmlRk;
+    // (o ranking em si já não tem quadrado próprio — usado só para a posição na Ficha da Loja)
   }catch(e){ console.error(e); }
 
   // Preencher sempre o esqueleto (grid de lojas) já no HTML, mesmo antes de saber se os dados vêm bem
@@ -1085,10 +1069,6 @@ function semanaKey(d){
       <div class="slb">✅ Checklist do mês <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Por loja</div>
     </button>
-    <button data-toggle-secao="rankingLojasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
-      <div class="slb">🏆 Ranking de lojas <span class="chev-toggle" style="float:right;">▾</span></div>
-      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Este mês</div>
-    </button>
     <button data-toggle-secao="painelFichaLoja" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">🏪 Ficha da Loja <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Escolher loja</div>
@@ -1160,7 +1140,7 @@ async function verificarAtualizacao(){
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
       const overlayAberto = document.querySelector(".overlay");
-      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","fotosRecentesSection","checklistMesSection","rankingLojasSection","painelFichaLoja","avisosDadosSection","fardamentoPanoramaSection","rhPanoramaSection","acoesRapidasSection","porValidarSection","sondagensFormsSection"]
+      const secoesAbertas = ["painelLojasSection","resumoOntemSection","quebrasPanoramaSection","valoresInventarioSection","fotosRecentesSection","checklistMesSection","painelFichaLoja","avisosDadosSection","fardamentoPanoramaSection","rhPanoramaSection","acoesRapidasSection","porValidarSection","sondagensFormsSection"]
         .some(id=>{ const el = document.getElementById(id); return el && el.style.display !== "none"; });
       if(!overlayAberto && !secoesAbertas){
         location.reload();
