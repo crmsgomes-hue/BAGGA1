@@ -4765,7 +4765,11 @@ function renderGestao(){
     const chaveAbrir = paramsUrl.get("abrir");
     if(chaveAbrir && mapaFerramentasPorChave[chaveAbrir]){
       window._ferramentasAutoAbertas = true;
-      mapaFerramentasPorChave[chaveAbrir]();
+      if(chaveAbrir==="fichaLoja" && paramsUrl.get("loja")){
+        openFichaGerente(paramsUrl.get("loja"));
+      } else {
+        mapaFerramentasPorChave[chaveAbrir]();
+      }
     } else if(paramsUrl.get("ferramentas")==="1"){
       window._ferramentasAutoAbertas = true;
       abrirMenuFerramentas(grupos);
