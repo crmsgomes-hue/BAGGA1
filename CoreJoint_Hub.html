@@ -83,6 +83,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="resumoOntemSection" style="display:none;"></div>
   <div id="quebrasPanoramaSection" style="display:none;"></div>
   <div id="valoresInventarioSection" style="display:none;"></div>
+  <div id="categoriaLojasSection" style="display:none;"></div>
 
   <div id="fotosRecentesSection" style="display:none;"></div>
   <div id="checklistMesSection" style="display:none;"></div>
@@ -763,6 +764,75 @@ function semanaKey(d){
   }catch(e){ console.error(e); }
 
   try{
+    function fotoUrlCat(f){ return typeof f === "string" ? f : (f && f.url) || ""; }
+    const invCatRows = await api("cj_inventario_reportes?select=loja,categoria,data,valor_inventario,valor_cnvs,fotos,foto_path,criado_em");
+    const naoAplicaveisCat = await api("cj_categoria_nao_aplicavel?select=loja,categoria");
+    function statusCatLoja(loja, cat){
+      const w = windowFor(cat.freq, today);
+      const rows = invCatRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end));
+      const dow = CATEGORY_DOW[cat.key];
+      if(rows.length===0) return {feito:false, diaErrado:false, latest:null};
+      let diaErrado = false;
+      if(dow){
+        const dataCerta = findWeekdayInRange(w.start, w.end, dow);
+        const dataCertaStr = isoDate(dataCerta);
+        const graceDate = new Date(dataCerta); graceDate.setDate(graceDate.getDate()+1); graceDate.setHours(14,0,0,0);
+        diaErrado = !rows.some(r=>{
+          if(r.data===dataCertaStr) return true;
+          if(r.criado_em){ const t = new Date(r.criado_em); return t>=dataCerta && t<=graceDate; }
+          return false;
+        });
+      }
+      return {feito:true, diaErrado, latest: rows[0]};
+    }
+    let htmlCat = `<div class="sec-label">📦 Inventário por categoria</div>
+      <div style="font-size:.72rem; color:var(--t2); margin-bottom:10px;">O nome da loja fica verde quando envia. Toca num nome verde para ver o que puseram.</div>`;
+    [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
+      const lojasAplic = LOJAS.filter(l=>!naoAplicaveisCat.some(n=>n.loja===l && n.categoria===cat.key) && (INV_CATS.includes(cat) ? categoriasParaLoja(l).some(c=>c.key===cat.key) : true));
+      if(lojasAplic.length===0) return;
+      const statusPorLoja = lojasAplic.map(l=>({l, st: statusCatLoja(l, cat)}));
+      const feitas = statusPorLoja.filter(x=>x.st.feito).length;
+      htmlCat += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:9px;">
+          <span style="font-family:'Syne',sans-serif; font-weight:700; font-size:.88rem;">${cat.label}</span>
+          <span style="font-size:.72rem; font-weight:700; color:${feitas===statusPorLoja.length?'var(--grn)':'var(--t2)'};">${feitas}/${statusPorLoja.length} feito</span>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;" data-chips-cat="${cat.key}"></div>
+      </div>`;
+    });
+    document.getElementById("categoriaLojasSection").innerHTML = htmlCat;
+    [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
+      const wrap = document.querySelector(`[data-chips-cat="${cat.key}"]`);
+      if(!wrap) return;
+      const lojasAplic = LOJAS.filter(l=>!naoAplicaveisCat.some(n=>n.loja===l && n.categoria===cat.key) && (INV_CATS.includes(cat) ? categoriasParaLoja(l).some(c=>c.key===cat.key) : true));
+      lojasAplic.forEach(l=>{
+        const st = statusCatLoja(l, cat);
+        const chip = document.createElement("button");
+        const problema = st.feito && st.diaErrado;
+        let bg = "var(--sf2)", fg = "var(--t2)";
+        if(st.feito && !problema){ bg = "var(--grn)"; fg = "#fff"; }
+        else if(problema){ bg = "var(--org)"; fg = "#fff"; }
+        chip.style.cssText = `background:${bg}; color:${fg}; border:none; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700; cursor:${st.feito?'pointer':'default'};`;
+        chip.textContent = st.feito ? `✔ ${l}${problema?' ⚠':''}` : l;
+        if(st.feito){
+          chip.onclick = ()=>{
+            const dataLbl = st.latest.data ? new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT') : "-";
+            const horaLbl = st.latest.criado_em ? new Date(st.latest.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : "";
+            const fotos = (st.latest.fotos && st.latest.fotos.length ? st.latest.fotos : [st.latest.foto_path]).filter(Boolean).map(fotoUrlCat);
+            let msg = `${l} — ${cat.label}\nEnviado ${dataLbl}${horaLbl?' às '+horaLbl:''}`;
+            if(st.diaErrado) msg += "\n⚠ fora do dia certo";
+            if(st.latest.valor_inventario!=null) msg += `\nInventário: ${st.latest.valor_inventario} €`;
+            if(st.latest.valor_cnvs!=null) msg += `\nCNVs: ${st.latest.valor_cnvs} €`;
+            if(fotos.length){ alert(msg); bigPhoto(fotos, 0); }
+            else alert(msg + "\n(sem foto, só confirmação)");
+          };
+        }
+        wrap.appendChild(chip);
+      });
+    });
+  }catch(e){ console.error(e); }
+
+  try{
     const mesAtualChk = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
     const invMesChk = await api("cj_inventario_reportes?select=loja,categoria,data");
     const naoAplicaveisChk = await api("cj_categoria_nao_aplicavel?select=loja,categoria");
@@ -1066,6 +1136,10 @@ function semanaKey(d){
     <button data-aba="lojas" data-toggle-secao="fotosRecentesSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📸 Fotos recentes <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Por loja e envio</div>
+    </button>
+    <button data-aba="lojas" data-toggle-secao="categoriaLojasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">📦 Por categoria <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Lojas a verde à medida que fazem</div>
     </button>
     <button data-aba="semana" data-toggle-secao="checklistMesSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">✅ Checklist do mês <span class="chev-toggle" style="float:right;">▾</span></div>
