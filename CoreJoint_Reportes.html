@@ -3828,7 +3828,8 @@ function openRelatorioQuebras(){
     `;
     main.appendChild(actionsRow);
 
-    const semLoja = recentes.filter(r=>!r.loja);
+    const semLoja = recentes.filter(r=>!r.loja && !r.fora_dop);
+    const foraDop = recentes.filter(r=>r.fora_dop);
     const comLoja = recentes.filter(r=>r.loja);
     const pendentes = comLoja.filter(r=>!r.justificacao);
     const aguardaValidacao = comLoja.filter(r=>r.justificacao && r.sem_registo && !r.validado_em);
@@ -3917,11 +3918,28 @@ function openRelatorioQuebras(){
       });
     const lojasSoJustificadas = Object.keys(porLoja).filter(l=>!lojasComPendentes.includes(l));
 
+    const colsWrap = document.createElement("div");
+    colsWrap.style.cssText = "display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px;";
+    main.appendChild(colsWrap);
+    const colDop = document.createElement("div");
+    const colFora = document.createElement("div");
+    colsWrap.appendChild(colDop);
+    colsWrap.appendChild(colFora);
+
+    const hDop = document.createElement("div");
+    hDop.style.cssText = "font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px;";
+    hDop.textContent = "🏪 Lojas DOP";
+    colDop.appendChild(hDop);
+    const hFora = document.createElement("div");
+    hFora.style.cssText = "font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px;";
+    hFora.textContent = "🚫 Fora da DOP";
+    colFora.appendChild(hFora);
+
     if(lojasComPendentes.length>0){
       const h = document.createElement("div");
-      h.style.cssText = "font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin:16px 0 8px;";
-      h.textContent = `Por loja — com pendências (${lojasComPendentes.length})`;
-      main.appendChild(h);
+      h.style.cssText = "font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin:4px 0 8px;";
+      h.textContent = `Com pendências (${lojasComPendentes.length})`;
+      colDop.appendChild(h);
       lojasComPendentes.forEach(l=>{
         const itensLoja = porLoja[l];
         const pendLoja = itensLoja.filter(r=>!r.numero_registo && !(r.sem_registo && r.validado_em));
@@ -3939,7 +3957,7 @@ function openRelatorioQuebras(){
           </button>
           <div class="detalhe-qb" style="display:none; padding:0 14px 14px;"></div>
         `;
-        main.appendChild(row);
+        colDop.appendChild(row);
         const detalheEl = row.querySelector(".detalhe-qb");
         const chev = row.querySelector(".chev-qb");
         row.querySelector("[data-toggle-loja-qb]").onclick = ()=>{
@@ -3973,8 +3991,8 @@ function openRelatorioQuebras(){
 
     if(lojasSoJustificadas.length>0){
       const folderBtn = document.createElement("button");
-      folderBtn.style.cssText = "width:100%; display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px; margin:16px 0 8px; box-shadow:0 1px 3px rgba(0,0,0,.06);";
-      folderBtn.innerHTML = `<span style="font-size:18px;">✔</span><span style="flex:1; text-align:left; font-weight:700; font-size:14px; color:var(--green);">Já tudo justificado</span><span style="background:var(--green); color:#fff; font-weight:700; font-size:12px; border-radius:99px; padding:3px 9px;">${lojasSoJustificadas.length} loja(s)</span><span id="qbTudoChev" style="font-size:13px; color:var(--ink-soft);">▾</span>`;
+      folderBtn.style.cssText = "width:100%; display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px; margin:10px 0 8px; box-shadow:0 1px 3px rgba(0,0,0,.06);";
+      folderBtn.innerHTML = `<span style="font-size:18px;">✔</span><span style="flex:1; text-align:left; font-weight:700; font-size:13px; color:var(--green);">Já tudo justificado</span><span style="background:var(--green); color:#fff; font-weight:700; font-size:12px; border-radius:99px; padding:3px 9px;">${lojasSoJustificadas.length}</span><span id="qbTudoChev" style="font-size:13px; color:var(--ink-soft);">▾</span>`;
       const wrap = document.createElement("div");
       wrap.style.display = "none";
       folderBtn.onclick = ()=>{
@@ -3982,14 +4000,59 @@ function openRelatorioQuebras(){
         wrap.style.display = abrir ? "block" : "none";
         document.getElementById("qbTudoChev").textContent = abrir ? "▴" : "▾";
       };
-      main.appendChild(folderBtn);
-      main.appendChild(wrap);
+      colDop.appendChild(folderBtn);
+      colDop.appendChild(wrap);
       lojasSoJustificadas.forEach(l=>{
         const totalLoja = porLoja[l].reduce((s,r)=>s+Number(r.valor_quebra),0);
         const item = document.createElement("div");
         item.style.cssText = "padding:10px 4px; border-bottom:1px solid var(--line); font-size:13px; display:flex; justify-content:space-between;";
         item.innerHTML = `<span>${l}</span><span style="color:var(--ink-soft);">${porLoja[l].length} · ${totalLoja.toFixed(2)} €</span>`;
         wrap.appendChild(item);
+      });
+    }
+    if(lojasComPendentes.length===0 && lojasSoJustificadas.length===0){
+      colDop.innerHTML += `<div class="empty" style="font-size:12.5px;">Sem quebras de lojas DOP nos últimos 30 dias.</div>`;
+    }
+
+    // Coluna direita: lojas fora da DOP (não pertencem à rede — sem ação de correção necessária)
+    if(foraDop.length===0){
+      colFora.innerHTML += `<div class="empty" style="font-size:12.5px;">Nenhuma nos últimos 30 dias.</div>`;
+    } else {
+      const porLojaFora = {};
+      foraDop.forEach(r=>{ (porLojaFora[r.loja_original||'?'] ||= []).push(r); });
+      Object.keys(porLojaFora).sort((a,b)=>porLojaFora[b].length-porLojaFora[a].length).forEach(nome=>{
+        const itens = porLojaFora[nome];
+        const total = itens.reduce((s,r)=>s+Number(r.valor_quebra||0),0);
+        const row = document.createElement("div");
+        row.className = "card";
+        row.style.cssText = "padding:0; overflow:hidden; border-left:3px solid var(--ink-soft);";
+        row.innerHTML = `
+          <button data-toggle-fora style="width:100%; display:flex; align-items:center; gap:10px; padding:12px 14px; border:none; background:none; text-align:left;">
+            <span style="flex:1;">
+              <span style="font-family:'Syne',sans-serif; font-weight:700; font-size:14.5px;">${nome}</span><br>
+              <span style="font-size:11.5px; color:var(--ink-soft); font-weight:700;">${itens.length} quebra${itens.length>1?'s':''} · ${total.toFixed(2)} €</span>
+            </span>
+            <span class="chev-fora" style="font-size:13px; color:var(--ink-soft);">▾</span>
+          </button>
+          <div class="detalhe-fora" style="display:none; padding:0 14px 14px;"></div>
+        `;
+        colFora.appendChild(row);
+        const detalheEl = row.querySelector(".detalhe-fora");
+        const chev = row.querySelector(".chev-fora");
+        row.querySelector("[data-toggle-fora]").onclick = ()=>{
+          const abrir = detalheEl.style.display === "none";
+          detalheEl.style.display = abrir ? "block" : "none";
+          chev.textContent = abrir ? "▴" : "▾";
+          if(abrir && !detalheEl.dataset.montado){
+            detalheEl.dataset.montado = "1";
+            itens.sort((a,b)=>new Date(b.data)-new Date(a.data)).forEach(r=>{
+              const linha = document.createElement("div");
+              linha.style.cssText = "padding:8px 0; border-top:1px solid var(--line); font-size:12.5px; display:flex; justify-content:space-between;";
+              linha.innerHTML = `<span>${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')} · ${r.operador||'—'}</span><b>${r.valor_quebra} €</b>`;
+              detalheEl.appendChild(linha);
+            });
+          }
+        };
       });
     }
 
