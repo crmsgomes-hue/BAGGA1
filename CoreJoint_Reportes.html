@@ -864,8 +864,13 @@ function invStatus(loja, catKey, freq){
     }
     return {state:"ok", latest: rows[0], window:w, diaErrado, dowLabel: dow?DOW_LABELS[dow-1]:null};
   }
-  if(dow && isSemanaDoGlobal(today)){
-    return {state:"pausado", latest:null, window:w, dowLabel:DOW_LABELS[dow-1]};
+  if(dow){
+    const dataCertaEstaSemana = findWeekdayInRange(w.start, w.end, dow);
+    const globalStartCheck = new Date(today.getFullYear(), today.getMonth(), 15);
+    const globalEndCheck = new Date(today.getFullYear(), today.getMonth(), 21);
+    if(dataCertaEstaSemana >= globalStartCheck && dataCertaEstaSemana <= globalEndCheck){
+      return {state:"pausado", latest:null, window:w, dowLabel:DOW_LABELS[dow-1]};
+    }
   }
   if(dow){
     const targetDate = findWeekdayInRange(w.start, w.end, dow);
