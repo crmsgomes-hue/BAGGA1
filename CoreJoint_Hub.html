@@ -585,7 +585,6 @@ function semanaKey(d){
       if(today.getDate()>5) globalNaoMarcado = !agendamentosPainel.some(a=>a.loja===l);
       const pendencias = [];
       if(!aindaNaoComecou){
-        if(vitOk<3) pendencias.push(`Vitrine ${vitOk}/3`);
         if(!vendasOk) pendencias.push("Vendas por fazer");
         if(atrasadosLoja>0) pendencias.push(`${atrasadosLoja} atrasado(s)`);
         if(globalNaoMarcado) pendencias.push("Global não marcado");

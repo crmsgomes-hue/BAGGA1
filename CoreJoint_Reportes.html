@@ -4794,12 +4794,10 @@ function renderGestao(){
   const sumRow = document.createElement("div");
   sumRow.style.cssText = "display:flex; gap:8px; margin-bottom:18px;";
   sumRow.innerHTML = `
-    <div data-sum="vitrine" style="flex:1; text-align:center; background:${missingVitrine>0?'var(--amber)':'var(--green)'}; color:#fff; border-radius:14px; padding:14px 4px; cursor:pointer;"><div style="font-size:24px;font-weight:700;">${missingVitrine}</div><div style="font-size:10px; opacity:.9;">vitrine incompleta</div></div>
     <div data-sum="vendas" style="flex:1; text-align:center; background:${missingVendas>0?'var(--amber)':'var(--green)'}; color:#fff; border-radius:14px; padding:14px 4px; cursor:pointer;"><div style="font-size:24px;font-weight:700;">${missingVendas}</div><div style="font-size:10px; opacity:.9;">sem vendas</div></div>
     <div data-sum="atrasados" style="flex:1; text-align:center; background:${lateInv>0?'var(--red)':'var(--green)'}; color:#fff; border-radius:14px; padding:14px 4px; cursor:pointer;"><div style="font-size:24px;font-weight:700;">${lateInv}</div><div style="font-size:10px; opacity:.9;">atrasados</div></div>
   `;
   main.appendChild(sumRow);
-  sumRow.querySelector('[data-sum="vitrine"]').onclick = ()=>abrirListaResumo("Vitrine incompleta hoje", missingVitrineList);
   sumRow.querySelector('[data-sum="vendas"]').onclick = ()=>abrirListaResumo("Sem vendas registadas hoje", missingVendasList);
   sumRow.querySelector('[data-sum="atrasados"]').onclick = ()=>abrirListaResumo("Inventário/Marketing atrasado", lateInvList);
 
@@ -4871,14 +4869,13 @@ function renderGestao(){
         globalNaoMarcado = !agendamentos.some(a=>a.loja===l && a.mes===mesAtualPill);
       }
 
-      const anyLate = vitState==="late" || vendasState==="late" || invAtrasados>0 || invDiaErrado>0 || mktAtrasados>0 || globalNaoMarcado;
-      const anyPend = vitState==="pend" || vendasState==="pend";
+      const anyLate = vendasState==="late" || invAtrasados>0 || invDiaErrado>0 || mktAtrasados>0 || globalNaoMarcado;
+      const anyPend = vendasState==="pend";
       const overall = anyLate ? "late" : anyPend ? "pend" : "ok";
       const overallColor = overall==="ok" ? "var(--green)" : overall==="late" ? "var(--red)" : "var(--amber)";
       const ultimaAtividade = ultimaAtividadeDias(l);
 
       const pendencias = [];
-      if(vitState!=="ok") pendencias.push(`Vitrine ${vitOk}/3`);
       if(vendasState!=="ok") pendencias.push("Vendas por fazer");
       if(invAtrasados>0) pendencias.push(`${invAtrasados} inventário atrasado${invAtrasados>1?'s':''}`);
       if(invDiaErrado>0) pendencias.push(`${invDiaErrado} dia errado`);
@@ -4961,9 +4958,8 @@ function renderGestao(){
       const c = cores[tipo] || cores.pend;
       return `<span style="display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:600; color:${c.fg}; background:${c.bg}; border-radius:99px; padding:3px 8px;">${icon} ${texto}</span>`;
     }
-    const corVit = d.vitState==="ok" ? "ok" : d.vitState==="late" ? "late" : "pend";
     const corVend = d.vendasState==="ok" ? "ok" : d.vendasState==="late" ? "late" : "pend";
-    let pills = pill("🌇", `Vitrine ${d.vitOk}/3`, corVit) + pill("🧾", d.vendasDone?"Vendas ✓":"Vendas por fazer", corVend);
+    let pills = pill("🧾", d.vendasDone?"Vendas ✓":"Vendas por fazer", corVend);
     if(d.invAtrasados>0) pills += pill("📦", `${d.invAtrasados} atrasado${d.invAtrasados>1?'s':''}`, "late");
     if(d.invDiaErrado>0) pills += pill("⚠", `${d.invDiaErrado} dia errado`, "pend");
     if(d.mktAtrasados>0) pills += pill("🎪", `${d.mktAtrasados} marketing atrasado`, "pend");
@@ -4971,11 +4967,7 @@ function renderGestao(){
     if(d.invAtrasados===0 && d.invDiaErrado===0 && d.mktAtrasados===0) pills += pill("✔", "Inventário em dia", "ok");
 
     let piorTipo = null, piorLabel = null;
-    if(d.vitState==="late"){
-      const turnoFalta = VITRINE_TURNOS.find(t=>!dailyStatus(l,"vitrine",today,t.key));
-      if(turnoFalta){ piorTipo = "vitrine_"+turnoFalta.key; piorLabel = "Vitrine — "+turnoFalta.label; }
-    }
-    if(!piorTipo && d.vendasState==="late"){ piorTipo="vendas"; piorLabel="Vendas"; }
+    if(d.vendasState==="late"){ piorTipo="vendas"; piorLabel="Vendas"; }
     if(!piorTipo){
       for(const c of categoriasParaLoja(l)){
         if(invStatus(l,c.key,c.freq).state==="late"){ piorTipo="inv_"+c.key; piorLabel=c.label; break; }
