@@ -78,10 +78,14 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
     <span style="color:var(--ac,#C1622D); font-size:.95rem;">›</span>
   </a>
 
-  <div style="display:flex; gap:16px; margin-bottom:14px; font-size:.78rem;">
+  <div id="topLinksRow" style="display:flex; gap:16px; margin-bottom:14px; font-size:.78rem; flex-wrap:wrap;">
     <a href="CoreJoint_Reportes.html?ferramentas=1" style="color:var(--t2); text-decoration:none; font-weight:600;">🛠️ Ferramentas</a>
     <button onclick="abrirAvisarTodos()" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📢 Avisar todas</button>
     <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">🔔 Lembrar atrasos</button>
+    <button data-toggle-secao="painelLojasSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📋 Painel de gestão</button>
+    <button data-toggle-secao="resumoOntemSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📅 Resumo de ontem</button>
+    <button data-toggle-secao="avisosDadosSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📢 Avisos</button>
+    <button data-toggle-secao="porValidarSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">🕐 Por validar</button>
   </div>
 
   <div id="toggleTilesGrid" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px;"></div>
@@ -1102,13 +1106,7 @@ function semanaKey(d){
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Lojas a verde à medida que fazem (respeita exceções por loja)</div>
     </button>
 
-    <div class="sec-divider" style="grid-column:1/-1; margin-top:6px; font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--t3); font-weight:700;">📋 Gestão</div>
-    <div id="gestaoLinksRow" style="grid-column:1/-1; display:flex; gap:14px; flex-wrap:wrap; font-size:.76rem; padding:4px 2px 8px;">
-      <button data-toggle-secao="painelLojasSection" data-nomove="1" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">📋 Painel de gestão</button>
-      <button data-toggle-secao="resumoOntemSection" data-nomove="1" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">📅 Resumo de ontem</button>
-      <button data-toggle-secao="avisosDadosSection" data-nomove="1" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">📢 Avisos dados</button>
-      <button data-toggle-secao="porValidarSection" data-nomove="1" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">🕐 Por validar</button>
-    </div>
+
 
     <div class="sec-divider" style="grid-column:1/-1; margin-top:6px; font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--t3); font-weight:700;">📦 Inventário</div>
     <button data-toggle-secao="valoresInventarioSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
@@ -1170,10 +1168,10 @@ function semanaKey(d){
     }
   });
 
-  // Grupo pequeno "Gestão" (Painel/Resumo/Avisos/Por validar): as secções abrem em bloco logo abaixo da linha de links, não coladas a cada botão individual
-  const gestaoRow = document.getElementById("gestaoLinksRow");
-  if(gestaoRow){
-    let ancora = gestaoRow;
+  // Grupo pequeno "Gestão" (Painel/Resumo/Avisos/Por validar): sítio discreto, logo abaixo da linha de links do topo
+  const topLinksRow = document.getElementById("topLinksRow");
+  if(topLinksRow){
+    let ancora = topLinksRow;
     ["painelLojasSection","resumoOntemSection","avisosDadosSection","porValidarSection"].forEach(id=>{
       const secao = document.getElementById(id);
       if(secao){
