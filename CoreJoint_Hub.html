@@ -71,12 +71,18 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
     <button onclick="location.reload(true)" style="background:none; border:1px solid var(--br); border-radius:20px; padding:3px 10px; font-size:11px; color:var(--tc); margin-left:6px;">🔄 Atualizar agora</button>
   </div>
   <div id="statsGrid" class="g4"></div>
-  <div style="display:flex; gap:8px; margin:10px 0;">
-    <a href="CoreJoint_Reportes.html?ferramentas=1" style="flex:1; text-align:center; background:var(--ink,#2B2723); color:#fff; border-radius:12px; padding:13px; font-size:14px; font-weight:700; text-decoration:none;">🛠️ Ferramentas</a>
-    <button onclick="abrirAvisarTodos()" style="flex:1; background:var(--terracotta,#C1622E); color:#fff; border:none; border-radius:12px; padding:13px; font-size:14px; font-weight:700; cursor:pointer;">📢 Avisar todas</button>
+
+  <a href="CoreJoint_Reportes.html?abrir=calendario" class="sc" style="display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--tx); margin:10px 0 14px;">
+    <span style="font-size:20px;">📅</span>
+    <span style="flex:1; font-family:'Syne',sans-serif; font-weight:700; font-size:.92rem;">Calendário</span>
+    <span style="color:var(--terracotta,#C1622D); font-size:1.1rem;">›</span>
+  </a>
+
+  <div style="display:flex; gap:16px; margin-bottom:14px; font-size:.78rem;">
+    <a href="CoreJoint_Reportes.html?ferramentas=1" style="color:var(--t2); text-decoration:none; font-weight:600;">🛠️ Ferramentas</a>
+    <button onclick="abrirAvisarTodos()" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📢 Avisar todas</button>
+    <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">🔔 Lembrar atrasos</button>
   </div>
-  <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E); border-radius:12px; padding:12px; font-size:14px; font-weight:700; margin-bottom:14px; cursor:pointer;">🔔 Enviar lembrete dos atrasos a cada loja</button>
-  <a href="CoreJoint_Reportes.html?abrir=calendario" style="display:flex; align-items:center; gap:10px; width:100%; background:var(--terracotta,#C1622D); color:#fff; border-radius:12px; padding:13px 16px; font-size:14px; font-weight:700; margin-bottom:16px; text-decoration:none;">📅 Calendário — ver tarefas de hoje e do mês <span style="margin-left:auto;">→</span></a>
 
   <div id="toggleTilesGrid" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px;"></div>
   <div id="painelLojasSection" style="display:none;"></div>
@@ -1125,10 +1131,6 @@ function semanaKey(d){
       <div class="slb">📅 Resumo de ontem <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Escolher loja</div>
     </button>
-    <button data-toggle-secao="avisosDadosSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
-      <div class="slb">📢 Avisos dados <span class="chev-toggle" style="float:right;">▾</span></div>
-      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Vistos e por ver</div>
-    </button>
     <button data-toggle-secao="porValidarSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">🕐 Por validar <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Confirmar envios</div>
@@ -1156,6 +1158,10 @@ function semanaKey(d){
     <button data-toggle-secao="painelFichaLoja" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">🏪 Ficha da Loja <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Escolher loja</div>
+    </button>
+    <button data-toggle-secao="avisosDadosSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">📢 Avisos dados <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Vistos e por ver</div>
     </button>
     <a href="CoreJoint_Reportes.html?abrir=invSemanal" class="sc" style="grid-column:1/-1; text-decoration:none; display:flex; align-items:center; justify-content:space-between; color:var(--tx);">
       <span class="slb" style="margin-bottom:0;">🖨️ Relatório de Inventário (semanal)</span><span style="color:var(--terracotta,#C1622D); font-weight:700;">Gerar →</span>
@@ -1198,6 +1204,15 @@ function semanaKey(d){
   `;
 
   // Abas removidas — página agora corre contínua, na ordem: dashboard/calendário, fotos, inventário, quebras, formulários, relatórios, RH, fardamento
+
+  // Cada secção de conteúdo mora fisicamente logo a seguir ao seu botão, para abrir ali mesmo (não ir para o fundo da página)
+  document.querySelectorAll("#toggleTilesGrid [data-toggle-secao]").forEach(btn=>{
+    const secao = document.getElementById(btn.dataset.toggleSecao);
+    if(secao){
+      secao.style.gridColumn = "1 / -1";
+      btn.insertAdjacentElement("afterend", secao);
+    }
+  });
 
   document.querySelectorAll("[data-toggle-secao]").forEach(btn=>{
     btn.onclick = ()=>{
