@@ -120,11 +120,13 @@ const INV_CATS = [
 ];
 const MARKETING_CATS = [
   {key:"cavalete", label:"Cavalete", freq:"mensal_inicio"},
-  {key:"toalhetes", label:"Toalhetes", freq:"mensal_inicio"},
-  {key:"orelhas", label:"Orelhas", freq:"mensal_inicio"},
+  {key:"toalhetes", label:"Toalhetes", freq:"mensal_inicio", semPrazo:true},
+  {key:"orelhas", label:"Orelhas", freq:"mensal_inicio", semPrazo:true},
   {key:"horarios", label:"Horários", freq:"mensal_inicio"},
   {key:"preventiva_delta", label:"Preventiva Delta", freq:"mensal_inicio", semFoto:true},
-  {key:"aps", label:"APS", freq:"mensal_dia20", semFoto:true}
+  {key:"aps", label:"APS", freq:"mensal_dia20", semFoto:true},
+  {key:"laranjas_maquina", label:"Laranjas na máquina", freq:"diario"},
+  {key:"expositor_tabaco", label:"Expositor do tabaco", freq:"diario"}
 ];
 // Exceções conhecidas por loja (ajustar à medida que se confirma mais informação)
 const LOJAS = ["Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim","Carregado","Ponte de Sor","Torres MCH","Torres MH"];
@@ -261,6 +263,7 @@ function julDezWindow(d){
   return {start, end};
 }
 function windowFor(freq, d){
+  if(freq==="diario"){ const dia=new Date(d.getFullYear(),d.getMonth(),d.getDate()); return {start:dia, end:dia}; }
   if(freq==="semanal") return weekWindow(d);
   if(freq==="quinzenal") return biweekWindow(d);
   if(freq==="mensal_inicio") return monthStartWindow(d);
@@ -283,6 +286,7 @@ const CATEGORY_DOW = { raspadinhas:1, cafe:2, laranja:3 };
 const FREQ_DOW_LABELS = {1:"2ª feira", 2:"3ª feira", 3:"4ª feira", 4:"5ª feira", 5:"6ª feira", 6:"sábado", 7:"domingo"};
 function descricaoRegra(catKey, freq){
   if(catKey==="global") return "Mensal — semana de 15 a 21, entre 2ª e 5ª feira";
+  if(freq==="diario") return "Todos os dias";
   const dow = CATEGORY_DOW[catKey];
   if(dow) return (freq==="quinzenal" ? "Quinzenal — toda " : "Semanal — toda ") + FREQ_DOW_LABELS[dow];
   if(freq==="semanal") return "Semanal — qualquer dia da semana";
@@ -338,7 +342,7 @@ function invStatus(catKey, freq){
     const graceDate = new Date(targetDate); graceDate.setDate(graceDate.getDate()+1); graceDate.setHours(14,0,0,0);
     return {state: today>graceDate ? "late" : "pend", latest:null, window:w, targetDate, dowLabel:DOW_LABELS[dow-1]};
   }
-  return {state: today>w.end ? "late" : "pend", latest:null, window:w};
+  return {state: (today>w.end && freq!=="diario") ? "late" : "pend", latest:null, window:w};
 }
 function dailyStatus(tipo, dateStr, turno){
   return dailyRows.find(r=>r.tipo===tipo && r.data===dateStr && r.turno===turno) || null;
@@ -808,7 +812,7 @@ function openCapture(kind, key, label, turno, estaAtrasado){
   pendingPhotos = [];
   pendingPhotosEntrada = [];
   pendingPhotosDesperdicio = [];
-  const CATEGORIAS_SEM_VALOR = ["cavalete","toalhetes","orelhas","horarios","preventiva_delta","aps"];
+  const CATEGORIAS_SEM_VALOR = ["cavalete","toalhetes","orelhas","horarios","preventiva_delta","aps","laranjas_maquina","expositor_tabaco"];
   const isInv = kind==="inv" && !CATEGORIAS_SEM_VALOR.includes(key);
   const overlay = document.createElement("div");
   overlay.className = "overlay"; overlay.id = "capOverlay";
@@ -1694,7 +1698,7 @@ async function agendarGlobal(mes, dataIso){
 
 async function confirmCapture(kind, key, turno){
   if(pendingPhotos.length===0){ toast("Tira pelo menos uma foto"); return; }
-  const CATEGORIAS_SEM_VALOR_CC = ["cavalete","toalhetes","orelhas","horarios","preventiva_delta","aps"];
+  const CATEGORIAS_SEM_VALOR_CC = ["cavalete","toalhetes","orelhas","horarios","preventiva_delta","aps","laranjas_maquina","expositor_tabaco"];
   if(kind==="inv" && !CATEGORIAS_SEM_VALOR_CC.includes(key)){
     const vInvEl = document.getElementById("vInv");
     if(vInvEl && vInvEl.value.trim()===""){ toast("Preenche o valor do inventário antes de enviar"); return; }
