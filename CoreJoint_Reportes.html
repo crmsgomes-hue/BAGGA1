@@ -4189,6 +4189,288 @@ function verFotosRecentesLoja(loja){
   bigPhoto(null, todasFotos, 0);
 }
 
+let _calAno = new Date().getFullYear();
+let _calMes = new Date().getMonth();
+let _calEventos = [];
+let _calChecks = [];
+let _calDiaSel = null;
+let _calLojasSel = ["todas"];
+let _calRecSel = "unica";
+const MESES_PT_CAL = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const DIAS_PT_CAL = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+
+async function abrirCalendarioDop(){
+  currentView = abrirCalendarioDop;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const h = document.createElement("h2");
+  h.textContent = "📅 Calendário";
+  main.appendChild(h);
+
+  const navRow = document.createElement("div");
+  navRow.style.cssText = "display:flex; align-items:center; justify-content:space-between; margin:10px 0;";
+  navRow.innerHTML = `
+    <button id="calPrevBtn" class="cambtn secondary" style="padding:8px 14px;">‹</button>
+    <div id="calMesLabel" style="font-weight:700; font-family:'Syne',sans-serif; font-size:16px;"></div>
+    <button id="calNextBtn" class="cambtn secondary" style="padding:8px 14px;">›</button>
+  `;
+  main.appendChild(navRow);
+
+  const grid = document.createElement("div");
+  grid.id = "calGrid";
+  main.appendChild(grid);
+
+  const detail = document.createElement("div");
+  detail.id = "calDiaDetail";
+  detail.style.marginTop = "14px";
+  main.appendChild(detail);
+
+  document.getElementById("calPrevBtn").onclick = ()=>calNavMesDop(-1);
+  document.getElementById("calNextBtn").onclick = ()=>calNavMesDop(1);
+
+  await calCarregarDadosDop();
+  calRenderMesDop();
+}
+
+async function calCarregarDadosDop(){
+  const ano = _calAno;
+  const [evs, chks] = await Promise.all([
+    api("GET", "cj_calendario_dop?select=*&order=data_inicio.asc"),
+    api("GET", `cj_calendario_dop_checks?select=*&data=gte.${ano}-01-01&data=lte.${ano}-12-31`)
+  ]);
+  _calEventos = evs || [];
+  _calChecks = chks || [];
+}
+
+function calNavMesDop(delta){
+  _calMes += delta;
+  if(_calMes<0){ _calMes=11; _calAno--; }
+  if(_calMes>11){ _calMes=0; _calAno++; }
+  calCarregarDadosDop().then(calRenderMesDop);
+  const d = document.getElementById("calDiaDetail");
+  if(d) d.innerHTML = "";
+}
+
+function calLojasDoEvento(ev){
+  let lojasEv;
+  try{ lojasEv = typeof ev.lojas==="string" ? JSON.parse(ev.lojas) : ev.lojas; }catch(e){ lojasEv = null; }
+  if(!lojasEv || lojasEv==="todas" || (Array.isArray(lojasEv) && lojasEv.includes("todas"))) return LOJAS;
+  return Array.isArray(lojasEv) ? lojasEv : [];
+}
+
+function calEventosNoDiaDop(dataStr){
+  return _calEventos.filter(ev=>{
+    if(ev.data_inicio > dataStr) return false;
+    if(ev.recorrencia==="unica") return ev.data_inicio===dataStr;
+    const d0 = new Date(ev.data_inicio+"T00:00:00");
+    const d1 = new Date(dataStr+"T00:00:00");
+    const diff = Math.round((d1-d0)/86400000);
+    return diff>=0 && diff%7===0;
+  });
+}
+
+function calRenderMesDop(){
+  const lbl = document.getElementById("calMesLabel");
+  if(lbl) lbl.textContent = MESES_PT_CAL[_calMes]+" "+_calAno;
+  const grid = document.getElementById("calGrid");
+  if(!grid) return;
+
+  const hoje = todayStr();
+  const primeiroDia = new Date(_calAno, _calMes, 1);
+  const ultimoDia = new Date(_calAno, _calMes+1, 0);
+  const inicioSem = primeiroDia.getDay();
+
+  let html = `<div style="display:grid; grid-template-columns:repeat(7,1fr); border:1px solid var(--line); border-radius:10px; overflow:hidden;">`;
+  DIAS_PT_CAL.forEach(d=>{
+    html += `<div style="text-align:center; font-size:11px; font-weight:700; color:var(--ink-soft); padding:8px 0; border-bottom:1px solid var(--line); background:var(--cream);">${d}</div>`;
+  });
+  for(let i=0;i<inicioSem;i++) html += `<div style="min-height:48px; border-right:1px solid var(--line); border-bottom:1px solid var(--line);"></div>`;
+
+  for(let d=1; d<=ultimoDia.getDate(); d++){
+    const dataStr = `${_calAno}-${String(_calMes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const evs = calEventosNoDiaDop(dataStr);
+    const isHoje = dataStr===hoje;
+    const isSel = dataStr===_calDiaSel;
+    let dotColor = "";
+    if(evs.length){
+      const todosFeitos = evs.every(ev=>{
+        const lj = calLojasDoEvento(ev);
+        return lj.every(l=>_calChecks.some(c=>c.evento_id===ev.id && c.data===dataStr && c.loja===l));
+      });
+      dotColor = todosFeitos ? "var(--green)" : "var(--red)";
+    }
+    const bg = isSel ? "background:var(--terracotta); color:#fff;" : isHoje ? "background:#fef3e2;" : "";
+    html += `<div data-date="${dataStr}" style="${bg} min-height:48px; padding:4px 5px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); cursor:pointer;">
+      <div style="font-size:12.5px; font-weight:${isHoje?'800':'500'};">${d}</div>
+      ${evs.length ? `<div style="display:flex; gap:2px; margin-top:2px; flex-wrap:wrap;">${evs.slice(0,3).map(()=>`<div style="width:6px; height:6px; border-radius:50%; background:${dotColor};"></div>`).join("")}${evs.length>3?'<span style="font-size:9px;">+</span>':''}</div>` : ``}
+    </div>`;
+  }
+  const totalCells = inicioSem + ultimoDia.getDate();
+  const resto = totalCells % 7;
+  if(resto>0) for(let i=0;i<(7-resto);i++) html += `<div style="min-height:48px; border-right:1px solid var(--line); border-bottom:1px solid var(--line);"></div>`;
+  html += `</div>`;
+  grid.innerHTML = html;
+  grid.querySelectorAll("[data-date]").forEach(cell=>{
+    cell.onclick = ()=>calClicarDiaDop(cell.getAttribute("data-date"));
+  });
+}
+
+function calClicarDiaDop(dataStr){
+  _calDiaSel = _calDiaSel===dataStr ? null : dataStr;
+  calRenderMesDop();
+  if(_calDiaSel) calRenderDiaDetailDop(dataStr);
+  else document.getElementById("calDiaDetail").innerHTML = "";
+}
+
+function calRenderDiaDetailDop(dataStr){
+  const detail = document.getElementById("calDiaDetail");
+  const evs = calEventosNoDiaDop(dataStr);
+  const [ano,mes,dia] = dataStr.split("-");
+  let html = `<div class="card" style="flex-direction:column; align-items:stretch;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+      <div style="font-weight:700;">${dia}/${mes}/${ano}</div>
+      <button data-cal-criar style="background:var(--terracotta); color:#fff; border:none; border-radius:8px; padding:7px 14px; font-size:13px; font-weight:700;">+ Tarefa</button>
+    </div>`;
+  if(evs.length===0){
+    html += `<div style="font-size:13px; color:var(--ink-soft);">Sem tarefas neste dia.</div>`;
+  } else {
+    evs.forEach(ev=>{
+      const lj = calLojasDoEvento(ev);
+      html += `<div style="border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+          <div style="font-weight:700; font-size:14px;">${ev.titulo}</div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            ${ev.recorrencia==="semanal" ? `<span style="font-size:11px; background:var(--cream); padding:2px 8px; border-radius:20px;">🔁 Semanal</span>` : ``}
+            <span data-cal-apagar="${ev.id}" data-cal-apagar-data="${dataStr}" style="cursor:pointer; color:var(--ink-soft);">🗑️</span>
+          </div>
+        </div>
+        ${ev.descricao ? `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:4px;">${ev.descricao}</div>` : ``}
+        <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:5px;">
+          ${lj.map(l=>{
+            const feito = _calChecks.some(c=>c.evento_id===ev.id && c.data===dataStr && c.loja===l);
+            return `<span style="font-size:11.5px; padding:3px 9px; border-radius:20px; background:${feito?'var(--green)':'var(--cream)'}; color:${feito?'#fff':'var(--ink-soft)'};">${feito?'✔ ':'○ '}${l}</span>`;
+          }).join("")}
+        </div>
+      </div>`;
+    });
+  }
+  html += `</div>`;
+  detail.innerHTML = html;
+  const criarBtn = detail.querySelector("[data-cal-criar]");
+  if(criarBtn) criarBtn.onclick = ()=>calAbrirCriarDop(dataStr);
+  detail.querySelectorAll("[data-cal-apagar]").forEach(el=>{
+    el.onclick = ()=>calApagarEventoDop(el.getAttribute("data-cal-apagar"), el.getAttribute("data-cal-apagar-data"));
+  });
+}
+
+function calAbrirCriarDop(dataStr){
+  _calDiaSel = dataStr;
+  _calRecSel = "unica";
+  _calLojasSel = ["todas"];
+  const [ano,mes,dia] = dataStr.split("-");
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "calCriarOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>📅 ${dia}/${mes}/${ano}</h2>
+      <div class="field" style="margin-top:10px;">
+        <label>Título da tarefa</label>
+        <input id="calTitulo" placeholder="Ex: Verificar extintores">
+      </div>
+      <div class="field">
+        <label>Descrição (opcional)</label>
+        <input id="calDesc" placeholder="Detalhes...">
+      </div>
+      <div class="field-label" style="font-weight:600; margin:10px 0 6px;">Repetição</div>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <button id="calRecUnica" style="flex:1; padding:9px; border-radius:8px; border:1.5px solid var(--terracotta); background:var(--terracotta); color:#fff; font-weight:700; font-size:13px;">1 vez</button>
+        <button id="calRecSemanal" style="flex:1; padding:9px; border-radius:8px; border:1.5px solid var(--terracotta); background:none; color:var(--terracotta); font-weight:700; font-size:13px;">🔁 Toda semana</button>
+      </div>
+      <div class="field-label" style="font-weight:600; margin:10px 0 6px;">Para que lojas</div>
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:13.5px;">
+        <input type="radio" name="calTipoLoja" id="calAlvoTodas" checked style="width:16px; height:16px;"> Todas as lojas
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13.5px;">
+        <input type="radio" name="calTipoLoja" id="calAlvoAlgumas" style="width:16px; height:16px;"> Escolher lojas específicas
+      </div>
+      <div id="calLojasChk" style="display:none; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px; padding:10px; background:var(--cream); border-radius:10px;">
+        ${LOJAS.map(l=>`<label style="display:flex; align-items:center; gap:6px; font-size:13px;"><input type="checkbox" class="cal-loja-chk" value="${l}"> ${l}</label>`).join("")}
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" style="flex:1;">Cancelar</button>
+        <button class="btn-save" style="flex:1;">Criar tarefa</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("calRecUnica").onclick = ()=>{
+    _calRecSel = "unica";
+    document.getElementById("calRecUnica").style.background = "var(--terracotta)";
+    document.getElementById("calRecUnica").style.color = "#fff";
+    document.getElementById("calRecSemanal").style.background = "none";
+    document.getElementById("calRecSemanal").style.color = "var(--terracotta)";
+  };
+  document.getElementById("calRecSemanal").onclick = ()=>{
+    _calRecSel = "semanal";
+    document.getElementById("calRecSemanal").style.background = "var(--terracotta)";
+    document.getElementById("calRecSemanal").style.color = "#fff";
+    document.getElementById("calRecUnica").style.background = "none";
+    document.getElementById("calRecUnica").style.color = "var(--terracotta)";
+  };
+  document.getElementById("calAlvoAlgumas").onchange = ()=>{ document.getElementById("calLojasChk").style.display = "grid"; };
+  document.getElementById("calAlvoTodas").onchange = ()=>{ document.getElementById("calLojasChk").style.display = "none"; };
+  overlay.querySelector(".btn-cancel").onclick = ()=>overlay.remove();
+  overlay.querySelector(".btn-save").onclick = async ()=>{
+    const titulo = document.getElementById("calTitulo").value.trim();
+    if(!titulo){ toast("Escreve o título da tarefa"); return; }
+    const todasSel = document.getElementById("calAlvoTodas").checked;
+    const lojasEscolhidas = Array.from(document.querySelectorAll(".cal-loja-chk:checked")).map(c=>c.value);
+    if(!todasSel && lojasEscolhidas.length===0){ toast("Escolhe pelo menos uma loja"); return; }
+    const lojasFinal = todasSel ? "todas" : lojasEscolhidas;
+    try{
+      await api("POST", "cj_calendario_dop", {
+        titulo, descricao: document.getElementById("calDesc").value.trim(),
+        data_inicio: dataStr, recorrencia: _calRecSel, lojas: lojasFinal, criado_por: currentUser
+      });
+      const lojasAviso = todasSel ? LOJAS : lojasEscolhidas;
+      for(const l of lojasAviso){
+        const descAviso = `Nova tarefa no calendário: "${titulo}" (${dia}/${mes})`;
+        await api("POST", "cj_avisos", {loja:l, tipo:"outro", descricao:descAviso, criado_por: currentUser});
+        notificarLojaAviso(l, "outro", descAviso);
+      }
+      overlay.remove();
+      mostrarSucesso("Tarefa criada!");
+      await calCarregarDadosDop();
+      calRenderMesDop();
+      calRenderDiaDetailDop(dataStr);
+    }catch(e){
+      console.error(e);
+      toast("Erro: " + (e.message||e).slice(0,100));
+    }
+  };
+}
+
+async function calApagarEventoDop(eventoId, dataStr){
+  if(!confirm("Apagar esta tarefa?")) return;
+  try{
+    await api("DELETE", `cj_calendario_dop?id=eq.${eventoId}`);
+    await calCarregarDadosDop();
+    calRenderMesDop();
+    calRenderDiaDetailDop(dataStr);
+  }catch(e){
+    console.error(e);
+    toast("Erro ao apagar: " + (e.message||e).slice(0,100));
+  }
+}
+
 function abrirEcraComAbas(titulo, abas){
   currentView = ()=>abrirEcraComAbas(titulo, abas);
   const main = document.getElementById("main");
@@ -4300,6 +4582,7 @@ function renderGestao(){
       {icon:"🗓️", label:"Relatório semanal de quebras (PDF/Excel)", fn:gerarRelatorioSemanalQuebras}
     ]},
     {titulo:"Utilitários", itens:[
+      {icon:"📅", label:"Calendário", fn:abrirCalendarioDop},
       {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry},
       {icon:"🖥️", label:"Modo apresentação", fn:openModoApresentacao}
     ]},
@@ -4316,7 +4599,7 @@ function renderGestao(){
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
-    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar
+    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar, calendario: abrirCalendarioDop
   };
 
   const toolsBtn = document.createElement("button");
