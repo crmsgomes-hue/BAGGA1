@@ -216,11 +216,13 @@ const INV_CATS = [
 ];
 const MARKETING_CATS = [
   {key:"cavalete", label:"Cavalete", freq:"mensal_inicio"},
-  {key:"toalhetes", label:"Toalhetes", freq:"mensal_inicio"},
-  {key:"orelhas", label:"Orelhas", freq:"mensal_inicio"},
+  {key:"toalhetes", label:"Toalhetes", freq:"mensal_inicio", semPrazo:true},
+  {key:"orelhas", label:"Orelhas", freq:"mensal_inicio", semPrazo:true},
   {key:"horarios", label:"Horários", freq:"mensal_inicio"},
   {key:"preventiva_delta", label:"Preventiva Delta", freq:"mensal_inicio"},
-  {key:"aps", label:"APS", freq:"mensal_dia20"}
+  {key:"aps", label:"APS", freq:"mensal_dia20"},
+  {key:"laranjas_maquina", label:"Laranjas na máquina", freq:"diario"},
+  {key:"expositor_tabaco", label:"Expositor do tabaco", freq:"diario"}
 ];
 const COMPLIANCE_KEYS = [];
 function categoriasCompliance(loja){
@@ -823,6 +825,7 @@ function julDezWindow(d){
   return {start, end};
 }
 function windowFor(freq, d){
+  if(freq==="diario"){ const dia=new Date(d.getFullYear(),d.getMonth(),d.getDate()); return {start:dia, end:dia}; }
   if(freq==="semanal") return weekWindow(d);
   if(freq==="quinzenal") return biweekWindow(d);
   if(freq==="mensal_inicio") return monthStartWindow(d);
@@ -879,7 +882,7 @@ function invStatus(loja, catKey, freq){
     return {state: today>graceDate ? "late" : "pend", latest:null, window:w, targetDate, dowLabel:DOW_LABELS[dow-1]};
   }
   if(w.end < RESET_GRACE_UNTIL) return {state:"pend", latest:null, window:w};
-  return {state: today>w.end ? "late" : "pend", latest:null, window:w};
+  return {state: (today>w.end && freq!=="diario") ? "late" : "pend", latest:null, window:w};
 }
 function dailyStatus(loja, tipo, dateStr, turno){
   return dailyRows.find(r=>r.loja===loja && r.tipo===tipo && r.data===dateStr && r.turno===turno) || null;
