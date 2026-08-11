@@ -14,7 +14,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#FAF7F2;--bg2:#f1ebdc;--sf:#fff;--sf2:#f3eee2;--br:#e8ddc9;--ac:#C1622D;--ac2:#9c4d23;--acl:#fbeee5;--tx:#2b2118;--t2:#6b5d4f;--t3:#a8987f;--red:#B0432F;--org:#c17817;--grn:#5C7A5C;--blu:#1a56db;--ra:10px;--rb:7px;}
+:root{--bg:#FAF7F2;--bg2:#f1ebdc;--sf:#fff;--sf2:#f3eee2;--br:#e8ddc9;--ac:#C1622D;--ac2:#9c4d23;--acl:#fbeee5;--tx:#2b2118;--t2:#6b5d4f;--t3:#a8987f;--red:#B0432F;--org:#c17817;--grn:#5C7A5C;--blu:#1a56db;--ra:10px;--rb:7px;--tc:#C1622D;--terracotta:#C1622D;}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:14px;overflow-x:hidden}
 body.dark{--bg:#1c1a18;--sf:#2A2724;--sf2:#242220;--br:#3a3632;--tx:#EDE8E1;--t2:#B8B0A5;--t3:#8a8178;--ac:#E08A52;--ac2:#F0A876;--acl:#3a2c24;}
@@ -72,10 +72,10 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   </div>
   <div id="statsGrid" class="g4"></div>
 
-  <a href="CoreJoint_Reportes.html?abrir=calendario" class="sc" style="display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--tx); margin:10px 0 14px;">
-    <span style="font-size:20px;">📅</span>
-    <span style="flex:1; font-family:'Syne',sans-serif; font-weight:700; font-size:.92rem;">Calendário</span>
-    <span style="color:var(--terracotta,#C1622D); font-size:1.1rem;">›</span>
+  <a href="CoreJoint_Reportes.html?abrir=calendario" style="display:flex; align-items:center; gap:8px; text-decoration:none; background:var(--acl,#fbeee5); border:1px solid var(--ac,#C1622D); border-radius:10px; padding:8px 12px; margin:10px 0 14px;">
+    <span style="font-size:15px;">📅</span>
+    <span style="flex:1; font-family:'Syne',sans-serif; font-weight:700; font-size:.82rem; color:var(--ac2,#9c4d23);">Calendário</span>
+    <span style="color:var(--ac,#C1622D); font-size:.95rem;">›</span>
   </a>
 
   <div style="display:flex; gap:16px; margin-bottom:14px; font-size:.78rem;">
@@ -1123,6 +1123,17 @@ function semanaKey(d){
   }catch(e){ console.error(e); }
 
   document.getElementById("toggleTilesGrid").innerHTML = `
+    <div class="sec-divider" style="grid-column:1/-1; font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--t3); font-weight:700;">📸 Fotos</div>
+    <button data-toggle-secao="fotosRecentesSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">📸 Fotos recentes <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Por loja e envio</div>
+    </button>
+    <button data-toggle-secao="categoriaLojasSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">📦 Fotos por categoria <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Lojas a verde à medida que fazem (respeita exceções por loja)</div>
+    </button>
+
+    <div class="sec-divider" style="grid-column:1/-1; margin-top:6px; font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--t3); font-weight:700;">📋 Gestão</div>
     <button data-toggle-secao="painelLojasSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">📋 Painel de gestão <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Ver lojas com pendências</div>
@@ -1131,19 +1142,13 @@ function semanaKey(d){
       <div class="slb">📅 Resumo de ontem <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Escolher loja</div>
     </button>
+    <button data-toggle-secao="avisosDadosSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">📢 Avisos dados <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Vistos e por ver</div>
+    </button>
     <button data-toggle-secao="porValidarSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">🕐 Por validar <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Confirmar envios</div>
-    </button>
-
-    <div class="sec-divider" style="grid-column:1/-1; margin-top:6px; font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--t3); font-weight:700;">📸 Fotos</div>
-    <button data-toggle-secao="fotosRecentesSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
-      <div class="slb">📸 Fotos recentes <span class="chev-toggle" style="float:right;">▾</span></div>
-      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Por loja e envio</div>
-    </button>
-    <button data-toggle-secao="categoriaLojasSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
-      <div class="slb">📦 Fotos por categoria <span class="chev-toggle" style="float:right;">▾</span></div>
-      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Lojas a verde à medida que fazem (respeita exceções por loja)</div>
     </button>
 
     <div class="sec-divider" style="grid-column:1/-1; margin-top:6px; font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--t3); font-weight:700;">📦 Inventário</div>
@@ -1158,10 +1163,6 @@ function semanaKey(d){
     <button data-toggle-secao="painelFichaLoja" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
       <div class="slb">🏪 Ficha da Loja <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Escolher loja</div>
-    </button>
-    <button data-toggle-secao="avisosDadosSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
-      <div class="slb">📢 Avisos dados <span class="chev-toggle" style="float:right;">▾</span></div>
-      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Vistos e por ver</div>
     </button>
     <a href="CoreJoint_Reportes.html?abrir=invSemanal" class="sc" style="grid-column:1/-1; text-decoration:none; display:flex; align-items:center; justify-content:space-between; color:var(--tx);">
       <span class="slb" style="margin-bottom:0;">🖨️ Relatório de Inventário (semanal)</span><span style="color:var(--terracotta,#C1622D); font-weight:700;">Gerar →</span>

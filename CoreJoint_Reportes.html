@@ -3919,7 +3919,8 @@ function openRelatorioQuebras(){
     const lojasSoJustificadas = Object.keys(porLoja).filter(l=>!lojasComPendentes.includes(l));
 
     const colsWrap = document.createElement("div");
-    colsWrap.style.cssText = "display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px;";
+    colsWrap.style.cssText = "display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px;";
+    colsWrap.className = "quebras-cols";
     main.appendChild(colsWrap);
     const colDop = document.createElement("div");
     const colFora = document.createElement("div");
@@ -3927,43 +3928,34 @@ function openRelatorioQuebras(){
     colsWrap.appendChild(colFora);
 
     const hDop = document.createElement("div");
-    hDop.style.cssText = "font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px;";
-    hDop.textContent = "🏪 Lojas DOP";
+    hDop.style.cssText = "font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; margin-bottom:8px; white-space:nowrap;";
+    hDop.textContent = "🏪 DOP";
     colDop.appendChild(hDop);
     const hFora = document.createElement("div");
-    hFora.style.cssText = "font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px;";
-    hFora.textContent = "🚫 Fora da DOP";
+    hFora.style.cssText = "font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; margin-bottom:8px; white-space:nowrap;";
+    hFora.textContent = "🚫 Fora DOP";
     colFora.appendChild(hFora);
 
     if(lojasComPendentes.length>0){
-      const h = document.createElement("div");
-      h.style.cssText = "font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin:4px 0 8px;";
-      h.textContent = `Com pendências (${lojasComPendentes.length})`;
-      colDop.appendChild(h);
       lojasComPendentes.forEach(l=>{
         const itensLoja = porLoja[l];
         const pendLoja = itensLoja.filter(r=>!r.numero_registo && !(r.sem_registo && r.validado_em));
         const totalLoja = pendLoja.reduce((s,r)=>s+Number(r.valor_quebra),0);
         const row = document.createElement("div");
         row.className = "card";
-        row.style.cssText = "padding:0; overflow:hidden; border-left:3px solid var(--red);";
+        row.style.cssText = "padding:0; overflow:hidden; border-left:3px solid var(--red); margin-bottom:7px;";
         row.innerHTML = `
-          <button data-toggle-loja-qb style="width:100%; display:flex; align-items:center; gap:10px; padding:12px 14px; border:none; background:none; text-align:left;">
-            <span style="flex:1;">
-              <span style="font-family:'Syne',sans-serif; font-weight:700; font-size:14.5px;">${l}</span><br>
-              <span style="font-size:11.5px; color:var(--red); font-weight:700;">${pendLoja.length} por resolver · ${totalLoja.toFixed(2)} €</span>
-            </span>
-            <span class="chev-qb" style="font-size:13px; color:var(--ink-soft);">▾</span>
+          <button data-toggle-loja-qb style="width:100%; display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:9px 10px; border:none; background:none; text-align:left;">
+            <span style="font-family:'Syne',sans-serif; font-weight:700; font-size:12.5px; line-height:1.25;">${l}</span>
+            <span style="font-size:10.5px; color:var(--red); font-weight:700;">${pendLoja.length} · ${totalLoja.toFixed(2)}€</span>
           </button>
-          <div class="detalhe-qb" style="display:none; padding:0 14px 14px;"></div>
+          <div class="detalhe-qb" style="display:none; padding:0 10px 10px;"></div>
         `;
         colDop.appendChild(row);
         const detalheEl = row.querySelector(".detalhe-qb");
-        const chev = row.querySelector(".chev-qb");
         row.querySelector("[data-toggle-loja-qb]").onclick = ()=>{
           const abrir = detalheEl.style.display === "none";
           detalheEl.style.display = abrir ? "block" : "none";
-          chev.textContent = abrir ? "▴" : "▾";
           if(abrir && !detalheEl.dataset.montado){
             detalheEl.dataset.montado = "1";
             itensLoja.sort((a,b)=> new Date(b.data)-new Date(a.data)).forEach(r=>{
@@ -3991,22 +3983,18 @@ function openRelatorioQuebras(){
 
     if(lojasSoJustificadas.length>0){
       const folderBtn = document.createElement("button");
-      folderBtn.style.cssText = "width:100%; display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px; margin:10px 0 8px; box-shadow:0 1px 3px rgba(0,0,0,.06);";
-      folderBtn.innerHTML = `<span style="font-size:18px;">✔</span><span style="flex:1; text-align:left; font-weight:700; font-size:13px; color:var(--green);">Já tudo justificado</span><span style="background:var(--green); color:#fff; font-weight:700; font-size:12px; border-radius:99px; padding:3px 9px;">${lojasSoJustificadas.length}</span><span id="qbTudoChev" style="font-size:13px; color:var(--ink-soft);">▾</span>`;
+      folderBtn.style.cssText = "width:100%; display:flex; align-items:center; gap:6px; padding:8px 10px; background:var(--card); border:1px solid var(--line); border-radius:10px; margin:6px 0; box-shadow:0 1px 3px rgba(0,0,0,.06);";
+      folderBtn.innerHTML = `<span style="font-size:13px;">✔</span><span style="flex:1; text-align:left; font-weight:700; font-size:11px; color:var(--green);">Justificado</span><span style="background:var(--green); color:#fff; font-weight:700; font-size:10.5px; border-radius:99px; padding:2px 7px;">${lojasSoJustificadas.length}</span>`;
       const wrap = document.createElement("div");
       wrap.style.display = "none";
-      folderBtn.onclick = ()=>{
-        const abrir = wrap.style.display === "none";
-        wrap.style.display = abrir ? "block" : "none";
-        document.getElementById("qbTudoChev").textContent = abrir ? "▴" : "▾";
-      };
+      folderBtn.onclick = ()=>{ wrap.style.display = wrap.style.display === "none" ? "block" : "none"; };
       colDop.appendChild(folderBtn);
       colDop.appendChild(wrap);
       lojasSoJustificadas.forEach(l=>{
         const totalLoja = porLoja[l].reduce((s,r)=>s+Number(r.valor_quebra),0);
         const item = document.createElement("div");
-        item.style.cssText = "padding:10px 4px; border-bottom:1px solid var(--line); font-size:13px; display:flex; justify-content:space-between;";
-        item.innerHTML = `<span>${l}</span><span style="color:var(--ink-soft);">${porLoja[l].length} · ${totalLoja.toFixed(2)} €</span>`;
+        item.style.cssText = "padding:7px 4px; border-bottom:1px solid var(--line); font-size:11px; display:flex; justify-content:space-between;";
+        item.innerHTML = `<span>${l}</span><span style="color:var(--ink-soft);">${porLoja[l].length} · ${totalLoja.toFixed(0)}€</span>`;
         wrap.appendChild(item);
       });
     }
@@ -4025,24 +4013,19 @@ function openRelatorioQuebras(){
         const total = itens.reduce((s,r)=>s+Number(r.valor_quebra||0),0);
         const row = document.createElement("div");
         row.className = "card";
-        row.style.cssText = "padding:0; overflow:hidden; border-left:3px solid var(--ink-soft);";
+        row.style.cssText = "padding:0; overflow:hidden; border-left:3px solid var(--ink-soft); margin-bottom:7px;";
         row.innerHTML = `
-          <button data-toggle-fora style="width:100%; display:flex; align-items:center; gap:10px; padding:12px 14px; border:none; background:none; text-align:left;">
-            <span style="flex:1;">
-              <span style="font-family:'Syne',sans-serif; font-weight:700; font-size:14.5px;">${nome}</span><br>
-              <span style="font-size:11.5px; color:var(--ink-soft); font-weight:700;">${itens.length} quebra${itens.length>1?'s':''} · ${total.toFixed(2)} €</span>
-            </span>
-            <span class="chev-fora" style="font-size:13px; color:var(--ink-soft);">▾</span>
+          <button data-toggle-fora style="width:100%; display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:9px 10px; border:none; background:none; text-align:left;">
+            <span style="font-family:'Syne',sans-serif; font-weight:700; font-size:12.5px; line-height:1.25;">${nome}</span>
+            <span style="font-size:10.5px; color:var(--ink-soft); font-weight:700;">${itens.length} · ${total.toFixed(2)}€</span>
           </button>
-          <div class="detalhe-fora" style="display:none; padding:0 14px 14px;"></div>
+          <div class="detalhe-fora" style="display:none; padding:0 10px 10px;"></div>
         `;
         colFora.appendChild(row);
         const detalheEl = row.querySelector(".detalhe-fora");
-        const chev = row.querySelector(".chev-fora");
         row.querySelector("[data-toggle-fora]").onclick = ()=>{
           const abrir = detalheEl.style.display === "none";
           detalheEl.style.display = abrir ? "block" : "none";
-          chev.textContent = abrir ? "▴" : "▾";
           if(abrir && !detalheEl.dataset.montado){
             detalheEl.dataset.montado = "1";
             itens.sort((a,b)=>new Date(b.data)-new Date(a.data)).forEach(r=>{
