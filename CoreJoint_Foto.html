@@ -147,7 +147,7 @@ function categoriasParaLoja(loja){
 
 const params = new URLSearchParams(location.search);
 const currentLoja = params.get("loja") || "Loja não identificada";
-let dailyRows = [], invRows = [], agendamentos = [], agendamentosTabaco = [], sondagensPendentes = [], formulariosPendentes = [], avisosPendentes = [], naoAplicaveis = [], quebrasPendentes = [], formsJaPreenchido = false, formsLegionelaJaPreenchido = false, minhasRespostasSondagens = [], sondagensRespondidas = [], minhasRespostasFormularios = [], formulariosRespondidos = [];
+let dailyRows = [], invRows = [], agendamentos = [], agendamentosTabaco = [], sondagensPendentes = [], formulariosPendentes = [], avisosPendentes = [], naoAplicaveis = [], quebrasPendentes = [], formsJaPreenchido = false, formsLegionelaJaPreenchido = false, minhasRespostasSondagens = [], sondagensRespondidas = [], minhasRespostasFormularios = [], formulariosRespondidos = [], pedidosFotosPendentes = [];
 let pendingPhotos = [];
 window.addEventListener("beforeunload", function(e){
   if(pendingPhotos.length>0){
@@ -479,6 +479,12 @@ async function loadAll(){
       api("PATCH", `cj_avisos?id=eq.${a.id}`, {visto_em: new Date().toISOString()}).catch(()=>{});
       a.visto_em = new Date().toISOString();
     });
+    const todosPedidosFotos = await api("GET", "cj_pedidos_fotos?select=*&ativo=eq.true");
+    const minhasRespostasPedidos = await api("GET", `cj_pedidos_fotos_respostas?select=pedido_id${f}`);
+    pedidosFotosPendentes = todosPedidosFotos.filter(p=>
+      (!p.lojas || p.lojas.includes(currentLoja)) &&
+      !minhasRespostasPedidos.some(r=>r.pedido_id===p.id)
+    );
     render();
   }catch(e){ console.error(e); toast("Erro a carregar"); }
 }
@@ -493,6 +499,37 @@ async function render(){
     main.innerHTML = '<div class="empty">Este link não está associado a nenhuma loja. Pede o link correto.</div>';
     return;
   }
+
+  pedidosFotosPendentes.forEach(p=>{
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.cssText = "border-left:4px solid var(--terracotta); padding:16px 18px;";
+    card.innerHTML = `
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+        <div style="width:34px; height:34px; border-radius:50%; background:var(--terracotta); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">📸</div>
+        <div>
+          <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--terracotta); font-weight:700;">Pedido de fotos</div>
+          <div style="font-weight:700; font-size:15.5px; color:var(--ink);">${p.titulo}</div>
+        </div>
+      </div>
+      ${p.descricao ? `<div style="font-size:13px; color:var(--ink-soft); margin-bottom:12px; padding-left:44px;">${p.descricao}</div>` : ``}
+      <div style="padding-left:44px;">
+        <div id="pedidoThumbs_${p.id}" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px;"></div>
+        <div style="display:flex; gap:8px;">
+          <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" id="pedidoCam_${p.id}" style="display:none;"></label>
+          <label class="filebtn" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);">🖼️ Galeria<input type="file" accept="image/*" id="pedidoGal_${p.id}" style="display:none;"></label>
+        </div>
+        <button id="pedidoEnviar_${p.id}" style="width:100%; margin-top:10px; background:var(--terracotta); color:#fff; border:none; border-radius:10px; padding:12px; font-weight:700; font-size:14px; opacity:.5;" disabled>✔ Enviar fotos</button>
+      </div>
+    `;
+    main.appendChild(card);
+    pendingPhotosPedidos[p.id] = pendingPhotosPedidos[p.id] || [];
+    const handler = (ev)=>handlePedidoFile(p.id, ev.target.files[0]);
+    document.getElementById(`pedidoCam_${p.id}`).addEventListener("change", handler);
+    document.getElementById(`pedidoGal_${p.id}`).addEventListener("change", handler);
+    document.getElementById(`pedidoEnviar_${p.id}`).onclick = ()=>enviarPedidoFotos(p.id);
+  });
+
 
   sondagensPendentes.forEach(s=>{
     const card = document.createElement("div");
@@ -993,6 +1030,61 @@ function renderCapThumbsExtra(containerId, arr, removeFnName, legendaFnName){
       <input class="photo-legend" type="text" placeholder="Legenda…" value="${p.legenda||''}" onchange="${legendaFnName}(${i},this.value)">
     </div>
   `).join("");
+}
+let pendingPhotosPedidos = {};
+function handlePedidoFile(pedidoId, file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    compressPhoto(e.target.result, 1280, 0.75, (compressed)=>{
+      if(!compressed) return;
+      pendingPhotosPedidos[pedidoId].push(compressed);
+      renderPedidoThumbs(pedidoId);
+    });
+  };
+  reader.readAsDataURL(file);
+}
+function renderPedidoThumbs(pedidoId){
+  const wrap = document.getElementById(`pedidoThumbs_${pedidoId}`);
+  if(!wrap) return;
+  wrap.innerHTML = pendingPhotosPedidos[pedidoId].map((src,i)=>`
+    <div class="photo-item">
+      <img src="${src}" onclick="bigPhoto('${src}')">
+      <button class="photo-del" onclick="removerPedidoFoto('${pedidoId}',${i})">✕</button>
+    </div>
+  `).join("");
+  const btn = document.getElementById(`pedidoEnviar_${pedidoId}`);
+  if(btn){
+    const temFotos = pendingPhotosPedidos[pedidoId].length > 0;
+    btn.disabled = !temFotos;
+    btn.style.opacity = temFotos ? "1" : ".5";
+  }
+}
+function removerPedidoFoto(pedidoId, i){
+  pendingPhotosPedidos[pedidoId].splice(i,1);
+  renderPedidoThumbs(pedidoId);
+}
+async function enviarPedidoFotos(pedidoId){
+  const fotos = pendingPhotosPedidos[pedidoId] || [];
+  if(fotos.length===0) return;
+  const btn = document.getElementById(`pedidoEnviar_${pedidoId}`);
+  btn.disabled = true; btn.textContent = "A enviar...";
+  try{
+    const urls = [];
+    for(let i=0;i<fotos.length;i++){
+      const path = `pedidos/${pedidoId}/${slug(currentLoja)}_${Date.now()}_${i}.jpg`;
+      const url = await uploadPhoto(fotos[i], path);
+      urls.push({url});
+    }
+    await api("POST", "cj_pedidos_fotos_respostas", {pedido_id: pedidoId, loja: currentLoja, fotos: urls});
+    delete pendingPhotosPedidos[pedidoId];
+    mostrarSucesso("Fotos enviadas! Obrigado.");
+    loadAll();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao enviar: " + (e.message||e).slice(0,100));
+    btn.disabled = false; btn.textContent = "✔ Enviar fotos";
+  }
 }
 function compressPhoto(dataUrl, maxWidth, quality, callback){
   const img = new Image();

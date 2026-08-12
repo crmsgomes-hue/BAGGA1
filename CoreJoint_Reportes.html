@@ -17,6 +17,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -3665,6 +3666,271 @@ async function abrirVisaoPorCategoria(){
   });
 }
 
+async function abrirPedidosFotos(){
+  currentView = abrirPedidosFotos;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const h = document.createElement("h2");
+  h.textContent = "📸 Pedidos de fotos pontuais";
+  main.appendChild(h);
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  sub.style.marginBottom = "14px";
+  sub.textContent = "Pede fotos específicas às lojas (ex: menu boards) — aparece como alerta no link delas, e recolhes tudo aqui para enviar por email.";
+  main.appendChild(sub);
+
+  const novoBtn = document.createElement("button");
+  novoBtn.className = "cambtn";
+  novoBtn.style.cssText = "width:100%; margin-bottom:16px;";
+  novoBtn.textContent = "+ Novo pedido";
+  novoBtn.onclick = abrirNovoPedidoFotos;
+  main.appendChild(novoBtn);
+
+  const pedidos = await api("GET", "cj_pedidos_fotos?select=*&order=criado_em.desc");
+  if(pedidos.length===0){
+    main.innerHTML += '<div class="empty">Ainda não criaste nenhum pedido.</div>';
+    return;
+  }
+  const respostas = await api("GET", "cj_pedidos_fotos_respostas?select=pedido_id,loja");
+  pedidos.forEach(p=>{
+    const alvo = p.lojas ? p.lojas.length : LOJAS.length;
+    const respondidas = respostas.filter(r=>r.pedido_id===p.id).length;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.cssText = `cursor:pointer; ${p.ativo?'':'opacity:.6;'}`;
+    card.innerHTML = `
+      <div class="card-title">${p.titulo}${!p.ativo?' (arquivado)':''}</div>
+      <div class="card-sub">${respondidas}/${alvo} lojas responderam · criado em ${new Date(p.criado_em).toLocaleDateString('pt-PT')}</div>
+    `;
+    card.onclick = ()=>abrirDetalhePedidoFotos(p);
+    main.appendChild(card);
+  });
+}
+
+function abrirNovoPedidoFotos(){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "novoPedidoOverlay";
+  overlay.innerHTML = `
+    <div class="modal" style="text-align:left;">
+      <h2>Novo pedido de fotos</h2>
+      <div class="fg">
+        <label>Título</label>
+        <input class="fc" id="npTitulo" placeholder="Ex: Fotos dos Menu Boards">
+      </div>
+      <div class="fg">
+        <label>Instruções (opcional)</label>
+        <textarea class="fc" id="npDescricao" placeholder="Ex: Foto nítida do menu board completo, de frente"></textarea>
+      </div>
+      <div class="fg">
+        <label>Lojas</label>
+        <select class="fc" id="npLojas">
+          <option value="">Todas as lojas</option>
+          <option value="escolher">Escolher lojas específicas...</option>
+        </select>
+      </div>
+      <div id="npLojasLista" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:10px;"></div>
+      <div class="modal-actions" style="flex-direction:column; gap:8px; margin-top:10px;">
+        <button class="btn-save" style="width:100%;" id="npCriarBtn">Criar pedido</button>
+        <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('novoPedidoOverlay').remove()">Cancelar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const lojasSelecionadas = new Set();
+  document.getElementById("npLojas").onchange = (ev)=>{
+    const lista = document.getElementById("npLojasLista");
+    if(ev.target.value==="escolher"){
+      lista.style.display = "flex";
+      lista.innerHTML = LOJAS.map(l=>`<button data-l="${l}" style="background:var(--card); border:1.5px solid var(--line); border-radius:99px; padding:6px 12px; font-size:12.5px;">${l}</button>`).join("");
+      lista.querySelectorAll("[data-l]").forEach(btn=>{
+        btn.onclick = ()=>{
+          const l = btn.dataset.l;
+          if(lojasSelecionadas.has(l)){ lojasSelecionadas.delete(l); btn.style.background="var(--card)"; btn.style.color="var(--ink)"; }
+          else { lojasSelecionadas.add(l); btn.style.background="var(--terracotta)"; btn.style.color="#fff"; }
+        };
+      });
+    } else {
+      lista.style.display = "none";
+    }
+  };
+  document.getElementById("npCriarBtn").onclick = async ()=>{
+    const titulo = document.getElementById("npTitulo").value.trim();
+    if(!titulo){ toast("Escreve um título"); return; }
+    const descricao = document.getElementById("npDescricao").value.trim();
+    const modoLojas = document.getElementById("npLojas").value;
+    const lojas = modoLojas==="escolher" ? (lojasSelecionadas.size ? Array.from(lojasSelecionadas) : null) : null;
+    try{
+      await api("POST", "cj_pedidos_fotos", {titulo, descricao: descricao||null, lojas, criado_por: currentUser});
+      overlay.remove();
+      mostrarSucesso("Pedido criado! Já aparece no link das lojas.");
+      abrirPedidosFotos();
+    }catch(e){
+      console.error(e);
+      toast("Erro ao criar: " + (e.message||e).slice(0,100));
+    }
+  };
+}
+
+async function abrirDetalhePedidoFotos(pedido){
+  currentView = ()=>abrirDetalhePedidoFotos(pedido);
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar aos pedidos";
+  back.onclick = abrirPedidosFotos;
+  main.appendChild(back);
+
+  const h = document.createElement("h2");
+  h.textContent = pedido.titulo;
+  main.appendChild(h);
+  if(pedido.descricao){
+    const sub = document.createElement("div");
+    sub.className = "sub";
+    sub.style.marginBottom = "10px";
+    sub.textContent = pedido.descricao;
+    main.appendChild(sub);
+  }
+
+  const lojasAlvo = pedido.lojas || LOJAS;
+  const respostas = await api("GET", `cj_pedidos_fotos_respostas?select=*&pedido_id=eq.${pedido.id}`);
+
+  const actionsRow = document.createElement("div");
+  actionsRow.style.cssText = "display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;";
+  actionsRow.innerHTML = `
+    <button class="cambtn" style="flex:1; min-width:140px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-weight:600;" id="pfEmailBtn">📧 Enviar por email</button>
+    <button class="cambtn secondary" style="flex:1; min-width:140px;" id="pfBaixarTodasBtn">📥 Descarregar (.zip)</button>
+    <button class="cambtn secondary" style="flex:1; min-width:140px;" id="pfArquivarBtn">${pedido.ativo?'💾 Arquivar':'↩️ Reativar'}</button>
+  `;
+  main.appendChild(actionsRow);
+
+  document.getElementById("pfArquivarBtn").onclick = async ()=>{
+    await api("PATCH", `cj_pedidos_fotos?id=eq.${pedido.id}`, {ativo: !pedido.ativo});
+    mostrarSucesso(pedido.ativo ? "Pedido arquivado." : "Pedido reativado.");
+    abrirPedidosFotos();
+  };
+
+  // Carimba o nome da loja como legenda visível no rodapé da foto (para se identificar mesmo fora de contexto, ex. anexo de email)
+  async function legendarFoto(url, loja){
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(bitmap, 0, 0);
+    const barH = Math.max(36, Math.round(bitmap.height*0.06));
+    ctx.fillStyle = "rgba(0,0,0,0.62)";
+    ctx.fillRect(0, canvas.height-barH, canvas.width, barH);
+    ctx.fillStyle = "#fff";
+    ctx.font = `bold ${Math.round(barH*0.5)}px sans-serif`;
+    ctx.textBaseline = "middle";
+    ctx.fillText(loja, 14, canvas.height - barH/2);
+    return new Promise(resolve=>canvas.toBlob(b=>resolve(b), "image/jpeg", 0.88));
+  }
+  async function gerarFotosLegendadas(){
+    const ficheiros = [];
+    for(const r of respostas){
+      const fotos = r.fotos || [];
+      for(let i=0;i<fotos.length;i++){
+        const blob = await legendarFoto(fotos[i].url, r.loja);
+        ficheiros.push({blob, nome: `${r.loja.replace(/\s+/g,"_")}_${i+1}.jpg`});
+      }
+    }
+    return ficheiros;
+  }
+
+  document.getElementById("pfEmailBtn").onclick = async ()=>{
+    const btn = document.getElementById("pfEmailBtn");
+    btn.textContent = "A preparar...";
+    try{
+      const ficheiros = await gerarFotosLegendadas();
+      if(ficheiros.length===0){ toast("Ainda não há fotos para enviar."); btn.textContent = "📧 Enviar por email"; return; }
+      const files = ficheiros.map(f=>new File([f.blob], f.nome, {type:"image/jpeg"}));
+      const shareData = {
+        title: pedido.titulo,
+        text: `${pedido.titulo} — fotos recolhidas das lojas (cada foto já vem legendada com o nome da loja).`,
+        files
+      };
+      if(navigator.canShare && navigator.canShare(shareData)){
+        await navigator.share(shareData);
+      } else if(navigator.canShare && navigator.canShare({files})){
+        await navigator.share({files});
+      } else {
+        toast("O teu telemóvel não suporta partilhar fotos assim — vou descarregar o zip para anexares à mão.");
+        await baixarZipLegendado(ficheiros);
+      }
+    }catch(e){
+      if(e.name!=="AbortError"){
+        console.error(e);
+        toast("Erro ao preparar: " + (e.message||e).slice(0,100));
+      }
+    }
+    btn.textContent = "📧 Enviar por email";
+  };
+
+  async function baixarZipLegendado(ficheiros){
+    if(typeof JSZip === "undefined"){ toast("Erro: biblioteca de zip não carregou. Tenta recarregar a página."); return; }
+    const zip = new JSZip();
+    ficheiros.forEach(f=>zip.file(f.nome, f.blob));
+    const content = await zip.generateAsync({type:"blob"});
+    const url = URL.createObjectURL(content);
+    const a = document.createElement("a");
+    a.href = url; a.download = `CoreJoint_${pedido.titulo.replace(/\s+/g,"_")}.zip`; a.click();
+    URL.revokeObjectURL(url);
+    toast("Zip descarregado — anexa-o ao teu email");
+  }
+
+  document.getElementById("pfBaixarTodasBtn").onclick = async ()=>{
+    const btn = document.getElementById("pfBaixarTodasBtn");
+    btn.textContent = "A preparar...";
+    try{
+      const ficheiros = await gerarFotosLegendadas();
+      await baixarZipLegendado(ficheiros);
+    }catch(e){
+      console.error(e);
+      toast("Erro ao gerar zip: " + (e.message||e).slice(0,100));
+    }
+    btn.textContent = "📥 Descarregar (.zip)";
+  };
+
+  const responderam = new Set(respostas.map(r=>r.loja));
+  const faltam = lojasAlvo.filter(l=>!responderam.has(l));
+
+  const resumo = document.createElement("div");
+  resumo.style.cssText = "font-size:13px; color:var(--ink-soft); margin-bottom:14px;";
+  resumo.textContent = `${respostas.length}/${lojasAlvo.length} lojas responderam${faltam.length ? " — faltam: "+faltam.join(", ") : ""}`;
+  main.appendChild(resumo);
+
+  respostas.sort((a,b)=>a.loja.localeCompare(b.loja)).forEach(r=>{
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.cssText = "flex-direction:column; align-items:stretch; gap:0;";
+    const fotosHtml = (r.fotos||[]).map((f,i)=>`<img src="${f.url}" data-loja="${r.loja}" data-i="${i}" style="width:90px; height:90px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;">`).join("");
+    card.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:14px; margin-bottom:8px;">${r.loja}</div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">${fotosHtml}</div>
+    `;
+    card.querySelectorAll("img").forEach(img=>{
+      img.onclick = ()=>{
+        const urls = (r.fotos||[]).map(f=>f.url);
+        window.open(urls[+img.dataset.i], "_blank");
+      };
+    });
+    main.appendChild(card);
+  });
+}
+
 async function abrirRelatorioIntegridade(){
   currentView = abrirRelatorioIntegridade;
   const main = document.getElementById("main");
@@ -4752,6 +5018,9 @@ function renderGestao(){
     {titulo:"Visão por categoria", itens:[
       {icon:"📦", label:"Inventário por categoria (lojas)", fn:abrirVisaoPorCategoria}
     ]},
+    {titulo:"Pedidos de fotos", itens:[
+      {icon:"📸", label:"Pedidos de fotos pontuais", fn:abrirPedidosFotos}
+    ]},
     {titulo:"Utilitários", itens:[
       {icon:"📅", label:"Calendário", fn:abrirCalendarioDop},
       {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry},
@@ -4770,7 +5039,7 @@ function renderGestao(){
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
-    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar, calendario: abrirCalendarioDop, porCategoria: abrirVisaoPorCategoria
+    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar, calendario: abrirCalendarioDop, porCategoria: abrirVisaoPorCategoria, pedidosFotos: abrirPedidosFotos
   };
 
   const toolsBtn = document.createElement("button");
