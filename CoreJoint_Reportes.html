@@ -648,6 +648,14 @@ function toast(msg){
   clearTimeout(window.__toastTimer);
   window.__toastTimer = setTimeout(()=>t.classList.remove("show"), dur);
 }
+window.addEventListener("error", (ev)=>{
+  console.error("Erro global:", ev.error||ev.message);
+  try{ toast("Erro: " + String((ev.error&&ev.error.message)||ev.message||"desconhecido").slice(0,150)); }catch(e){}
+});
+window.addEventListener("unhandledrejection", (ev)=>{
+  console.error("Promessa rejeitada:", ev.reason);
+  try{ toast("Erro: " + String((ev.reason&&ev.reason.message)||ev.reason||"desconhecido").slice(0,150)); }catch(e){}
+});
 function isoDate(d){
   const y = d.getFullYear();
   const m = String(d.getMonth()+1).padStart(2,'0');
@@ -3690,7 +3698,14 @@ async function abrirPedidosFotos(){
   novoBtn.className = "cambtn";
   novoBtn.style.cssText = "width:100%; margin-bottom:16px;";
   novoBtn.textContent = "+ Novo pedido";
-  novoBtn.onclick = abrirNovoPedidoFotos;
+  novoBtn.onclick = ()=>{
+    try{
+      abrirNovoPedidoFotos();
+    }catch(e){
+      console.error(e);
+      toast("Erro ao abrir formulário: " + (e.message||e).slice(0,150));
+    }
+  };
   main.appendChild(novoBtn);
 
   const pedidos = await api("GET", "cj_pedidos_fotos?select=*&order=criado_em.desc");
@@ -4966,7 +4981,17 @@ function abrirMenuFerramentas(grupos){
       const isLast = ti === g.itens.length-1;
       item.style.cssText = `display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:11px 8px; border:none; background:none; ${isLast?'':'border-bottom:1px solid rgba(0,0,0,.06);'} font-size:14px; color:var(--ink);`;
       item.innerHTML = `<span style="font-size:18px;">${t.icon}</span><span>${t.label}</span>`;
-      item.onclick = ()=>{ overlay.remove(); previousView = currentView; t.fn(); };
+      item.onclick = ()=>{
+        overlay.remove();
+        previousView = currentView;
+        try{
+          const r = t.fn();
+          if(r && r.catch) r.catch(e=>{ console.error(e); toast("Erro ao abrir: " + (e.message||e).slice(0,150)); });
+        }catch(e){
+          console.error(e);
+          toast("Erro ao abrir: " + (e.message||e).slice(0,150));
+        }
+      };
       grupoBox.appendChild(item);
     });
     lista.appendChild(grupoBox);
