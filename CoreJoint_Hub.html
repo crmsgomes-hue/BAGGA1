@@ -93,7 +93,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="resumoOntemSection" style="display:none;"></div>
   <div id="quebrasPanoramaSection" style="display:none;"></div>
   <div id="valoresInventarioSection" style="display:none;"></div>
-  <div id="categoriaLojasSection" style="display:none;"></div>
+  <div id="categoriaLojasSection"></div>
 
   <div id="fotosRecentesSection" style="display:none;"></div>
   <div id="painelFichaLoja" style="display:none;"></div>
@@ -870,6 +870,7 @@ function semanaKey(d){
     // Vitrine — trazida de volta a pedido da Cristina, mas só aqui (dá noção de quem envia, sem poluir o Painel de gestão)
     const todayVitrine = await api(`cj_daily_reportes?select=loja,turno&tipo=eq.vitrine&data=eq.${todayStr}`);
     const todayLaranjaTabaco = await api(`cj_daily_reportes?select=loja,tipo,nota,fotos&tipo=in.(laranjas_maquina,expositor_tabaco)&data=eq.${todayStr}`);
+    const todayVendas = await api(`cj_daily_reportes?select=loja,fotos,criado_em&tipo=eq.vendas&data=eq.${todayStr}`);
     const TURNOS_VIT = [{key:"manha", label:"Manhã"}, {key:"almoco", label:"Almoço"}, {key:"lanche", label:"Lanche"}];
     let htmlVit = `<div class="card" style="flex-direction:column; align-items:stretch; gap:0; margin-bottom:10px;">
       <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.88rem; margin-bottom:9px;">🌇 Vitrine — hoje</div>`;
@@ -899,11 +900,30 @@ function semanaKey(d){
       });
       htmlVit += `</div></div>`;
     });
+    htmlVit += `<div style="margin-bottom:2px;">
+      <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:4px;">🧾 Vendas (${todayVendas.length}/${LOJAS.length})</div>
+      <div style="display:flex; flex-wrap:wrap; gap:6px;" data-vendas-row="1">`;
+    LOJAS.forEach(l=>{
+      const reg = todayVendas.find(r=>r.loja===l);
+      const feito = !!reg;
+      htmlVit += `<span data-vendas-loja="${l}" style="background:${feito?'var(--grn)':'var(--sf2)'}; color:${feito?'#fff':'var(--t2)'}; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700; cursor:${feito?'pointer':'default'};">${feito?'✔ ':''}${l}</span>`;
+    });
+    htmlVit += `</div></div>`;
     htmlVit += `</div>`;
     document.getElementById("categoriaLojasSection").insertAdjacentHTML("beforeend", htmlVit);
     document.querySelectorAll("[data-lt-nota]").forEach(chip=>{
       const nota = chip.dataset.ltNota;
       if(nota) chip.onclick = ()=>alert(`${chip.dataset.ltLoja} — sem stock\n\n${nota}`);
+    });
+    document.querySelectorAll("[data-vendas-loja]").forEach(chip=>{
+      const reg = todayVendas.find(r=>r.loja===chip.dataset.vendasLoja);
+      if(!reg) return;
+      const fotos = (reg.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
+      const horaLbl = reg.criado_em ? new Date(reg.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : "";
+      chip.onclick = ()=>{
+        if(fotos.length){ bigPhoto(fotos, 0); }
+        else alert(`${chip.dataset.vendasLoja} — Vendas enviadas${horaLbl?' às '+horaLbl:''}\n(sem foto anexada)`);
+      };
     });
   }catch(e){ console.error(e); }
 
@@ -1168,8 +1188,8 @@ function semanaKey(d){
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Por loja e envio</div>
     </button>
     <button data-toggle-secao="categoriaLojasSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
-      <div class="slb">📦 Fotos por categoria <span class="chev-toggle" style="float:right;">▾</span></div>
-      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Lojas a verde à medida que fazem (respeita exceções por loja)</div>
+      <div class="slb">📦 Fotos por categoria <span class="chev-toggle" style="float:right;">▴</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Aberto por defeito — vê já quem falta</div>
     </button>
 
 
