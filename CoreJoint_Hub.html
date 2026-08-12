@@ -437,16 +437,13 @@ function semanaKey(d){
   try{
     const daily = await api(`cj_daily_reportes?select=loja,tipo,turno&data=eq.${todayStr}`);
     let reportesPend = 0;
-    const semVitrine = [], semVendas = [];
-    if(!aindaNaoComecou){
+    const semVendas = [];
+    if(!aindaNaoComecou && today.getHours()>=21){
       LOJAS.forEach(l=>{
-        const turnos = ["manha","almoco","lanche"].filter(t=>daily.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t)).length;
-        if(turnos<3){ reportesPend++; semVitrine.push(l); }
         if(!daily.some(r=>r.loja===l && r.tipo==="vendas" && r.turno==="unico")){ reportesPend++; semVendas.push(l); }
       });
     }
     statReportes = reportesPend;
-    if(semVitrine.length) addAttn(attn, "CoreJoint_Reportes.html", `🌇 ${semVitrine.length} loja(s) sem vitrine completa hoje`, semVitrine.slice(0,4).join(", ") + (semVitrine.length>4?" e mais...":""), true);
     if(semVendas.length) addAttn(attn, "CoreJoint_Reportes.html", `🧾 ${semVendas.length} loja(s) sem vendas hoje`, semVendas.slice(0,4).join(", ") + (semVendas.length>4?" e mais...":""), true);
 
     const invRows = await api("cj_inventario_reportes?select=loja,categoria,data");
@@ -595,7 +592,7 @@ function semanaKey(d){
       if(today.getDate()>5) globalNaoMarcado = !agendamentosPainel.some(a=>a.loja===l);
       const pendencias = [];
       if(!aindaNaoComecou){
-        if(!vendasOk) pendencias.push("Vendas por fazer");
+        if(!vendasOk && today.getHours()>=21) pendencias.push("Vendas por fazer");
         if(globalNaoMarcado) pendencias.push("Global não marcado");
       }
       return {loja:l, pendencias, urgente: pendencias.length};

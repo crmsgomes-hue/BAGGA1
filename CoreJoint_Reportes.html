@@ -1960,8 +1960,8 @@ function openRegistoAtividade(){
 
 async function partilharResumoWhatsApp(){
   const today = todayStr();
-  const missingVitrine = LOJAS.filter(l=>VITRINE_TURNOS.some(t=>!dailyStatus(l,"vitrine",today,t.key)));
-  const missingVendas = LOJAS.filter(l=>!dailyStatus(l,"vendas",today,"unico"));
+  const vendasJaAbriu = new Date().getHours() >= 21;
+  const missingVendas = vendasJaAbriu ? LOJAS.filter(l=>!dailyStatus(l,"vendas",today,"unico")) : [];
   let atrasados = 0;
   LOJAS.forEach(l=>{
     [...categoriasParaLoja(l), ...marketingCatsParaLoja(l)].forEach(c=>{
@@ -1970,8 +1970,11 @@ async function partilharResumoWhatsApp(){
   });
   const dataTxt = new Date().toLocaleDateString('pt-PT',{weekday:'long', day:'2-digit', month:'long'});
   let texto = `📊 CoreJoint — Resumo de ${dataTxt}\n\n`;
-  texto += missingVitrine.length ? `🌇 Vitrine incompleta (${missingVitrine.length}): ${missingVitrine.join(", ")}\n` : `🌇 Vitrine: todas completas ✔\n`;
-  texto += missingVendas.length ? `🧾 Sem vendas (${missingVendas.length}): ${missingVendas.join(", ")}\n` : `🧾 Vendas: todas registadas ✔\n`;
+  if(vendasJaAbriu){
+    texto += missingVendas.length ? `🧾 Sem vendas (${missingVendas.length}): ${missingVendas.join(", ")}\n` : `🧾 Vendas: todas registadas ✔\n`;
+  } else {
+    texto += `🧾 Vendas: ainda não é hora (abre às 21h)\n`;
+  }
   texto += atrasados>0 ? `📦 ${atrasados} inventário(s)/marketing atrasado(s)\n` : `📦 Inventário: tudo em dia ✔\n`;
 
   try{
@@ -4820,7 +4823,9 @@ function renderGestao(){
     const turnoFalta = VITRINE_TURNOS.find(t=>!dailyStatus(l,"vitrine",today,t.key));
     return turnoFalta ? {loja:l, label:"Falta "+turnoFalta.label, tipo:"vitrine_"+turnoFalta.key} : null;
   }).filter(Boolean);
-  const missingVendasList = aindaNaoComecouResumo ? [] : LOJAS.filter(l=>!dailyStatus(l,"vendas",today,"unico")).map(l=>({loja:l, label:"Vendas por registar", tipo:"vendas"}));
+  const horaAtual = new Date().getHours();
+  const vendasJaAbriu = horaAtual >= 21;
+  const missingVendasList = (aindaNaoComecouResumo || !vendasJaAbriu) ? [] : LOJAS.filter(l=>!dailyStatus(l,"vendas",today,"unico")).map(l=>({loja:l, label:"Vendas por registar", tipo:"vendas"}));
   const lateInvList = [];
   if(!aindaNaoComecouResumo){
     LOJAS.forEach(l=>{
