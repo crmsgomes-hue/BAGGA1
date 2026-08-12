@@ -196,7 +196,7 @@ function categoriasParaLoja(loja){
     return true;
   });
 }
-function weekWindow(d){ const day=(d.getDay()+6)%7; const start=new Date(d); start.setDate(d.getDate()-day); const end=new Date(start); end.setDate(start.getDate()+6); return {start,end}; }
+function weekWindow(d){ const day=(d.getDay()+6)%7; const start=new Date(d.getFullYear(), d.getMonth(), d.getDate()-day); const end=new Date(start.getFullYear(), start.getMonth(), start.getDate()+6, 23,59,59,999); return {start,end}; }
 function biweekWindow(d){ const day=d.getDate(); const start = day<=15 ? new Date(d.getFullYear(),d.getMonth(),1) : new Date(d.getFullYear(),d.getMonth(),16); const end = day<=15 ? new Date(d.getFullYear(),d.getMonth(),15) : new Date(d.getFullYear(),d.getMonth()+1,0); return {start,end}; }
 function month3Window(d){ return {start:new Date(d.getFullYear(),d.getMonth(),15), end:new Date(d.getFullYear(),d.getMonth(),21)}; }
 function monthWindow(d){ return {start:new Date(d.getFullYear(),d.getMonth(),1), end:new Date(d.getFullYear(),d.getMonth()+1,0)}; }
@@ -456,23 +456,24 @@ function semanaKey(d){
       [...categoriasParaLoja(loja), ...MARKETING_CATS].filter(cat=>!naoAplicaveisRows.some(n=>n.loja===loja && n.categoria===cat.key)).forEach(cat=>{
         const w = windowFor(cat.freq, today);
         const dow = CATEGORY_DOW[cat.key];
-        let deadline, enviouNoDiaCerto = false;
+        let deadline, enviouNoPrazo = false;
         if(dow){
           const target = findWeekdayInRange(w.start,w.end,dow);
-          enviouNoDiaCerto = invRows.some(r=>r.loja===loja && r.categoria===cat.key && r.data===isoDate(target));
-          deadline = new Date(target); deadline.setHours(23,59,59,999);
+          const diaConfirmacao = new Date(target); diaConfirmacao.setDate(diaConfirmacao.getDate()+1);
+          deadline = new Date(diaConfirmacao); deadline.setHours(21,0,0,0);
+          enviouNoPrazo = invRows.some(r=>r.loja===loja && r.categoria===cat.key && (r.data===isoDate(target) || r.data===isoDate(diaConfirmacao)));
         } else {
           const rowsCat = invRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end));
-          enviouNoDiaCerto = rowsCat.length>0;
+          enviouNoPrazo = rowsCat.length>0;
           deadline = w.end;
         }
-        if(enviouNoDiaCerto) return;
+        if(enviouNoPrazo) return;
         if(deadline < RESET_GRACE_UNTIL) return; // prazo era antes do reset, não conta
         if(today > deadline){
           atrasadosN++;
           const tipoAviso = "inv_"+cat.key;
           const jaTemAviso = avisosHojeAuto.some(a=>a.loja===loja && a.tipo===tipoAviso);
-          if(!jaTemAviso) novosAvisos.push({loja, tipo: tipoAviso, descricao: `${cat.label} não foi enviado no dia certo`, criado_por: "Sistema (automático)"});
+          if(!jaTemAviso) novosAvisos.push({loja, tipo: tipoAviso, descricao: `${cat.label} não foi confirmado a tempo`, criado_por: "Sistema (automático)"});
         }
       });
     });
@@ -803,8 +804,8 @@ function semanaKey(d){
       const dow = CATEGORY_DOW[cat.key];
       if(dow){
         const dataCerta = findWeekdayInRange(w.start, w.end, dow);
-        const dataCertaStr = isoDate(dataCerta);
-        const rowCerta = rows.find(r=>r.data===dataCertaStr);
+        const diaConfirmacao = new Date(dataCerta); diaConfirmacao.setDate(diaConfirmacao.getDate()+1);
+        const rowCerta = rows.find(r=>r.data===isoDate(dataCerta) || r.data===isoDate(diaConfirmacao));
         if(rowCerta) return {feito:true, diaErrado:false, latest: rowCerta};
         return {feito:false, diaErrado:false, latest: rows[0]||null};
       }

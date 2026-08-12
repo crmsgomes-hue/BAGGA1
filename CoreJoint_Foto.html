@@ -218,8 +218,8 @@ async function upsertDaily(loja, tipo, data, foto_path, turno){
 
 function weekWindow(d){
   const day = (d.getDay()+6)%7;
-  const start = new Date(d); start.setDate(d.getDate()-day);
-  const end = new Date(start); end.setDate(start.getDate()+6);
+  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate()-day);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate()+6, 23,59,59,999);
   return {start, end};
 }
 function biweekWindow(d){
@@ -317,18 +317,25 @@ function invStatus(catKey, freq){
   const dow = CATEGORY_DOW[catKey];
   if(dow){
     const dataCerta = findWeekdayInRange(w.start, w.end, dow);
-    const dataCertaStr = isoDate(dataCerta);
-    const enviouNoDiaCerto = rows.some(r=>r.data===dataCertaStr);
-    if(enviouNoDiaCerto){
-      return {state:"ok", latest: rows.find(r=>r.data===dataCertaStr), window:w, diaErrado:false, dowLabel: DOW_LABELS[dow-1]};
+    dataCerta.setHours(0,0,0,0);
+    const diaConfirmacao = new Date(dataCerta); diaConfirmacao.setDate(diaConfirmacao.getDate()+1);
+    const prazoConfirmacao = new Date(diaConfirmacao); prazoConfirmacao.setHours(21,0,0,0);
+    const enviouNoPrazo = rows.some(r=>{
+      if(r.criado_em){
+        const t = new Date(r.criado_em);
+        return t >= dataCerta && t <= prazoConfirmacao;
+      }
+      return r.data===isoDate(dataCerta) || r.data===isoDate(diaConfirmacao);
+    });
+    if(enviouNoPrazo){
+      return {state:"ok", latest: rows[0], window:w, diaErrado:false, dowLabel: DOW_LABELS[dow-1]};
     }
     const globalStartCheck = new Date(today.getFullYear(), today.getMonth(), 15);
     const globalEndCheck = new Date(today.getFullYear(), today.getMonth(), 21);
     if(dataCerta >= globalStartCheck && dataCerta <= globalEndCheck){
       return {state:"pausado", latest:null, window:w, dowLabel:DOW_LABELS[dow-1]};
     }
-    const fimDoDia = new Date(dataCerta); fimDoDia.setHours(23,59,59,999);
-    const state = today > fimDoDia ? "late" : "pend";
+    const state = today > prazoConfirmacao ? "late" : "pend";
     return {state, latest: rows[0]||null, window:w, targetDate:dataCerta, dowLabel:DOW_LABELS[dow-1]};
   }
   if(rows.length>0){
