@@ -520,7 +520,7 @@ function semanaKey(d){
         <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">`;
       LOJAS.forEach(l=>{
         const enviouHoje = (porLoja[l]||[]).some(s=>s.data===hojeStr);
-        htmlConf += `<span style="background:${enviouHoje?'var(--grn)':'var(--sf2)'}; color:${enviouHoje?'#fff':'var(--t2)'}; border-radius:99px; padding:4px 10px; font-size:.68rem; font-weight:700;">${enviouHoje?'✔ ':''}${l}</span>`;
+        htmlConf += `<button data-chip-loja="${l}" style="background:${enviouHoje?'var(--grn)':'var(--sf2)'}; color:${enviouHoje?'#fff':'var(--t2)'}; border:none; border-radius:99px; padding:4px 10px; font-size:.68rem; font-weight:700; cursor:${enviouHoje?'pointer':'default'};">${enviouHoje?'✔ ':''}${l}</button>`;
       });
       htmlConf += `</div>`;
       let html = htmlConf + `<select id="fotosRecentesSelect" style="width:100%; padding:12px; border-radius:12px; border:1px solid var(--br); background:var(--sf); font-size:.9rem; margin-bottom:10px;">
@@ -563,6 +563,14 @@ function semanaKey(d){
       }
       renderFotosRecentes("");
       document.getElementById("fotosRecentesSelect").onchange = (ev)=>renderFotosRecentes(ev.target.value);
+      document.querySelectorAll("[data-chip-loja]").forEach(chip=>{
+        if(!porLoja[chip.dataset.chipLoja] || !porLoja[chip.dataset.chipLoja].some(s=>s.data===todayStr)) return;
+        chip.onclick = ()=>{
+          document.getElementById("fotosRecentesSelect").value = chip.dataset.chipLoja;
+          renderFotosRecentes(chip.dataset.chipLoja);
+          document.getElementById("fotosRecentesConteudo").scrollIntoView({behavior:"smooth", block:"start"});
+        };
+      });
     }
   }catch(e){ console.error(e); }
 
