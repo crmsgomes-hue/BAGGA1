@@ -697,13 +697,17 @@ async function render(){
   ];
 
   const hojeSquares = [];
+  const itensAbertura = [{tipo:"laranjas_maquina", label:"Laranjas na máquina", icon:"🍊"}, {tipo:"expositor_tabaco", label:"Expositor do tabaco", icon:"🚬"}].filter(x=>!naoAplicaveis.includes(x.tipo));
   VITRINE_TURNOS.forEach(t=>{
+    if(t.key==="manha"){
+      const recVitrine = dailyStatus("vitrine", today, "manha");
+      const recsAbertura = itensAbertura.map(x=>dailyStatus(x.tipo, today, "unico"));
+      const tudoFeito = !!recVitrine && recsAbertura.every(r=>!!r);
+      hojeSquares.push({icon:t.icon, label:t.label, done:tudoFeito, rec:recVitrine, tipo:"vitrine", turno:"manha", ehAbertura:true, onclick:()=>abrirCapturaAbertura()});
+      return;
+    }
     const rec = dailyStatus("vitrine", today, t.key);
     hojeSquares.push({icon:t.icon, label:t.label, done:!!rec, rec, tipo:"vitrine", turno:t.key, onclick:()=>openCapture("daily","vitrine","Vitrine — "+t.label,t.key)});
-  });
-  [{tipo:"laranjas_maquina", label:"Laranjas máquina", icon:"🍊"}, {tipo:"expositor_tabaco", label:"Expositor tabaco", icon:"🚬"}].forEach(x=>{
-    const rec = dailyStatus(x.tipo, today, "unico");
-    hojeSquares.push({icon:x.icon, label:x.label, done:!!rec, rec, tipo:x.tipo, turno:"unico", prazoAbertura:true, onclick:()=>openCapture("daily",x.tipo,x.label,"unico")});
   });
   {
     const rec = dailyStatus("vendas", today, "unico");
@@ -721,23 +725,12 @@ async function render(){
     const corBorda = s.done ? 'var(--green)' : (s.bloqueado ? 'var(--line)' : 'var(--line)');
     tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:${corFundo}; border:1.5px solid ${corBorda}; border-radius:12px; padding:12px 4px; text-align:center; ${s.bloqueado?'opacity:.6;':''}`;
     const iconeMostrar = s.done ? '✅' : (s.bloqueado ? '🔒' : s.icon);
-    const subLabel = s.done ? 'Ver/editar' : (s.bloqueado ? 'A partir das 21h' : (s.prazoAbertura ? 'Até à abertura' : 'Diário'));
+    const subLabel = s.done ? 'Ver/editar' : (s.bloqueado ? 'A partir das 21h' : (s.ehAbertura ? '+ Laranjas/Tabaco' : 'Diário'));
     tile.innerHTML = `<span style="font-size:20px;">${iconeMostrar}</span><span style="font-size:11px; font-weight:700;">${s.label}</span><span style="font-size:8.5px; color:var(--ink-soft);">${subLabel}</span>`;
-    tile.onclick = s.done ? ()=>verEditarFotosSubmissao(s.rec, s.label) : s.onclick;
+    tile.onclick = s.done ? (s.ehAbertura ? ()=>abrirCapturaAbertura() : ()=>verEditarFotosSubmissao(s.rec, s.label)) : s.onclick;
     hojeGrid.appendChild(tile);
   });
   main.appendChild(hojeGrid);
-
-  const semStockPendentes = hojeSquares.filter(s=>(s.tipo==="laranjas_maquina"||s.tipo==="expositor_tabaco") && !s.done);
-  if(semStockPendentes.length>0){
-    const semStockRow = document.createElement("div");
-    semStockRow.style.cssText = "display:flex; flex-direction:column; gap:6px; margin-bottom:16px; margin-top:-6px;";
-    semStockRow.innerHTML = semStockPendentes.map(s=>`<span data-semstock="${s.tipo}" data-label="${s.label}" style="font-size:12px; text-decoration:underline; color:var(--ink-soft); cursor:pointer;">❌ Não tenho ${s.label.toLowerCase()} hoje</span>`).join("");
-    main.appendChild(semStockRow);
-    semStockRow.querySelectorAll("[data-semstock]").forEach(el=>{
-      el.onclick = ()=>abrirSemStock(el.dataset.semstock, el.dataset.label);
-    });
-  }
 
   const dueInv = categoriasParaLoja(currentLoja).filter(c=>!naoAplicaveis.includes(c.key)).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado).filter(c=>{
     if(c.key==="global"){
@@ -1049,6 +1042,135 @@ function renderCapThumbsExtra(containerId, arr, removeFnName, legendaFnName){
       <input class="photo-legend" type="text" placeholder="Legenda…" value="${p.legenda||''}" onchange="${legendaFnName}(${i},this.value)">
     </div>
   `).join("");
+}
+function abrirCapturaAbertura(){
+  const naoAplic = naoAplicaveis || [];
+  const itens = [
+    {tipo:"vitrine", turno:"manha", label:"Vitrine — Manhã", icon:"🌅", jaFeito: dailyStatus("vitrine", todayStr(), "manha")},
+    {tipo:"laranjas_maquina", turno:"unico", label:"Laranjas na máquina", icon:"🍊", jaFeito: dailyStatus("laranjas_maquina", todayStr(), "unico")},
+    {tipo:"expositor_tabaco", turno:"unico", label:"Expositor do tabaco", icon:"🚬", jaFeito: dailyStatus("expositor_tabaco", todayStr(), "unico")}
+  ].filter(it=>it.tipo==="vitrine" || !naoAplic.includes(it.tipo));
+
+  window._abertura = {};
+  itens.forEach(it=>{ window._abertura[it.tipo] = {fotos: [], semStock: false, motivo: ""}; });
+
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "aberturaOverlay";
+  overlay.innerHTML = `
+    <div class="modal" style="max-height:90vh; overflow-y:auto;">
+      <h2>🌅 Abertura</h2>
+      <div class="sub">${currentLoja} · ${new Date().toLocaleDateString('pt-PT')} — tira as fotos das três coisas de uma vez.</div>
+      ${itens.map(it=>`
+        <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
+          <div style="font-weight:700; font-size:14px; margin-bottom:8px;">${it.icon} ${it.label}${it.jaFeito?' <span style="color:var(--green); font-size:12px;">✔ já feito hoje</span>':''}</div>
+          ${it.jaFeito ? `<div style="font-size:12.5px; color:var(--ink-soft);">Já enviaste isto hoje — toca no quadrado "Ver/editar" se precisares de alterar.</div>` : `
+          <div id="abThumbs_${it.tipo}" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;"></div>
+          <div id="abBotoes_${it.tipo}" style="display:flex; gap:8px;">
+            <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" data-ab-input="${it.tipo}" style="display:none;"></label>
+            <label class="filebtn" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);">🖼️ Galeria<input type="file" accept="image/*" data-ab-input="${it.tipo}" style="display:none;"></label>
+          </div>
+          ${it.tipo!=="vitrine" ? `<div style="text-align:center; margin-top:8px;"><span data-ab-semstock="${it.tipo}" data-ab-label="${it.label}" style="font-size:12px; text-decoration:underline; color:var(--ink-soft); cursor:pointer;">❌ Não tenho ${it.label.toLowerCase()} hoje</span></div>` : ``}
+          `}
+        </div>
+      `).join("")}
+      <div class="modal-actions" style="margin-top:16px;">
+        <button class="btn-cancel" onclick="document.getElementById('aberturaOverlay').remove()">Fechar</button>
+        <button class="btn-save" id="aberturaEnviarBtn" style="width:100%;">Enviar tudo</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelectorAll("[data-ab-input]").forEach(inp=>{
+    inp.addEventListener("change", (ev)=>adicionarFotoAbertura(inp.dataset.abInput, ev.target.files[0]));
+  });
+  overlay.querySelectorAll("[data-ab-semstock]").forEach(el=>{
+    el.onclick = ()=>{
+      const tipo = el.dataset.abSemstock;
+      window._abertura[tipo].semStock = !window._abertura[tipo].semStock;
+      const botoes = document.getElementById(`abBotoes_${tipo}`);
+      const thumbs = document.getElementById(`abThumbs_${tipo}`);
+      if(window._abertura[tipo].semStock){
+        el.textContent = `✔ Marcado sem stock — toca para tirar foto em vez disso`;
+        botoes.style.display = "none";
+        thumbs.innerHTML = `<textarea data-ab-motivo="${tipo}" placeholder="Motivo (ex: não chegou a entrega)" style="width:100%; min-height:60px; padding:8px; border-radius:8px; border:1px solid var(--line); font-size:13px;"></textarea>`;
+        thumbs.querySelector(`[data-ab-motivo]`).addEventListener("input", (ev)=>{ window._abertura[tipo].motivo = ev.target.value; });
+      } else {
+        el.textContent = `❌ Não tenho ${el.dataset.abLabel.toLowerCase()} hoje`;
+        botoes.style.display = "flex";
+        thumbs.innerHTML = "";
+      }
+    };
+  });
+
+  document.getElementById("aberturaEnviarBtn").onclick = ()=>enviarAbertura(itens);
+}
+function adicionarFotoAbertura(tipo, file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    compressPhoto(e.target.result, 1280, 0.75, (compressed)=>{
+      if(!compressed) return;
+      window._abertura[tipo].fotos.push(compressed);
+      renderAberturaThumbs(tipo);
+    });
+  };
+  reader.readAsDataURL(file);
+}
+function renderAberturaThumbs(tipo){
+  const wrap = document.getElementById(`abThumbs_${tipo}`);
+  if(!wrap) return;
+  wrap.innerHTML = window._abertura[tipo].fotos.map((src,i)=>`
+    <div class="photo-item">
+      <img src="${src}" onclick="bigPhoto('${src}')">
+      <button class="photo-del" onclick="window._abertura['${tipo}'].fotos.splice(${i},1); renderAberturaThumbs('${tipo}')">✕</button>
+    </div>
+  `).join("");
+}
+async function enviarAbertura(itens){
+  const pendentes = itens.filter(it=>!it.jaFeito);
+  for(const it of pendentes){
+    const estado = window._abertura[it.tipo];
+    if(!estado.semStock && estado.fotos.length===0){
+      toast(`Falta a foto de "${it.label}" (ou marca que não tens)`);
+      return;
+    }
+    if(estado.semStock && !estado.motivo.trim()){
+      toast(`Escreve o motivo para "${it.label}"`);
+      return;
+    }
+  }
+  const btn = document.getElementById("aberturaEnviarBtn");
+  btn.disabled = true; btn.textContent = "A enviar...";
+  try{
+    for(const it of pendentes){
+      const estado = window._abertura[it.tipo];
+      if(estado.semStock){
+        await api("POST", "rpc/append_daily_foto_v2", {
+          p_loja: currentLoja, p_tipo: it.tipo, p_data: todayStr(), p_turno: it.turno, p_fotos: [], p_por: currentLoja, p_nota: estado.motivo.trim()
+        });
+        notificarGestao(`CoreJoint · Sem ${it.label}`, `${currentLoja}: ${estado.motivo.trim()}`);
+      } else {
+        const objs = [];
+        for(const src of estado.fotos){
+          const path = `${slug(currentLoja)}/${it.tipo}/${it.turno}/${todayStr()}_${Date.now()}_${Math.random().toString(36).slice(2,6)}.jpg`;
+          const url = await uploadPhoto(src, path);
+          objs.push({url, legenda:""});
+        }
+        await api("POST", "rpc/append_daily_foto_v2", {
+          p_loja: currentLoja, p_tipo: it.tipo, p_data: todayStr(), p_turno: it.turno, p_fotos: objs, p_por: currentLoja
+        });
+      }
+    }
+    document.getElementById("aberturaOverlay").remove();
+    mostrarSucesso("Abertura enviada!");
+    await loadAll();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao enviar: " + (e.message||e).slice(0,100));
+    btn.disabled = false; btn.textContent = "Enviar tudo";
+  }
 }
 function abrirSemStock(tipo, label){
   const overlay = document.createElement("div");
