@@ -858,6 +858,25 @@ function semanaKey(d){
         wrap.appendChild(nota);
       }
     });
+
+    // Vitrine — trazida de volta a pedido da Cristina, mas só aqui (dá noção de quem envia, sem poluir o Painel de gestão)
+    const todayVitrine = await api(`cj_daily_reportes?select=loja,turno&tipo=eq.vitrine&data=eq.${todayStr}`);
+    const TURNOS_VIT = [{key:"manha", label:"Manhã"}, {key:"almoco", label:"Almoço"}, {key:"lanche", label:"Lanche"}];
+    let htmlVit = `<div class="card" style="flex-direction:column; align-items:stretch; gap:0; margin-bottom:10px;">
+      <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.88rem; margin-bottom:9px;">🌇 Vitrine — hoje</div>`;
+    TURNOS_VIT.forEach(t=>{
+      const enviaram = new Set(todayVitrine.filter(r=>r.turno===t.key).map(r=>r.loja));
+      htmlVit += `<div style="margin-bottom:8px;">
+        <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:4px;">${t.label} (${enviaram.size}/${LOJAS.length})</div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">`;
+      LOJAS.forEach(l=>{
+        const feito = enviaram.has(l);
+        htmlVit += `<span style="background:${feito?'var(--grn)':'var(--sf2)'}; color:${feito?'#fff':'var(--t2)'}; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700;">${feito?'✔ ':''}${l}</span>`;
+      });
+      htmlVit += `</div></div>`;
+    });
+    htmlVit += `</div>`;
+    document.getElementById("categoriaLojasSection").insertAdjacentHTML("beforeend", htmlVit);
   }catch(e){ console.error(e); }
 
 
