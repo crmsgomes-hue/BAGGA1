@@ -529,7 +529,7 @@ function renderCardSimplificada(r){
   const addBtnHtml = `
     <div style="display:flex; gap:8px; margin-top:8px;">
       <label class="btn-save" style="flex:1; text-align:center; display:block; cursor:pointer; padding:8px; font-size:12.5px;">📷 Adicionar foto<input type="file" accept="image/*" capture="environment" data-add-foto="${r.id}" style="display:none;"></label>
-      <label class="btn-undo" style="flex:1; text-align:center; display:block; cursor:pointer; padding:8px; font-size:12.5px;">🖼️ Galeria<input type="file" accept="application/pdf,image/*" data-add-foto="${r.id}" style="display:none;"></label>
+      <label class="btn-undo" style="flex:1; text-align:center; display:block; cursor:pointer; padding:8px; font-size:12.5px;">🖼️ Galeria<input type="file" accept="image/*" data-add-foto="${r.id}" style="display:none;"></label>
     </div>
   `;
 
@@ -992,8 +992,11 @@ function openNew(){
         <div class="field">
           <label>Documento (foto ou upload, opcional)</label>
           <div style="display:flex; gap:8px;">
-            <label class="btn-save" style="flex:1; text-align:center; display:block; cursor:pointer;">📷 Tirar foto<input type="file" id="fDocumentoFoto" accept="image/*" capture="environment" style="display:none;"></label>
-            <label class="btn-undo" style="flex:1; text-align:center; display:block; cursor:pointer;">📁 Escolher ficheiro<input type="file" id="fDocumentoUpload" accept="application/pdf,image/*" style="display:none;"></label>
+            <label class="btn-save" style="flex:1; text-align:center; display:block; cursor:pointer;">📷 Câmara<input type="file" id="fDocumentoFoto" accept="image/*" capture="environment" style="display:none;"></label>
+            <label class="btn-undo" style="flex:1; text-align:center; display:block; cursor:pointer;">🖼️ Galeria<input type="file" id="fDocumentoGaleria" accept="image/*" style="display:none;"></label>
+          </div>
+          <div style="text-align:center; margin-top:6px;">
+            <label style="font-size:12px; text-decoration:underline; color:var(--ink-soft); cursor:pointer;">ou anexar PDF<input type="file" id="fDocumentoUpload" accept="application/pdf" style="display:none;"></label>
           </div>
           <div id="fDocumentoPreview" style="margin-top:8px;"></div>
         </div>
@@ -1014,13 +1017,15 @@ function openNew(){
   `;
   document.body.appendChild(overlay);
   const fotoInput = document.getElementById("fDocumentoFoto");
+  const galeriaInput = document.getElementById("fDocumentoGaleria");
   const uploadInput = document.getElementById("fDocumentoUpload");
   const preview = document.getElementById("fDocumentoPreview");
   function atualizarPreview(){
-    const f = (fotoInput.files[0]) || (uploadInput.files[0]);
+    const f = (fotoInput.files[0]) || (galeriaInput.files[0]) || (uploadInput.files[0]);
     preview.innerHTML = f ? `<span style="font-size:12px; color:var(--ink-soft);">✔ ${f.name || "foto tirada"}</span>` : "";
   }
   if(fotoInput) fotoInput.addEventListener("change", atualizarPreview);
+  if(galeriaInput) galeriaInput.addEventListener("change", atualizarPreview);
   if(uploadInput) uploadInput.addEventListener("change", atualizarPreview);
   selectedColab = "";
   const chipRow = document.getElementById("colabChips");
@@ -1091,7 +1096,7 @@ async function saveNew(){
         if(payload.enviada_rh){ payload.enviada_em = now; payload.enviada_por = currentUser; }
         payload.arquivada = checklistCompletoNovo;
       }
-      const file = (document.getElementById("fDocumentoFoto").files[0]) || (document.getElementById("fDocumentoUpload").files[0]);
+      const file = (document.getElementById("fDocumentoFoto").files[0]) || (document.getElementById("fDocumentoGaleria").files[0]) || (document.getElementById("fDocumentoUpload").files[0]);
       if(file){
         const dataUrl = await new Promise((resolve,reject)=>{
           const reader = new FileReader();
