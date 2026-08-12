@@ -636,7 +636,7 @@ function openAlertas(){
   }
 
   if(alerts.length===0 && padroes.length===0){
-    main.innerHTML += '<div class="empty">Sem alertas — stock acima do mínimo em todos os polos.</div>';
+    main.insertAdjacentHTML("beforeend", '<div class="empty">Sem alertas — stock acima do mínimo em todos os polos.</div>');
     return;
   }
   if(alerts.length===0) return;
@@ -884,7 +884,7 @@ function openDevolucao(){
   main.appendChild(pendTitle);
 
   if(devolucoes.length===0){
-    main.innerHTML += '<div class="empty">Sem devoluções por recolher.</div>';
+    main.insertAdjacentHTML("beforeend", '<div class="empty">Sem devoluções por recolher.</div>');
     return;
   }
 
@@ -1209,7 +1209,7 @@ function openHistorico(){
   main.appendChild(back);
 
   if(movimentos.length===0){
-    main.innerHTML += '<div class="empty">Ainda não há saídas registadas.</div>';
+    main.insertAdjacentHTML("beforeend", '<div class="empty">Ainda não há saídas registadas.</div>');
     return;
   }
 
@@ -1228,7 +1228,7 @@ function openHistorico(){
   if(histView==="admissoes"){
     const admissoes = movimentos.filter(m=>m.nota==="Admissão");
     if(admissoes.length===0){
-      main.innerHTML += '<div class="empty">Ainda não há admissões registadas.</div>';
+      main.insertAdjacentHTML("beforeend", '<div class="empty">Ainda não há admissões registadas.</div>');
       return;
     }
     const meses = {};

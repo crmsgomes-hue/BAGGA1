@@ -1911,7 +1911,7 @@ function openRegistoAtividade(){
   back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
-  main.innerHTML += '<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:40px 0;"><div style="width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--terracotta);border-radius:50%;animation:cjspin2 .8s linear infinite;"></div><div style="font-size:13px; color:var(--ink-soft);">A carregar…</div></div><style>@keyframes cjspin2{to{transform:rotate(360deg)}}</style>';
+  main.insertAdjacentHTML("beforeend", '<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:40px 0;"><div style="width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--terracotta);border-radius:50%;animation:cjspin2 .8s linear infinite;"></div><div style="font-size:13px; color:var(--ink-soft);">A carregar…</div></div><style>@keyframes cjspin2{to{transform:rotate(360deg)}}</style>');
 
   (async ()=>{
     const eventos = [];
@@ -1953,7 +1953,7 @@ function openRegistoAtividade(){
     main.appendChild(title);
 
     if(top.length===0){
-      main.innerHTML += '<div class="empty">Ainda sem atividade registada.</div>';
+      main.insertAdjacentHTML("beforeend", '<div class="empty">Ainda sem atividade registada.</div>');
       return;
     }
     top.forEach(e=>{
@@ -2266,7 +2266,7 @@ async function openChecklistHistorico(){
 
   const arquivados = await api("GET", "cj_checklist_historico?select=*&order=mes.desc");
   if(arquivados.length===0){
-    main.innerHTML += '<div class="empty">Ainda não arquivaste nenhum mês.</div>';
+    main.insertAdjacentHTML("beforeend", '<div class="empty">Ainda não arquivaste nenhum mês.</div>');
     return;
   }
   arquivados.forEach(a=>{
@@ -2600,7 +2600,7 @@ async function openFichaHistorico(loja){
 
   const arquivados = await api("GET", `cj_ficha_historico?select=*&loja=eq.${encodeURIComponent(loja)}&order=mes.desc`);
   if(arquivados.length===0){
-    main.innerHTML += '<div class="empty">Ainda não arquivaste nenhum mês desta loja.</div>';
+    main.insertAdjacentHTML("beforeend", '<div class="empty">Ainda não arquivaste nenhum mês desta loja.</div>');
     return;
   }
   arquivados.forEach(a=>{
@@ -2737,7 +2737,7 @@ function openGaleria(){
     .sort((a,b)=> new Date(b.criado_em) - new Date(a.criado_em));
 
   if(recentes.length===0 && recentesInv.length===0){
-    main.innerHTML += '<div class="empty">Sem fotos nos últimos 7 dias.</div>';
+    main.insertAdjacentHTML("beforeend", '<div class="empty">Sem fotos nos últimos 7 dias.</div>');
     return;
   }
 
@@ -3494,7 +3494,7 @@ async function abrirPorValidar(){
   const invPorValidar = await api("GET", `cj_inventario_reportes?select=*&validado_por=is.null&order=criado_em.desc&limit=100`);
 
   if(dailyPorValidar.length===0 && invPorValidar.length===0){
-    main.innerHTML += `<div class="all-clear">✔ Tudo validado, nada pendente.</div>`;
+    main.insertAdjacentHTML("beforeend", `<div class="all-clear">✔ Tudo validado, nada pendente.</div>`);
     return;
   }
 
@@ -3710,7 +3710,7 @@ async function abrirPedidosFotos(){
 
   const pedidos = await api("GET", "cj_pedidos_fotos?select=*&order=criado_em.desc");
   if(pedidos.length===0){
-    main.innerHTML += '<div class="empty">Ainda não criaste nenhum pedido.</div>';
+    main.insertAdjacentHTML("beforeend", '<div class="empty">Ainda não criaste nenhum pedido.</div>');
     return;
   }
   const respostas = await api("GET", "cj_pedidos_fotos_respostas?select=pedido_id,loja");
@@ -4039,7 +4039,7 @@ async function abrirRelatorioIntegridade(){
     });
   }
 
-  main.innerHTML += html;
+  main.insertAdjacentHTML("beforeend", html);
 
   const exportBtn = document.createElement("button");
   exportBtn.className = "cambtn";
@@ -4120,7 +4120,7 @@ function openRelatorioQuebras(){
     const trintaDiasAtras = isoDate(new Date(Date.now()-30*86400000));
     const recentes = rows.filter(r=>r.data>=trintaDiasAtras);
     if(recentes.length===0){
-      main.innerHTML += '<div class="empty">Nenhuma quebra registada nos últimos 30 dias.</div>';
+      main.insertAdjacentHTML("beforeend", '<div class="empty">Nenhuma quebra registada nos últimos 30 dias.</div>');
       return;
     }
 
