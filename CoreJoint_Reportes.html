@@ -2278,15 +2278,13 @@ async function openChecklistHistorico(){
 }
 
 let fichaLojaAtual = "";
-async function computarDadosFicha(l, rankingOrdenado){
+async function computarDadosFicha(l){
   const today = new Date();
   const inicioMes = new Date(today.getFullYear(), today.getMonth(), 1);
   const diasNoMes = [];
   for(let d=new Date(inicioMes); d<=today; d.setDate(d.getDate()+1)){ diasNoMes.push(isoDate(new Date(d))); }
 
-  const vitOk = diasNoMes.filter(ds=>VITRINE_TURNOS.every(t=>dailyStatus(l,"vitrine",ds,t.key))).length;
   const vendOk = diasNoMes.filter(ds=>dailyStatus(l,"vendas",ds,"unico")).length;
-  const pctVit = Math.round(vitOk/diasNoMes.length*100);
   const pctVend = Math.round(vendOk/diasNoMes.length*100);
 
   let atrasados = 0, diaErrado = 0;
@@ -2309,9 +2307,7 @@ async function computarDadosFicha(l, rankingOrdenado){
     return dias>=3;
   }).length;
 
-  const posicao = rankingOrdenado.findIndex(r=>r.loja===l)+1;
-
-  return {pctVit, pctVend, vitOk, vendOk, diasNoMes: diasNoMes.length, atrasados, diaErrado, avisosLoja, avisosConfirmados, adendasParadas, posicao, streak, ultimaAtividade};
+  return {pctVend, vendOk, diasNoMes: diasNoMes.length, atrasados, diaErrado, avisosLoja, avisosConfirmados, adendasParadas, streak, ultimaAtividade};
 }
 
 function calcularRankingOrdenado(){
@@ -2326,14 +2322,11 @@ function calcularRankingOrdenado(){
 
 async function exportarTodasFichasExcel(){
   toast("A preparar... pode demorar alguns segundos");
-  const rankingOrdenado = calcularRankingOrdenado();
   const rows = [];
   for(const l of LOJAS){
-    const d = await computarDadosFicha(l, rankingOrdenado);
+    const d = await computarDadosFicha(l);
     rows.push({
       Loja: l,
-      "Posição ranking": d.posicao,
-      "Vitrine completa %": d.pctVit,
       "Vendas registadas %": d.pctVend,
       "Atrasados": d.atrasados,
       "Dia errado": d.diaErrado,
@@ -2344,7 +2337,6 @@ async function exportarTodasFichasExcel(){
       "Dias sem envio": d.ultimaAtividade===null ? "" : d.ultimaAtividade
     });
   }
-  rows.sort((a,b)=>a["Posição ranking"]-b["Posição ranking"]);
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(wb, ws, "Todas as lojas");
@@ -2470,36 +2462,25 @@ async function openFichaGerente(lojaPreSelecionada){
       return dias>=3;
     }).length;
 
-    const ranking = LOJAS.map(loja=>{
-      let score = 0;
-      VITRINE_TURNOS.forEach(t=>{ if(turnoSquareState(!!dailyStatus(loja,"vitrine",todayStr(),t.key), TURNO_HORA_LIMITE[t.key])==="late") score+=2; });
-      if(turnoSquareState(!!dailyStatus(loja,"vendas",todayStr(),"unico"), VENDAS_HORA_LIMITE)==="late") score+=2;
-      [...categoriasParaLoja(loja), ...marketingCatsParaLoja(loja)].forEach(c=>{ if(invStatus(loja,c.key,c.freq).state==="late") score+=3; });
-      return {loja, score};
-    }).sort((a,b)=>a.score-b.score);
-    const posicao = ranking.findIndex(r=>r.loja===l)+1;
-
     const html = `
       <div class="card">
         <div style="font-family:'Syne',sans-serif; font-size:18px; font-weight:800; margin-bottom:4px;">${l}</div>
-        <div class="card-sub">Resumo de ${today.toLocaleDateString('pt-PT',{month:'long',year:'numeric'})} · Posição no ranking: ${posicao}º de ${LOJAS.length}</div>
+        <div class="card-sub">Resumo de ${today.toLocaleDateString('pt-PT',{month:'long',year:'numeric'})}</div>
         ${streak>=2 ? `<div class="status-badge ok" style="margin-top:8px;">🔥 ${streak} dias seguidos completos</div>` : ``}
         ${ultimaAtividade!==null && ultimaAtividade>=3 ? `<div style="background:var(--red); color:#fff; font-size:12px; font-weight:700; padding:6px 10px; border-radius:8px; margin-top:8px;">⚠ Sem qualquer envio há ${ultimaAtividade} dias</div>` : ``}
       </div>
+
+      <div class="sec-divider" style="font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin:14px 0 6px;">📋 Estado atual</div>
       <div class="card">
-        <div class="card-title" style="margin-bottom:8px;">Cumprimento diário (este mês)</div>
-        <div class="card-sub">🌇 Vitrine completa: <b>${pctVit}%</b> dos dias (${vitOk}/${diasNoMes.length})</div>
-        <div class="card-sub">🧾 Vendas registadas: <b>${pctVend}%</b> dos dias (${vendOk}/${diasNoMes.length})</div>
+        <div class="card-sub">🧾 Vendas registadas este mês: <b>${pctVend}%</b> dos dias (${vendOk}/${diasNoMes.length})</div>
+        <div class="card-sub" style="margin-top:6px;">📦 Inventário/Marketing atrasado agora: <b>${atrasados}</b></div>
+        <div class="card-sub" style="margin-top:6px;">⚠ Enviado no dia errado (histórico recente): <b>${diaErrado}</b></div>
       </div>
+
+      <div class="sec-divider" style="font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin:14px 0 6px;">📢 Avisos e adendas</div>
       <div class="card">
-        <div class="card-title" style="margin-bottom:8px;">Inventário e Marketing</div>
-        <div class="card-sub">📦 Atrasados agora: <b>${atrasados}</b></div>
-        <div class="card-sub">⚠ Enviados no dia errado (histórico recente): <b>${diaErrado}</b></div>
-      </div>
-      <div class="card">
-        <div class="card-title" style="margin-bottom:8px;">Avisos da gestão (este mês)</div>
-        <div class="card-sub">📢 Total de avisos precisos: <b>${avisosLoja.length}</b></div>
-        <div class="card-sub">✔ Confirmados pela loja: <b>${avisosConfirmados}</b> de ${avisosLoja.length}</div>
+        <div class="card-sub">Total de avisos precisos este mês: <b>${avisosLoja.length}</b></div>
+        <div class="card-sub" style="margin-top:6px;">Confirmados pela loja: <b>${avisosConfirmados}</b> de ${avisosLoja.length}</div>
         ${avisosLoja.length>0 ? (()=>{
           const ultimo = [...avisosLoja].sort((a,b)=>new Date(b.criado_em)-new Date(a.criado_em))[0];
           const tiposMap = {}; tiposAviso().forEach(t=>tiposMap[t.key]=t.label);
@@ -2508,19 +2489,10 @@ async function openFichaGerente(lojaPreSelecionada){
           const statusColor = ultimo.confirmado_em ? "var(--green)" : (ultimo.visto_em ? "var(--amber)" : "var(--ink-soft)");
           return `<div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--line); font-size:13px;">Último: <b>${label}</b>${ultimo.descricao ? ' — '+ultimo.descricao : ''}<br><span style="color:${statusColor}; font-weight:700;">${statusTxt}</span></div>`;
         })() : ``}
+        <div class="card-sub" style="margin-top:10px; padding-top:8px; border-top:1px solid var(--line);">📋 Adendas paradas há 3+ dias: <b>${adendasParadas}</b></div>
       </div>
-      <div class="card">
-        <div class="card-title" style="margin-bottom:8px;">Adendas</div>
-        <div class="card-sub">📋 Paradas há 3+ dias: <b>${adendasParadas}</b></div>
-      </div>
-      <div class="card">
-        <div class="card-title" style="margin-bottom:8px;">Atalhos desta loja</div>
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <button class="cambtn secondary" style="text-align:left;" id="fichaVerDiaBtn">📅 Ver detalhe do dia-a-dia</button>
-          <button class="cambtn secondary" style="text-align:left;" id="fichaVerAvisosBtn">📢 Ver avisos desta loja</button>
-          <a class="cambtn secondary" style="text-align:left; display:block; text-decoration:none;" href="CoreJoint_Adendas.html?loja=${encodeURIComponent(l)}">📋 Ver adendas desta loja</a>
-        </div>
-      </div>
+
+      <div class="sec-divider" style="font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin:14px 0 6px;">🔧 Configuração desta loja</div>
       <div class="card">
         <div class="card-title" style="margin-bottom:8px;">📅 Autorizar data especial do Global</div>
         <div class="card-sub" style="margin-bottom:10px;">Normalmente só a 3ª semana (2ª a 5ª) está disponível para a loja marcar. Aqui podes autorizar qualquer outra data para este mês.</div>
@@ -2532,6 +2504,15 @@ async function openFichaGerente(lojaPreSelecionada){
         <div class="card-sub" style="margin-bottom:10px;">Marca as que esta loja não precisa de fazer — desaparecem do link dela e dos relatórios.</div>
         <div id="fichaNaoAplicavelLista" style="display:flex; flex-direction:column; gap:2px;"></div>
       </div>
+
+      <div class="sec-divider" style="font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin:14px 0 6px;">⚡ Atalhos e ações</div>
+      <div class="card">
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <button class="cambtn secondary" style="text-align:left;" id="fichaVerDiaBtn">📅 Ver detalhe do dia-a-dia</button>
+          <button class="cambtn secondary" style="text-align:left;" id="fichaVerAvisosBtn">📢 Ver avisos desta loja</button>
+          <a class="cambtn secondary" style="text-align:left; display:block; text-decoration:none;" href="CoreJoint_Adendas.html?loja=${encodeURIComponent(l)}">📋 Ver adendas desta loja</a>
+        </div>
+      </div>
       <div style="display:flex; gap:8px; margin-bottom:8px;">
         <button class="cambtn" style="flex:1; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;" id="fichaPdfBtn">🖨️ PDF</button>
         <button class="cambtn secondary" style="flex:1; padding:12px;" id="fichaExcelBtn">📥 Excel</button>
@@ -2542,7 +2523,7 @@ async function openFichaGerente(lojaPreSelecionada){
       </div>
     `;
     contentWrap.innerHTML = html;
-    const dadosFicha = {pctVit, pctVend, vitOk, vendOk, diasNoMes: diasNoMes.length, atrasados, diaErrado, avisosLoja, avisosConfirmados, adendasParadas, posicao, streak, ultimaAtividade};
+    const dadosFicha = {pctVend, vendOk, diasNoMes: diasNoMes.length, atrasados, diaErrado, avisosLoja, avisosConfirmados, adendasParadas, streak, ultimaAtividade};
     document.getElementById("fichaPdfBtn").onclick = ()=>exportarFichaPDF(l, dadosFicha);
     document.getElementById("fichaExcelBtn").onclick = ()=>exportarFichaExcel(l, dadosFicha);
     document.getElementById("fichaArquivarBtn").onclick = ()=>arquivarFicha(l, dadosFicha);
@@ -2559,7 +2540,6 @@ async function openFichaGerente(lojaPreSelecionada){
 async function exportarFichaExcel(loja, d){
   const wb = XLSX.utils.book_new();
   const rows = [
-    {Indicador:"Vitrine completa (mês)", Valor:`${d.pctVit}% (${d.vitOk}/${d.diasNoMes})`},
     {Indicador:"Vendas registadas (mês)", Valor:`${d.pctVend}% (${d.vendOk}/${d.diasNoMes})`},
     {Indicador:"Inventário/Marketing atrasado", Valor:d.atrasados},
     {Indicador:"Enviado no dia errado", Valor:d.diaErrado},
@@ -2567,8 +2547,7 @@ async function exportarFichaExcel(loja, d){
     {Indicador:"Avisos confirmados pela loja", Valor:`${d.avisosConfirmados} de ${d.avisosLoja.length}`},
     {Indicador:"Adendas paradas (3+ dias)", Valor:d.adendasParadas},
     {Indicador:"Sequência atual sem falhas", Valor:`${d.streak} dias`},
-    {Indicador:"Dias sem qualquer envio", Valor: d.ultimaAtividade===null ? "—" : d.ultimaAtividade},
-    {Indicador:"Posição no ranking", Valor:`${d.posicao}º de ${LOJAS.length}`}
+    {Indicador:"Dias sem qualquer envio", Valor: d.ultimaAtividade===null ? "—" : d.ultimaAtividade}
   ];
   const ws = XLSX.utils.json_to_sheet(rows);
   XLSX.utils.book_append_sheet(wb, ws, "Ficha");
@@ -2622,7 +2601,7 @@ async function openFichaHistorico(loja){
     card.className = "card";
     card.innerHTML = `
       <div class="card-title" style="margin-bottom:6px; text-transform:capitalize;">${mesLabel}</div>
-      <div class="card-sub">🌇 Vitrine: ${d.pctVit}% · 🧾 Vendas: ${d.pctVend}% · 📦 Atrasados: ${d.atrasados} · 📢 Avisos: ${d.avisosLoja} · 🏆 Ranking: ${d.posicao}º</div>
+      <div class="card-sub">🧾 Vendas: ${d.pctVend}% · 📦 Atrasados: ${d.atrasados} · 📢 Avisos: ${d.avisosLoja}${d.pctVit!=null?` · 🌇 Vitrine: ${d.pctVit}%`:''}${d.posicao!=null?` · 🏆 Ranking: ${d.posicao}º`:''}</div>
       <div class="card-sub" style="margin-top:6px;">Arquivado por ${a.guardado_por||'—'} em ${new Date(a.guardado_em).toLocaleDateString('pt-PT')}</div>
     `;
     main.appendChild(card);
@@ -2631,9 +2610,8 @@ async function openFichaHistorico(loja){
 
 function exportarFichaPDF(loja, d){
   let html = `<h1>CoreJoint · Ficha da Loja</h1><div style="font-size:8px; color:#555; margin-bottom:6px;">${loja} · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
-  html += `<h2>${loja} — Posição no ranking: ${d.posicao}º de ${LOJAS.length}</h2>`;
+  html += `<h2>${loja}</h2>`;
   html += `<table><tr><th style="text-align:left;">Indicador</th><th>Valor</th></tr>`;
-  html += `<tr><td class="name">Vitrine completa (mês)</td><td>${d.pctVit}% (${d.vitOk}/${d.diasNoMes})</td></tr>`;
   html += `<tr><td class="name">Vendas registadas (mês)</td><td>${d.pctVend}% (${d.vendOk}/${d.diasNoMes})</td></tr>`;
   html += `<tr><td class="name">Inventário/Marketing atrasado</td><td>${d.atrasados}</td></tr>`;
   html += `<tr><td class="name">Enviado no dia errado</td><td>${d.diaErrado}</td></tr>`;
