@@ -124,9 +124,7 @@ const MARKETING_CATS = [
   {key:"orelhas", label:"Orelhas", freq:"mensal", semPrazo:true},
   {key:"horarios", label:"Horários", freq:"mensal_inicio"},
   {key:"preventiva_delta", label:"Preventiva Delta", freq:"mensal_inicio", semFoto:true},
-  {key:"aps", label:"APS", freq:"mensal_dia20", semFoto:true},
-  {key:"laranjas_maquina", label:"Laranjas na máquina", freq:"diario"},
-  {key:"expositor_tabaco", label:"Expositor do tabaco", freq:"diario"}
+  {key:"aps", label:"APS", freq:"mensal_dia20", semFoto:true}
 ];
 // Exceções conhecidas por loja (ajustar à medida que se confirma mais informação)
 const LOJAS = ["Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim","Carregado","Ponte de Sor","Torres MCH","Torres MH"];
@@ -703,6 +701,10 @@ async function render(){
     const rec = dailyStatus("vitrine", today, t.key);
     hojeSquares.push({icon:t.icon, label:t.label, done:!!rec, rec, tipo:"vitrine", turno:t.key, onclick:()=>openCapture("daily","vitrine","Vitrine — "+t.label,t.key)});
   });
+  [{tipo:"laranjas_maquina", label:"Laranjas máquina", icon:"🍊"}, {tipo:"expositor_tabaco", label:"Expositor tabaco", icon:"🚬"}].forEach(x=>{
+    const rec = dailyStatus(x.tipo, today, "unico");
+    hojeSquares.push({icon:x.icon, label:x.label, done:!!rec, rec, tipo:x.tipo, turno:"unico", prazoAbertura:true, onclick:()=>openCapture("daily",x.tipo,x.label,"unico")});
+  });
   {
     const rec = dailyStatus("vendas", today, "unico");
     const bloqueadoAntes21h = !rec && new Date().getHours() < 21;
@@ -719,12 +721,23 @@ async function render(){
     const corBorda = s.done ? 'var(--green)' : (s.bloqueado ? 'var(--line)' : 'var(--line)');
     tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:${corFundo}; border:1.5px solid ${corBorda}; border-radius:12px; padding:12px 4px; text-align:center; ${s.bloqueado?'opacity:.6;':''}`;
     const iconeMostrar = s.done ? '✅' : (s.bloqueado ? '🔒' : s.icon);
-    const subLabel = s.done ? 'Ver/editar' : (s.bloqueado ? 'A partir das 21h' : 'Diário');
+    const subLabel = s.done ? 'Ver/editar' : (s.bloqueado ? 'A partir das 21h' : (s.prazoAbertura ? 'Até à abertura' : 'Diário'));
     tile.innerHTML = `<span style="font-size:20px;">${iconeMostrar}</span><span style="font-size:11px; font-weight:700;">${s.label}</span><span style="font-size:8.5px; color:var(--ink-soft);">${subLabel}</span>`;
     tile.onclick = s.done ? ()=>verEditarFotosSubmissao(s.rec, s.label) : s.onclick;
     hojeGrid.appendChild(tile);
   });
   main.appendChild(hojeGrid);
+
+  const semStockPendentes = hojeSquares.filter(s=>(s.tipo==="laranjas_maquina"||s.tipo==="expositor_tabaco") && !s.done);
+  if(semStockPendentes.length>0){
+    const semStockRow = document.createElement("div");
+    semStockRow.style.cssText = "display:flex; flex-direction:column; gap:6px; margin-bottom:16px; margin-top:-6px;";
+    semStockRow.innerHTML = semStockPendentes.map(s=>`<span data-semstock="${s.tipo}" data-label="${s.label}" style="font-size:12px; text-decoration:underline; color:var(--ink-soft); cursor:pointer;">❌ Não tenho ${s.label.toLowerCase()} hoje</span>`).join("");
+    main.appendChild(semStockRow);
+    semStockRow.querySelectorAll("[data-semstock]").forEach(el=>{
+      el.onclick = ()=>abrirSemStock(el.dataset.semstock, el.dataset.label);
+    });
+  }
 
   const dueInv = categoriasParaLoja(currentLoja).filter(c=>!naoAplicaveis.includes(c.key)).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado).filter(c=>{
     if(c.key==="global"){
@@ -1036,6 +1049,40 @@ function renderCapThumbsExtra(containerId, arr, removeFnName, legendaFnName){
       <input class="photo-legend" type="text" placeholder="Legenda…" value="${p.legenda||''}" onchange="${legendaFnName}(${i},this.value)">
     </div>
   `).join("");
+}
+function abrirSemStock(tipo, label){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "semStockOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>Sem ${label.toLowerCase()}</h2>
+      <div class="sub">Diz porque não tens hoje — a gestão vai ver isto e o stock.</div>
+      <textarea id="semStockMotivo" placeholder="Ex: não chegou a entrega esta semana" style="width:100%; min-height:80px; margin-top:10px; padding:10px; border-radius:10px; border:1px solid var(--line); font-size:14px;"></textarea>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="document.getElementById('semStockOverlay').remove()">Cancelar</button>
+        <button class="btn-save" id="semStockEnviarBtn">Enviar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("semStockEnviarBtn").onclick = ()=>enviarSemStock(tipo, label);
+}
+async function enviarSemStock(tipo, label){
+  const motivo = document.getElementById("semStockMotivo").value.trim();
+  if(!motivo){ toast("Escreve o motivo"); return; }
+  try{
+    await api("POST", "rpc/append_daily_foto_v2", {
+      p_loja: currentLoja, p_tipo: tipo, p_data: todayStr(), p_turno: "unico", p_fotos: [], p_por: currentLoja, p_nota: motivo
+    });
+    document.getElementById("semStockOverlay").remove();
+    toast("✔ Enviado à gestão");
+    notificarGestao(`CoreJoint · Sem ${label}`, `${currentLoja}: ${motivo}`);
+    await loadAll();
+  }catch(e){
+    console.error(e);
+    toast("Erro ao enviar: " + (e.message||e).slice(0,100));
+  }
 }
 function abrirEditarPedidoFotos(pedido, resposta){
   const overlay = document.createElement("div");
