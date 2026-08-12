@@ -315,38 +315,24 @@ function invStatus(catKey, freq){
   const w = windowFor(freq, today);
   const rows = invRows.filter(r=>r.categoria===catKey && inRange(r.data, w.start, w.end));
   const dow = CATEGORY_DOW[catKey];
-  if(rows.length>0){
-    let diaErrado = false, entregueTarde = false;
-    if(dow){
-      const dataCerta = findWeekdayInRange(w.start, w.end, dow);
-      const dataCertaStr = isoDate(dataCerta);
-      const graceDate = new Date(dataCerta); graceDate.setDate(graceDate.getDate()+1); graceDate.setHours(14,0,0,0);
-      const rowNoDataCerta = rows.find(r=>r.data===dataCertaStr);
-      const rowDentroDoPrazo = rowNoDataCerta || rows.find(r=>{
-        if(!r.criado_em) return false;
-        const t = new Date(r.criado_em);
-        return t >= dataCerta && t <= graceDate;
-      });
-      diaErrado = !rowDentroDoPrazo;
-      if(rowDentroDoPrazo && rowDentroDoPrazo.criado_em){
-        const horaEnvio = new Date(rowDentroDoPrazo.criado_em);
-        entregueTarde = horaEnvio.getHours() >= 14 || rowDentroDoPrazo.data !== dataCertaStr;
-      }
-    }
-    return {state:"ok", latest: rows[0], window:w, diaErrado, entregueTarde, dowLabel: dow?DOW_LABELS[dow-1]:null};
-  }
   if(dow){
-    const dataCertaEstaSemana = findWeekdayInRange(w.start, w.end, dow);
+    const dataCerta = findWeekdayInRange(w.start, w.end, dow);
+    const dataCertaStr = isoDate(dataCerta);
+    const enviouNoDiaCerto = rows.some(r=>r.data===dataCertaStr);
+    if(enviouNoDiaCerto){
+      return {state:"ok", latest: rows.find(r=>r.data===dataCertaStr), window:w, diaErrado:false, dowLabel: DOW_LABELS[dow-1]};
+    }
     const globalStartCheck = new Date(today.getFullYear(), today.getMonth(), 15);
     const globalEndCheck = new Date(today.getFullYear(), today.getMonth(), 21);
-    if(dataCertaEstaSemana >= globalStartCheck && dataCertaEstaSemana <= globalEndCheck){
+    if(dataCerta >= globalStartCheck && dataCerta <= globalEndCheck){
       return {state:"pausado", latest:null, window:w, dowLabel:DOW_LABELS[dow-1]};
     }
+    const fimDoDia = new Date(dataCerta); fimDoDia.setHours(23,59,59,999);
+    const state = today > fimDoDia ? "late" : "pend";
+    return {state, latest: rows[0]||null, window:w, targetDate:dataCerta, dowLabel:DOW_LABELS[dow-1]};
   }
-  if(dow){
-    const targetDate = findWeekdayInRange(w.start, w.end, dow);
-    const graceDate = new Date(targetDate); graceDate.setDate(graceDate.getDate()+1); graceDate.setHours(14,0,0,0);
-    return {state: today>graceDate ? "late" : "pend", latest:null, window:w, targetDate, dowLabel:DOW_LABELS[dow-1]};
+  if(rows.length>0){
+    return {state:"ok", latest: rows[0], window:w, diaErrado:false, dowLabel:null};
   }
   return {state: (today>w.end && freq!=="diario") ? "late" : "pend", latest:null, window:w};
 }

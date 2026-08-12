@@ -449,25 +449,36 @@ function semanaKey(d){
     const invRows = await api("cj_inventario_reportes?select=loja,categoria,data");
     const naoAplicaveisRows = await api("cj_categoria_nao_aplicavel?select=loja,categoria");
     let atrasadosN = 0;
+    const hojeAvisoStr = todayStr;
+    const avisosHojeAuto = await api(`cj_avisos?select=loja,tipo&criado_em=gte.${hojeAvisoStr}T00:00:00`);
+    const novosAvisos = [];
     LOJAS.forEach(loja=>{
       [...categoriasParaLoja(loja), ...MARKETING_CATS].filter(cat=>!naoAplicaveisRows.some(n=>n.loja===loja && n.categoria===cat.key)).forEach(cat=>{
         const w = windowFor(cat.freq, today);
-        const rowsCat = invRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end));
-        if(rowsCat.length>0) return;
         const dow = CATEGORY_DOW[cat.key];
-        let late = false;
-        let deadline;
+        let deadline, enviouNoDiaCerto = false;
         if(dow){
           const target = findWeekdayInRange(w.start,w.end,dow);
-          deadline = new Date(target); deadline.setDate(deadline.getDate()+1); deadline.setHours(14,0,0,0);
+          enviouNoDiaCerto = invRows.some(r=>r.loja===loja && r.categoria===cat.key && r.data===isoDate(target));
+          deadline = new Date(target); deadline.setHours(23,59,59,999);
         } else {
+          const rowsCat = invRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end));
+          enviouNoDiaCerto = rowsCat.length>0;
           deadline = w.end;
         }
+        if(enviouNoDiaCerto) return;
         if(deadline < RESET_GRACE_UNTIL) return; // prazo era antes do reset, não conta
-        late = today > deadline;
-        if(late) atrasadosN++;
+        if(today > deadline){
+          atrasadosN++;
+          const tipoAviso = "inv_"+cat.key;
+          const jaTemAviso = avisosHojeAuto.some(a=>a.loja===loja && a.tipo===tipoAviso);
+          if(!jaTemAviso) novosAvisos.push({loja, tipo: tipoAviso, descricao: `${cat.label} não foi enviado no dia certo`, criado_por: "Sistema (automático)"});
+        }
       });
     });
+    for(const av of novosAvisos){
+      api("cj_avisos", "POST", av).catch(()=>{});
+    }
     statAtrasados = atrasadosN;
   }catch(e){ console.error("Erro no Dashboard (estatísticas):", e); }
 
@@ -790,19 +801,15 @@ function semanaKey(d){
       const w = windowFor(cat.freq, today);
       const rows = invCatRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end));
       const dow = CATEGORY_DOW[cat.key];
-      if(rows.length===0) return {feito:false, diaErrado:false, latest:null};
-      let diaErrado = false;
       if(dow){
         const dataCerta = findWeekdayInRange(w.start, w.end, dow);
         const dataCertaStr = isoDate(dataCerta);
-        const graceDate = new Date(dataCerta); graceDate.setDate(graceDate.getDate()+1); graceDate.setHours(14,0,0,0);
-        diaErrado = !rows.some(r=>{
-          if(r.data===dataCertaStr) return true;
-          if(r.criado_em){ const t = new Date(r.criado_em); return t>=dataCerta && t<=graceDate; }
-          return false;
-        });
+        const rowCerta = rows.find(r=>r.data===dataCertaStr);
+        if(rowCerta) return {feito:true, diaErrado:false, latest: rowCerta};
+        return {feito:false, diaErrado:false, latest: rows[0]||null};
       }
-      return {feito:true, diaErrado, latest: rows[0]};
+      if(rows.length===0) return {feito:false, diaErrado:false, latest:null};
+      return {feito:true, diaErrado:false, latest: rows[0]};
     }
     let htmlCat = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
         <span>📦 Inventário por categoria</span>
