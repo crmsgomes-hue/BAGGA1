@@ -269,9 +269,15 @@ async function compartilharHtmlComoPDF(htmlContent, filename){
     const container = document.createElement("div");
     container.style.cssText = "width:550px; font-family:'DM Sans',sans-serif; font-size:9px; color:var(--ink,#2B2723); background:#fff; padding:14px;";
     container.innerHTML = htmlContent;
-    container.querySelectorAll("table").forEach(t=>{ t.style.width="100%"; t.style.borderCollapse="collapse"; t.style.marginBottom="8px"; });
-    container.querySelectorAll("th").forEach(c=>{ c.style.border="1px solid var(--line,#E4DDD0)"; c.style.padding="4px 5px"; c.style.fontSize="8px"; c.style.textAlign="center"; c.style.background="var(--cream,#F4F1EA)"; c.style.color="var(--terracotta-dark,#9C4C22)"; c.style.fontWeight="700"; });
-    container.querySelectorAll("td").forEach(c=>{ c.style.border="1px solid var(--line,#E4DDD0)"; c.style.padding="4px 5px"; c.style.fontSize="8px"; c.style.textAlign="center"; });
+    container.querySelectorAll("table").forEach(t=>{ t.style.width="100%"; t.style.borderCollapse="collapse"; t.style.marginBottom="10px"; t.style.borderRadius="6px"; t.style.overflow="hidden"; });
+    container.querySelectorAll("th").forEach(c=>{ c.style.border="1px solid var(--line,#E4DDD0)"; c.style.padding="5px 6px"; c.style.fontSize="8px"; c.style.textAlign="center"; c.style.background="var(--cream,#F4F1EA)"; c.style.color="var(--terracotta-dark,#9C4C22)"; c.style.fontWeight="700"; });
+    container.querySelectorAll("td").forEach(c=>{
+      c.style.border="1px solid var(--line,#E4DDD0)"; c.style.padding="5px 6px"; c.style.fontSize="8px"; c.style.textAlign="center";
+      const txt = c.textContent.trim();
+      if(/^✔/.test(txt)){ c.style.color = "#3F7D5C"; c.style.fontWeight = "700"; }
+      else if(/^✕|^—$/.test(txt)){ c.style.color = "#8a8178"; }
+    });
+    container.querySelectorAll("td.name, th:first-child").forEach(c=>{ c.style.textAlign="left"; });
     container.querySelectorAll("h1").forEach(h=>{ h.style.fontFamily="'Syne',sans-serif"; h.style.fontWeight="800"; h.style.color="var(--terracotta,#C1622E)"; h.style.fontSize="16px"; h.style.margin="0 0 3px"; });
     container.querySelectorAll("h2").forEach(h=>{ h.style.fontFamily="'Syne',sans-serif"; h.style.fontWeight="700"; h.style.color="var(--terracotta-dark,#9C4C22)"; h.style.fontSize="11px"; h.style.margin="10px 0 3px"; });
     document.body.appendChild(container);
@@ -375,25 +381,37 @@ function verRelatorioNoEcra(html){
   conteudo.innerHTML = html;
   conteudo.querySelectorAll("table").forEach(t=>{
     t.style.width = "100%";
-    t.style.borderCollapse = "collapse";
-    t.style.marginBottom = "14px";
+    t.style.borderCollapse = "separate";
+    t.style.borderSpacing = "0";
+    t.style.marginBottom = "16px";
     t.style.fontSize = "14px";
+    t.style.border = "1px solid var(--line)";
+    t.style.borderRadius = "12px";
+    t.style.overflow = "hidden";
+    t.style.boxShadow = "0 1px 4px rgba(0,0,0,.05)";
   });
   conteudo.querySelectorAll("th").forEach(c=>{
-    c.style.border = "1px solid var(--line)";
-    c.style.padding = "7px 9px";
+    c.style.borderBottom = "1px solid var(--line)";
+    c.style.padding = "9px 9px";
     c.style.textAlign = "center";
     c.style.background = "var(--cream)";
     c.style.color = "var(--terracotta-dark)";
     c.style.fontWeight = "700";
+    c.style.fontFamily = "'Syne',sans-serif";
+    c.style.fontSize = "13px";
   });
   conteudo.querySelectorAll("td").forEach(c=>{
-    c.style.border = "1px solid var(--line)";
-    c.style.padding = "7px 9px";
+    c.style.borderBottom = "1px solid var(--line)";
+    c.style.padding = "9px 9px";
     c.style.textAlign = "center";
+    const txt = c.textContent.trim();
+    if(/^✔/.test(txt)){ c.style.color = "var(--green)"; c.style.fontWeight = "700"; }
+    else if(/^✕|^—$/.test(txt)){ c.style.color = "var(--ink-soft)"; }
   });
+  conteudo.querySelectorAll("tr:last-child td").forEach(c=>{ c.style.borderBottom = "none"; });
+  conteudo.querySelectorAll("td.name, th:first-child").forEach(c=>{ c.style.textAlign = "left"; });
   conteudo.querySelectorAll("h1").forEach(h=>{ h.style.fontFamily="'Syne',sans-serif"; h.style.fontWeight="800"; h.style.color="var(--terracotta)"; h.style.fontSize="19px"; h.style.marginBottom="4px"; });
-  conteudo.querySelectorAll("h2").forEach(h=>{ h.style.fontFamily="'Syne',sans-serif"; h.style.fontWeight="700"; h.style.color="var(--terracotta-dark)"; h.style.fontSize="15px"; h.style.marginTop="18px"; h.style.marginBottom="6px"; });
+  conteudo.querySelectorAll("h2").forEach(h=>{ h.style.fontFamily="'Syne',sans-serif"; h.style.fontWeight="700"; h.style.color="var(--terracotta-dark)"; h.style.fontSize="15px"; h.style.marginTop="20px"; h.style.marginBottom="8px"; h.style.paddingBottom="4px"; h.style.borderBottom="2px solid var(--cream)"; });
 }
 
 function generateComplianceReport(){
