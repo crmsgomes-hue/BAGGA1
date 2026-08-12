@@ -162,6 +162,7 @@
     <input id="searchColab" placeholder="🔎 Procurar por colaborador..." style="width:100%; margin-top:10px; padding:9px 12px; border-radius:10px; border:1px solid var(--line); font-size:14px;" oninput="render()">
     <div class="tabs" style="margin-top:8px;">
       <div class="tab active" data-f="ativas" onclick="setFilter('ativas')">Em curso</div>
+      <div class="tab" data-f="baixas" onclick="setFilter('baixas')">Baixas</div>
       <div class="tab" data-f="concluidas" onclick="setFilter('concluidas')">Concluídas</div>
     </div>
   </header>
@@ -310,13 +311,41 @@ function render(){
   main.innerHTML = "";
   const searchEl = document.getElementById("searchColab");
   const search = searchEl ? searchEl.value.trim().toLowerCase() : "";
-  let active = rows.filter(r=>!r.arquivada);
-  let done = rows.filter(r=>r.arquivada);
+  let active = rows.filter(r=>!r.arquivada && r.tipo!=="Baixa");
+  let done = rows.filter(r=>r.arquivada && r.tipo!=="Baixa");
+  let baixas = rows.filter(r=>r.tipo==="Baixa");
   if(search){
     active = active.filter(r=>(r.colaborador||"").toLowerCase().includes(search) || (r.loja||"").toLowerCase().includes(search));
     done = done.filter(r=>(r.colaborador||"").toLowerCase().includes(search) || (r.loja||"").toLowerCase().includes(search));
+    baixas = baixas.filter(r=>(r.colaborador||"").toLowerCase().includes(search) || (r.loja||"").toLowerCase().includes(search));
   }
   const list = filter==="ativas" ? active : done;
+
+  if(filter==="baixas"){
+    if(baixas.length===0){
+      main.innerHTML = '<div class="empty">Sem baixas registadas. Toca em "+ Nova adenda" e escolhe o tipo "Baixa".</div>';
+      return;
+    }
+    const pendentes = baixas.filter(r=>!r.lancada_wfm);
+    const feitas = baixas.filter(r=>r.lancada_wfm);
+    if(pendentes.length){
+      const h = document.createElement("div");
+      h.className = "section-title";
+      h.textContent = `Por lançar em WFM · ${pendentes.length}`;
+      main.appendChild(h);
+      pendentes.sort((a,b)=> new Date(b.criado_em) - new Date(a.criado_em));
+      pendentes.forEach(r=>main.appendChild(renderCardSimplificada(r)));
+    }
+    if(feitas.length){
+      const h = document.createElement("div");
+      h.className = "section-title";
+      h.textContent = `Já lançadas em WFM · ${feitas.length}`;
+      main.appendChild(h);
+      feitas.sort((a,b)=> new Date(b.updated_at||b.criado_em) - new Date(a.updated_at||a.criado_em));
+      feitas.forEach(r=>main.appendChild(renderCardSimplificada(r)));
+    }
+    return;
+  }
 
   if(filter==="ativas"){
     const activeCompleta = active.filter(r=>!r.tipo || r.tipo==="Alteração de horário");
@@ -504,17 +533,23 @@ function renderCardSimplificada(r){
     </div>
   `;
 
-  const assinaturasHtml = r.precisa_assinaturas
+  const ehBaixa = r.tipo === "Baixa";
+  const assinaturasHtml = (!ehBaixa && r.precisa_assinaturas)
     ? `<div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
         <input type="checkbox" ${r.assinaturas_recolhidas?'checked':''} onchange="toggleCampoSimples(${r.id},'assinaturas_recolhidas',this.checked)" style="width:18px; height:18px;">
         <span style="font-size:13px;">Assinaturas recolhidas</span>
       </div>`
     : ``;
 
-  const rhHtml = `<div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
-    <input type="checkbox" ${r.enviada_rh?'checked':''} onchange="toggleCampoSimples(${r.id},'enviada_rh',this.checked)" style="width:18px; height:18px;">
-    <span style="font-size:13px;">Enviada aos RH</span>
-  </div>`;
+  const rhHtml = ehBaixa
+    ? `<div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+        <input type="checkbox" ${r.lancada_wfm?'checked':''} onchange="toggleCampoSimples(${r.id},'lancada_wfm',this.checked)" style="width:18px; height:18px;">
+        <span style="font-size:13px;">Lançada em WFM</span>
+      </div>`
+    : `<div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+        <input type="checkbox" ${r.enviada_rh?'checked':''} onchange="toggleCampoSimples(${r.id},'enviada_rh',this.checked)" style="width:18px; height:18px;">
+        <span style="font-size:13px;">Enviada aos RH</span>
+      </div>`;
 
   div.innerHTML = `
     <div class="card-top">
@@ -563,6 +598,11 @@ async function adicionarFotoAdenda(id, file){
 
 async function toggleCampoSimples(id, campo, valor){
   try{
+    if(campo === "lancada_wfm"){
+      await api("PATCH", `${TABLE}?id=eq.${id}`, {lancada_wfm: valor, arquivada: valor, updated_at: new Date().toISOString()});
+      await loadRows();
+      return;
+    }
     const rows = await api("GET", `${TABLE}?select=precisa_assinaturas,assinaturas_recolhidas,enviada_rh&id=eq.${id}`);
     const atual = rows[0] || {};
     const novoEstado = {
@@ -940,6 +980,7 @@ function openNew(){
         <label>Tipo de adenda</label>
         <select id="fTipo" onchange="toggleCamposSimplificados()">
           <option>Alteração de horário</option>
+          <option>Baixa</option>
           <option>Carta de rescisão</option>
           <option>Carta de efetividade</option>
           <option>Pluralidade</option>
@@ -1017,6 +1058,9 @@ function closeNew(){
 function toggleCamposSimplificados(){
   const tipo = document.getElementById("fTipo").value;
   document.getElementById("camposSimplificados").style.display = tipo==="Alteração de horário" ? "none" : "block";
+  const ehBaixa = tipo === "Baixa";
+  document.getElementById("fPrecisaAssinaturas").closest(".field").style.display = ehBaixa ? "none" : "flex";
+  document.getElementById("fEnviadaRh").closest(".field").style.display = ehBaixa ? "none" : "flex";
 }
 
 async function saveNew(){
@@ -1036,12 +1080,17 @@ async function saveNew(){
       criado_em: now, criado_por: currentUser, updated_at: now
     };
     if(isSimplificada){
-      payload.precisa_assinaturas = document.getElementById("fPrecisaAssinaturas").checked;
-      payload.enviada_rh = document.getElementById("fEnviadaRh").checked;
-      payload.assinaturas_recolhidas = false;
-      const checklistCompletoNovo = (!payload.precisa_assinaturas) && payload.enviada_rh;
-      if(payload.enviada_rh){ payload.enviada_em = now; payload.enviada_por = currentUser; }
-      payload.arquivada = checklistCompletoNovo;
+      if(tipo === "Baixa"){
+        payload.lancada_wfm = false;
+        payload.arquivada = false;
+      } else {
+        payload.precisa_assinaturas = document.getElementById("fPrecisaAssinaturas").checked;
+        payload.enviada_rh = document.getElementById("fEnviadaRh").checked;
+        payload.assinaturas_recolhidas = false;
+        const checklistCompletoNovo = (!payload.precisa_assinaturas) && payload.enviada_rh;
+        if(payload.enviada_rh){ payload.enviada_em = now; payload.enviada_por = currentUser; }
+        payload.arquivada = checklistCompletoNovo;
+      }
       const file = (document.getElementById("fDocumentoFoto").files[0]) || (document.getElementById("fDocumentoUpload").files[0]);
       if(file){
         const dataUrl = await new Promise((resolve,reject)=>{
@@ -1084,12 +1133,14 @@ async function openPhotoCapture(id, stageIdx){
         <button class="btn-cancel" onclick="closePhoto()">Cancelar</button>
         <button class="btn-save" id="btnShoot" onclick="tirarFoto()">📷 Tirar foto</button>
       </div>
+      <label class="btn-undo" style="display:block; text-align:center; cursor:pointer; margin-top:8px;">🖼️ Escolher da galeria<input type="file" accept="image/*" id="galeriaSignInput" style="display:none;"></label>
       <div class="modal-actions" id="confirmRow" style="display:none;">
         <button class="btn-save" id="btnSavePhoto" onclick="saveWithPhoto(${id}, ${stageIdx})" style="width:100%;" disabled>Confirmar ${stage.label.toLowerCase()}</button>
       </div>
     </div>
   `;
   document.body.appendChild(overlay);
+  document.getElementById("galeriaSignInput").addEventListener("change", (ev)=>adicionarFotoGaleriaSign(ev.target.files[0]));
   try{
     camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false});
     document.getElementById("camVideo").srcObject = camStream;
@@ -1125,6 +1176,28 @@ function tirarFoto(){
   renderSignThumbs();
   document.getElementById("confirmRow").style.display = "flex";
   document.getElementById("btnSavePhoto").disabled = false;
+}
+function adicionarFotoGaleriaSign(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const canvas = document.getElementById("camCanvas");
+      const maxDim = 1280;
+      let width = img.width, height = img.height;
+      if(width > height && width > maxDim){ height = height*maxDim/width; width = maxDim; }
+      else if(height > maxDim){ width = width*maxDim/height; height = maxDim; }
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      pendingPhotosSign.push(canvas.toDataURL("image/jpeg", 0.75));
+      renderSignThumbs();
+      document.getElementById("confirmRow").style.display = "flex";
+      document.getElementById("btnSavePhoto").disabled = false;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 function renderSignThumbs(){
   const wrap = document.getElementById("signThumbs");
