@@ -1070,7 +1070,7 @@ function abrirCapturaAbertura(){
             <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" data-ab-input="${it.tipo}" style="display:none;"></label>
             <label class="filebtn" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);">🖼️ Galeria<input type="file" accept="image/*" data-ab-input="${it.tipo}" style="display:none;"></label>
           </div>
-          ${it.tipo!=="vitrine" ? `<div style="text-align:center; margin-top:8px;"><span data-ab-semstock="${it.tipo}" data-ab-label="${it.label}" style="font-size:12px; text-decoration:underline; color:var(--ink-soft); cursor:pointer;">❌ Não tenho ${it.label.toLowerCase()} hoje</span></div>` : ``}
+          ${it.tipo==="laranjas_maquina" ? `<div style="text-align:center; margin-top:8px;"><span data-ab-semstock="${it.tipo}" data-ab-label="${it.label}" style="font-size:12px; text-decoration:underline; color:var(--ink-soft); cursor:pointer;">❌ Não tenho ${it.label.toLowerCase()} hoje</span></div>` : ``}
           `}
         </div>
       `).join("")}
