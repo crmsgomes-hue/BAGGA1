@@ -1272,8 +1272,53 @@ function gerarRelatorioSemanal(){
   });
   html += `</table>`;
 
+  mostrarAcoesRelatorioRH(html, `CoreJoint_rh_semanal_${hoje.toISOString().slice(0,10)}.pdf`);
+}
+
+function mostrarAcoesRelatorioRH(html, filename){
   document.getElementById("printReport").innerHTML = html;
-  setTimeout(()=>window.print(), 100);
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "relatorioAcoesOverlayRH";
+  overlay.innerHTML = `
+    <div class="modal" style="text-align:center;">
+      <h2>Relatório pronto</h2>
+      <div class="sub">Escolhe o que queres fazer com ele.</div>
+      <div class="modal-actions" style="flex-direction:column; gap:8px; margin-top:16px;">
+        <button class="btn-save" style="width:100%;" id="raVerBtnRH">👁️ Ver relatório</button>
+        <button class="btn-save" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);" id="raImprimirBtnRH">🖨️ Imprimir / Guardar PDF</button>
+        <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('relatorioAcoesOverlayRH').remove()">Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("raVerBtnRH").onclick = ()=>{
+    overlay.remove();
+    const verOverlay = document.createElement("div");
+    verOverlay.className = "overlay";
+    verOverlay.id = "verRelatorioOverlayRH";
+    verOverlay.style.cssText = "align-items:flex-start;";
+    verOverlay.innerHTML = `
+      <div class="modal" style="max-height:92vh; overflow-y:auto; text-align:left;">
+        <div id="verRelatorioConteudoRH" style="font-size:15px; line-height:1.5;"></div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('verRelatorioOverlayRH').remove()">Fechar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(verOverlay);
+    const conteudo = document.getElementById("verRelatorioConteudoRH");
+    conteudo.innerHTML = html;
+    conteudo.querySelectorAll("table").forEach(t=>{ t.style.width="100%"; t.style.borderCollapse="separate"; t.style.borderSpacing="0"; t.style.marginBottom="16px"; t.style.fontSize="14px"; t.style.border="1px solid var(--line,#E4DDD0)"; t.style.borderRadius="12px"; t.style.overflow="hidden"; });
+    conteudo.querySelectorAll("th").forEach(c=>{ c.style.borderBottom="1px solid var(--line,#E4DDD0)"; c.style.padding="9px 9px"; c.style.textAlign="center"; c.style.background="var(--cream,#F4F1EA)"; c.style.color="var(--terracotta-dark,#9C4C22)"; c.style.fontWeight="700"; c.style.fontFamily="'Syne',sans-serif"; c.style.fontSize="13px"; });
+    conteudo.querySelectorAll("td").forEach(c=>{ c.style.borderBottom="1px solid var(--line,#E4DDD0)"; c.style.padding="9px 9px"; c.style.textAlign="center"; });
+    conteudo.querySelectorAll("h1").forEach(h=>{ h.style.fontFamily="'Syne',sans-serif"; h.style.fontWeight="800"; h.style.color="var(--terracotta,#C1622E)"; h.style.fontSize="19px"; h.style.marginBottom="4px"; });
+    conteudo.querySelectorAll("h2").forEach(h=>{ h.style.fontFamily="'Syne',sans-serif"; h.style.fontWeight="700"; h.style.color="var(--terracotta-dark,#9C4C22)"; h.style.fontSize="15px"; h.style.marginTop="20px"; h.style.marginBottom="8px"; });
+  };
+  document.getElementById("raImprimirBtnRH").onclick = ()=>{
+    overlay.remove();
+    setTimeout(()=>window.print(), 100);
+  };
 }
 
 if(currentUser){ startApp(); }

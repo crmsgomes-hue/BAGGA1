@@ -596,13 +596,15 @@ function openAlertas(){
     encCard.innerHTML = `
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; margin-bottom:2px;">📦 Encomenda pronta</div>
       <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">${alerts.length} combinações com stock baixo</div>
-      <button class="copybtn" style="width:100%; background:var(--terracotta,#C1622E); color:#fff; margin-bottom:8px;" id="encPartilharBtn">📤 Partilhar (email, WhatsApp...)</button>
-      <button class="copybtn" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);" id="encXlsBtn">📥 Excel</button>
+      <button class="copybtn" style="width:100%; background:var(--terracotta,#C1622E); color:#fff; margin-bottom:8px;" id="encVerBtn">👁️ Ver relatório</button>
+      <button class="copybtn" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E); margin-bottom:8px;" id="encPartilharBtn">📤 Partilhar (email, WhatsApp...)</button>
+      <button class="copybtn" style="width:100%; background:none; border:1.5px solid var(--green,#3F7D5C); color:var(--green,#3F7D5C);" id="encXlsBtn">📥 Excel</button>
       <div style="text-align:center; margin-top:8px;"><span style="font-size:12px; text-decoration:underline; cursor:pointer; color:var(--ink-soft);" id="encCopiarBtn">Copiar como texto</span></div>
     `;
     main.appendChild(encCard);
     encCard.querySelector("#encXlsBtn").onclick = ()=>gerarEncomendaExcel(alerts);
-    encCard.querySelector("#encPartilharBtn").onclick = ()=>previewEncomenda(alerts);
+    encCard.querySelector("#encVerBtn").onclick = ()=>previewEncomenda(alerts);
+    encCard.querySelector("#encPartilharBtn").onclick = ()=>partilharEncomenda(alerts);
     encCard.querySelector("#encCopiarBtn").onclick = ()=>{
       const text = "Fardamento a encomendar (< " + LOW_THRESHOLD + " un.):\n" +
         alerts.map(a=>`- ${a.peca} ${a.tam}: total ${a.q} (${Object.entries(a.porPolo).map(([p,q])=>p+": "+q).join(", ")})`).join("\n");
