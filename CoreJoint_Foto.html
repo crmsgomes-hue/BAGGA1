@@ -147,7 +147,7 @@ function categoriasParaLoja(loja){
 
 const params = new URLSearchParams(location.search);
 const currentLoja = params.get("loja") || "Loja não identificada";
-let dailyRows = [], invRows = [], agendamentos = [], agendamentosTabaco = [], sondagensPendentes = [], formulariosPendentes = [], avisosPendentes = [], naoAplicaveis = [], quebrasPendentes = [], formsJaPreenchido = false, formsLegionelaJaPreenchido = false, minhasRespostasSondagens = [], sondagensRespondidas = [], minhasRespostasFormularios = [], formulariosRespondidos = [], pedidosFotosPendentes = [];
+let dailyRows = [], invRows = [], agendamentos = [], agendamentosTabaco = [], sondagensPendentes = [], formulariosPendentes = [], avisosPendentes = [], naoAplicaveis = [], quebrasPendentes = [], formsJaPreenchido = false, formsLegionelaJaPreenchido = false, minhasRespostasSondagens = [], sondagensRespondidas = [], minhasRespostasFormularios = [], formulariosRespondidos = [], pedidosFotosPendentes = [], pedidosFotosRespondidos = [];
 let pendingPhotos = [];
 window.addEventListener("beforeunload", function(e){
   if(pendingPhotos.length>0){
@@ -480,11 +480,15 @@ async function loadAll(){
       a.visto_em = new Date().toISOString();
     });
     const todosPedidosFotos = await api("GET", "cj_pedidos_fotos?select=*&ativo=eq.true");
-    const minhasRespostasPedidos = await api("GET", `cj_pedidos_fotos_respostas?select=pedido_id${f}`);
+    const minhasRespostasPedidos = await api("GET", `cj_pedidos_fotos_respostas?select=*${f}`);
     pedidosFotosPendentes = todosPedidosFotos.filter(p=>
       (!p.lojas || p.lojas.includes(currentLoja)) &&
       !minhasRespostasPedidos.some(r=>r.pedido_id===p.id)
     );
+    pedidosFotosRespondidos = todosPedidosFotos.filter(p=>
+      (!p.lojas || p.lojas.includes(currentLoja)) &&
+      minhasRespostasPedidos.some(r=>r.pedido_id===p.id)
+    ).map(p=>({pedido:p, resposta: minhasRespostasPedidos.find(r=>r.pedido_id===p.id)}));
     render();
   }catch(e){ console.error(e); toast("Erro a carregar"); }
 }
@@ -515,6 +519,7 @@ async function render(){
       ${p.descricao ? `<div style="font-size:13px; color:var(--ink-soft); margin-bottom:12px; padding-left:44px;">${p.descricao}</div>` : ``}
       <div style="padding-left:44px;">
         <div id="pedidoThumbs_${p.id}" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px;"></div>
+        <div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:8px;">Podes tirar/escolher várias fotos antes de enviar.</div>
         <div style="display:flex; gap:8px;">
           <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" id="pedidoCam_${p.id}" style="display:none;"></label>
           <label class="filebtn" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);">🖼️ Galeria<input type="file" accept="image/*" id="pedidoGal_${p.id}" style="display:none;"></label>
@@ -528,6 +533,14 @@ async function render(){
     document.getElementById(`pedidoCam_${p.id}`).addEventListener("change", handler);
     document.getElementById(`pedidoGal_${p.id}`).addEventListener("change", handler);
     document.getElementById(`pedidoEnviar_${p.id}`).onclick = ()=>enviarPedidoFotos(p.id);
+  });
+
+  pedidosFotosRespondidos.forEach(({pedido, resposta})=>{
+    const link = document.createElement("div");
+    link.style.cssText = "text-align:center; margin-bottom:10px;";
+    link.innerHTML = `<span style="font-size:12.5px; text-decoration:underline; color:var(--ink-soft); cursor:pointer;">✏️ Já enviaste fotos para "${pedido.titulo}" — editar</span>`;
+    link.onclick = ()=>abrirEditarPedidoFotos(pedido, resposta);
+    main.appendChild(link);
   });
 
 
@@ -1031,6 +1044,79 @@ function renderCapThumbsExtra(containerId, arr, removeFnName, legendaFnName){
     </div>
   `).join("");
 }
+function abrirEditarPedidoFotos(pedido, resposta){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "editPedidoOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>${pedido.titulo}</h2>
+      <div class="sub">Toca no ✕ para apagar uma foto, ou adiciona mais abaixo.</div>
+      <div id="editPedidoGrid" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:12px;"></div>
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" id="editPedidoCam" style="display:none;"></label>
+        <label class="filebtn" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);">🖼️ Galeria<input type="file" accept="image/*" id="editPedidoGal" style="display:none;"></label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('editPedidoOverlay').remove()">Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  renderEditPedidoGrid(pedido, resposta);
+  const handler = (ev)=>adicionarFotoPedidoResposta(pedido, resposta, ev.target.files[0]);
+  document.getElementById("editPedidoCam").addEventListener("change", handler);
+  document.getElementById("editPedidoGal").addEventListener("change", handler);
+}
+function renderEditPedidoGrid(pedido, resposta){
+  const grid = document.getElementById("editPedidoGrid");
+  if(!grid) return;
+  const fotos = resposta.fotos || [];
+  grid.innerHTML = fotos.map((f,i)=>`
+    <div class="photo-item">
+      <img src="${f.url}" onclick="bigPhoto('${f.url}')">
+      <button class="photo-del" onclick="removerFotoPedidoResposta('${pedido.id}',${i})">✕</button>
+    </div>
+  `).join("") || '<div style="font-size:13px; color:var(--ink-soft);">Ainda sem fotos.</div>';
+}
+async function adicionarFotoPedidoResposta(pedido, resposta, file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    compressPhoto(e.target.result, 1280, 0.75, async (compressed)=>{
+      if(!compressed) return;
+      try{
+        const path = `pedidos/${pedido.id}/${slug(currentLoja)}_${Date.now()}.jpg`;
+        const url = await uploadPhoto(compressed, path);
+        const fotos = [...(resposta.fotos||[]), {url}];
+        await api("PATCH", `cj_pedidos_fotos_respostas?id=eq.${resposta.id}`, {fotos});
+        resposta.fotos = fotos;
+        renderEditPedidoGrid(pedido, resposta);
+        toast("Foto adicionada");
+      }catch(e){
+        console.error(e);
+        toast("Erro ao adicionar: " + (e.message||e).slice(0,100));
+      }
+    });
+  };
+  reader.readAsDataURL(file);
+}
+window._pedidosRespostasAtuais = {};
+async function removerFotoPedidoResposta(pedidoId, indice){
+  const item = pedidosFotosRespondidos.find(x=>x.pedido.id===pedidoId);
+  if(!item) return;
+  const fotos = (item.resposta.fotos||[]).filter((_,i)=>i!==indice);
+  try{
+    await api("PATCH", `cj_pedidos_fotos_respostas?id=eq.${item.resposta.id}`, {fotos});
+    item.resposta.fotos = fotos;
+    renderEditPedidoGrid(item.pedido, item.resposta);
+    toast("Foto apagada");
+  }catch(e){
+    console.error(e);
+    toast("Erro ao apagar: " + (e.message||e).slice(0,100));
+  }
+}
+
 let pendingPhotosPedidos = {};
 function handlePedidoFile(pedidoId, file){
   if(!file) return;
