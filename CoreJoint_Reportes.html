@@ -4788,9 +4788,11 @@ function renderGestao(){
       } else {
         mapaFerramentasPorChave[chaveAbrir]();
       }
+      return;
     } else if(paramsUrl.get("ferramentas")==="1"){
       window._ferramentasAutoAbertas = true;
       abrirMenuFerramentas(grupos);
+      return;
     }
   }
 
