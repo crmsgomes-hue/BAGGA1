@@ -55,6 +55,18 @@
   .card-sub{font-size:13px; color:var(--ink-soft); margin-top:4px;}
   .cambtn{width:100%; margin-top:12px; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;}
   .cambtn.secondary{background:var(--card); color:var(--terracotta); border:1.5px solid var(--terracotta);}
+  .rl-row{display:flex; align-items:baseline; flex-wrap:wrap; gap:6px; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .rl-loja{font-weight:700; min-width:110px;}
+  .rl-pct{font-weight:800; font-family:'Syne',sans-serif;}
+  .rl-falta{font-size:11.5px; color:var(--red); width:100%;}
+  .rl-ok{font-size:11.5px; color:var(--green);}
+  .rl-cat{padding:8px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .inv-card{border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  .inv-loja{font-family:'Syne',sans-serif; font-weight:700; font-size:14px; margin-bottom:5px;}
+  .inv-item{display:flex; justify-content:space-between; gap:8px; font-size:12.5px; padding:3px 0;}
+  .inv-ok{color:var(--green); font-weight:700;}
+  .inv-meta{color:var(--ink-soft);}
+  .inv-pend{font-size:11.5px; color:var(--ink-soft); margin-top:4px;}
   .history{display:flex; gap:5px; margin-top:10px;}
   .hdot{flex:1; height:22px; border-radius:5px; background:var(--line); font-size:9px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;}
   .hdot.ok{background:var(--green);} .hdot.no{background:var(--red);}
@@ -3153,70 +3165,59 @@ async function generateWeeklyReport(){
 
   let html = `<h1>CoreJoint · Relatório Semanal</h1><div style="font-size:8px; color:#555; margin-bottom:6px;">Período: ${rangeTxt} · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
 
-  html += `<h2>Vitrine — nº de turnos enviados por dia (de 3: manhã/almoço/lanche)</h2><table><tr><th style="text-align:left;">Loja</th><th>Média</th>${days.map(d=>`<th>${d.getDate()}</th>`).join("")}</tr>`;
-  LOJAS.forEach(l=>{
-    const cellCounts = days.map(d=>{
-      const ds = isoDate(d);
-      return VITRINE_TURNOS.filter(t=>dailyStatus(l,"vitrine",ds,t.key)).length;
-    });
-    const avg = (cellCounts.reduce((a,b)=>a+b,0)/7).toFixed(1);
-    html += `<tr><td class="name">${l}</td><td><b>${avg}/3</b></td>${cellCounts.map(c=>`<td>${c}/3</td>`).join("")}</tr>`;
-  });
-  html += `</table>`;
-
-  html += `<h2>Vendas — % de dias enviados</h2><table><tr><th style="text-align:left;">Loja</th><th>Semana</th>${days.map(d=>`<th>${d.getDate()}</th>`).join("")}</tr>`;
+  html += `<h2>Vendas — % de dias enviados</h2>`;
   LOJAS.forEach(l=>{
     const cells = days.map(d=>{
       const ds = isoDate(d);
-      return dailyStatus(l,"vendas",ds,"unico") ? '✔' : '✕';
+      return {dia: d.getDate(), ok: dailyStatus(l,"vendas",ds,"unico")};
     });
-    const pct = Math.round(cells.filter(c=>c==='✔').length/7*100);
-    html += `<tr><td class="name">${l}</td><td><b>${pct}%</b></td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+    const pct = Math.round(cells.filter(c=>c.ok).length/7*100);
+    const faltam = cells.filter(c=>!c.ok).map(c=>c.dia);
+    const cor = pct===100 ? "var(--green)" : pct>=70 ? "var(--terracotta-dark)" : "var(--red)";
+    html += `<div class="rl-row"><span class="rl-loja">${l}</span><span class="rl-pct" style="color:${cor};">${pct}%</span>${faltam.length?`<span class="rl-falta">faltam: dia ${faltam.join(", ")}</span>`:`<span class="rl-ok">✔ todos os dias</span>`}</div>`;
   });
-  html += `</table>`;
 
   const semanais = INV_CATS.filter(c=>c.freq==="semanal");
-  html += `<h2>Inventário semanal — dia em que foi feito</h2>`;
+  html += `<h2>Inventário semanal</h2>`;
   semanais.forEach(cat=>{
-    html += `<table style="margin-bottom:6px;"><tr><th style="text-align:left; width:70px;">${cat.label}</th><th style="text-align:left;">Loja</th>${days.map(d=>`<th>${d.toLocaleDateString('pt-PT',{weekday:'short'}).slice(0,3)}<br>${d.getDate()}</th>`).join("")}</tr>`;
-    LOJAS.filter(l=>categoriasParaLoja(l).some(c=>c.key===cat.key)).forEach(l=>{
-      const cells = days.map(d=>{
-        const ds = isoDate(d);
-        const feito = invRows.some(r=>r.loja===l && r.categoria===cat.key && r.data===ds);
-        return feito ? "✔" : "";
-      });
-      html += `<tr><td></td><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+    const lojasCat = LOJAS.filter(l=>categoriasParaLoja(l).some(c=>c.key===cat.key));
+    const feitas = [], pendentes = [];
+    lojasCat.forEach(l=>{
+      const feitoEm = days.find(d=>invRows.some(r=>r.loja===l && r.categoria===cat.key && r.data===isoDate(d)));
+      if(feitoEm) feitas.push(`${l} (${feitoEm.getDate()})`); else pendentes.push(l);
     });
-    html += `</table>`;
+    html += `<div class="rl-cat"><b>${cat.label}</b> — ${feitas.length}/${lojasCat.length} feito${pendentes.length?`<div class="rl-falta">Não enviado: ${pendentes.join(", ")}</div>`:''}</div>`;
   });
 
   const outros = INV_CATS.filter(c=>c.freq!=="semanal");
-
-  html += `<h2>Inventário quinzenal/mensal — estado atual</h2><table><tr><th style="text-align:left;">Loja</th>${outros.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
-  LOJAS.forEach(l=>{
-    const aplicaveis = categoriasParaLoja(l).map(c=>c.key);
-    const cells = outros.map(c=>{
-      if(!aplicaveis.includes(c.key)) return "—";
-      const st = invStatus(l,c.key,c.freq);
-      if(st.state==="ok") return `✔ ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}`;
-      if(st.state==="pausado") return "⏸";
-      return st.state==="late" ? "✕" : "…";
+  html += `<h2>Inventário quinzenal/mensal</h2>`;
+  outros.forEach(cat=>{
+    const lojasCat = LOJAS.filter(l=>categoriasParaLoja(l).some(c=>c.key===cat.key));
+    if(lojasCat.length===0) return;
+    const pendentes = [];
+    let feitas = 0, pausada = 0;
+    lojasCat.forEach(l=>{
+      const st = invStatus(l,cat.key,cat.freq);
+      if(st.state==="ok") feitas++;
+      else if(st.state==="pausado") pausada++;
+      else pendentes.push(l);
     });
-    html += `<tr><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+    if(pausada===lojasCat.length) return;
+    html += `<div class="rl-cat"><b>${cat.label}</b> — ${feitas}/${lojasCat.length-pausada} feito${pendentes.length?`<div class="rl-falta">Por enviar: ${pendentes.join(", ")}</div>`:''}</div>`;
   });
-  html += `</table>`;
 
-  html += `<h2>Marketing — estado atual (prazo: 3 primeiros dias do mês)</h2><table><tr><th style="text-align:left;">Loja</th>${MARKETING_CATS.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
-  LOJAS.forEach(l=>{
-    const cells = MARKETING_CATS.map(c=>{
-      const st = invStatus(l,c.key,c.freq);
-      if(st.state==="na") return "—";
-      if(st.state==="ok") return `✔ ${new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}`;
-      return st.state==="late" ? "✕" : "…";
+  html += `<h2>Marketing (prazo: 3 primeiros dias do mês)</h2>`;
+  MARKETING_CATS.forEach(cat=>{
+    const lojasCat = LOJAS.filter(l=>invStatus(l,cat.key,cat.freq).state!=="na");
+    const pendentes = [];
+    let feitas = 0;
+    lojasCat.forEach(l=>{
+      const st = invStatus(l,cat.key,cat.freq);
+      if(st.state==="ok") feitas++; else pendentes.push(l);
     });
-    html += `<tr><td class="name">${l}</td>${cells.map(c=>`<td>${c}</td>`).join("")}</tr>`;
+    if(lojasCat.length===0) return;
+    html += `<div class="rl-cat"><b>${cat.label}</b> — ${feitas}/${lojasCat.length} feito${pendentes.length?`<div class="rl-falta">Por enviar: ${pendentes.join(", ")}</div>`:''}</div>`;
   });
-  html += `</table>`;
 
   html += complianceSectionHtml();
 
