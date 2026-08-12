@@ -1299,7 +1299,7 @@ function mostrarAcoesRelatorioRH(html, filename){
     verOverlay.id = "verRelatorioOverlayRH";
     verOverlay.style.cssText = "align-items:flex-start;";
     verOverlay.innerHTML = `
-      <div class="modal" style="max-height:92vh; overflow-y:auto; text-align:left;">
+      <div class="modal" style="max-height:92vh; overflow-y:auto; overflow-x:hidden; text-align:left;">
         <div id="verRelatorioConteudoRH" style="font-size:15px; line-height:1.5;"></div>
         <div class="modal-actions" style="margin-top:16px;">
           <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('verRelatorioOverlayRH').remove()">Fechar</button>
@@ -1309,9 +1309,9 @@ function mostrarAcoesRelatorioRH(html, filename){
     document.body.appendChild(verOverlay);
     const conteudo = document.getElementById("verRelatorioConteudoRH");
     conteudo.innerHTML = html;
-    conteudo.querySelectorAll("table").forEach(t=>{ t.style.width="100%"; t.style.borderCollapse="separate"; t.style.borderSpacing="0"; t.style.marginBottom="16px"; t.style.fontSize="14px"; t.style.border="1px solid var(--line,#E4DDD0)"; t.style.borderRadius="12px"; t.style.overflow="hidden"; });
-    conteudo.querySelectorAll("th").forEach(c=>{ c.style.borderBottom="1px solid var(--line,#E4DDD0)"; c.style.padding="9px 9px"; c.style.textAlign="center"; c.style.background="var(--cream,#F4F1EA)"; c.style.color="var(--terracotta-dark,#9C4C22)"; c.style.fontWeight="700"; c.style.fontFamily="'Syne',sans-serif"; c.style.fontSize="13px"; });
-    conteudo.querySelectorAll("td").forEach(c=>{ c.style.borderBottom="1px solid var(--line,#E4DDD0)"; c.style.padding="9px 9px"; c.style.textAlign="center"; });
+    conteudo.querySelectorAll("table").forEach(t=>{ t.style.width="100%"; t.style.tableLayout="fixed"; t.style.borderCollapse="separate"; t.style.borderSpacing="0"; t.style.marginBottom="16px"; t.style.fontSize="12px"; t.style.border="1px solid var(--line,#E4DDD0)"; t.style.borderRadius="12px"; t.style.overflow="hidden"; });
+    conteudo.querySelectorAll("th").forEach(c=>{ c.style.borderBottom="1px solid var(--line,#E4DDD0)"; c.style.padding="6px 4px"; c.style.textAlign="center"; c.style.background="var(--cream,#F4F1EA)"; c.style.color="var(--terracotta-dark,#9C4C22)"; c.style.fontWeight="700"; c.style.fontFamily="'Syne',sans-serif"; c.style.fontSize="11px"; c.style.wordBreak="break-word"; });
+    conteudo.querySelectorAll("td").forEach(c=>{ c.style.borderBottom="1px solid var(--line,#E4DDD0)"; c.style.padding="6px 4px"; c.style.textAlign="center"; c.style.wordBreak="break-word"; c.style.overflowWrap="anywhere"; });
     conteudo.querySelectorAll("h1").forEach(h=>{ h.style.fontFamily="'Syne',sans-serif"; h.style.fontWeight="800"; h.style.color="var(--terracotta,#C1622E)"; h.style.fontSize="19px"; h.style.marginBottom="4px"; });
     conteudo.querySelectorAll("h2").forEach(h=>{ h.style.fontFamily="'Syne',sans-serif"; h.style.fontWeight="700"; h.style.color="var(--terracotta-dark,#9C4C22)"; h.style.fontSize="15px"; h.style.marginTop="20px"; h.style.marginBottom="8px"; });
   };

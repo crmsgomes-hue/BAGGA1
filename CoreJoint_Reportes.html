@@ -269,10 +269,10 @@ async function compartilharHtmlComoPDF(htmlContent, filename){
     const container = document.createElement("div");
     container.style.cssText = "width:550px; font-family:'DM Sans',sans-serif; font-size:9px; color:var(--ink,#2B2723); background:#fff; padding:14px;";
     container.innerHTML = htmlContent;
-    container.querySelectorAll("table").forEach(t=>{ t.style.width="100%"; t.style.borderCollapse="collapse"; t.style.marginBottom="10px"; t.style.borderRadius="6px"; t.style.overflow="hidden"; });
-    container.querySelectorAll("th").forEach(c=>{ c.style.border="1px solid var(--line,#E4DDD0)"; c.style.padding="5px 6px"; c.style.fontSize="8px"; c.style.textAlign="center"; c.style.background="var(--cream,#F4F1EA)"; c.style.color="var(--terracotta-dark,#9C4C22)"; c.style.fontWeight="700"; });
+    container.querySelectorAll("table").forEach(t=>{ t.style.width="100%"; t.style.tableLayout="fixed"; t.style.borderCollapse="collapse"; t.style.marginBottom="10px"; t.style.borderRadius="6px"; t.style.overflow="hidden"; });
+    container.querySelectorAll("th").forEach(c=>{ c.style.border="1px solid var(--line,#E4DDD0)"; c.style.padding="5px 6px"; c.style.fontSize="8px"; c.style.textAlign="center"; c.style.background="var(--cream,#F4F1EA)"; c.style.color="var(--terracotta-dark,#9C4C22)"; c.style.fontWeight="700"; c.style.wordBreak="break-word"; });
     container.querySelectorAll("td").forEach(c=>{
-      c.style.border="1px solid var(--line,#E4DDD0)"; c.style.padding="5px 6px"; c.style.fontSize="8px"; c.style.textAlign="center";
+      c.style.border="1px solid var(--line,#E4DDD0)"; c.style.padding="5px 6px"; c.style.fontSize="8px"; c.style.textAlign="center"; c.style.wordBreak="break-word"; c.style.overflowWrap="anywhere";
       const txt = c.textContent.trim();
       if(/^✔/.test(txt)){ c.style.color = "#3F7D5C"; c.style.fontWeight = "700"; }
       else if(/^✕|^—$/.test(txt)){ c.style.color = "#8a8178"; }
@@ -369,7 +369,7 @@ function verRelatorioNoEcra(html){
   overlay.id = "verRelatorioOverlay";
   overlay.style.cssText = "align-items:flex-start;";
   overlay.innerHTML = `
-    <div class="modal" style="max-height:92vh; overflow-y:auto; text-align:left; -webkit-user-select:text; user-select:text;">
+    <div class="modal" style="max-height:92vh; overflow-y:auto; overflow-x:hidden; text-align:left; -webkit-user-select:text; user-select:text;">
       <div id="verRelatorioConteudo" style="font-size:15px; line-height:1.5;"></div>
       <div class="modal-actions" style="margin-top:16px;">
         <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('verRelatorioOverlay').remove()">Fechar</button>
@@ -381,10 +381,11 @@ function verRelatorioNoEcra(html){
   conteudo.innerHTML = html;
   conteudo.querySelectorAll("table").forEach(t=>{
     t.style.width = "100%";
+    t.style.tableLayout = "fixed";
     t.style.borderCollapse = "separate";
     t.style.borderSpacing = "0";
     t.style.marginBottom = "16px";
-    t.style.fontSize = "14px";
+    t.style.fontSize = "12px";
     t.style.border = "1px solid var(--line)";
     t.style.borderRadius = "12px";
     t.style.overflow = "hidden";
@@ -392,18 +393,21 @@ function verRelatorioNoEcra(html){
   });
   conteudo.querySelectorAll("th").forEach(c=>{
     c.style.borderBottom = "1px solid var(--line)";
-    c.style.padding = "9px 9px";
+    c.style.padding = "6px 4px";
     c.style.textAlign = "center";
     c.style.background = "var(--cream)";
     c.style.color = "var(--terracotta-dark)";
     c.style.fontWeight = "700";
     c.style.fontFamily = "'Syne',sans-serif";
-    c.style.fontSize = "13px";
+    c.style.fontSize = "11px";
+    c.style.wordBreak = "break-word";
   });
   conteudo.querySelectorAll("td").forEach(c=>{
     c.style.borderBottom = "1px solid var(--line)";
-    c.style.padding = "9px 9px";
+    c.style.padding = "6px 4px";
     c.style.textAlign = "center";
+    c.style.wordBreak = "break-word";
+    c.style.overflowWrap = "anywhere";
     const txt = c.textContent.trim();
     if(/^✔/.test(txt)){ c.style.color = "var(--green)"; c.style.fontWeight = "700"; }
     else if(/^✕|^—$/.test(txt)){ c.style.color = "var(--ink-soft)"; }
@@ -3120,17 +3124,23 @@ async function generateWeeklyInventoryReport(){
   LOJAS.forEach(l=>{
     const cats = categoriasParaLoja(l);
     if(cats.length===0) return;
-    html += `<h2>${l}</h2><table><tr><th style="text-align:left;">Categoria</th><th>Estado</th><th>Data</th><th>Valor inventário</th><th>Valor CNVs</th></tr>`;
+    const feitos = [], naoEnviados = [];
     cats.forEach(c=>{
       const rowsSemana = invRows.filter(r=>r.loja===l && r.categoria===c.key && r.data>=inicioSemana && r.data<=fimSemana).sort((a,b)=> new Date(b.criado_em)-new Date(a.criado_em));
       const latest = rowsSemana[0];
-      const estado = latest ? "✔ Feito" : "✕ Não enviado";
-      const dataTxt = latest ? new Date(latest.data+"T00:00:00").toLocaleDateString('pt-PT') : "—";
-      const valorInv = latest && latest.valor_inventario!=null ? `${latest.valor_inventario} €` : "—";
-      const valorCnvs = latest && c.key==="global" && latest.valor_cnvs!=null ? `${latest.valor_cnvs} €` : (c.key==="global" ? "—" : "");
-      html += `<tr><td class="name">${c.label}</td><td>${estado}</td><td>${dataTxt}</td><td><b>${valorInv}</b></td><td>${valorCnvs}</td></tr>`;
+      if(latest){
+        const dataTxt = new Date(latest.data+"T00:00:00").toLocaleDateString('pt-PT');
+        const valorInv = latest.valor_inventario!=null ? `${latest.valor_inventario}€` : "";
+        const valorCnvs = c.key==="global" && latest.valor_cnvs!=null ? ` · CNVs ${latest.valor_cnvs}€` : "";
+        feitos.push(`<div class="inv-item"><span class="inv-ok">✔ ${c.label}</span><span class="inv-meta">${dataTxt}${valorInv?' · '+valorInv:''}${valorCnvs}</span></div>`);
+      } else {
+        naoEnviados.push(c.label);
+      }
     });
-    html += `</table>`;
+    html += `<div class="inv-card"><div class="inv-loja">${l}</div>`;
+    html += feitos.join("");
+    if(naoEnviados.length) html += `<div class="inv-pend">✕ Não enviado: ${naoEnviados.join(", ")}</div>`;
+    html += `</div>`;
   });
 
   mostrarAcoesRelatorio(html, `CoreJoint_inventario_semanal_${todayStr()}.pdf`);
