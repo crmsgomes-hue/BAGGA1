@@ -517,8 +517,16 @@ function semanaKey(d){
     submissoes.forEach(s=>{ (porLoja[s.loja] ||= []).push(s); });
 
     if(Object.keys(porLoja).length>0){
-      let html = `<div class="sec-label">Fotos recentes</div>
-        <select id="fotosRecentesSelect" style="width:100%; padding:12px; border-radius:12px; border:1px solid var(--br); background:var(--sf); font-size:.9rem; margin-bottom:10px;">
+      const hojeStr = todayStr;
+      let htmlConf = `<div class="sec-label">Fotos recentes</div>
+        <div style="font-size:.72rem; color:var(--t2); margin-bottom:6px;">Confirmação de hoje — de relance</div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">`;
+      LOJAS.forEach(l=>{
+        const enviouHoje = (porLoja[l]||[]).some(s=>s.data===hojeStr);
+        htmlConf += `<span style="background:${enviouHoje?'var(--grn)':'var(--sf2)'}; color:${enviouHoje?'#fff':'var(--t2)'}; border-radius:99px; padding:4px 10px; font-size:.68rem; font-weight:700;">${enviouHoje?'✔ ':''}${l}</span>`;
+      });
+      htmlConf += `</div>`;
+      let html = htmlConf + `<select id="fotosRecentesSelect" style="width:100%; padding:12px; border-radius:12px; border:1px solid var(--br); background:var(--sf); font-size:.9rem; margin-bottom:10px;">
           <option value="">Todas as lojas</option>
           ${LOJAS.filter(l=>porLoja[l]).map(l=>`<option value="${l}">${l}</option>`).join("")}
         </select>
