@@ -822,30 +822,36 @@ function semanaKey(d){
       const wrap = document.querySelector(`[data-chips-cat="${cat.key}"]`);
       if(!wrap) return;
       const lojasAplic = LOJAS.filter(l=>!naoAplicaveisCat.some(n=>n.loja===l && n.categoria===cat.key) && (INV_CATS.includes(cat) ? categoriasParaLoja(l).some(c=>c.key===cat.key) : true));
+      const pendentesCat = [];
       lojasAplic.forEach(l=>{
         const st = statusCatLoja(l, cat);
+        if(!st.feito){ pendentesCat.push(l); return; }
         const chip = document.createElement("button");
         const problema = st.feito && st.diaErrado;
         let bg = "var(--sf2)", fg = "var(--t2)";
-        if(st.feito && !problema){ bg = "var(--grn)"; fg = "#fff"; }
-        else if(problema){ bg = "var(--org)"; fg = "#fff"; }
-        chip.style.cssText = `background:${bg}; color:${fg}; border:none; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700; cursor:${st.feito?'pointer':'default'};`;
-        chip.textContent = st.feito ? `✔ ${l}${problema?' ⚠':''}` : l;
-        if(st.feito){
-          chip.onclick = ()=>{
-            const dataLbl = st.latest.data ? new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT') : "-";
-            const horaLbl = st.latest.criado_em ? new Date(st.latest.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : "";
-            const fotos = (st.latest.fotos && st.latest.fotos.length ? st.latest.fotos : [st.latest.foto_path]).filter(Boolean).map(fotoUrlCat);
-            let msg = `${l} — ${cat.label}\nEnviado ${dataLbl}${horaLbl?' às '+horaLbl:''}`;
-            if(st.diaErrado) msg += "\n⚠ fora do dia certo";
-            if(st.latest.valor_inventario!=null) msg += `\nInventário: ${st.latest.valor_inventario} €`;
-            if(st.latest.valor_cnvs!=null) msg += `\nCNVs: ${st.latest.valor_cnvs} €`;
-            if(fotos.length){ alert(msg); bigPhoto(fotos, 0); }
-            else alert(msg + "\n(sem foto, só confirmação)");
-          };
-        }
+        if(!problema){ bg = "var(--grn)"; fg = "#fff"; }
+        else { bg = "var(--org)"; fg = "#fff"; }
+        chip.style.cssText = `background:${bg}; color:${fg}; border:none; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700; cursor:pointer;`;
+        chip.textContent = `✔ ${l}${problema?' ⚠':''}`;
+        chip.onclick = ()=>{
+          const dataLbl = st.latest.data ? new Date(st.latest.data+"T00:00:00").toLocaleDateString('pt-PT') : "-";
+          const horaLbl = st.latest.criado_em ? new Date(st.latest.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : "";
+          const fotos = (st.latest.fotos && st.latest.fotos.length ? st.latest.fotos : [st.latest.foto_path]).filter(Boolean).map(fotoUrlCat);
+          let msg = `${l} — ${cat.label}\nEnviado ${dataLbl}${horaLbl?' às '+horaLbl:''}`;
+          if(st.diaErrado) msg += "\n⚠ fora do dia certo";
+          if(st.latest.valor_inventario!=null) msg += `\nInventário: ${st.latest.valor_inventario} €`;
+          if(st.latest.valor_cnvs!=null) msg += `\nCNVs: ${st.latest.valor_cnvs} €`;
+          if(fotos.length){ alert(msg); bigPhoto(fotos, 0); }
+          else alert(msg + "\n(sem foto, só confirmação)");
+        };
         wrap.appendChild(chip);
       });
+      if(pendentesCat.length){
+        const nota = document.createElement("div");
+        nota.style.cssText = "font-size:.68rem; color:var(--t2); margin-top:4px; width:100%;";
+        nota.textContent = `Ainda por enviar: ${pendentesCat.join(", ")}`;
+        wrap.appendChild(nota);
+      }
     });
   }catch(e){ console.error(e); }
 

@@ -3630,19 +3630,27 @@ async function abrirVisaoPorCategoria(){
       <div style="display:flex; flex-wrap:wrap; gap:7px; margin-top:10px;" data-chips></div>
     `;
     const chipsWrap = card.querySelector("[data-chips]");
+    const pendentesNormal = [];
     ativos.forEach(({l, st})=>{
-      const chip = document.createElement("button");
       const feito = st.state==="ok";
       const problema = feito && st.diaErrado;
+      if(!feito && st.state!=="late"){ pendentesNormal.push(l); return; }
+      const chip = document.createElement("button");
       let bg = "var(--card)", fg = "var(--ink-soft)", border = "1px solid var(--line)";
       if(feito && !problema){ bg = "var(--green)"; fg = "#fff"; border = "none"; }
       else if(problema){ bg = "var(--amber)"; fg = "#fff"; border = "none"; }
       else if(st.state==="late"){ bg = "var(--red)"; fg = "#fff"; border = "none"; }
       chip.style.cssText = `background:${bg}; color:${fg}; border:${border}; border-radius:99px; padding:6px 12px; font-size:12.5px; font-weight:700; cursor:${feito?'pointer':'default'};`;
-      chip.textContent = feito ? `✔ ${l}${problema?' ⚠':''}` : l;
+      chip.textContent = feito ? `✔ ${l}${problema?' ⚠':''}` : `⏰ ${l}`;
       if(feito){ chip.onclick = ()=>abrirDetalheEnvioLoja(l, cat.label, st); }
       chipsWrap.appendChild(chip);
     });
+    if(pendentesNormal.length){
+      const nota = document.createElement("div");
+      nota.style.cssText = "font-size:11.5px; color:var(--ink-soft); margin-top:6px; width:100%;";
+      nota.textContent = `Ainda dentro do prazo: ${pendentesNormal.join(", ")}`;
+      chipsWrap.appendChild(nota);
+    }
     main.appendChild(card);
   });
 }
