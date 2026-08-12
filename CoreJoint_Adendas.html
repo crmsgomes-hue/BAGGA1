@@ -955,7 +955,6 @@ async function undo(id, targetStageIdx){
 
 /* ---------- NOVA ADENDA ---------- */
 function openNew(){
-  const knownColabs = [...new Set(rows.map(r=>r.colaborador).filter(Boolean))].sort();
   const overlay = document.createElement("div");
   overlay.className = "overlay";
   overlay.id = "newOverlay";
@@ -973,8 +972,7 @@ function openNew(){
       </div>
       <div class="field">
         <label>Colaborador</label>
-        <div class="chip-row" id="colabChips"></div>
-        <input id="fColabNovo" placeholder="Nome do novo colaborador" style="display:none; margin-top:8px;">
+        <input id="fColabNovo" placeholder="Nome do colaborador">
       </div>
       <div class="field">
         <label>Tipo de adenda</label>
@@ -1027,30 +1025,7 @@ function openNew(){
   if(fotoInput) fotoInput.addEventListener("change", atualizarPreview);
   if(galeriaInput) galeriaInput.addEventListener("change", atualizarPreview);
   if(uploadInput) uploadInput.addEventListener("change", atualizarPreview);
-  selectedColab = "";
-  const chipRow = document.getElementById("colabChips");
-  knownColabs.forEach(name=>{
-    const c = document.createElement("div");
-    c.className = "chip";
-    c.textContent = name;
-    c.onclick = ()=>{
-      selectedColab = name;
-      chipRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel"));
-      c.classList.add("sel");
-      document.getElementById("fColabNovo").style.display = "none";
-    };
-    chipRow.appendChild(c);
-  });
-  const novoChip = document.createElement("div");
-  novoChip.className = "chip";
-  novoChip.textContent = "+ Novo";
-  novoChip.onclick = ()=>{
-    selectedColab = "__novo__";
-    chipRow.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel"));
-    novoChip.classList.add("sel");
-    document.getElementById("fColabNovo").style.display = "block";
-  };
-  chipRow.appendChild(novoChip);
+  selectedColab = "__novo__";
 }
 function toggleLojaOutra(){
   const sel = document.getElementById("fLoja").value;
