@@ -3932,8 +3932,9 @@ async function abrirDetalhePedidoFotos(pedido){
     card.className = "card";
     card.style.cssText = "flex-direction:column; align-items:stretch; gap:0;";
     const fotosHtml = (r.fotos||[]).map((f,i)=>`
-      <div style="text-align:center;">
+      <div style="text-align:center; position:relative;">
         <img src="${f.url}" data-loja="${r.loja}" data-i="${i}" style="width:90px; height:90px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer; display:block;">
+        <button data-del-foto="${i}" style="position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; background:var(--red); color:#fff; border:none; font-size:13px; line-height:1; cursor:pointer;">✕</button>
         <div style="font-size:10px; color:var(--ink-soft); font-weight:600; margin-top:2px; max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.loja}</div>
       </div>
     `).join("");
@@ -3941,6 +3942,22 @@ async function abrirDetalhePedidoFotos(pedido){
       <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:14px; margin-bottom:8px;">${r.loja}</div>
       <div style="display:flex; flex-wrap:wrap; gap:10px;">${fotosHtml}</div>
     `;
+    card.querySelectorAll("[data-del-foto]").forEach(btn=>{
+      btn.onclick = async (ev)=>{
+        ev.stopPropagation();
+        if(!confirm("Apagar esta foto?")) return;
+        const i = +btn.dataset.delFoto;
+        const novasFotos = (r.fotos||[]).filter((_,idx)=>idx!==i);
+        try{
+          await api("PATCH", `cj_pedidos_fotos_respostas?id=eq.${r.id}`, {fotos: novasFotos});
+          r.fotos = novasFotos;
+          abrirDetalhePedidoFotos(pedido);
+        }catch(e){
+          console.error(e);
+          toast("Erro ao apagar: " + (e.message||e).slice(0,100));
+        }
+      };
+    });
     card.querySelectorAll("img").forEach(img=>{
       img.onclick = ()=>{
         const urls = (r.fotos||[]).map(f=>f.url);
