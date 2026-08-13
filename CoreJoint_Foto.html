@@ -1143,9 +1143,10 @@ async function enviarAbertura(itens){
   }
   const btn = document.getElementById("aberturaEnviarBtn");
   btn.disabled = true; btn.textContent = "A enviar...";
-  try{
-    for(const it of pendentes){
-      const estado = window._abertura[it.tipo];
+  const erros = [];
+  for(const it of pendentes){
+    const estado = window._abertura[it.tipo];
+    try{
       if(estado.semStock){
         await api("POST", "rpc/append_daily_foto_v2", {
           p_loja: currentLoja, p_tipo: it.tipo, p_data: todayStr(), p_turno: it.turno, p_fotos: [], p_por: currentLoja, p_nota: estado.motivo.trim()
@@ -1162,15 +1163,21 @@ async function enviarAbertura(itens){
           p_loja: currentLoja, p_tipo: it.tipo, p_data: todayStr(), p_turno: it.turno, p_fotos: objs, p_por: currentLoja
         });
       }
+      it._enviado = true;
+    }catch(e){
+      console.error(`Erro ao enviar ${it.tipo}:`, e);
+      erros.push(`${it.label}: ${(e.message||e).slice(0,120)}`);
     }
+  }
+  if(erros.length===0){
     document.getElementById("aberturaOverlay").remove();
     mostrarSucesso("Abertura enviada!");
-    await loadAll();
-  }catch(e){
-    console.error(e);
-    toast("Erro ao enviar: " + (e.message||e).slice(0,100));
-    btn.disabled = false; btn.textContent = "Enviar tudo";
+  } else {
+    const enviados = pendentes.filter(it=>it._enviado).map(it=>it.label);
+    toast((enviados.length ? `✔ Enviado: ${enviados.join(", ")}. ` : ``) + `❌ Falhou: ${erros.join(" | ")}`);
+    btn.disabled = false; btn.textContent = "Tentar outra vez";
   }
+  await loadAll();
 }
 function abrirSemStock(tipo, label){
   const overlay = document.createElement("div");
