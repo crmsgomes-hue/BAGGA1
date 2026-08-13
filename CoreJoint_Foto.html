@@ -109,6 +109,22 @@
 <script>
 const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k";
+function _logErro(app, mensagem, contexto){
+  try{
+    const loja = (typeof currentLoja !== "undefined" && currentLoja) ? currentLoja : "";
+    fetch(SUPA_URL + "/rest/v1/cj_error_log", {
+      method: "POST",
+      headers: { "apikey": SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({app, loja, mensagem: String(mensagem).slice(0,500), contexto: String(contexto||"").slice(0,300)})
+    }).catch(()=>{});
+  }catch(e){}
+}
+window.addEventListener("error", (ev)=>{
+  _logErro("Foto", (ev.error&&ev.error.message)||ev.message||"erro desconhecido", location.search);
+});
+window.addEventListener("unhandledrejection", (ev)=>{
+  _logErro("Foto", (ev.reason&&ev.reason.message)||String(ev.reason)||"promessa rejeitada", location.search);
+});
 const BUCKET = "cj_reportes_fotos";
 
 const INV_CATS = [

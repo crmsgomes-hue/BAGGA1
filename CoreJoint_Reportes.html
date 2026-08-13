@@ -646,13 +646,27 @@ function toast(msg){
   clearTimeout(window.__toastTimer);
   window.__toastTimer = setTimeout(()=>t.classList.remove("show"), dur);
 }
+function _logErro(app, mensagem, contexto){
+  try{
+    const loja = (typeof currentLoja !== "undefined" && currentLoja) ? currentLoja : (typeof mode!=="undefined" && mode==="gestao" ? "(gestão)" : "");
+    fetch(SUPA_URL + "/rest/v1/cj_error_log", {
+      method: "POST",
+      headers: { "apikey": SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({app, loja, mensagem: String(mensagem).slice(0,500), contexto: String(contexto||"").slice(0,300)})
+    }).catch(()=>{});
+  }catch(e){}
+}
 window.addEventListener("error", (ev)=>{
   console.error("Erro global:", ev.error||ev.message);
-  try{ toast("Erro: " + String((ev.error&&ev.error.message)||ev.message||"desconhecido").slice(0,150)); }catch(e){}
+  const msg = String((ev.error&&ev.error.message)||ev.message||"desconhecido");
+  try{ toast("Erro: " + msg.slice(0,150)); }catch(e){}
+  _logErro("Reportes", msg, location.search);
 });
 window.addEventListener("unhandledrejection", (ev)=>{
   console.error("Promessa rejeitada:", ev.reason);
-  try{ toast("Erro: " + String((ev.reason&&ev.reason.message)||ev.reason||"desconhecido").slice(0,150)); }catch(e){}
+  const msg = String((ev.reason&&ev.reason.message)||ev.reason||"desconhecido");
+  try{ toast("Erro: " + msg.slice(0,150)); }catch(e){}
+  _logErro("Reportes", msg, location.search);
 });
 function isoDate(d){
   const y = d.getFullYear();
@@ -3994,6 +4008,148 @@ async function abrirDetalhePedidoFotos(pedido){
   });
 }
 
+async function abrirRegistoErros(){
+  currentView = abrirRegistoErros;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+  const h = document.createElement("h2");
+  h.textContent = "🐛 Registo de erros";
+  main.appendChild(h);
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  sub.style.marginBottom = "14px";
+  sub.textContent = "Últimos 7 dias — qualquer erro real que tenha acontecido em qualquer uma das apps.";
+  main.appendChild(sub);
+
+  const desde = new Date(); desde.setDate(desde.getDate()-7);
+  const erros = await api("GET", `cj_error_log?select=*&criado_em=gte.${desde.toISOString()}&order=criado_em.desc&limit=200`);
+  if(erros.length===0){
+    main.innerHTML += `<div class="empty">✔ Sem erros registados nos últimos 7 dias.</div>`;
+    return;
+  }
+  const porDia = {};
+  erros.forEach(e=>{
+    const dia = e.criado_em.slice(0,10);
+    (porDia[dia] ||= []).push(e);
+  });
+  Object.keys(porDia).sort().reverse().forEach(dia=>{
+    const h3 = document.createElement("div");
+    h3.style.cssText = "font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; margin:14px 0 6px;";
+    h3.textContent = `${new Date(dia+"T00:00:00").toLocaleDateString('pt-PT',{weekday:'long', day:'2-digit', month:'long'})} (${porDia[dia].length})`;
+    main.appendChild(h3);
+    porDia[dia].forEach(e=>{
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.cssText = "padding:10px 14px;";
+      const hora = new Date(e.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
+      card.innerHTML = `
+        <div style="font-size:12.5px; color:var(--ink-soft);">${hora} · ${e.app}${e.loja?' · '+e.loja:''}</div>
+        <div style="font-size:13.5px; margin-top:2px;">${e.mensagem}</div>
+        ${e.contexto ? `<div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">${e.contexto}</div>` : ''}
+      `;
+      main.appendChild(card);
+    });
+  });
+}
+
+async function abrirExcecoesLoja(){
+  currentView = abrirExcecoesLoja;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+  const h = document.createElement("h2");
+  h.textContent = "📋 Exceções por loja";
+  main.appendChild(h);
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  sub.style.marginBottom = "14px";
+  sub.textContent = "Categorias marcadas como não aplicáveis, todas as lojas de uma vez.";
+  main.appendChild(sub);
+
+  const excecoes = await api("GET", "cj_categoria_nao_aplicavel?select=*&order=loja.asc");
+  const TODAS_CATS = [...INV_CATS, ...MARKETING_CATS];
+  const labelMap = {}; TODAS_CATS.forEach(c=>labelMap[c.key]=c.label);
+  if(excecoes.length===0){
+    main.innerHTML += `<div class="empty">Nenhuma exceção registada — todas as lojas fazem todas as categorias.</div>`;
+    return;
+  }
+  const porLoja = {};
+  excecoes.forEach(e=>{ (porLoja[e.loja] ||= []).push(e); });
+  LOJAS.filter(l=>porLoja[l]).forEach(l=>{
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.cssText = "flex-direction:column; align-items:stretch; gap:0;";
+    card.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:14.5px; margin-bottom:6px;">${l}</div>
+      ${porLoja[l].map(e=>`<div style="font-size:13px; padding:4px 0; display:flex; justify-content:space-between; align-items:center;"><span>Não faz: <b>${labelMap[e.categoria]||e.categoria}</b></span></div>`).join("")}
+    `;
+    main.appendChild(card);
+  });
+}
+
+async function abrirVerificadorCategorias(){
+  currentView = abrirVerificadorCategorias;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+  const h = document.createElement("h2");
+  h.textContent = "🔍 Verificador de categorias";
+  main.appendChild(h);
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  sub.style.marginBottom = "14px";
+  sub.textContent = "Compara o que foi enviado (últimos 60 dias) com o que a app está a reconhecer — apanha envios reais que ficam invisíveis por engano.";
+  main.appendChild(sub);
+
+  const desde = new Date(); desde.setDate(desde.getDate()-60);
+  const desdeStr = isoDate(desde);
+  const todosInv = await api("GET", `cj_inventario_reportes?select=loja,categoria,data&data=gte.${desdeStr}`);
+  const problemas = [];
+  LOJAS.forEach(loja=>{
+    [...categoriasParaLoja(loja), ...marketingCatsParaLoja(loja)].forEach(cat=>{
+      const rowsCat = todosInv.filter(r=>r.loja===loja && r.categoria===cat.key);
+      if(rowsCat.length===0) return;
+      const st = invStatus(loja, cat.key, cat.freq);
+      const foiReconhecido = rowsCat.some(r=>st.latest && r.data===st.latest.data);
+      if(st.state!=="ok" && !foiReconhecido){
+        const maisRecente = rowsCat.sort((a,b)=>b.data.localeCompare(a.data))[0];
+        problemas.push({loja, categoria:cat.label, ultimaData:maisRecente.data, estadoAtual:st.state});
+      }
+    });
+  });
+  if(problemas.length===0){
+    main.innerHTML += `<div class="empty">✔ Tudo bate certo — nenhum envio real invisível encontrado.</div>`;
+    return;
+  }
+  const aviso = document.createElement("div");
+  aviso.style.cssText = "background:var(--amber); color:#fff; border-radius:12px; padding:14px; margin-bottom:14px; font-weight:700;";
+  aviso.textContent = `⚠ ${problemas.length} caso(s) encontrado(s) — envio existe mas não está a contar como feito.`;
+  main.appendChild(aviso);
+  problemas.forEach(p=>{
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `<div class="card-title">${p.loja} — ${p.categoria}</div>
+      <div class="card-sub">Último envio: ${new Date(p.ultimaData+"T00:00:00").toLocaleDateString('pt-PT')} · estado atual: ${p.estadoAtual}</div>`;
+    main.appendChild(card);
+  });
+}
+
 async function abrirRelatorioIntegridade(){
   currentView = abrirRelatorioIntegridade;
   const main = document.getElementById("main");
@@ -5094,6 +5250,11 @@ function renderGestao(){
     {titulo:"Pedidos de fotos", itens:[
       {icon:"📸", label:"Pedidos de fotos pontuais", fn:abrirPedidosFotos}
     ]},
+    {titulo:"Diagnóstico", itens:[
+      {icon:"🐛", label:"Registo de erros", fn:abrirRegistoErros},
+      {icon:"🔍", label:"Verificador de categorias", fn:abrirVerificadorCategorias},
+      {icon:"📋", label:"Exceções por loja", fn:abrirExcecoesLoja}
+    ]},
     {titulo:"Utilitários", itens:[
       {icon:"📅", label:"Calendário", fn:abrirCalendarioDop},
       {icon:"📲", label:"Inserir do WhatsApp", fn:openManualEntry},
@@ -5112,7 +5273,7 @@ function renderGestao(){
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
-    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar, calendario: abrirCalendarioDop, porCategoria: abrirVisaoPorCategoria, pedidosFotos: abrirPedidosFotos
+    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar, calendario: abrirCalendarioDop, porCategoria: abrirVisaoPorCategoria, pedidosFotos: abrirPedidosFotos, registoErros: abrirRegistoErros, verificadorCategorias: abrirVerificadorCategorias, excecoesLoja: abrirExcecoesLoja
   };
 
   const toolsBtn = document.createElement("button");
