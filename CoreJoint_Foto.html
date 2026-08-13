@@ -339,6 +339,13 @@ function invStatus(catKey, freq){
   if(rows.length>0){
     return {state:"ok", latest: rows[0], window:w, diaErrado:false, dowLabel:null};
   }
+  if(freq==="mensal_inicio" || freq==="mensal_dia20"){
+    const mesInteiro = monthWindow(today);
+    const rowsMes = invRows.filter(r=>r.categoria===catKey && inRange(r.data, mesInteiro.start, mesInteiro.end));
+    if(rowsMes.length>0){
+      return {state:"ok", latest: rowsMes[0], window:w, diaErrado:false, dowLabel:null};
+    }
+  }
   return {state: (today>w.end && freq!=="diario") ? "late" : "pend", latest:null, window:w};
 }
 function dailyStatus(tipo, dateStr, turno){

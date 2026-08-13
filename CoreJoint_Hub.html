@@ -465,6 +465,10 @@ function semanaKey(d){
         } else {
           const rowsCat = invRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end));
           enviouNoPrazo = rowsCat.length>0;
+          if(!enviouNoPrazo && (cat.freq==="mensal_inicio" || cat.freq==="mensal_dia20")){
+            const mesInteiro = monthWindow(today);
+            enviouNoPrazo = invRows.some(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, mesInteiro.start, mesInteiro.end));
+          }
           deadline = w.end;
         }
         if(enviouNoPrazo) return;
@@ -809,8 +813,13 @@ function semanaKey(d){
         if(rowCerta) return {feito:true, diaErrado:false, latest: rowCerta};
         return {feito:false, diaErrado:false, latest: rows[0]||null};
       }
-      if(rows.length===0) return {feito:false, diaErrado:false, latest:null};
-      return {feito:true, diaErrado:false, latest: rows[0]};
+      if(rows.length>0) return {feito:true, diaErrado:false, latest: rows[0]};
+      if(cat.freq==="mensal_inicio" || cat.freq==="mensal_dia20"){
+        const mesInteiro = monthWindow(today);
+        const rowsMes = invCatRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, mesInteiro.start, mesInteiro.end));
+        if(rowsMes.length>0) return {feito:true, diaErrado:false, latest: rowsMes[0]};
+      }
+      return {feito:false, diaErrado:false, latest:null};
     }
     let htmlCat = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
         <span>📦 Inventário por categoria</span>
