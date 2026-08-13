@@ -3328,13 +3328,23 @@ function handleQuebrasFile(ev){
       const wb = XLSX.read(data, {type:"array", cellDates:true});
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
+      function normalizarCabecalho(s){
+        return String(s).toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+      }
       function pegar(row, ...nomes){
+        const nomesNorm = nomes.map(normalizarCabecalho);
         for(const k of Object.keys(row)){
-          const kNorm = k.toLowerCase().trim();
-          if(nomes.includes(kNorm)) return row[k];
+          const kNorm = normalizarCabecalho(k);
+          if(nomesNorm.includes(kNorm)) return row[k];
+        }
+        // fallback: aceita cabeçalho que CONTENHA um dos nomes (ex: "Valor Quebra (€)", "Diferença de Caixa")
+        for(const k of Object.keys(row)){
+          const kNorm = normalizarCabecalho(k);
+          if(nomesNorm.some(n=>kNorm.includes(n))) return row[k];
         }
         return "";
       }
+      const motivosExclusao = {semLojaOriginal:0, semData:0, quebraInvalida:0};
       const todasLinhas = rows.map(r=>{
         const lojaOriginal = String(pegar(r,"loja","cód. loja","cod. loja")).trim();
         const lojaCanonica = encontrarLojaCorrespondente(lojaOriginal);
@@ -3348,10 +3358,13 @@ function handleQuebrasFile(ev){
           dataStr = String(dataRaw).trim();
         }
         const operador = String(pegar(r,"operador","nome")).trim();
-        const quebraRaw = String(pegar(r,"quebra","diferença","diferenca")).replace(",", ".").trim();
+        const quebraRaw = String(pegar(r,"quebra","diferença","diferenca","valor")).replace(/[€\s]/g,"").replace(",", ".").trim();
         const quebra = parseFloat(quebraRaw);
         const safebagRaw = pegar(r,"safebag");
         const safebag = safebagRaw==="" ? "" : String(Math.trunc(Number(safebagRaw)) || safebagRaw);
+        if(!lojaOriginal) motivosExclusao.semLojaOriginal++;
+        else if(!dataStr) motivosExclusao.semData++;
+        else if(isNaN(quebra)) motivosExclusao.quebraInvalida++;
         return {lojaOriginal, loja:lojaCanonica, data:dataStr, operador, valor_quebra:quebra, safebag};
       }).filter(r=>r.lojaOriginal && r.data && !isNaN(r.valor_quebra));
 
@@ -3360,6 +3373,7 @@ function handleQuebrasFile(ev){
       const semLoja = comQuebraRelevante.filter(r=>!r.loja);
       quebrasForaDop = semLoja.filter(r=>ehLojaConhecidaForaDop(r.lojaOriginal));
       quebrasComErro = semLoja.filter(r=>!ehLojaConhecidaForaDop(r.lojaOriginal));
+      window._quebrasDebug = {colunasEncontradas: rows.length ? Object.keys(rows[0]) : [], linhasFicheiro: rows.length, linhasValidas: todasLinhas.length, motivosExclusao, abaixoDe20: todasLinhas.length - comQuebraRelevante.length};
       renderQuebrasPreview(todasLinhas.length);
     }catch(err){
       console.error(err);
@@ -3372,7 +3386,19 @@ function handleQuebrasFile(ev){
 function renderQuebrasPreview(totalLinhas){
   const prev = document.getElementById("quebrasPreview");
   if(quebrasParaImportar.length===0 && quebrasComErro.length===0 && quebrasForaDop.length===0){
-    prev.innerHTML = `<div class="empty">${totalLinhas} linhas lidas, nenhuma com quebra ≥ 20€.</div>`;
+    const dbg = window._quebrasDebug || {};
+    let html = `<div class="empty">${totalLinhas} linha(s) válida(s) lidas${dbg.abaixoDe20 ? `, ${dbg.abaixoDe20} com quebra abaixo de 20€` : ''}, nenhuma com quebra ≥ 20€.</div>`;
+    const excluidas = (dbg.linhasFicheiro||0) - (dbg.linhasValidas||0);
+    if(excluidas>0){
+      html += `<div style="background:var(--amber); color:#fff; border-radius:12px; padding:12px 14px; margin-top:10px; font-size:12.5px;">
+        <div style="font-weight:800; margin-bottom:6px;">⚠ ${excluidas} linha(s) do ficheiro não foram lidas</div>
+        ${dbg.motivosExclusao?.semLojaOriginal ? `<div>• ${dbg.motivosExclusao.semLojaOriginal} sem coluna de loja reconhecida</div>` : ''}
+        ${dbg.motivosExclusao?.semData ? `<div>• ${dbg.motivosExclusao.semData} sem data reconhecida</div>` : ''}
+        ${dbg.motivosExclusao?.quebraInvalida ? `<div>• ${dbg.motivosExclusao.quebraInvalida} com valor de quebra não reconhecido</div>` : ''}
+        <div style="margin-top:8px;">Colunas encontradas no ficheiro: ${(dbg.colunasEncontradas||[]).join(", ")||'—'}</div>
+      </div>`;
+    }
+    prev.innerHTML = html;
     return;
   }
   let html = "";
