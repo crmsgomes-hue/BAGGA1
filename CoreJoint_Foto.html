@@ -1066,7 +1066,28 @@ function renderCapThumbsExtra(containerId, arr, removeFnName, legendaFnName){
     </div>
   `).join("");
 }
-function abrirCapturaAbertura(){
+const ABERTURA_STORAGE_KEY = "cj_abertura_em_curso";
+function salvarEstadoAbertura(){
+  try{
+    if(!window._abertura) return;
+    sessionStorage.setItem(ABERTURA_STORAGE_KEY, JSON.stringify({
+      loja: currentLoja, data: todayStr(), estado: window._abertura
+    }));
+  }catch(e){ /* se sessionStorage falhar (privado/cheio), perde-se o rascunho mas nao parte nada */ }
+}
+function limparEstadoAberturaGuardado(){
+  try{ sessionStorage.removeItem(ABERTURA_STORAGE_KEY); }catch(e){}
+}
+function lerEstadoAberturaGuardado(){
+  try{
+    const raw = sessionStorage.getItem(ABERTURA_STORAGE_KEY);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    if(parsed.loja !== currentLoja || parsed.data !== todayStr()) { limparEstadoAberturaGuardado(); return null; }
+    return parsed.estado;
+  }catch(e){ return null; }
+}
+function abrirCapturaAbertura(estadoRestaurado){
   const naoAplic = naoAplicaveis || [];
   const itens = [
     {tipo:"vitrine", turno:"manha", label:"Vitrine — Manhã", icon:"🌅", jaFeito: dailyStatus("vitrine", todayStr(), "manha")},
@@ -1074,8 +1095,12 @@ function abrirCapturaAbertura(){
     {tipo:"expositor_tabaco", turno:"unico", label:"Expositor do tabaco", icon:"🚬", jaFeito: dailyStatus("expositor_tabaco", todayStr(), "unico")}
   ].filter(it=>it.tipo==="vitrine" || !naoAplic.includes(it.tipo));
 
-  window._abertura = {};
-  itens.forEach(it=>{ window._abertura[it.tipo] = {fotos: [], semStock: false, motivo: ""}; });
+  if(estadoRestaurado){
+    window._abertura = estadoRestaurado;
+  } else {
+    window._abertura = {};
+    itens.forEach(it=>{ window._abertura[it.tipo] = {fotos: [], semStock: false, motivo: ""}; });
+  }
 
   const overlay = document.createElement("div");
   overlay.className = "overlay";
@@ -1084,6 +1109,7 @@ function abrirCapturaAbertura(){
     <div class="modal" style="max-height:90vh; overflow-y:auto;">
       <h2>🌅 Abertura</h2>
       <div class="sub">${currentLoja} · ${new Date().toLocaleDateString('pt-PT')} — tira as fotos das três coisas de uma vez.</div>
+      ${estadoRestaurado ? `<div style="background:var(--amber); color:#fff; border-radius:10px; padding:8px 10px; font-size:12px; margin-top:8px;">📌 Recuperámos o que já tinhas feito — continua daqui.</div>` : ``}
       ${itens.map(it=>`
         <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
           <div style="font-weight:700; font-size:14px; margin-bottom:8px;">${it.icon} ${it.label}${it.jaFeito?' <span style="color:var(--green); font-size:12px;">✔ já feito hoje</span>':''}</div>
@@ -1108,6 +1134,18 @@ function abrirCapturaAbertura(){
   overlay.querySelectorAll("[data-ab-input]").forEach(inp=>{
     inp.addEventListener("change", (ev)=>adicionarFotoAbertura(inp.dataset.abInput, ev.target.files[0]));
   });
+  // Restaura miniaturas e o estado "sem stock" de um rascunho recuperado
+  itens.forEach(it=>{
+    if(it.jaFeito) return;
+    const estado = window._abertura[it.tipo];
+    if(estado && estado.fotos && estado.fotos.length) renderAberturaThumbs(it.tipo);
+    if(estado && estado.semStock){
+      const el = overlay.querySelector(`[data-ab-semstock="${it.tipo}"]`);
+      if(el) el.click();
+      const ta = document.querySelector(`[data-ab-motivo="${it.tipo}"]`);
+      if(ta) ta.value = estado.motivo || "";
+    }
+  });
   overlay.querySelectorAll("[data-ab-semstock]").forEach(el=>{
     el.onclick = ()=>{
       const tipo = el.dataset.abSemstock;
@@ -1118,12 +1156,15 @@ function abrirCapturaAbertura(){
         el.textContent = `✔ Marcado sem stock — toca para tirar foto em vez disso`;
         botoes.style.display = "none";
         thumbs.innerHTML = `<textarea data-ab-motivo="${tipo}" placeholder="Motivo (ex: não chegou a entrega)" style="width:100%; min-height:60px; padding:8px; border-radius:8px; border:1px solid var(--line); font-size:13px;"></textarea>`;
-        thumbs.querySelector(`[data-ab-motivo]`).addEventListener("input", (ev)=>{ window._abertura[tipo].motivo = ev.target.value; });
+        const ta = thumbs.querySelector(`[data-ab-motivo]`);
+        ta.value = window._abertura[tipo].motivo || "";
+        ta.addEventListener("input", (ev)=>{ window._abertura[tipo].motivo = ev.target.value; salvarEstadoAbertura(); });
       } else {
         el.textContent = `❌ Não tenho ${el.dataset.abLabel.toLowerCase()} hoje`;
         botoes.style.display = "flex";
         thumbs.innerHTML = "";
       }
+      salvarEstadoAbertura();
     };
   });
 
@@ -1137,6 +1178,7 @@ function adicionarFotoAbertura(tipo, file){
       if(!compressed) return;
       window._abertura[tipo].fotos.push(compressed);
       renderAberturaThumbs(tipo);
+      salvarEstadoAbertura();
     });
   };
   reader.readAsDataURL(file);
@@ -1147,7 +1189,7 @@ function renderAberturaThumbs(tipo){
   wrap.innerHTML = window._abertura[tipo].fotos.map((src,i)=>`
     <div class="photo-item">
       <img src="${src}" onclick="bigPhoto('${src}')">
-      <button class="photo-del" onclick="window._abertura['${tipo}'].fotos.splice(${i},1); renderAberturaThumbs('${tipo}')">✕</button>
+      <button class="photo-del" onclick="window._abertura['${tipo}'].fotos.splice(${i},1); renderAberturaThumbs('${tipo}'); salvarEstadoAbertura();">✕</button>
     </div>
   `).join("");
 }
@@ -1193,9 +1235,11 @@ async function enviarAbertura(itens){
     }
   }
   if(erros.length===0){
+    limparEstadoAberturaGuardado();
     document.getElementById("aberturaOverlay").remove();
     mostrarSucesso("Abertura enviada!");
   } else {
+    salvarEstadoAbertura();
     const enviados = pendentes.filter(it=>it._enviado).map(it=>it.label);
     toast((enviados.length ? `✔ Enviado: ${enviados.join(", ")}. ` : ``) + `❌ Falhou: ${erros.join(" | ")}`);
     btn.disabled = false; btn.textContent = "Tentar outra vez";
@@ -2314,7 +2358,10 @@ async function tentarReenviarFila(){
 }
 window.addEventListener("online", tentarReenviarFila);
 
-loadAll();
+loadAll().then(()=>{
+  const estadoGuardado = lerEstadoAberturaGuardado();
+  if(estadoGuardado) abrirCapturaAbertura(estadoGuardado);
+});
 tentarReenviarFila();
 setInterval(loadAll, 30000);
 
