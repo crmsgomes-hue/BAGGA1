@@ -4008,6 +4008,89 @@ async function abrirDetalhePedidoFotos(pedido){
   });
 }
 
+async function abrirPainelSaude(){
+  currentView = abrirPainelSaude;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+  const h = document.createElement("h2");
+  h.textContent = "✔ Painel de saúde";
+  main.appendChild(h);
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  sub.style.marginBottom = "14px";
+  sub.textContent = "Tudo num só sítio — erros, categorias invisíveis e exceções por loja.";
+  main.appendChild(sub);
+
+  const banner = document.createElement("div");
+  banner.style.cssText = "border-radius:14px; padding:16px; margin-bottom:16px; font-weight:800; font-size:15px; text-align:center;";
+  banner.textContent = "A verificar...";
+  banner.style.background = "var(--line)";
+  main.appendChild(banner);
+
+  // 1) Erros dos últimos 7 dias
+  const desdeErros = new Date(); desdeErros.setDate(desdeErros.getDate()-7);
+  const erros = await api("GET", `cj_error_log?select=*&criado_em=gte.${desdeErros.toISOString()}&order=criado_em.desc&limit=200`);
+
+  // 2) Verificador de categorias (mesma lógica de abrirVerificadorCategorias)
+  const desdeVerif = new Date(); desdeVerif.setDate(desdeVerif.getDate()-60);
+  const desdeVerifStr = isoDate(desdeVerif);
+  const todosInv = await api("GET", `cj_inventario_reportes?select=loja,categoria,data&data=gte.${desdeVerifStr}`);
+  const problemas = [];
+  LOJAS.forEach(loja=>{
+    [...categoriasParaLoja(loja), ...marketingCatsParaLoja(loja)].forEach(cat=>{
+      const rowsCat = todosInv.filter(r=>r.loja===loja && r.categoria===cat.key);
+      if(rowsCat.length===0) return;
+      const st = invStatus(loja, cat.key, cat.freq);
+      const foiReconhecido = rowsCat.some(r=>st.latest && r.data===st.latest.data);
+      if(st.state!=="ok" && !foiReconhecido){
+        const maisRecente = rowsCat.sort((a,b)=>b.data.localeCompare(a.data))[0];
+        problemas.push({loja, categoria:cat.label, ultimaData:maisRecente.data, estadoAtual:st.state});
+      }
+    });
+  });
+
+  // 3) Exceções por loja (só informativo, não conta para o banner)
+  const excecoes = await api("GET", "cj_categoria_nao_aplicavel?select=*");
+
+  const totalProblemas = erros.length + problemas.length;
+  if(totalProblemas===0){
+    banner.style.background = "var(--green)";
+    banner.style.color = "#fff";
+    banner.textContent = "✔ Tudo bem — sem erros nem categorias invisíveis nos últimos dias.";
+  } else {
+    banner.style.background = "var(--amber)";
+    banner.style.color = "#fff";
+    banner.textContent = `⚠ ${totalProblemas} coisa(s) a rever`;
+  }
+
+  const cards = [
+    {icon:"🐛", label:"Registo de erros", n:erros.length, sub:"últimos 7 dias", fn:abrirRegistoErros},
+    {icon:"🔍", label:"Verificador de categorias", n:problemas.length, sub:"envios invisíveis", fn:abrirVerificadorCategorias},
+    {icon:"📋", label:"Exceções por loja", n:excecoes.length, sub:"informativo", fn:abrirExcecoesLoja},
+  ];
+  cards.forEach(c=>{
+    const card = document.createElement("button");
+    card.className = "card";
+    card.style.cssText = "width:100%; text-align:left; border:none; cursor:pointer; display:flex; align-items:center; gap:12px;";
+    card.innerHTML = `
+      <span style="font-size:22px;">${c.icon}</span>
+      <span style="flex:1;">
+        <div class="card-title">${c.label}</div>
+        <div class="card-sub">${c.sub}</div>
+      </span>
+      <span style="font-weight:800; font-size:18px; color:${c.n>0?'var(--amber)':'var(--green)'};">${c.n}</span>
+    `;
+    card.onclick = ()=>{ previousView = abrirPainelSaude; c.fn(); };
+    main.appendChild(card);
+  });
+}
+
 async function abrirRegistoErros(){
   currentView = abrirRegistoErros;
   const main = document.getElementById("main");
@@ -5251,6 +5334,7 @@ function renderGestao(){
       {icon:"📸", label:"Pedidos de fotos pontuais", fn:abrirPedidosFotos}
     ]},
     {titulo:"Diagnóstico", itens:[
+      {icon:"✔", label:"Painel de saúde", fn:abrirPainelSaude},
       {icon:"🐛", label:"Registo de erros", fn:abrirRegistoErros},
       {icon:"🔍", label:"Verificador de categorias", fn:abrirVerificadorCategorias},
       {icon:"📋", label:"Exceções por loja", fn:abrirExcecoesLoja}
@@ -5273,7 +5357,7 @@ function renderGestao(){
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
-    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar, calendario: abrirCalendarioDop, porCategoria: abrirVisaoPorCategoria, pedidosFotos: abrirPedidosFotos, registoErros: abrirRegistoErros, verificadorCategorias: abrirVerificadorCategorias, excecoesLoja: abrirExcecoesLoja
+    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar, calendario: abrirCalendarioDop, porCategoria: abrirVisaoPorCategoria, pedidosFotos: abrirPedidosFotos, registoErros: abrirRegistoErros, verificadorCategorias: abrirVerificadorCategorias, excecoesLoja: abrirExcecoesLoja, painelSaude: abrirPainelSaude
   };
 
   const toolsBtn = document.createElement("button");
