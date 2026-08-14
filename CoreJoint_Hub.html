@@ -78,6 +78,8 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
     <span style="color:var(--ac,#C1622D); font-size:.95rem;">›</span>
   </a>
 
+  <div id="lembretesPessoaisSection" style="margin-bottom:14px;"></div>
+
   <div id="topLinksRow" style="display:flex; gap:16px; margin-bottom:14px; font-size:.78rem; flex-wrap:wrap;">
     <a href="CoreJoint_Reportes.html?ferramentas=1" style="color:var(--t2); text-decoration:none; font-weight:600;">🛠️ Ferramentas</a>
     <button onclick="abrirAvisarTodos()" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📢 Avisar todas</button>
@@ -181,6 +183,93 @@ async function api(path, method, body){
 }
 function setBadge(id, n){
   if(n>0) document.getElementById(id).innerHTML = `<span class="bk">${n}</span>`;
+}
+
+async function renderLembretesPessoais(){
+  const wrap = document.getElementById("lembretesPessoaisSection");
+  if(!wrap) return;
+  let lembretes;
+  try{
+    lembretes = await api("cj_lembretes_pessoais?select=*&order=criado_em.desc&limit=100");
+  }catch(e){ console.error(e); return; }
+  const pendentes = lembretes.filter(l=>!l.feito);
+  const feitos = lembretes.filter(l=>l.feito);
+  wrap.innerHTML = `
+    <div class="card" style="flex-direction:column; align-items:stretch; gap:0;">
+      <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.88rem; margin-bottom:9px;">📝 Os meus lembretes${pendentes.length?` <span style="color:var(--terracotta,#C1622D);">(${pendentes.length})</span>`:''}</div>
+      <div style="display:flex; gap:6px; margin-bottom:10px;">
+        <input id="novoLembreteInput" placeholder="Escrever um lembrete..." style="flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--br); background:var(--sf); font-size:.82rem;">
+        <button id="novoLembreteBtn" style="background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:8px; padding:8px 14px; font-size:.82rem; font-weight:700;">+</button>
+      </div>
+      <div id="lembretesLista"></div>
+      ${feitos.length ? `<button id="toggleLembretesFeitos" style="background:none; border:none; text-align:left; font-size:.72rem; color:var(--t2); text-decoration:underline; padding:6px 0 0; cursor:pointer;">Ver ${feitos.length} já feito(s)</button><div id="lembretesFeitosLista" style="display:none;"></div>` : ''}
+    </div>
+  `;
+  const lista = document.getElementById("lembretesLista");
+  if(pendentes.length===0){
+    lista.innerHTML = `<div style="font-size:.78rem; color:var(--t2); padding:4px 0;">Sem lembretes por fazer.</div>`;
+  } else {
+    pendentes.forEach(l=>{
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--br);";
+      row.innerHTML = `
+        <button data-concluir="${l.id}" style="width:20px; height:20px; border-radius:50%; border:1.5px solid var(--terracotta,#C1622D); background:none; flex-shrink:0; cursor:pointer;"></button>
+        <span style="flex:1; font-size:.82rem;">${l.texto}</span>
+        <button data-apagar="${l.id}" style="background:none; border:none; color:var(--t3); font-size:.9rem; cursor:pointer;">✕</button>
+      `;
+      lista.appendChild(row);
+    });
+  }
+  if(feitos.length){
+    const listaFeitos = document.getElementById("lembretesFeitosLista");
+    feitos.forEach(l=>{
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--br); opacity:.6;";
+      row.innerHTML = `
+        <span style="color:var(--grn); flex-shrink:0;">✔</span>
+        <span style="flex:1; font-size:.82rem; text-decoration:line-through;">${l.texto}</span>
+        <button data-apagar="${l.id}" style="background:none; border:none; color:var(--t3); font-size:.9rem; cursor:pointer;">✕</button>
+      `;
+      listaFeitos.appendChild(row);
+    });
+    document.getElementById("toggleLembretesFeitos").onclick = (ev)=>{
+      const aberto = listaFeitos.style.display !== "none";
+      listaFeitos.style.display = aberto ? "none" : "block";
+      ev.target.textContent = aberto ? `Ver ${feitos.length} já feito(s)` : `Esconder feitos`;
+    };
+  }
+  wrap.querySelectorAll("[data-concluir]").forEach(btn=>{
+    btn.onclick = async ()=>{
+      btn.disabled = true;
+      try{
+        await api(`cj_lembretes_pessoais?id=eq.${btn.dataset.concluir}`, "PATCH", {feito:true, concluido_em:new Date().toISOString()});
+        renderLembretesPessoais();
+      }catch(e){ console.error(e); btn.disabled = false; }
+    };
+  });
+  wrap.querySelectorAll("[data-apagar]").forEach(btn=>{
+    btn.onclick = async ()=>{
+      btn.disabled = true;
+      try{
+        await api(`cj_lembretes_pessoais?id=eq.${btn.dataset.apagar}`, "DELETE");
+        renderLembretesPessoais();
+      }catch(e){ console.error(e); btn.disabled = false; }
+    };
+  });
+  const addBtn = document.getElementById("novoLembreteBtn");
+  const addInput = document.getElementById("novoLembreteInput");
+  async function adicionarLembrete(){
+    const texto = addInput.value.trim();
+    if(!texto) return;
+    addBtn.disabled = true;
+    try{
+      await api("cj_lembretes_pessoais", "POST", {texto, criado_por:"Cristina"});
+      addInput.value = "";
+      renderLembretesPessoais();
+    }catch(e){ console.error(e); addBtn.disabled = false; }
+  }
+  addBtn.onclick = adicionarLembrete;
+  addInput.addEventListener("keydown", (ev)=>{ if(ev.key==="Enter") adicionarLembrete(); });
 }
 
 const LOJAS = ["Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim","Carregado","Ponte de Sor","Torres MCH","Torres MH"];
@@ -443,6 +532,7 @@ function semanaKey(d){
 }
 
 (async ()=>{
+  renderLembretesPessoais();
   const attn = [];
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
