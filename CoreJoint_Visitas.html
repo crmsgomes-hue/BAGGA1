@@ -6110,6 +6110,7 @@ async function genRel(){
     '<div class="ch"><div class="ct">Relatório de Visita</div>'+
     '<div style="display:flex;gap:7px;flex-wrap:wrap">'+
     '<button class="btn bsm bp" onclick="gerarPDF()">📄 Gerar PDF</button>'+
+    '<button class="btn bsm" style="background:#25D366;color:#fff;border:none" onclick="partilharAlertasLoja()">📤 Partilhar alertas</button>'+
     '</div></div>'+
     '<div id="pdf-report-container" style="border:1px solid var(--br);border-radius:var(--rb);overflow:hidden;margin-bottom:12px;max-height:400px;overflow-y:auto">'+
     '<iframe id="rep-iframe" style="width:100%;height:380px;border:none"></iframe>'+
@@ -6120,6 +6121,68 @@ async function genRel(){
   }
   repCard.scrollIntoView({behavior:'smooth'});
   window._lastReportHtml = reportHtml;
+}
+
+async function partilharAlertasLoja(){
+  if(!vStore || !CU) return;
+
+  // Buscar NCs/tarefas desta visita (criadas no arquivo)
+  const loja = vStore;
+  const dataHoje = now().slice(0,10);
+  const tarefas = await dbGet('cj_tarefas',
+    'loja=eq.'+loja+'&estado=neq.concluido&order=prazo.asc&select=codigo,descricao,notas,prazo,estado') || [];
+
+  const lojaNome = sn(loja);
+  const gopNome = who().replace('GOP — ','');
+  const dataVisita = now().slice(0,10).split('-').reverse().join('/');
+
+  // Cabeçalho
+  let texto = '📋 *Visita CoreJoint — '+lojaNome+'*\n';
+  texto += '🗓 '+dataVisita+' | GOP: '+gopNome+'\n';
+  texto += '─────────────────────────\n\n';
+
+  if(!tarefas.length){
+    texto += '✅ Sem alertas pendentes. Visita sem não conformidades!\n';
+  } else {
+    texto += '⚠️ *ALERTAS A CORRIGIR:*\n\n';
+    tarefas.forEach((t, i) => {
+      const prazo = t.prazo ? '📅 Prazo: '+t.prazo : '';
+      texto += (i+1)+'. *['+t.codigo+']* '+t.descricao+'\n';
+      if(t.notas) texto += '   📝 '+t.notas+'\n';
+      if(prazo) texto += '   '+prazo+'\n';
+      texto += '\n';
+    });
+  }
+
+  texto += '─────────────────────────\n';
+  texto += '🔗 Relatório: CoreJoint Visitas GOP · Bagga';
+
+  // Tentar Web Share API (nativo no iOS/Android)
+  if(navigator.share){
+    try{
+      await navigator.share({
+        title: 'Alertas da visita — '+lojaNome,
+        text: texto
+      });
+      return;
+    }catch(e){
+      if(e.name === 'AbortError') return; // utilizador cancelou
+    }
+  }
+
+  // Fallback: modal com texto para copiar
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:flex-end';
+  modal.innerHTML =
+    '<div style="background:#fff;width:100%;border-radius:16px 16px 0 0;padding:20px;max-height:80vh;overflow-y:auto">'+
+    '<div style="font-weight:700;font-size:.95rem;margin-bottom:10px">📤 Texto para partilhar</div>'+
+    '<textarea id="_share-txt" style="width:100%;height:200px;font-size:.82rem;border:1px solid #ddd;border-radius:8px;padding:10px;font-family:inherit;resize:none" readonly>'+texto+'</textarea>'+
+    '<div style="display:flex;gap:8px;margin-top:12px">'+
+    '<button onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById(\'_share-txt\').value);this.textContent=\'✅ Copiado!\'" style="flex:1;padding:12px;background:#25D366;color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;font-family:inherit">📋 Copiar</button>'+
+    '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:12px 16px;background:#eee;border:none;border-radius:8px;font-size:.9rem;font-family:inherit">✕</button>'+
+    '</div></div>';
+  document.body.appendChild(modal);
+  modal.onclick = e => { if(e.target===modal) modal.remove(); };
 }
 
 function gerarPDF(){
@@ -7920,9 +7983,92 @@ async function arquivarRelatorio(){
     if(msg) msg.style.display = 'block';
     if(btn){ btn.textContent = '✅ Arquivado'; }
     toast('✅ Relatório arquivado em '+sn(vStore)+'!');
+    // Mostrar botão de partilha do resumo para o gerente
+    const repCard = el('v-rep');
+    if(repCard){
+      const shareDiv = document.createElement('div');
+      shareDiv.style.cssText = 'margin-top:10px';
+      shareDiv.innerHTML = '<button class="btn bp" style="width:100%;font-size:.9rem;padding:12px" onclick="partilharResumoGerente()">📤 Enviar resumo ao gerente da loja</button>';
+      repCard.appendChild(shareDiv);
+    }
   }catch(e){
     if(btn){ btn.disabled = false; btn.textContent = '📁 Arquivar'; }
     toast('Erro ao arquivar: '+e.message,'e');
+  }
+}
+
+async function partilharResumoGerente(){
+  if(!vStore){ toast('Sem loja seleccionada.','e'); return; }
+  const lojaNome = sn(vStore);
+  const dataVisita = now().slice(0,10);
+  const gopNome = who().replace('GOP — ','');
+
+  // Buscar tarefas/pendentes desta loja criadas hoje pelo GOP
+  const hoje = new Date().toISOString().slice(0,10);
+  const tarefas = await dbGet('cj_tarefas',
+    'loja=eq.'+vStore+'&criado_iso=gte.'+hoje+'T00:00:00Z&order=prazo.asc') || [];
+
+  // Também incluir NCs do checklist desta visita
+  const ncsChecklist = [];
+  Object.keys(vChecklist||{}).forEach(k=>{
+    const item = vChecklist[k];
+    if(item && item.conforme==='nao'){
+      const label = CHK_ITEM_LABELS?.find?.(x=>x.id===k)?.label || k;
+      ncsChecklist.push({label, nota:item.nota||'', prazo:item.prazo||''});
+    }
+  });
+
+  // Construir mensagem
+  let msg = '🔔 *Visita à loja ' + lojaNome + '*\n';
+  msg += '📅 ' + dataVisita + ' | 👤 ' + gopNome + '\n\n';
+
+  if(!tarefas.length && !ncsChecklist.length){
+    msg += '✅ Sem alertas ou pendentes. Tudo conforme!\n';
+  } else {
+    if(ncsChecklist.length){
+      msg += '*Não conformidades identificadas:*\n';
+      ncsChecklist.forEach(nc=>{
+        msg += '• ' + nc.label;
+        if(nc.nota) msg += ' — ' + nc.nota;
+        if(nc.prazo) msg += ' (prazo: ' + nc.prazo + ')';
+        msg += '\n';
+      });
+      msg += '\n';
+    }
+    if(tarefas.length){
+      msg += '*Acções para resolver:*\n';
+      tarefas.forEach(t=>{
+        const prazoFmt = t.prazo ? new Date(t.prazo+'T00:00:00').toLocaleDateString('pt-PT') : 'sem prazo';
+        msg += '• ' + (t.descricao||t.codigo);
+        if(t.notas) msg += '\n  📝 ' + t.notas;
+        msg += '\n  📅 Prazo: ' + prazoFmt + '\n';
+      });
+    }
+  }
+  msg += '\n_CoreJoint · Visitas GOP · Bagga_';
+
+  // Abrir share nativo (WhatsApp, Email, SMS, etc.)
+  if(navigator.share){
+    try{
+      await navigator.share({ title: 'Visita '+lojaNome+' — '+dataVisita, text: msg });
+    }catch(e){
+      if(e.name!=='AbortError') copiarParaClipboard(msg);
+    }
+  } else {
+    // Fallback: copiar para clipboard
+    copiarParaClipboard(msg);
+  }
+}
+
+function copiarParaClipboard(texto){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(texto).then(()=>toast('📋 Resumo copiado — cola no WhatsApp ou Email do gerente!'));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = texto; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    toast('📋 Resumo copiado — cola no WhatsApp ou Email do gerente!');
   }
 }
 
