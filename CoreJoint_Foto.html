@@ -1019,7 +1019,7 @@ function handleCapFileEntrada(e){
   if(!e.target.files.length) return;
   const r = new FileReader();
   r.onload = evt=>{
-    compressPhoto(evt.target.result, 1000, 0.7, function(compressed){
+    compressPhoto(evt.target.result, 900, 0.65, function(compressed){
       if(!compressed){ toast("Não foi possível processar a foto"); return; }
       pendingPhotosEntrada.push({src:compressed, legenda:''});
       renderCapThumbsExtra("capThumbsEntrada", pendingPhotosEntrada, "removerCapFotoEntrada", "setCapFotoLegendaEntrada");
@@ -1039,7 +1039,7 @@ function handleCapFileDesperdicio(e){
   if(!e.target.files.length) return;
   const r = new FileReader();
   r.onload = evt=>{
-    compressPhoto(evt.target.result, 1000, 0.7, function(compressed){
+    compressPhoto(evt.target.result, 900, 0.65, function(compressed){
       if(!compressed){ toast("Não foi possível processar a foto"); return; }
       pendingPhotosDesperdicio.push({src:compressed, legenda:''});
       renderCapThumbsExtra("capThumbsDesperdicio", pendingPhotosDesperdicio, "removerCapFotoDesperdicio", "setCapFotoLegendaDesperdicio");
@@ -1133,7 +1133,7 @@ function adicionarFotoAbertura(tipo, file){
   if(!file) return;
   const reader = new FileReader();
   reader.onload = (e)=>{
-    compressPhoto(e.target.result, 1280, 0.75, (compressed)=>{
+    compressPhoto(e.target.result, 900, 0.65, (compressed)=>{
       if(!compressed) return;
       window._abertura[tipo].fotos.push(compressed);
       renderAberturaThumbs(tipo);
@@ -1275,7 +1275,7 @@ async function adicionarFotoPedidoResposta(pedido, resposta, file){
   if(!file) return;
   const reader = new FileReader();
   reader.onload = (e)=>{
-    compressPhoto(e.target.result, 1280, 0.75, async (compressed)=>{
+    compressPhoto(e.target.result, 900, 0.65, async (compressed)=>{
       if(!compressed) return;
       try{
         const path = `pedidos/${pedido.id}/${slug(currentLoja)}_${Date.now()}.jpg`;
@@ -1314,7 +1314,7 @@ function handlePedidoFile(pedidoId, file){
   if(!file) return;
   const reader = new FileReader();
   reader.onload = (e)=>{
-    compressPhoto(e.target.result, 1280, 0.75, (compressed)=>{
+    compressPhoto(e.target.result, 900, 0.65, (compressed)=>{
       if(!compressed) return;
       pendingPhotosPedidos[pedidoId].push(compressed);
       renderPedidoThumbs(pedidoId);
@@ -1422,7 +1422,7 @@ async function adicionarFotoSubmissao(rec, file){
     await new Promise((resolve)=>{
       const reader = new FileReader();
       reader.onload = (evt)=>{
-        compressPhoto(evt.target.result, 1000, 0.7, async function(compressed){
+        compressPhoto(evt.target.result, 900, 0.65, async function(compressed){
           if(!compressed){ toast("Não foi possível processar a foto"); resolve(); return; }
           const novasFotos = [...fotosAtuais, {url: compressed, legenda:''}];
           await api("PATCH", `cj_daily_reportes?id=eq.${rec.id}`, {fotos: novasFotos});
@@ -1671,7 +1671,7 @@ async function adicionarFotoEnvio(r, file){
     await new Promise((resolve)=>{
       const reader = new FileReader();
       reader.onload = (evt)=>{
-        compressPhoto(evt.target.result, 1000, 0.7, async function(compressed){
+        compressPhoto(evt.target.result, 900, 0.65, async function(compressed){
           if(!compressed){ toast("Não foi possível processar a foto"); resolve(); return; }
           const path = `${slug(r.loja)}/inventario/${r.categoria}/${r.data}_${Date.now()}_${Math.random().toString(36).slice(2,6)}.jpg`;
           const url = await uploadPhoto(compressed, path);
@@ -1771,7 +1771,7 @@ function handleCapFile(e){
   if(!e.target.files.length) return;
   const r = new FileReader();
   r.onload = evt=>{
-    compressPhoto(evt.target.result, 1000, 0.7, function(compressed){
+    compressPhoto(evt.target.result, 900, 0.65, function(compressed){
       if(!compressed){ toast("Não foi possível processar a foto — tenta outra vez."); return; }
       pendingPhotos.push({src:compressed, legenda:''});
       renderCapThumbs();
@@ -2168,11 +2168,13 @@ function abrirConfirmarEnvio(label, fotos, onConfirmar){
     const btn = ev.currentTarget;
     if(btn.disabled) return;
     btn.disabled = true;
-    btn.textContent = "A enviar...";
+    btn.textContent = fotos.length>1 ? `A enviar 0 de ${fotos.length}...` : "A enviar...";
     overlay.querySelector(".btn-cancel").disabled = true;
+    window._reportarProgressoEnvio = (feitas, total)=>{ btn.textContent = `A enviar ${feitas} de ${total}...`; };
     try{
       await onConfirmar();
     } finally {
+      window._reportarProgressoEnvio = null;
       overlay.remove();
     }
   };
@@ -2206,6 +2208,12 @@ async function confirmCaptureReal(kind, key, turno){
 
 async function enviarItem(item){
   const {kind, key, turno, today, loja, fotos, fotosEntrada, fotosDesperdicio, vInv, vCnvs} = item;
+  const totalFotos = fotos.length + (fotosEntrada||[]).length + (fotosDesperdicio||[]).length;
+  let feitas = 0;
+  function progresso(){
+    feitas++;
+    if(totalFotos>1 && window._reportarProgressoEnvio) window._reportarProgressoEnvio(feitas, totalFotos);
+  }
   if(kind==="daily"){
     const objs = [];
     for(const foto of fotos){
@@ -2214,6 +2222,7 @@ async function enviarItem(item){
       const path = `${slug(loja)}/${key}/${turno}/${today}_${Date.now()}_${Math.random().toString(36).slice(2,6)}.jpg`;
       const url = await uploadPhoto(src, path);
       objs.push({url, legenda});
+      progresso();
     }
     await api("POST", "rpc/append_daily_foto_v2", {
       p_loja: loja, p_tipo: key, p_data: today, p_turno: turno, p_fotos: objs, p_por: loja
@@ -2226,6 +2235,7 @@ async function enviarItem(item){
       const path = `${slug(loja)}/marketing/${key}/${today}_${Date.now()}_${Math.random().toString(36).slice(2,6)}.jpg`;
       const url = await uploadPhoto(src, path);
       objs.push({url, legenda});
+      progresso();
     }
     await api("POST", "rpc/append_inv_fotos_v2", {
       p_loja: loja, p_categoria: key, p_data: today, p_fotos: objs,
@@ -2241,16 +2251,19 @@ async function enviarItem(item){
       const path = `${slug(loja)}/inventario/${key}/${today}_${Date.now()}_${Math.random().toString(36).slice(2,6)}.jpg`;
       const url = await uploadPhoto(src, path);
       objs.push({url, legenda});
+      progresso();
     }
     const objsEntrada = [];
     for(const foto of (fotosEntrada||[])){
       const url = await uploadPhoto(foto.src, `${slug(loja)}/inventario/${key}/entrada_${today}_${Date.now()}_${Math.random().toString(36).slice(2,6)}.jpg`);
       objsEntrada.push({url, legenda: foto.legenda||""});
+      progresso();
     }
     const objsDesperdicio = [];
     for(const foto of (fotosDesperdicio||[])){
       const url = await uploadPhoto(foto.src, `${slug(loja)}/inventario/${key}/desperdicio_${today}_${Date.now()}_${Math.random().toString(36).slice(2,6)}.jpg`);
       objsDesperdicio.push({url, legenda: foto.legenda||""});
+      progresso();
     }
     await api("POST", "rpc/append_inv_fotos_v2", {
       p_loja: loja, p_categoria: key, p_data: today, p_fotos: objs,
