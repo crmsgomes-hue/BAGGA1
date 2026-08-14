@@ -2164,7 +2164,18 @@ function abrirConfirmarEnvio(label, fotos, onConfirmar){
     thumbsWrap.appendChild(img);
   });
   overlay.querySelector(".btn-cancel").onclick = ()=>overlay.remove();
-  overlay.querySelector(".btn-save").onclick = ()=>{ overlay.remove(); onConfirmar(); };
+  overlay.querySelector(".btn-save").onclick = async (ev)=>{
+    const btn = ev.currentTarget;
+    if(btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = "A enviar...";
+    overlay.querySelector(".btn-cancel").disabled = true;
+    try{
+      await onConfirmar();
+    } finally {
+      overlay.remove();
+    }
+  };
 }
 
 async function confirmCaptureReal(kind, key, turno){
