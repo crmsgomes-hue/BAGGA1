@@ -646,6 +646,21 @@ function toast(msg){
   clearTimeout(window.__toastTimer);
   window.__toastTimer = setTimeout(()=>t.classList.remove("show"), dur);
 }
+function protegerClique(btn, fn, textoDurante){
+  if(!btn) return fn;
+  return async (...args)=>{
+    if(btn.disabled) return;
+    const textoOriginal = btn.textContent;
+    btn.disabled = true;
+    if(textoDurante) btn.textContent = textoDurante;
+    try{
+      await fn(...args);
+    } finally {
+      btn.disabled = false;
+      if(textoDurante) btn.textContent = textoOriginal;
+    }
+  };
+}
 function _logErro(app, mensagem, contexto){
   try{
     const loja = (typeof currentLoja !== "undefined" && currentLoja) ? currentLoja : (typeof mode!=="undefined" && mode==="gestao" ? "(gestão)" : "");
@@ -1423,7 +1438,7 @@ async function openSondagens(){
     const v = inp.value.trim();
     if(v){ sondagemOpcoes.push(v); inp.value = ""; renderOpcoes(); }
   };
-  formCard.querySelector("#sondCriarBtn").onclick = criarSondagem;
+  const sondBtn = formCard.querySelector("#sondCriarBtn"); sondBtn.onclick = protegerClique(sondBtn, criarSondagem, "A criar...");
 
   // Sondagens ativas + resultados
   const sondagens = await api("GET", "cj_sondagens?select=*&order=criado_em.desc");
@@ -1747,7 +1762,7 @@ async function openFormularios(){
     tipoSel.value = "texto";
     renderPerguntas();
   };
-  formCard.querySelector("#formCriarBtn").onclick = criarFormulario;
+  const formBtn = formCard.querySelector("#formCriarBtn"); formBtn.onclick = protegerClique(formBtn, criarFormulario, "A criar...");
 
   const formularios = await api("GET", "cj_formularios?select=*&order=criado_em.desc");
   const todasRespostas = await api("GET", "cj_formularios_respostas?select=*");
@@ -2058,7 +2073,7 @@ async function openAvisos(lojaFiltro){
     <button class="cambtn" style="width:100%; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-size:15px; font-weight:600;" id="avisoCriarBtn">📢 Registar aviso</button>
   `;
   main.appendChild(formCard);
-  formCard.querySelector("#avisoCriarBtn").onclick = criarAviso;
+  const avisoBtn = formCard.querySelector("#avisoCriarBtn"); avisoBtn.onclick = protegerClique(avisoBtn, criarAviso, "A criar...");
 
   const listTitle = document.createElement("div");
   listTitle.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:18px 0 8px; display:flex; justify-content:space-between; align-items:center;";
@@ -2217,7 +2232,7 @@ function openChecklistMensal(){
 
   document.getElementById("clExcelBtn").onclick = ()=>exportarChecklistExcel(mes, colunas, checklistData);
   document.getElementById("clPdfBtn").onclick = ()=>exportarChecklistPDF(mesLabel, colunas, checklistData);
-  document.getElementById("clArquivarBtn").onclick = ()=>arquivarChecklist(mes, mesLabel, colunas, checklistData);
+  const clBtn = document.getElementById("clArquivarBtn"); clBtn.onclick = protegerClique(clBtn, ()=>arquivarChecklist(mes, mesLabel, colunas, checklistData), "A arquivar...");
   document.getElementById("clHistBtn").onclick = ()=>openChecklistHistorico();
 }
 
@@ -2549,7 +2564,7 @@ async function openFichaGerente(lojaPreSelecionada){
     const dadosFicha = {pctVend, vendOk, diasNoMes: diasNoMes.length, atrasados, diaErrado, avisosLoja, avisosConfirmados, adendasParadas, streak, ultimaAtividade};
     document.getElementById("fichaPdfBtn").onclick = ()=>exportarFichaPDF(l, dadosFicha);
     document.getElementById("fichaExcelBtn").onclick = ()=>exportarFichaExcel(l, dadosFicha);
-    document.getElementById("fichaArquivarBtn").onclick = ()=>arquivarFicha(l, dadosFicha);
+    const fichaArqBtn = document.getElementById("fichaArquivarBtn"); fichaArqBtn.onclick = protegerClique(fichaArqBtn, ()=>arquivarFicha(l, dadosFicha), "A arquivar...");
     document.getElementById("fichaHistBtn").onclick = ()=>openFichaHistorico(l);
     document.getElementById("fichaVerDiaBtn").onclick = ()=>openLojaDetalhe(l);
     document.getElementById("fichaVerAvisosBtn").onclick = ()=>openAvisos(l);

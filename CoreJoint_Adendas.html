@@ -225,6 +225,21 @@ function toast(msg){
   t.classList.add("show");
   setTimeout(()=>t.classList.remove("show"), 1800);
 }
+function protegerClique(btn, fn, textoDurante){
+  if(!btn) return fn;
+  return async (...args)=>{
+    if(btn.disabled) return;
+    const textoOriginal = btn.textContent;
+    btn.disabled = true;
+    if(textoDurante) btn.textContent = textoDurante;
+    try{
+      await fn(...args);
+    } finally {
+      btn.disabled = false;
+      if(textoDurante) btn.textContent = textoOriginal;
+    }
+  };
+}
 
 async function api(method, path, body){
   const res = await fetch(SUPA_URL + "/rest/v1/" + path, {
@@ -388,7 +403,7 @@ function render(){
         const btnAll = document.createElement("button");
         btnAll.style.cssText = "font-size:11px; font-weight:600; background:var(--terracotta); color:#fff; border:none; border-radius:10px; padding:5px 10px;";
         btnAll.textContent = `☑ Marcar todas (${inStage.length})`;
-        btnAll.onclick = ()=>marcarTodasEtapa(idx, inStage);
+        btnAll.onclick = protegerClique(btnAll, ()=>marcarTodasEtapa(idx, inStage), "A marcar...");
         h.appendChild(btnAll);
       }
       main.appendChild(h);
@@ -799,7 +814,7 @@ function openConfirmEntrega(id, stageIdx, row){
       </div>
       <div class="modal-actions">
         <button class="btn-cancel" onclick="document.getElementById('confirmEntregaOverlay').remove()">Cancelar</button>
-        <button class="btn-save" onclick="confirmarEntregaColaborador(${id}, ${stageIdx})">✔ Confirmo que recebi</button>
+        <button class="btn-save" onclick="protegerClique(this, ()=>confirmarEntregaColaborador(${id}, ${stageIdx}), 'A confirmar...')()">✔ Confirmo que recebi</button>
       </div>
     </div>
   `;
@@ -860,7 +875,7 @@ function abrirAssinaturaDigital(id){
       <div class="modal-actions">
         <button class="btn-cancel" onclick="limparAssinatura()">↺ Limpar</button>
         <button class="btn-cancel" onclick="document.getElementById('sigOverlay').remove()">Cancelar</button>
-        <button class="btn-save" onclick="guardarAssinaturaDigital(${id})">Guardar</button>
+        <button class="btn-save" onclick="protegerClique(this, ()=>guardarAssinaturaDigital(${id}), 'A guardar...')()">Guardar</button>
       </div>
     </div>
   `;

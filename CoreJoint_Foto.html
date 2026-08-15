@@ -179,6 +179,22 @@ function toast(msg){
   clearTimeout(window.__toastTimer);
   window.__toastTimer = setTimeout(()=>t.classList.remove("show"), dur);
 }
+// Impede duplo-clique/duplo-toque em botoes que gravam dados - desativa e mostra "A processar..." ate terminar
+function protegerClique(btn, fn, textoDurante){
+  if(!btn) return fn;
+  return async (...args)=>{
+    if(btn.disabled) return;
+    const textoOriginal = btn.textContent;
+    btn.disabled = true;
+    if(textoDurante) btn.textContent = textoDurante;
+    try{
+      await fn(...args);
+    } finally {
+      btn.disabled = false;
+      if(textoDurante) btn.textContent = textoOriginal;
+    }
+  };
+}
 function isoDate(d){
   const y = d.getFullYear();
   const m = String(d.getMonth()+1).padStart(2,'0');
@@ -577,7 +593,7 @@ async function render(){
     html += `</div>`;
     card.innerHTML = html;
     card.querySelectorAll("[data-op]").forEach(btn=>{
-      btn.onclick = ()=>responderSondagem(s.id, btn.getAttribute("data-op"));
+      btn.onclick = protegerClique(btn, ()=>responderSondagem(s.id, btn.getAttribute("data-op")));
     });
     main.appendChild(card);
   });
@@ -644,7 +660,8 @@ async function render(){
     card.innerHTML = html;
     main.appendChild(card);
     qs.forEach(q=>{
-      card.querySelector(`[data-enviar-quebra="${q.id}"]`).onclick = ()=>enviarJustificacaoQuebra(q.id);
+      const btnQ = card.querySelector(`[data-enviar-quebra="${q.id}"]`);
+      btnQ.onclick = protegerClique(btnQ, ()=>enviarJustificacaoQuebra(q.id), "A enviar...");
     });
   });
 
@@ -1273,7 +1290,8 @@ function abrirSemStock(tipo, label){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("semStockEnviarBtn").onclick = ()=>enviarSemStock(tipo, label);
+  const semStockBtn = document.getElementById("semStockEnviarBtn");
+  semStockBtn.onclick = protegerClique(semStockBtn, ()=>enviarSemStock(tipo, label), "A enviar...");
 }
 async function enviarSemStock(tipo, label){
   const motivo = document.getElementById("semStockMotivo").value.trim();
@@ -1887,7 +1905,7 @@ function abrirFormularioResposta(fm, respostaExistente){
       ${camposHtml}
       <div class="modal-actions">
         <button class="btn-cancel" onclick="document.getElementById('formRespOverlay').remove()">Cancelar</button>
-        <button class="btn-save" onclick="submeterFormulario(${fm.id})">${respostaExistente ? 'Guardar alterações' : 'Enviar respostas'}</button>
+        <button class="btn-save" onclick="protegerClique(this, ()=>submeterFormulario(${fm.id}), 'A enviar...')()">${respostaExistente ? 'Guardar alterações' : 'Enviar respostas'}</button>
       </div>
     </div>
   `;
