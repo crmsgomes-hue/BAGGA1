@@ -184,6 +184,19 @@ async function api(path, method, body){
 function setBadge(id, n){
   if(n>0) document.getElementById(id).innerHTML = `<span class="bk">${n}</span>`;
 }
+function toast(msg){
+  let t = document.getElementById("_hubToast");
+  if(!t){
+    t = document.createElement("div");
+    t.id = "_hubToast";
+    t.style.cssText = "position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--tc,#2b2118); color:#fff; padding:10px 18px; border-radius:99px; font-size:.82rem; z-index:99999; max-width:88vw; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,.25);";
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.display = "block";
+  clearTimeout(window.__hubToastTimer);
+  window.__hubToastTimer = setTimeout(()=>{ t.style.display = "none"; }, msg.length>40 ? 4000 : 2200);
+}
 
 async function renderLembretesPessoais(){
   const wrap = document.getElementById("lembretesPessoaisSection");
@@ -195,13 +208,81 @@ async function renderLembretesPessoais(){
   window._lembretesCache = lembretes;
   const pendentes = lembretes.filter(l=>!l.feito);
   wrap.innerHTML = `
-    <button id="abrirLembretesBtn" style="display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:var(--sf); border:1.5px solid var(--terracotta,#C1622D); border-radius:12px; padding:12px 14px; cursor:pointer;">
-      <span style="font-size:18px;">📝</span>
-      <span style="flex:1; font-family:'Syne',sans-serif; font-weight:700; font-size:.85rem; color:var(--terracotta,#C1622D);">Os meus lembretes</span>
+    <button id="abrirEspacoBtn" style="display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:var(--sf); border:1.5px solid var(--terracotta,#C1622D); border-radius:12px; padding:13px 14px; cursor:pointer;">
+      <span style="font-size:18px;">🌿</span>
+      <span style="flex:1; font-family:'Syne',sans-serif; font-weight:700; font-size:.85rem; color:var(--terracotta,#C1622D);">O Meu Espaço</span>
       ${pendentes.length ? `<span style="background:var(--terracotta,#C1622D); color:#fff; border-radius:99px; min-width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:.72rem; font-weight:700; padding:0 6px;">${pendentes.length}</span>` : `<span style="color:var(--t2); font-size:.72rem;">vazio</span>`}
     </button>
   `;
-  document.getElementById("abrirLembretesBtn").onclick = abrirLembretesOverlay;
+  document.getElementById("abrirEspacoBtn").onclick = abrirLembretesOverlay;
+}
+
+function detetarLojaNaMensagem(texto){
+  const textoNorm = texto.toLowerCase();
+  // tenta o nome completo primeiro, depois so a primeira palavra (ex: "Torres" sozinho e ambiguo, mas "Caldas" ja chega)
+  for(const l of LOJAS){
+    if(textoNorm.includes(l.toLowerCase())) return l;
+  }
+  const apelidos = {"torres mch":"Torres MCH", "torres mh":"Torres MH", "caldas":"Caldas da Rainha", "ponte sor":"Ponte de Sor"};
+  for(const apelido of Object.keys(apelidos)){
+    if(textoNorm.includes(apelido)) return apelidos[apelido];
+  }
+  return null;
+}
+
+function abrirColarMensagemOverlay(){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "colarMensagemOverlay";
+  overlay.innerHTML = `
+    <div class="modal" style="max-height:85vh; overflow-y:auto;">
+      <h2>📋 Colar mensagem</h2>
+      <div class="sub" style="margin-bottom:10px;">Cola aqui o texto (horário, falta, equipamento, tarefa...) — a app tenta identificar a loja sozinha, e guarda como lembrete teu.</div>
+      <textarea id="colarTexto" placeholder="Cola aqui a mensagem..." style="width:100%; min-height:120px; padding:10px; border-radius:8px; border:1px solid var(--br); background:var(--sf); font-size:.86rem;"></textarea>
+      <div id="colarDeteccao" style="margin-top:10px; display:none;">
+        <div class="field">
+          <label>Loja (detetada automaticamente — podes mudar)</label>
+          <select id="colarLoja" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--br); background:var(--sf);">
+            <option value="">— Sem loja específica —</option>
+            ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions" style="margin-top:14px;">
+        <button class="btn-cancel" onclick="document.getElementById('colarMensagemOverlay').remove()">Cancelar</button>
+        <button class="btn-save" id="colarGuardarBtn" style="width:100%;">Guardar como lembrete</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const textoEl = document.getElementById("colarTexto");
+  const deteccaoWrap = document.getElementById("colarDeteccao");
+  const lojaSelect = document.getElementById("colarLoja");
+  textoEl.addEventListener("input", ()=>{
+    const texto = textoEl.value.trim();
+    if(texto.length < 4){ deteccaoWrap.style.display = "none"; return; }
+    deteccaoWrap.style.display = "block";
+    const detetada = detetarLojaNaMensagem(texto);
+    if(detetada) lojaSelect.value = detetada;
+  });
+  document.getElementById("colarGuardarBtn").onclick = async ()=>{
+    const texto = textoEl.value.trim();
+    if(!texto){ toast("Cola primeiro a mensagem"); return; }
+    const btn = document.getElementById("colarGuardarBtn");
+    btn.disabled = true; btn.textContent = "A guardar...";
+    try{
+      const loja = lojaSelect.value || null;
+      await api("cj_lembretes_pessoais", "POST", {texto, loja, criado_por:"Cristina"});
+      overlay.remove();
+      await renderLembretesPessoais();
+      if(document.getElementById("lembretesLista")) await renderListaLembretes();
+      toast("✔ Guardado nos teus lembretes" + (loja ? ` — marcado como ${loja}` : ""));
+    }catch(e){
+      console.error(e);
+      toast("Erro ao guardar: " + (e.message||e).slice(0,100));
+      btn.disabled = false; btn.textContent = "Guardar como lembrete";
+    }
+  };
 }
 
 function abrirLembretesOverlay(){
@@ -210,12 +291,16 @@ function abrirLembretesOverlay(){
   overlay.id = "lembretesOverlay";
   overlay.innerHTML = `
     <div class="modal" style="max-height:85vh; overflow-y:auto;">
-      <h2>📝 Os meus lembretes</h2>
-      <div class="sub" style="margin-bottom:10px;">O teu espaço — separado das lojas e dos pendentes.</div>
-      <div style="display:flex; gap:6px; margin-bottom:12px;">
+      <h2>🌿 O Meu Espaço</h2>
+      <div class="sub" style="margin-bottom:10px;">Separado das lojas e dos pendentes — só teu.</div>
+      <div style="display:flex; gap:6px; margin-bottom:8px;">
         <input id="novoLembreteInput" placeholder="Escrever um lembrete..." style="flex:1; padding:10px 12px; border-radius:8px; border:1px solid var(--br); background:var(--sf); font-size:.88rem;" autofocus>
         <button id="novoLembreteBtn" style="background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:.9rem; font-weight:700;">+</button>
       </div>
+      <button id="abrirColarMensagemBtn" style="display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:none; border:1px dashed var(--br); border-radius:8px; padding:9px 12px; cursor:pointer; margin-bottom:12px;">
+        <span style="font-size:14px;">📋</span>
+        <span style="font-size:.78rem; color:var(--t2);">Colar uma mensagem em vez de escrever</span>
+      </button>
       <div id="lembretesLista"></div>
       <div id="lembretesFeitosWrap"></div>
       <div class="modal-actions" style="margin-top:14px;">
@@ -225,6 +310,7 @@ function abrirLembretesOverlay(){
   `;
   document.body.appendChild(overlay);
   renderListaLembretes();
+  document.getElementById("abrirColarMensagemBtn").onclick = abrirColarMensagemOverlay;
 
   const addBtn = document.getElementById("novoLembreteBtn");
   const addInput = document.getElementById("novoLembreteInput");
@@ -265,7 +351,7 @@ async function renderListaLembretes(){
       row.style.cssText = "display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--br);";
       row.innerHTML = `
         <button data-concluir="${l.id}" style="width:22px; height:22px; border-radius:50%; border:1.5px solid var(--terracotta,#C1622D); background:none; flex-shrink:0; cursor:pointer;"></button>
-        <span style="flex:1; font-size:.86rem;">${l.texto}</span>
+        <span style="flex:1; font-size:.86rem;">${l.loja?`<span style="background:var(--acl,#fbeee5); color:var(--ac2,#9c4d23); border-radius:6px; padding:1px 6px; font-size:.7rem; font-weight:700; margin-right:6px;">${l.loja}</span>`:''}${l.texto}</span>
         <button data-apagar="${l.id}" style="background:none; border:none; color:var(--t3); font-size:1rem; cursor:pointer;">✕</button>
       `;
       lista.appendChild(row);
