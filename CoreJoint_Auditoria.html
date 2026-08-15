@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, user-scalable=yes">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>CoreJoint · Auditoria</title>
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#C1622D">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#FAF7F2;--sf:#fff;--sf2:#f3eee2;--br:#e8ddc9;--ac:#C1622D;--ac2:#9c4d23;--acl:#fbeee5;--tx:#2b2118;--t2:#6b5d4f;--red:#B0432F;--org:#c17817;--grn:#5C7A5C;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:14px;}
+#HD{display:flex;align-items:center;padding:0 14px;height:50px;background:var(--sf);border-bottom:1px solid var(--br);position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.hlog{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:var(--ac)}
+#MN{flex:1;padding:14px;max-width:600px;margin:0 auto;width:100%}
+.pt{font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:800;margin-bottom:2px}
+.ps{font-size:.76rem;color:var(--t2);margin-bottom:14px}
+.card{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.sec-label{font-size:.68rem;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin:18px 0 8px;}
+.chip{background:var(--sf2);color:var(--t2);border-radius:99px;padding:5px 11px;font-size:.72rem;font-weight:700;}
+.chip.ok{background:var(--grn);color:#fff;}
+.spin-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:40px 0;}
+.spin{width:28px;height:28px;border:3px solid var(--br);border-top-color:var(--ac);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="HD"><div class="hlog">CoreJoint · Auditoria</div></div>
+<div id="MN">
+  <div class="pt">Quem fez o quê</div>
+  <div class="ps">Só consulta — fotos enviadas, inventário/marketing feito, e quebras por justificar.</div>
+  <div id="main"><div class="spin-wrap"><div class="spin"></div></div></div>
+</div>
+<script>
+const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
+const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k";
+async function api(path){
+  const res = await fetch(SUPA_URL + "/rest/v1/" + path, { headers:{ "apikey":SUPA_KEY, "Authorization":"Bearer "+SUPA_KEY } });
+  if(!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+const LOJAS = ["Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim","Carregado","Ponte de Sor","Torres MCH","Torres MH"];
+const INV_CATS = [
+  { key:"raspadinhas", label:"JSC", freq:"semanal" },
+  { key:"laranja", label:"Laranja", freq:"semanal" },
+  { key:"cafe", label:"Café", freq:"semanal" },
+  { key:"tabaco", label:"Tabaco", freq:"quinzenal" },
+  { key:"global", label:"Global", freq:"mensal3" },
+];
+const MARKETING_CATS = [
+  { key:"cavalete", label:"Cavalete", freq:"mensal_inicio" },
+  { key:"toalhetes", label:"Toalhetes", freq:"mensal" },
+  { key:"orelhas", label:"Orelhas", freq:"mensal" },
+  { key:"horarios", label:"Horários", freq:"mensal_inicio" },
+  { key:"preventiva_delta", label:"Preventiva Delta", freq:"mensal_inicio" },
+  { key:"aps", label:"APS", freq:"mensal_dia20" },
+];
+const CATEGORY_DOW = { raspadinhas:1, cafe:2, laranja:3 };
+
+function weekWindow(d){
+  const day=(d.getDay()+6)%7;
+  const start=new Date(d.getFullYear(),d.getMonth(),d.getDate()-day);
+  const end=new Date(start.getFullYear(),start.getMonth(),start.getDate()+6,23,59,59,999);
+  return {start,end};
+}
+function biweekWindow(d){
+  const day=d.getDate();
+  const start = day<=15 ? new Date(d.getFullYear(),d.getMonth(),1) : new Date(d.getFullYear(),d.getMonth(),16);
+  const end = day<=15 ? new Date(d.getFullYear(),d.getMonth(),15) : new Date(d.getFullYear(),d.getMonth()+1,0);
+  return {start,end};
+}
+function month3Window(d){ return {start:new Date(d.getFullYear(),d.getMonth(),15), end:new Date(d.getFullYear(),d.getMonth(),21)}; }
+function monthWindow(d){ return {start:new Date(d.getFullYear(),d.getMonth(),1), end:new Date(d.getFullYear(),d.getMonth()+1,0)}; }
+function monthStartWindow(d){ return {start:new Date(d.getFullYear(),d.getMonth(),1), end:new Date(d.getFullYear(),d.getMonth(),3)}; }
+function monthDia20Window(d){ return {start:new Date(d.getFullYear(),d.getMonth(),1), end:new Date(d.getFullYear(),d.getMonth(),20)}; }
+function windowFor(freq,d){
+  if(freq==="semanal") return weekWindow(d);
+  if(freq==="quinzenal") return biweekWindow(d);
+  if(freq==="mensal_inicio") return monthStartWindow(d);
+  if(freq==="mensal_dia20") return monthDia20Window(d);
+  if(freq==="mensal") return monthWindow(d);
+  return month3Window(d);
+}
+function isoDate(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function inRange(dateStr,start,end){ const d=new Date(dateStr+"T00:00:00"); return d>=start && d<=end; }
+function findWeekdayInRange(start,end,dow){
+  let d=new Date(start);
+  while(((((d.getDay()+6)%7)+1)!==dow) && d<=end) d.setDate(d.getDate()+1);
+  return d>end ? end : d;
+}
+
+(async function(){
+  const main = document.getElementById("main");
+  const today = new Date();
+  const todayStr = isoDate(today);
+
+  const [dailyRows, invRows, naoAplicaveis, quebras] = await Promise.all([
+    api(`cj_daily_reportes?select=loja,tipo,turno,data&data=eq.${todayStr}`),
+    api(`cj_inventario_reportes?select=loja,categoria,data,criado_em`),
+    api(`cj_categoria_nao_aplicavel?select=loja,categoria`),
+    api(`cj_quebras_reportes?select=loja,data,valor_quebra,operador,justificacao&justificacao=is.null&order=data.desc&limit=100`)
+  ]);
+
+  function categoriasParaLoja(loja){ return INV_CATS.filter(c=>!naoAplicaveis.some(n=>n.loja===loja&&n.categoria===c.key)); }
+  function marketingCatsParaLoja(loja){ return MARKETING_CATS.filter(c=>!naoAplicaveis.some(n=>n.loja===loja&&n.categoria===c.key)); }
+
+  function invStatus(loja, catKey, freq){
+    const w = windowFor(freq, today);
+    const rows = invRows.filter(r=>r.loja===loja && r.categoria===catKey && inRange(r.data,w.start,w.end));
+    const dow = CATEGORY_DOW[catKey];
+    if(dow){
+      const target = findWeekdayInRange(w.start,w.end,dow);
+      const diaSeguinte = new Date(target); diaSeguinte.setDate(diaSeguinte.getDate()+1);
+      const feito = rows.some(r=>r.data===isoDate(target) || r.data===isoDate(diaSeguinte));
+      return feito;
+    }
+    if(rows.length>0) return true;
+    if(freq==="mensal_inicio" || freq==="mensal_dia20"){
+      const m = monthWindow(today);
+      return invRows.some(r=>r.loja===loja && r.categoria===catKey && inRange(r.data,m.start,m.end));
+    }
+    return false;
+  }
+
+  let html = "";
+
+  // Vitrine + Vendas hoje
+  const TURNOS = [{key:"manha",label:"Manhã"},{key:"almoco",label:"Almoço"},{key:"lanche",label:"Lanche"}];
+  html += `<div class="sec-label">🌇 Vitrine e Vendas — hoje</div><div class="card">`;
+  TURNOS.forEach(t=>{
+    const feitas = new Set(dailyRows.filter(r=>r.tipo==="vitrine"&&r.turno===t.key).map(r=>r.loja));
+    html += `<div style="margin-bottom:10px;"><div style="font-size:.72rem; color:var(--t2); font-weight:700; margin-bottom:5px;">${t.label} (${feitas.size}/${LOJAS.length})</div><div style="display:flex; flex-wrap:wrap; gap:6px;">`;
+    LOJAS.forEach(l=>{ html += `<span class="chip ${feitas.has(l)?'ok':''}">${feitas.has(l)?'✔ ':''}${l}</span>`; });
+    html += `</div></div>`;
+  });
+  const vendasFeitas = new Set(dailyRows.filter(r=>r.tipo==="vendas").map(r=>r.loja));
+  html += `<div><div style="font-size:.72rem; color:var(--t2); font-weight:700; margin-bottom:5px;">Vendas (${vendasFeitas.size}/${LOJAS.length})</div><div style="display:flex; flex-wrap:wrap; gap:6px;">`;
+  LOJAS.forEach(l=>{ html += `<span class="chip ${vendasFeitas.has(l)?'ok':''}">${vendasFeitas.has(l)?'✔ ':''}${l}</span>`; });
+  html += `</div></div></div>`;
+
+  // Laranjas/Tabaco hoje
+  const ltFeitas = {laranjas_maquina:new Set(dailyRows.filter(r=>r.tipo==="laranjas_maquina").map(r=>r.loja)), expositor_tabaco:new Set(dailyRows.filter(r=>r.tipo==="expositor_tabaco").map(r=>r.loja))};
+  html += `<div class="sec-label">🍊🚬 Laranjas e Tabaco — hoje</div><div class="card">`;
+  [{key:"laranjas_maquina",label:"Laranjas na máquina"},{key:"expositor_tabaco",label:"Expositor do tabaco"}].forEach(x=>{
+    const lojasAplicaveis = LOJAS.filter(l=>!naoAplicaveis.some(n=>n.loja===l&&n.categoria===x.key));
+    html += `<div style="margin-bottom:10px;"><div style="font-size:.72rem; color:var(--t2); font-weight:700; margin-bottom:5px;">${x.label} (${lojasAplicaveis.filter(l=>ltFeitas[x.key].has(l)).length}/${lojasAplicaveis.length})</div><div style="display:flex; flex-wrap:wrap; gap:6px;">`;
+    lojasAplicaveis.forEach(l=>{ html += `<span class="chip ${ltFeitas[x.key].has(l)?'ok':''}">${ltFeitas[x.key].has(l)?'✔ ':''}${l}</span>`; });
+    html += `</div></div>`;
+  });
+  html += `</div>`;
+
+  // Inventário e Marketing (janelas próprias)
+  html += `<div class="sec-label">📦 Inventário e Marketing</div>`;
+  [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
+    const lojasAplicaveis = LOJAS.filter(l=>!naoAplicaveis.some(n=>n.loja===l&&n.categoria===cat.key));
+    if(lojasAplicaveis.length===0) return;
+    const feitos = lojasAplicaveis.filter(l=>invStatus(l,cat.key,cat.freq));
+    html += `<div class="card"><div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.85rem; margin-bottom:8px;">${cat.label} <span style="color:var(--t2); font-weight:600; font-size:.75rem;">(${feitos.length}/${lojasAplicaveis.length})</span></div><div style="display:flex; flex-wrap:wrap; gap:6px;">`;
+    lojasAplicaveis.forEach(l=>{ const ok = feitos.includes(l); html += `<span class="chip ${ok?'ok':''}">${ok?'✔ ':''}${l}</span>`; });
+    html += `</div></div>`;
+  });
+
+  // Quebras por justificar
+  html += `<div class="sec-label">💸 Quebras por justificar</div>`;
+  if(quebras.length===0){
+    html += `<div class="card" style="text-align:center; color:var(--grn); font-weight:700;">✔ Nenhuma quebra por justificar.</div>`;
+  } else {
+    quebras.forEach(q=>{
+      html += `<div class="card" style="padding:11px 14px;">
+        <div style="font-weight:700; font-size:.86rem;">${q.loja||'(loja não identificada)'}</div>
+        <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">${new Date(q.data+"T00:00:00").toLocaleDateString('pt-PT')} · ${q.operador||'—'} · <span style="color:var(--red); font-weight:700;">${Number(q.valor_quebra).toFixed(2)}€</span></div>
+      </div>`;
+    });
+  }
+
+  main.innerHTML = html;
+})().catch(e=>{
+  document.getElementById("main").innerHTML = `<div class="card" style="color:var(--red);">Erro a carregar: ${e.message}</div>`;
+});
+</script>
+</body>
+</html>
