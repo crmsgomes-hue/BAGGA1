@@ -3450,8 +3450,27 @@ function renderQuebrasPreview(totalLinhas){
 }
 
 async function confirmarImportarQuebras(){
+  const btn = document.getElementById("confirmarImportarQuebrasBtn");
+  if(btn){
+    if(btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = "A importar...";
+  }
   try{
+    // Verifica na base de dados o que já existe (mesma loja+data+safebag+valor) para nunca duplicar,
+    // mesmo que este botao seja tocado mais que uma vez ou o ficheiro seja importado outra vez.
+    const todasParaVerificar = [...quebrasParaImportar, ...quebrasComErro, ...quebrasForaDop];
+    const datasEnvolvidas = [...new Set(todasParaVerificar.map(q=>q.data))];
+    const existentes = datasEnvolvidas.length ? await api("GET", `cj_quebras_reportes?select=loja,data,safebag,valor_quebra&data=in.(${datasEnvolvidas.join(",")})`) : [];
+    function jaExiste(q, loja){
+      return existentes.some(e=>
+        (e.loja||"")===(loja||"") && e.data===q.data &&
+        (e.safebag||"")===(q.safebag||"") && Math.abs(Number(e.valor_quebra)-Number(q.valor_quebra))<0.005
+      );
+    }
+    let ignoradosDuplicados = 0;
     for(const q of quebrasParaImportar){
+      if(jaExiste(q, q.loja)){ ignoradosDuplicados++; continue; }
       await api("POST", "cj_quebras_reportes", {
         loja:q.loja, loja_original:q.lojaOriginal, data:q.data, operador:q.operador, valor_quebra:q.valor_quebra, safebag:q.safebag,
         importado_por: currentUser
@@ -3461,19 +3480,22 @@ async function confirmarImportarQuebras(){
       notificarLojaAviso(q.loja, "outro", descricao);
     }
     for(const q of quebrasComErro){
+      if(jaExiste(q, null)){ ignoradosDuplicados++; continue; }
       await api("POST", "cj_quebras_reportes", {
         loja:null, loja_original:q.lojaOriginal, data:q.data, operador:q.operador, valor_quebra:q.valor_quebra, safebag:q.safebag,
         importado_por: currentUser
       });
     }
     for(const q of quebrasForaDop){
+      if(jaExiste(q, null)){ ignoradosDuplicados++; continue; }
       await api("POST", "cj_quebras_reportes", {
         loja:null, loja_original:q.lojaOriginal, data:q.data, operador:q.operador, valor_quebra:q.valor_quebra, safebag:q.safebag,
         importado_por: currentUser, fora_dop: true
       });
     }
-    const totalImportado = quebrasParaImportar.length + quebrasComErro.length + quebrasForaDop.length;
+    const totalImportado = quebrasParaImportar.length + quebrasComErro.length + quebrasForaDop.length - ignoradosDuplicados;
     let msg = `${totalImportado} quebra(s) importada(s)`;
+    if(ignoradosDuplicados>0) msg += ` — ${ignoradosDuplicados} já existiam, não repetidas`;
     if(quebrasComErro.length>0) msg += ` — ${quebrasComErro.length} sem loja identificada (corrige no Relatório)`;
     if(quebrasForaDop.length>0) msg += ` — ${quebrasForaDop.length} fora da rede (sem aviso)`;
     mostrarSucesso(msg);
@@ -3484,6 +3506,7 @@ async function confirmarImportarQuebras(){
   }catch(e){
     console.error(e);
     toast("Erro ao importar: " + (e.message||e).slice(0,100));
+    if(btn){ btn.disabled = false; btn.textContent = "Tentar outra vez"; }
   }
 }
 
