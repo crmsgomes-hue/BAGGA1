@@ -610,19 +610,26 @@ async function render(){
     main.appendChild(linkRespondidas);
   }
 
-  quebrasPendentes.forEach(q=>{
+  const quebrasPorDia = {};
+  quebrasPendentes.forEach(q=>{ (quebrasPorDia[q.data] ||= []).push(q); });
+  Object.keys(quebrasPorDia).sort().reverse().forEach(dia=>{
+    const qs = quebrasPorDia[dia];
     const card = document.createElement("div");
     card.className = "card";
     card.style.cssText = "border-left:4px solid var(--red); padding:16px 18px;";
-    card.innerHTML = `
+    let html = `
       <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
         <div style="width:34px; height:34px; border-radius:50%; background:var(--red); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">💸</div>
         <div>
-          <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--red); font-weight:700;">Quebra a justificar</div>
-          <div style="font-weight:700; font-size:15.5px; color:var(--ink);">${q.valor_quebra} € — ${new Date(q.data+"T00:00:00").toLocaleDateString('pt-PT')}</div>
+          <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--red); font-weight:700;">Quebra${qs.length>1?'s':''} a justificar</div>
+          <div style="font-weight:700; font-size:15.5px; color:var(--ink);">${new Date(dia+"T00:00:00").toLocaleDateString('pt-PT')}${qs.length>1?` · ${qs.length} quebras`:''}</div>
         </div>
       </div>
-      <div style="padding-left:44px;">
+    `;
+    qs.forEach((q,i)=>{
+      html += `
+      <div style="padding-left:44px; ${i>0?'margin-top:16px; padding-top:16px; border-top:1px solid var(--line);':''}">
+        <div style="font-weight:700; font-size:14px; color:var(--ink); margin-bottom:6px;">${q.valor_quebra} €</div>
         <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:10px;">${q.operador?('Operador: '+q.operador):''}${q.safebag?(' · Safebag: '+q.safebag):''}</div>
         <input type="text" id="quebraRegisto-${q.id}" placeholder="Nº do registo" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:6px;">
         <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12.5px; color:var(--ink-soft);">
@@ -632,9 +639,13 @@ async function render(){
         <textarea id="quebraJustif-${q.id}" placeholder="Justificação..." style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); margin-bottom:10px; min-height:60px;"></textarea>
         <button data-enviar-quebra="${q.id}" style="background:var(--red); color:#fff; border:none; border-radius:10px; padding:9px 18px; font-size:13.5px; font-weight:700;">✔ Enviar justificação</button>
       </div>
-    `;
+      `;
+    });
+    card.innerHTML = html;
     main.appendChild(card);
-    card.querySelector(`[data-enviar-quebra]`).onclick = ()=>enviarJustificacaoQuebra(q.id);
+    qs.forEach(q=>{
+      card.querySelector(`[data-enviar-quebra="${q.id}"]`).onclick = ()=>enviarJustificacaoQuebra(q.id);
+    });
   });
 
   const TIPO_AVISO_LABELS = {
