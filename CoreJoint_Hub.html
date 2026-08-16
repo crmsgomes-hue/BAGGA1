@@ -768,10 +768,11 @@ function semanaKey(d){
     function fotoUrlH(f){ return typeof f === "string" ? f : (f && f.url) || ""; }
     function fotoLegendaH(f){ return (f && typeof f === "object" && f.legenda) || ""; }
 
+    const TITULOS_DAILY_H = {vendas:"Vendas", laranjas_maquina:"Laranjas na máquina", expositor_tabaco:"Expositor do tabaco"};
     const submissoes = [];
     dailyFotos.forEach(r=>{
       if(!(r.fotos||[]).length) return;
-      submissoes.push({loja:r.loja, titulo: r.tipo==="vitrine" ? `Vitrine — ${TURNO_LABELS_H[r.turno]||r.turno}` : "Vendas", data:r.data, criado_em:r.criado_em, fotos:r.fotos});
+      submissoes.push({loja:r.loja, titulo: r.tipo==="vitrine" ? `Vitrine — ${TURNO_LABELS_H[r.turno]||r.turno}` : (TITULOS_DAILY_H[r.tipo] || r.tipo), data:r.data, criado_em:r.criado_em, fotos:r.fotos});
     });
     invFotos.forEach(r=>{
       if(!(r.fotos||[]).length) return;

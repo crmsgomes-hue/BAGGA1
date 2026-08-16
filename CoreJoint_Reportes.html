@@ -1107,7 +1107,8 @@ function openCapture(kind, tipoOrCat, turno){
   const isMkt = kind==="marketing";
   const catObj = isInv ? INV_CATS.find(c=>c.key===tipoOrCat) : isMkt ? MARKETING_CATS.find(c=>c.key===tipoOrCat) : null;
   const turnoLabel = turno && turno!=="unico" ? " — " + VITRINE_TURNOS.find(t=>t.key===turno)?.label : "";
-  const title = (isInv || isMkt) ? catObj.label : (tipoOrCat==="vitrine" ? "Vitrine" : "Vendas") + turnoLabel;
+  const TITULOS_DAILY_CAP = {vitrine:"Vitrine", vendas:"Vendas", laranjas_maquina:"Laranjas na máquina", expositor_tabaco:"Expositor do tabaco"};
+  const title = (isInv || isMkt) ? catObj.label : (TITULOS_DAILY_CAP[tipoOrCat] || tipoOrCat) + turnoLabel;
   const overlay = document.createElement("div");
   overlay.className = "overlay"; overlay.id = "capOverlay";
   overlay.innerHTML = `
@@ -2788,7 +2789,13 @@ function openGaleria(){
 
     todasSubmissoes.forEach(r=>{
       if(r._tipoOrigem==="daily"){
-        const tituloSecao = r.tipo==="vitrine" ? `Vitrine — ${TURNO_LABELS_G[r.turno]||r.turno}` : "Vendas";
+        const TITULOS_DAILY = {
+          vitrine: `Vitrine — ${TURNO_LABELS_G[r.turno]||r.turno}`,
+          vendas: "Vendas",
+          laranjas_maquina: "Laranjas na máquina",
+          expositor_tabaco: "Expositor do tabaco"
+        };
+        const tituloSecao = TITULOS_DAILY[r.tipo] || r.tipo;
         renderSecaoFotosVisitas(main, tituloSecao, r.fotos||[], r.data);
       } else {
         const catObj = [...INV_CATS, ...MARKETING_CATS].find(c=>c.key===r.categoria);
@@ -3590,8 +3597,9 @@ async function abrirPorValidar(){
   main.appendChild(validarTodosBtn);
 
   // Juntar tudo (daily + inventário) e agrupar por loja
+  const TITULOS_DAILY_PV = {vitrine:null, vendas:"Vendas", laranjas_maquina:"Laranjas na máquina", expositor_tabaco:"Expositor do tabaco"};
   const todosItens = [
-    ...dailyPorValidar.map(r=>({...r, _origem:"daily", _label: r.tipo==="vitrine" ? `Vitrine — ${TURNO_LABELS_PV[r.turno]||r.turno}` : "Vendas"})),
+    ...dailyPorValidar.map(r=>({...r, _origem:"daily", _label: r.tipo==="vitrine" ? `Vitrine — ${TURNO_LABELS_PV[r.turno]||r.turno}` : (TITULOS_DAILY_PV[r.tipo] || r.tipo)})),
     ...invPorValidar.map(r=>({...r, _origem:"inv", _label: todasCatsLabelPv[r.categoria] || r.categoria}))
   ];
   const porLojaPv = {};
