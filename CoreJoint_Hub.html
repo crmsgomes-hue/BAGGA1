@@ -1129,20 +1129,21 @@ function semanaKey(d){
     });
 
     // Vitrine — trazida de volta a pedido da Cristina, mas só aqui (dá noção de quem envia, sem poluir o Painel de gestão)
-    const todayVitrine = await api(`cj_daily_reportes?select=loja,turno&tipo=eq.vitrine&data=eq.${todayStr}`);
+    const todayVitrine = await api(`cj_daily_reportes?select=loja,turno,fotos,criado_em&tipo=eq.vitrine&data=eq.${todayStr}`);
     const todayLaranjaTabaco = await api(`cj_daily_reportes?select=loja,tipo,nota,fotos&tipo=in.(laranjas_maquina,expositor_tabaco)&data=eq.${todayStr}`);
     const todayVendas = await api(`cj_daily_reportes?select=loja,fotos,criado_em&tipo=eq.vendas&data=eq.${todayStr}`);
     const TURNOS_VIT = [{key:"manha", label:"Manhã"}, {key:"almoco", label:"Almoço"}, {key:"lanche", label:"Lanche"}];
     let htmlVit = `<div class="card" style="flex-direction:column; align-items:stretch; gap:0; margin-bottom:10px;">
       <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.88rem; margin-bottom:9px;">🌇 Vitrine — hoje</div>`;
     TURNOS_VIT.forEach(t=>{
-      const enviaram = new Set(todayVitrine.filter(r=>r.turno===t.key).map(r=>r.loja));
+      const registosTurno = todayVitrine.filter(r=>r.turno===t.key);
+      const enviaram = new Set(registosTurno.map(r=>r.loja));
       htmlVit += `<div style="margin-bottom:8px;">
         <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:4px;">${t.label} (${enviaram.size}/${LOJAS.length})</div>
         <div style="display:flex; flex-wrap:wrap; gap:6px;">`;
       LOJAS.forEach(l=>{
         const feito = enviaram.has(l);
-        htmlVit += `<span style="background:${feito?'var(--grn)':'var(--sf2)'}; color:${feito?'#fff':'var(--t2)'}; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700;">${feito?'✔ ':''}${l}</span>`;
+        htmlVit += `<span data-vit-loja="${l}" data-vit-turno="${t.key}" style="background:${feito?'var(--grn)':'var(--sf2)'}; color:${feito?'#fff':'var(--t2)'}; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700; cursor:${feito?'pointer':'default'};">${feito?'✔ ':''}${l}</span>`;
       });
       htmlVit += `</div></div>`;
     });
@@ -1157,7 +1158,7 @@ function semanaKey(d){
         const feito = !!reg;
         const bg = !feito ? 'var(--sf2)' : (semStock ? 'var(--org,#c17817)' : 'var(--grn)');
         const fg = !feito ? 'var(--t2)' : '#fff';
-        htmlVit += `<span data-lt-loja="${l}" data-lt-tipo="${x.tipo}" data-lt-nota="${semStock?(reg.nota||'').replace(/"/g,'&quot;'):''}" style="background:${bg}; color:${fg}; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700; cursor:${semStock?'pointer':'default'};">${feito?(semStock?'❌ ':'✔ '):''}${l}</span>`;
+        htmlVit += `<span data-lt-loja="${l}" data-lt-tipo="${x.tipo}" data-lt-nota="${semStock?(reg.nota||'').replace(/"/g,'&quot;'):''}" style="background:${bg}; color:${fg}; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700; cursor:${feito?'pointer':'default'};">${feito?(semStock?'❌ ':'✔ '):''}${l}</span>`;
       });
       htmlVit += `</div></div>`;
     });
@@ -1172,9 +1173,29 @@ function semanaKey(d){
     htmlVit += `</div></div>`;
     htmlVit += `</div>`;
     document.getElementById("categoriaLojasSection").insertAdjacentHTML("beforeend", htmlVit);
-    document.querySelectorAll("[data-lt-nota]").forEach(chip=>{
+    document.querySelectorAll("[data-vit-loja]").forEach(chip=>{
+      const reg = todayVitrine.find(r=>r.loja===chip.dataset.vitLoja && r.turno===chip.dataset.vitTurno);
+      if(!reg) return;
+      const fotos = (reg.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
+      const horaLbl = reg.criado_em ? new Date(reg.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : "";
+      chip.onclick = ()=>{
+        if(fotos.length){ bigPhoto(fotos, 0); }
+        else alert(`${chip.dataset.vitLoja} — enviado${horaLbl?' às '+horaLbl:''}\n(sem foto anexada)`);
+      };
+    });
+    document.querySelectorAll("[data-lt-loja]").forEach(chip=>{
+      const reg = todayLaranjaTabaco.find(r=>r.loja===chip.dataset.ltLoja && r.tipo===chip.dataset.ltTipo);
+      if(!reg) return;
       const nota = chip.dataset.ltNota;
-      if(nota) chip.onclick = ()=>alert(`${chip.dataset.ltLoja} — sem stock\n\n${nota}`);
+      if(nota){
+        chip.onclick = ()=>alert(`${chip.dataset.ltLoja} — sem stock\n\n${nota}`);
+        return;
+      }
+      const fotos = (reg.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
+      chip.onclick = ()=>{
+        if(fotos.length){ bigPhoto(fotos, 0); }
+        else alert(`${chip.dataset.ltLoja} — enviado (sem foto anexada)`);
+      };
     });
     document.querySelectorAll("[data-vendas-loja]").forEach(chip=>{
       const reg = todayVendas.find(r=>r.loja===chip.dataset.vendasLoja);
