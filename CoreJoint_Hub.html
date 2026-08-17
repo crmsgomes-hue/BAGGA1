@@ -924,12 +924,15 @@ function semanaKey(d){
       let html = `<div class="card" style="flex-direction:column; align-items:stretch;">
         <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; margin-bottom:12px;">${l} · ${ontem.toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit'})}</div>
         <div style="display:flex; gap:6px; margin-bottom:10px;">
-          ${["manha","almoco","lanche"].map(t=>`<div style="flex:1; text-align:center; background:${turnosFeitos.includes(t)?'#eef3ea':'var(--sf)'}; border:1px solid var(--br); border-radius:10px; padding:8px 4px;">
-            <div style="font-size:16px;">${TURNO_ICONS[t]}</div>
-            <div style="font-size:.62rem; color:var(--t2); margin-top:2px;">${TURNO_LABELS_R[t]}</div>
-            <div style="font-size:.7rem; font-weight:700; color:${turnosFeitos.includes(t)?'var(--grn)':'var(--red)'};">${turnosFeitos.includes(t)?'✔':'✕'}</div>
-          </div>`).join("")}
-          <div style="flex:1; text-align:center; background:${vendasFeita?'#eef3ea':'var(--sf)'}; border:1px solid var(--br); border-radius:10px; padding:8px 4px;">
+          ${["manha","almoco","lanche"].map(t=>{
+            const feito = turnosFeitos.includes(t);
+            return `<div data-ontem-turno="${t}" style="flex:1; text-align:center; background:${feito?'#eef3ea':'var(--sf)'}; border:1px solid var(--br); border-radius:10px; padding:8px 4px; cursor:${feito?'pointer':'default'};">
+              <div style="font-size:16px;">${TURNO_ICONS[t]}</div>
+              <div style="font-size:.62rem; color:var(--t2); margin-top:2px;">${TURNO_LABELS_R[t]}</div>
+              <div style="font-size:.7rem; font-weight:700; color:${feito?'var(--grn)':'var(--red)'};">${feito?'✔':'✕'}</div>
+            </div>`;
+          }).join("")}
+          <div data-ontem-vendas="1" style="flex:1; text-align:center; background:${vendasFeita?'#eef3ea':'var(--sf)'}; border:1px solid var(--br); border-radius:10px; padding:8px 4px; cursor:${vendasFeita?'pointer':'default'};">
             <div style="font-size:16px;">🧾</div>
             <div style="font-size:.62rem; color:var(--t2); margin-top:2px;">Vendas</div>
             <div style="font-size:.7rem; font-weight:700; color:${vendasFeita?'var(--grn)':'var(--red)'};">${vendasFeita?'✔':'✕'}</div>
@@ -955,6 +958,28 @@ function semanaKey(d){
 
       html += `</div>`;
       conteudo.innerHTML = html;
+
+      conteudo.querySelectorAll("[data-ontem-turno]").forEach(box=>{
+        const t = box.dataset.ontemTurno;
+        const reg = dailyOntem.find(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t);
+        if(!reg) return;
+        const fotos = (reg.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
+        box.onclick = ()=>{
+          if(fotos.length){ bigPhoto(fotos, 0); }
+          else alert(`${l} — ${TURNO_LABELS_R[t]} enviado (sem foto anexada)`);
+        };
+      });
+      const vendasBox = conteudo.querySelector("[data-ontem-vendas]");
+      if(vendasBox){
+        const regV = dailyOntem.find(r=>r.loja===l && r.tipo==="vendas" && r.turno==="unico");
+        if(regV){
+          const fotosV = (regV.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
+          vendasBox.onclick = ()=>{
+            if(fotosV.length){ bigPhoto(fotosV, 0); }
+            else alert(`${l} — Vendas enviadas (sem foto anexada)`);
+          };
+        }
+      }
     };
   }catch(e){ console.error(e); }
 
