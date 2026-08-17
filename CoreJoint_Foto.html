@@ -2207,7 +2207,13 @@ async function confirmCapture(kind, key, turno){
     if(vCnvsEl && vCnvsEl.value.trim()===""){ toast("Preenche o valor de CNVs antes de enviar"); return; }
   }
   const labelAtual = document.querySelector("#capOverlay h2") ? document.querySelector("#capOverlay h2").textContent : "";
-  abrirConfirmarEnvio(labelAtual, pendingPhotos.slice(), ()=>confirmCaptureReal(kind, key, turno));
+  // Congela aqui o estado exato validado - nunca reler as variaveis globais mais tarde, podem ja ter mudado entretanto
+  const fotosCongeladas = pendingPhotos.slice();
+  const fotosEntradaCongeladas = pendingPhotosEntrada.slice();
+  const fotosDesperdicioCongeladas = pendingPhotosDesperdicio.slice();
+  const vInvCongelado = (kind==="inv" && document.getElementById("vInv")) ? document.getElementById("vInv").value : null;
+  const vCnvsCongelado = (kind==="inv" && document.getElementById("vCnvs")) ? document.getElementById("vCnvs").value : null;
+  abrirConfirmarEnvio(labelAtual, fotosCongeladas, ()=>confirmCaptureReal(kind, key, turno, fotosCongeladas, fotosEntradaCongeladas, fotosDesperdicioCongeladas, vInvCongelado, vCnvsCongelado));
 }
 
 function abrirConfirmarEnvio(label, fotos, onConfirmar){
@@ -2253,19 +2259,26 @@ function abrirConfirmarEnvio(label, fotos, onConfirmar){
   };
 }
 
-async function confirmCaptureReal(kind, key, turno){
+async function confirmCaptureReal(kind, key, turno, fotosCongeladas, fotosEntradaCongeladas, fotosDesperdicioCongeladas, vInvCongelado, vCnvsCongelado){
   const ontemCheckbox = document.getElementById("capOntem");
   const usarOntem = ontemCheckbox && ontemCheckbox.checked;
   const dataAlvo = usarOntem ? new Date(Date.now() - 86400000) : new Date();
   const today = isoDate(dataAlvo);
   const item = {
     kind, key, turno, today, loja: currentLoja,
-    fotos: pendingPhotos.slice(),
-    fotosEntrada: pendingPhotosEntrada.slice(),
-    fotosDesperdicio: pendingPhotosDesperdicio.slice(),
-    vInv: (kind==="inv" && document.getElementById("vInv")) ? document.getElementById("vInv").value : null,
-    vCnvs: (kind==="inv" && document.getElementById("vCnvs")) ? document.getElementById("vCnvs").value : null
+    fotos: (fotosCongeladas || pendingPhotos).slice(),
+    fotosEntrada: (fotosEntradaCongeladas || pendingPhotosEntrada).slice(),
+    fotosDesperdicio: (fotosDesperdicioCongeladas || pendingPhotosDesperdicio).slice(),
+    vInv: vInvCongelado !== undefined ? vInvCongelado : ((kind==="inv" && document.getElementById("vInv")) ? document.getElementById("vInv").value : null),
+    vCnvs: vCnvsCongelado !== undefined ? vCnvsCongelado : ((kind==="inv" && document.getElementById("vCnvs")) ? document.getElementById("vCnvs").value : null)
   };
+  // Rede de segurança: nunca gravar um envio de fotos sem nenhuma foto, seja qual for a causa
+  const totalFotosItem = item.fotos.length + item.fotosEntrada.length + item.fotosDesperdicio.length;
+  if(totalFotosItem===0){
+    toast("Não havia foto para enviar — tenta tirar a foto outra vez.");
+    closeCapture();
+    return;
+  }
   try{
     await enviarItem(item);
     mostrarSucessoComFoto(item.fotos);
