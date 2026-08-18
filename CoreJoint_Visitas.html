@@ -8007,20 +8007,20 @@ async function partilharResumoGerente(){
   const dataVisita = now().slice(0,10);
   const gopNome = who().replace('GOP — ','');
 
-  // Buscar tarefas/pendentes desta loja criadas hoje pelo GOP
+  // NCs do checklist desta visita (conforme===false)
+  const allChkItems = typeof CHK_ITEM_LABELS !== 'undefined' ? CHK_ITEM_LABELS : [];
+  const ncsChecklist = allChkItems.filter(item =>
+    vChecklist[item.id] && vChecklist[item.id].conforme === false
+  ).map(item => ({
+    label: item.label,
+    nota: (vChecklist[item.id]||{}).nota || '',
+    prazo: (vChecklist[item.id]||{}).prazo || ''
+  }));
+
+  // Tarefas criadas hoje para esta loja
   const hoje = new Date().toISOString().slice(0,10);
   const tarefas = await dbGet('cj_tarefas',
-    'loja=eq.'+vStore+'&criado_iso=gte.'+hoje+'T00:00:00Z&order=prazo.asc') || [];
-
-  // Também incluir NCs do checklist desta visita
-  const ncsChecklist = [];
-  Object.keys(vChecklist||{}).forEach(k=>{
-    const item = vChecklist[k];
-    if(item && item.conforme==='nao'){
-      const label = CHK_ITEM_LABELS?.find?.(x=>x.id===k)?.label || k;
-      ncsChecklist.push({label, nota:item.nota||'', prazo:item.prazo||''});
-    }
-  });
+    'loja=eq.'+vStore+'&criado_iso=gte.'+hoje+'&order=prazo.asc') || [];
 
   // Construir mensagem
   let msg = '🔔 *Visita à loja ' + lojaNome + '*\n';
@@ -8033,25 +8033,24 @@ async function partilharResumoGerente(){
       msg += '*Não conformidades identificadas:*\n';
       ncsChecklist.forEach(nc=>{
         msg += '• ' + nc.label;
-        if(nc.nota) msg += ' — ' + nc.nota;
-        if(nc.prazo) msg += ' (prazo: ' + nc.prazo + ')';
+        if(nc.nota) msg += '\n  📝 ' + nc.nota;
+        if(nc.prazo) msg += '\n  📅 Prazo: ' + nc.prazo;
         msg += '\n';
       });
       msg += '\n';
     }
     if(tarefas.length){
-      msg += '*Acções para resolver:*\n';
+      msg += '*Acções pendentes:*\n';
       tarefas.forEach(t=>{
         const prazoFmt = t.prazo ? new Date(t.prazo+'T00:00:00').toLocaleDateString('pt-PT') : 'sem prazo';
-        msg += '• ' + (t.descricao||t.codigo);
+        msg += '• [' + prazoFmt + '] ' + (t.descricao||t.codigo||'');
         if(t.notas) msg += '\n  📝 ' + t.notas;
-        msg += '\n  📅 Prazo: ' + prazoFmt + '\n';
+        msg += '\n';
       });
     }
   }
   msg += '\n_CoreJoint · Visitas GOP · Bagga_';
 
-  // Abrir share nativo (WhatsApp, Email, SMS, etc.)
   if(navigator.share){
     try{
       await navigator.share({ title: 'Visita '+lojaNome+' — '+dataVisita, text: msg });
@@ -8059,7 +8058,6 @@ async function partilharResumoGerente(){
       if(e.name!=='AbortError') copiarParaClipboard(msg);
     }
   } else {
-    // Fallback: copiar para clipboard
     copiarParaClipboard(msg);
   }
 }
