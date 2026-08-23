@@ -4460,6 +4460,7 @@ function openRelatorioQuebras(){
     const actionsRow = document.createElement("div");
     actionsRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px;";
     actionsRow.innerHTML = `
+      <button class="cambtn secondary" style="flex:1;" id="qbRegistosBtn">🔎 Registos</button>
       <button class="cambtn secondary" style="flex:1;" id="qbExcelBtn">📥 Excel</button>
       <button class="cambtn secondary" style="flex:1;" id="qbPdfBtn">👁️ Ver relatório</button>
     `;
@@ -4676,6 +4677,7 @@ function openRelatorioQuebras(){
       });
     }
 
+    document.getElementById("qbRegistosBtn").onclick = ()=>abrirRegistosQuebrasRapido(comLoja);
     document.getElementById("qbExcelBtn").onclick = async ()=>{
       const wb = XLSX.utils.book_new();
       const linhas = recentes.map(r=>({
@@ -4698,6 +4700,59 @@ function openRelatorioQuebras(){
   });
 }
 
+function abrirRegistosQuebrasRapido(comLoja){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "registosQuebrasOverlay";
+  const ordenadas = [...comLoja].sort((a,b)=> new Date(b.data)-new Date(a.data));
+  overlay.innerHTML = `
+    <div class="modal" style="max-height:90vh; overflow-y:auto; max-width:560px;">
+      <h2>🔎 Registos e justificações</h2>
+      <div class="sub" style="margin-bottom:10px;">Últimos 30 dias, tudo numa lista — busca por loja, data ou nº de registo.</div>
+      <input id="registosQuebrasFiltro" placeholder="Procurar (loja, data, nº registo...)" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line); margin-bottom:12px;">
+      <div id="registosQuebrasLista"></div>
+      <div class="modal-actions" style="margin-top:14px;">
+        <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('registosQuebrasOverlay').remove()">Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  function render(filtro){
+    const f = (filtro||"").toLowerCase().trim();
+    const filtradas = !f ? ordenadas : ordenadas.filter(r=>{
+      const dataFmt = new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT');
+      return (r.loja||"").toLowerCase().includes(f) ||
+             dataFmt.includes(f) ||
+             (r.numero_registo||"").toLowerCase().includes(f) ||
+             (r.operador||"").toLowerCase().includes(f) ||
+             (r.justificacao||"").toLowerCase().includes(f);
+    });
+    const lista = document.getElementById("registosQuebrasLista");
+    if(filtradas.length===0){
+      lista.innerHTML = `<div class="empty" style="font-size:12.5px;">Nada encontrado.</div>`;
+      return;
+    }
+    lista.innerHTML = filtradas.map(r=>{
+      const temRegisto = !!r.numero_registo;
+      const temJustif = !!r.justificacao;
+      return `
+      <div style="padding:10px 0; border-bottom:1px solid var(--line); font-size:13px;">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">
+          <span style="font-weight:700;">${r.loja||('⚠ '+(r.loja_original||'?'))}</span>
+          <span style="color:var(--ink-soft); font-size:12px; white-space:nowrap;">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</span>
+        </div>
+        <div style="color:var(--ink-soft); font-size:12px; margin-top:1px;">${r.operador||'—'} · <b style="color:var(--red);">${r.valor_quebra} €</b></div>
+        <div style="margin-top:5px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <span style="font-size:12.5px; font-weight:700; color:${temRegisto?'var(--green)':'var(--ink-soft)'};">Nº registo: ${r.numero_registo || (r.sem_registo?'— (sem registo)':'— por preencher')}</span>
+        </div>
+        ${temJustif ? `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:3px; font-style:italic;">"${r.justificacao}"</div>` : `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:3px;">Sem justificação ainda.</div>`}
+      </div>`;
+    }).join("");
+  }
+  render("");
+  document.getElementById("registosQuebrasFiltro").addEventListener("input", (ev)=>render(ev.target.value));
+}
 function openManualEntry(){
   manualPhoto = null;
   manualFotoEntrada = null;
