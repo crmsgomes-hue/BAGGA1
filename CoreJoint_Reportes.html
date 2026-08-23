@@ -2102,14 +2102,14 @@ async function openAvisos(lojaFiltro){
     let resolvido = null;
     if(a.tipo.startsWith("vitrine_")){
       const turno = a.tipo.replace("vitrine_","");
-      const rows = await api("GET", `cj_daily_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&tipo=eq.vitrine&turno=eq.${turno}&criado_em=gt.${a.criado_em}&order=criado_em.asc&limit=1`);
+      const rows = await api("GET", `cj_daily_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&tipo=eq.vitrine&turno=eq.${turno}&criado_em=gt.${encodeURIComponent(a.criado_em)}&order=criado_em.asc&limit=1`);
       resolvido = rows.length>0 ? rows[0].criado_em : false;
     } else if(a.tipo==="vendas"){
-      const rows = await api("GET", `cj_daily_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&tipo=eq.vendas&turno=eq.unico&criado_em=gt.${a.criado_em}&order=criado_em.asc&limit=1`);
+      const rows = await api("GET", `cj_daily_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&tipo=eq.vendas&turno=eq.unico&criado_em=gt.${encodeURIComponent(a.criado_em)}&order=criado_em.asc&limit=1`);
       resolvido = rows.length>0 ? rows[0].criado_em : false;
     } else if(a.tipo.startsWith("inv_")){
       const cat = a.tipo.replace("inv_","");
-      const rows = await api("GET", `cj_inventario_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&categoria=eq.${cat}&criado_em=gt.${a.criado_em}&order=criado_em.asc&limit=1`);
+      const rows = await api("GET", `cj_inventario_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&categoria=eq.${cat}&criado_em=gt.${encodeURIComponent(a.criado_em)}&order=criado_em.asc&limit=1`);
       resolvido = rows.length>0 ? rows[0].criado_em : false;
     }
 
@@ -3275,14 +3275,14 @@ async function avisosSectionHtml(desde){
       let resolvido = "—";
       if(a.tipo.startsWith("vitrine_")){
         const turno = a.tipo.replace("vitrine_","");
-        const rows = await api("GET", `cj_daily_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&tipo=eq.vitrine&turno=eq.${turno}&criado_em=gt.${a.criado_em}&limit=1`);
+        const rows = await api("GET", `cj_daily_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&tipo=eq.vitrine&turno=eq.${turno}&criado_em=gt.${encodeURIComponent(a.criado_em)}&limit=1`);
         resolvido = rows.length>0 ? `✔ ${new Date(rows[0].criado_em).toLocaleDateString('pt-PT')}` : "✕ Ainda não";
       } else if(a.tipo==="vendas"){
-        const rows = await api("GET", `cj_daily_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&tipo=eq.vendas&turno=eq.unico&criado_em=gt.${a.criado_em}&limit=1`);
+        const rows = await api("GET", `cj_daily_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&tipo=eq.vendas&turno=eq.unico&criado_em=gt.${encodeURIComponent(a.criado_em)}&limit=1`);
         resolvido = rows.length>0 ? `✔ ${new Date(rows[0].criado_em).toLocaleDateString('pt-PT')}` : "✕ Ainda não";
       } else if(a.tipo.startsWith("inv_")){
         const cat = a.tipo.replace("inv_","");
-        const rows = await api("GET", `cj_inventario_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&categoria=eq.${cat}&criado_em=gt.${a.criado_em}&limit=1`);
+        const rows = await api("GET", `cj_inventario_reportes?select=criado_em&loja=eq.${encodeURIComponent(a.loja)}&categoria=eq.${cat}&criado_em=gt.${encodeURIComponent(a.criado_em)}&limit=1`);
         resolvido = rows.length>0 ? `✔ ${new Date(rows[0].criado_em).toLocaleDateString('pt-PT')}` : "✕ Ainda não";
       }
       const confirmou = a.confirmado_em ? `✔ ${new Date(a.confirmado_em).toLocaleDateString('pt-PT')}` : "✕";
