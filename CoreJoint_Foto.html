@@ -855,7 +855,8 @@ async function render(){
       const statusTxt = porMarcar ? (atrasadoAMarcar?'⚠ Atrasado a marcar':'📅 Por marcar') : (late?'⚠ Atrasado':isAmanha?'🔔 Amanhã':'⏳ Por enviar');
       const tile = document.createElement("button");
       tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:var(--card); border:1.5px solid ${corBorda}; border-radius:12px; padding:12px 4px; text-align:center;`;
-      tile.innerHTML = `<span style="font-size:20px;">📦</span><span style="font-size:11px; font-weight:700; line-height:1.2;">${c.label}</span><span style="font-size:9.5px; font-weight:700; color:${cor};">${statusTxt}</span><span style="font-size:8px; color:var(--ink-soft); line-height:1.2;">${descricaoRegra(c.key, c.freq)}</span>`;
+      const dowInfo = CATEGORY_DOW[c.key] ? `📅 Dia certo: ${FREQ_DOW_LABELS[CATEGORY_DOW[c.key]]}` : descricaoRegra(c.key, c.freq);
+      tile.innerHTML = `<span style="font-size:20px;">📦</span><span style="font-size:11px; font-weight:700; line-height:1.2;">${c.label}</span><span style="font-size:9.5px; font-weight:700; color:${cor};">${statusTxt}</span><span style="font-size:${CATEGORY_DOW[c.key]?'9.5px; font-weight:700':'8px'}; color:${CATEGORY_DOW[c.key]?'var(--terracotta)':'var(--ink-soft)'}; line-height:1.2;">${dowInfo}</span>`;
       tile.onclick = ()=>openCapture("inv", c.key, c.label, null, late);
       invGrid.appendChild(tile);
       if(c.key==="global"){
