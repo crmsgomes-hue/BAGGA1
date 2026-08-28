@@ -68,14 +68,10 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
 
   <div id="panoramaGeralSection" style="margin-bottom:14px;"></div>
 
-  <div id="topLinksRow" style="display:flex; gap:16px; margin-bottom:14px; font-size:.78rem; flex-wrap:wrap;">
-    <a href="CoreJoint_Reportes.html?ferramentas=1" style="color:var(--t2); text-decoration:none; font-weight:600;">🛠️ Ferramentas</a>
-    <button onclick="abrirAvisarTodos()" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📢 Avisar todas</button>
-    <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">🔔 Lembrar atrasos</button>
-    <button data-toggle-secao="painelLojasSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📋 Painel de gestão</button>
-    <button data-toggle-secao="resumoOntemSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📅 Resumo de ontem</button>
-    <button data-toggle-secao="avisosDadosSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📢 Avisos</button>
-    <button data-toggle-secao="porValidarSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">🕐 Por validar</button>
+  <div id="topLinksRow" style="display:flex; gap:10px; margin-bottom:14px; font-size:.76rem; flex-wrap:wrap; justify-content:center;">
+    <button onclick="abrirAvisarTodos()" style="background:var(--sf2); border:none; border-radius:99px; padding:6px 12px; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">📢 Avisar todas</button>
+    <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="background:var(--sf2); border:none; border-radius:99px; padding:6px 12px; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">🔔 Lembrar atrasos</button>
+    <a href="CoreJoint_Reportes.html?ferramentas=1" style="background:var(--sf2); border-radius:99px; padding:6px 12px; color:var(--t2); text-decoration:none; font-weight:600; font-size:.76rem;">🛠️ Mais ferramentas</a>
   </div>
 
   <div id="toggleTilesGrid" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px;"></div>
@@ -276,7 +272,7 @@ async function renderPanoramaGeral(){
         <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:14px;">
           ${LOJAS.map(l=>`<a href="CoreJoint_Foto.html?loja=${encodeURIComponent(l)}" style="text-decoration:none; background:${vendasFeitas.has(l)?'var(--grn)':'var(--sf2)'}; color:${vendasFeitas.has(l)?'#fff':'var(--t2)'}; border-radius:99px; padding:5px 10px; font-size:.72rem; font-weight:700;">${vendasFeitas.has(l)?'✔ ':''}${l}</a>`).join("")}
         </div>
-        ${botoesAcao([["📅 Resumo de ontem","#"],["🖨️ Relatório semanal","CoreJoint_Reportes.html?abrir=semanal"]])}
+        ${botoesAcao([["📅 Resumo de ontem","#"],["📸 Vendas/Vitrine/Inventário (imagem p/ WhatsApp)","CoreJoint_Reportes.html?abrir=diarioVisual"],["🖨️ Relatório semanal","CoreJoint_Reportes.html?abrir=semanal"]])}
       `;
       abrirModalTopico("🧾 Vendas", corpo);
       document.querySelector('#modalTopicoOverlay a[href="#"]').onclick = (ev)=>{ ev.preventDefault(); document.getElementById("modalTopicoOverlay").remove(); const b=document.querySelector('[data-toggle-secao="resumoOntemSection"]'); if(b) b.click(); };
