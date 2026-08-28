@@ -3230,6 +3230,103 @@ async function generateDailyReport(){
 
   mostrarAcoesRelatorio(html, `CoreJoint_diario_${todayStr()}.pdf`);
 }
+async function abrirRelatorioVisualDiario(){
+  currentView = abrirRelatorioVisualDiario;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const actionsRow = document.createElement("div");
+  actionsRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px;";
+  actionsRow.innerHTML = `<button class="cambtn" id="copiarImagemBtn" style="flex:1;">📸 Copiar como imagem</button>`;
+  main.appendChild(actionsRow);
+
+  const today = new Date();
+  const ds = isoDate(today);
+  const dataFmt = today.toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+  const horaFmt = today.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
+
+  const capturaWrap = document.createElement("div");
+  capturaWrap.id = "capturaVisualDiario";
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line);";
+  main.appendChild(capturaWrap);
+
+  const linhas = LOJAS.map(l=>{
+    const vendas = dailyStatus(l,"vendas",ds,"unico");
+    const manha = dailyStatus(l,"vitrine",ds,"manha");
+    const almoco = dailyStatus(l,"vitrine",ds,"almoco");
+    const lanche = dailyStatus(l,"vitrine",ds,"lanche");
+    const laranjas = dailyRows.some(r=>r.loja===l && r.tipo==="laranjas_maquina" && r.data===ds);
+    const tabacoAplicavel = !categoriaNaoAplicavel(l, "expositor_tabaco");
+    const tabaco = dailyRows.some(r=>r.loja===l && r.tipo==="expositor_tabaco" && r.data===ds);
+    const jscAplicavel = !categoriaNaoAplicavel(l, "raspadinhas");
+    const jsc = jscAplicavel ? invStatus(l, "raspadinhas", "semanal").state === "ok" : null;
+    return {loja:l, vendas, manha, almoco, lanche, laranjas, tabacoAplicavel, tabaco, jscAplicavel, jsc};
+  });
+
+  function chip(ok, label){
+    if(ok===null) return "";
+    return `<span style="display:inline-flex; align-items:center; gap:3px; background:${ok?'#e8f3e8':'#fbeaea'}; color:${ok?'#3a6b3a':'#a83232'}; border-radius:7px; padding:3px 8px; font-size:11.5px; font-weight:700; margin:2px 4px 2px 0;">${ok?'✔':'✕'} ${label}</span>`;
+  }
+
+  let html = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; color:#C1622D; margin-bottom:2px;">CoreJoint · Vendas, Vitrine e Inventário</div>
+    <div style="font-size:11px; color:#777; margin-bottom:14px; text-transform:capitalize;">${dataFmt} · ${horaFmt}</div>
+  `;
+  linhas.forEach(r=>{
+    html += `
+      <div style="padding:10px 0; border-top:1px solid #eee;">
+        <div style="font-weight:700; font-size:13.5px; margin-bottom:5px;">${r.loja}</div>
+        <div>
+          ${chip(r.vendas, "Vendas")}
+          ${chip(r.manha, "Manhã")}
+          ${chip(r.almoco, "Almoço")}
+          ${chip(r.lanche, "Lanche")}
+          ${chip(r.laranjas, "Laranjas")}
+          ${r.tabacoAplicavel ? chip(r.tabaco, "Tabaco") : ""}
+          ${r.jscAplicavel ? chip(r.jsc, "JSC") : ""}
+        </div>
+      </div>
+    `;
+  });
+  capturaWrap.innerHTML = html;
+
+  document.getElementById("copiarImagemBtn").onclick = async (ev)=>{
+    const btn = ev.currentTarget;
+    if(btn.disabled) return;
+    btn.disabled = true;
+    const textoOriginal = btn.textContent;
+    btn.textContent = "A gerar imagem...";
+    try{
+      const canvas = await html2canvas(capturaWrap, {scale:2, backgroundColor:"#ffffff"});
+      canvas.toBlob(async (blob)=>{
+        try{
+          await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
+          btn.textContent = "✔ Copiado! Cola no WhatsApp";
+          setTimeout(()=>{ btn.textContent = textoOriginal; btn.disabled = false; }, 2500);
+        }catch(e){
+          // fallback: descarrega a imagem se o copiar direto nao for suportado
+          const link = document.createElement("a");
+          link.download = `CoreJoint_diario_${todayStr()}.png`;
+          link.href = URL.createObjectURL(blob);
+          link.click();
+          btn.textContent = "📥 Descarregada (copiar direto não suportado)";
+          setTimeout(()=>{ btn.textContent = textoOriginal; btn.disabled = false; }, 3000);
+        }
+      }, "image/png");
+    }catch(e){
+      console.error(e);
+      toast("Erro ao gerar imagem: " + (e.message||e).slice(0,100));
+      btn.textContent = textoOriginal;
+      btn.disabled = false;
+    }
+  };
+}
 async function generateWeeklyReport(){
   const days = [];
   for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days.push(d); }
@@ -5464,6 +5561,7 @@ function renderGestao(){
     {titulo:"Relatórios", itens:[
       {icon:"📊", label:"Ver todos os relatórios", fn: ()=>abrirEcraComAbas("Relatórios", [
         {icon:"📌", label:"Pendências do dia (PDF)", fn:generateDailyReport},
+        {icon:"📸", label:"Vendas/Vitrine/Inventário (imagem p/ WhatsApp)", fn:abrirRelatorioVisualDiario},
         {icon:"🖨️", label:"Relatório PDF (semanal)", fn:generateWeeklyReport},
         {icon:"📦", label:"Relatório de Inventário (semanal)", fn:generateWeeklyInventoryReport},
         {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport},
@@ -5518,7 +5616,7 @@ function renderGestao(){
   ];
   const todasFerramentas = grupos.flatMap(g=>g.itens);
   const mapaFerramentasPorChave = {
-    diario: generateDailyReport, semanal: generateWeeklyReport, invSemanal: generateWeeklyInventoryReport, mensal: generateMonthlyReport,
+    diario: generateDailyReport, diarioVisual: abrirRelatorioVisualDiario, semanal: generateWeeklyReport, invSemanal: generateWeeklyInventoryReport, mensal: generateMonthlyReport,
     compliance: generateComplianceReport, excel: exportarExcel, historico12m: openHistoricoAnual,
     whatsapp: partilharResumoWhatsApp, avisosLista: openAvisos, sondagem: openSondagens, formulario: openFormularios,
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
