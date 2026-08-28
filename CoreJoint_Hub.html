@@ -66,13 +66,6 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div class="pt">Dashboard</div>
   <div class="ps">As tuas ferramentas de gestão, num só sítio.</div>
 
-  <a href="CoreJoint_Reportes.html?abrir=calendario" style="display:flex; align-items:center; gap:8px; text-decoration:none; background:var(--acl,#fbeee5); border:1px solid var(--ac,#C1622D); border-radius:10px; padding:8px 12px; margin:10px 0 14px;">
-    <span style="font-size:15px;">📅</span>
-    <span style="flex:1; font-family:'Syne',sans-serif; font-weight:700; font-size:.82rem; color:var(--ac2,#9c4d23);">Calendário</span>
-    <span style="color:var(--ac,#C1622D); font-size:.95rem;">›</span>
-  </a>
-
-  <div id="lembretesPessoaisSection" style="margin-bottom:14px;"></div>
   <div id="panoramaGeralSection" style="margin-bottom:14px;"></div>
 
   <div id="topLinksRow" style="display:flex; gap:16px; margin-bottom:14px; font-size:.78rem; flex-wrap:wrap;">
@@ -220,14 +213,15 @@ async function renderPanoramaGeral(){
     const todayStr = isoDate(today);
     const inicioSemana = isoDate(weekWindow(today).start);
 
-    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg] = await Promise.all([
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
       api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`),
       api(`cj_fardamento_stock?select=*&quantidade=lt.5`),
       api(`cj_fardamento_devolucoes?select=*&recolhido=eq.false`),
       api(`cj_adendas?select=*&arquivada=eq.false`),
-      api(`cj_error_log?select=app&criado_em=gte.${new Date(Date.now()-24*3600*1000).toISOString()}`)
+      api(`cj_error_log?select=app&criado_em=gte.${new Date(Date.now()-24*3600*1000).toISOString()}`),
+      api(`cj_lembretes_pessoais?select=id&feito=eq.false`)
     ]);
 
     const vendasFeitas = new Set(todayVendasPg.map(r=>r.loja));
@@ -253,9 +247,19 @@ async function renderPanoramaGeral(){
         <span style="font-size:.9rem; font-weight:800; color:${cor||'var(--tx)'};">${valor}</span>
       </button>`;
     }
+    function tileLink(href, icon, label, valor, cor){
+      return `<a href="${href}" class="sc" style="text-decoration:none; text-align:center; display:flex; flex-direction:column; align-items:center; gap:2px; padding:12px 6px;">
+        <span style="font-size:19px;">${icon}</span>
+        <span style="font-size:.72rem; font-weight:700; color:var(--tx);">${label}</span>
+        <span style="font-size:.9rem; font-weight:800; color:${cor||'var(--tx)'};">${valor}</span>
+      </a>`;
+    }
 
+    const lembretesPendentes = lembretesPg.length;
     el.innerHTML = `
       <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
+        ${tileLink("CoreJoint_Reportes.html?abrir=calendario","📅","Calendário","")}
+        ${tile("espaco","🌿","O Meu Espaço", lembretesPendentes>0?`${lembretesPendentes}`:'vazio', lembretesPendentes>0?'var(--terracotta,#C1622D)':'var(--t2)')}
         ${tile("vendas","🧾","Vendas", `${vendasFeitas.size}/${LOJAS.length}`, vendasFaltam.length>0?'var(--red)':'var(--grn)')}
         ${tile("quebras","💸","Quebras", `${valorQuebrasTotal.toFixed(0)}€`, valorQuebrasTotal>0?'var(--red)':'var(--grn)')}
         ${tile("inventario","📦","Inventário", `${valorInvTotal.toFixed(0)}€`)}
@@ -264,6 +268,7 @@ async function renderPanoramaGeral(){
         ${tile("diagnostico","🩺","Diagnóstico", errosPg.length>0?`${errosPg.length}`:'✔', errosPg.length>0?'var(--red)':'var(--grn)')}
       </div>
     `;
+    document.querySelector('[data-topico="espaco"]').onclick = ()=>abrirLembretesOverlay();
 
     document.querySelector('[data-topico="vendas"]').onclick = ()=>{
       const corpo = `
@@ -446,7 +451,7 @@ function abrirColarMensagemOverlay(){
       const dataLimite = document.getElementById("colarDataLimite").value || null;
       await api("cj_lembretes_pessoais", "POST", {texto, loja, data_limite: dataLimite, criado_por:"Cristina"});
       overlay.remove();
-      await renderLembretesPessoais();
+      await renderPanoramaGeral();
       if(document.getElementById("lembretesLista")) await renderListaLembretes();
       toast("✔ Guardado nos teus lembretes" + (loja ? ` — marcado como ${loja}` : ""));
     }catch(e){
@@ -493,7 +498,7 @@ function abrirLembretesOverlay(){
       await api("cj_lembretes_pessoais", "POST", {texto, criado_por:"Cristina"});
       addInput.value = "";
       await renderListaLembretes();
-      await renderLembretesPessoais();
+      await renderPanoramaGeral();
       addInput.focus();
     }catch(e){ console.error(e); }
     addBtn.disabled = false;
@@ -573,7 +578,7 @@ async function renderListaLembretes(){
       try{
         await api(`cj_lembretes_pessoais?id=eq.${btn.dataset.concluir}`, "PATCH", {feito:true, concluido_em:new Date().toISOString()});
         await renderListaLembretes();
-        await renderLembretesPessoais();
+        await renderPanoramaGeral();
       }catch(e){ console.error(e); btn.disabled = false; }
     };
   });
@@ -583,7 +588,7 @@ async function renderListaLembretes(){
       try{
         await api(`cj_lembretes_pessoais?id=eq.${btn.dataset.apagar}`, "DELETE");
         await renderListaLembretes();
-        await renderLembretesPessoais();
+        await renderPanoramaGeral();
       }catch(e){ console.error(e); btn.disabled = false; }
     };
   });
@@ -849,7 +854,6 @@ function semanaKey(d){
 }
 
 (async ()=>{
-  renderLembretesPessoais();
   renderPanoramaGeral();
   const attn = [];
   const today = new Date();
