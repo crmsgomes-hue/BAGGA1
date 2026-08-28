@@ -4197,6 +4197,49 @@ async function abrirDetalhePedidoFotos(pedido){
   });
 }
 
+const HISTORICO_ALTERACOES = [
+  {data:"28/08", titulo:"Hub mais claro e direto", texto:"8 quadrados pequenos no topo (Calendário, O Meu Espaço, Vendas, Quebras, Inventário, RH, Fardamento, Diagnóstico) — cada um mostra um número e abre tudo desse assunto ao tocar. Secções antigas duplicadas removidas. Aviso visível quando há uma versão nova (em vez de recarregar sozinho sem avisar)."},
+  {data:"28/08", titulo:"Novos relatórios para partilhar", texto:"'Pendências do dia' em PDF, e um relatório de imagem (Vendas/Vitrine/Inventário) que copia direto para o WhatsApp sem precisar de link."},
+  {data:"28/08", titulo:"Quebras mais claras", texto:"Valores já não aparecem com dízimas infinitas. Ecrã de registos numa coluna só (mais legível no telemóvel), com botão para copiar a lista em texto simples."},
+  {data:"23/08", titulo:"Correções de bugs reais", texto:"Fotos de Laranjas/Tabaco que apareciam trocadas com Vendas; erro que impedia editar fotos já enviadas (Torres MH); data mal codificada que rebentava ao confirmar avisos."},
+  {data:"17/08", titulo:"Dia certo do inventário em destaque", texto:"O dia certo de JSC/Café/Laranja estava em texto quase ilegível — agora aparece bem visível, o que deve ajudar lojas como a Rio Maior a acertar."},
+  {data:"15/08", titulo:"'O Meu Espaço' e 'Colar mensagem'", texto:"Espaço pessoal para lembretes, com data limite. Colar uma mensagem tipo WhatsApp deteta sozinho qual loja é mencionada."},
+  {data:"13/08", titulo:"Resumo automático 8h/18h", texto:"Notificação diária com pendências, erros técnicos recentes e deteção de duplicados — sem precisares de ir ver."},
+];
+function abrirHistoricoAlteracoes(){
+  currentView = abrirHistoricoAlteracoes;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const h = document.createElement("h2");
+  h.textContent = "🕘 Histórico de alterações";
+  main.appendChild(h);
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  sub.style.marginBottom = "14px";
+  sub.textContent = "O que foi mudado ou corrigido na app, mais recente primeiro.";
+  main.appendChild(sub);
+
+  HISTORICO_ALTERACOES.forEach(item=>{
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.cssText = "flex-direction:column; align-items:stretch; gap:2px; border-left:3px solid var(--terracotta,#C1622D);";
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">
+        <span style="font-family:'Syne',sans-serif; font-weight:700; font-size:14px;">${item.titulo}</span>
+        <span style="font-size:11px; color:var(--ink-soft); white-space:nowrap;">${item.data}</span>
+      </div>
+      <div style="font-size:13px; color:var(--ink-soft); margin-top:2px;">${item.texto}</div>
+    `;
+    main.appendChild(card);
+  });
+}
 async function abrirPainelSaude(){
   currentView = abrirPainelSaude;
   const main = document.getElementById("main");
@@ -5600,6 +5643,7 @@ function renderGestao(){
     ]},
     {titulo:"Diagnóstico", itens:[
       {icon:"✔", label:"Painel de saúde", fn:abrirPainelSaude},
+      {icon:"🕘", label:"Histórico de alterações", fn:abrirHistoricoAlteracoes},
       {icon:"🐛", label:"Registo de erros", fn:abrirRegistoErros},
       {icon:"🔍", label:"Verificador de categorias", fn:abrirVerificadorCategorias},
       {icon:"📋", label:"Exceções por loja", fn:abrirExcecoesLoja}
@@ -5622,7 +5666,7 @@ function renderGestao(){
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
-    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar, calendario: abrirCalendarioDop, porCategoria: abrirVisaoPorCategoria, pedidosFotos: abrirPedidosFotos, registoErros: abrirRegistoErros, verificadorCategorias: abrirVerificadorCategorias, excecoesLoja: abrirExcecoesLoja, painelSaude: abrirPainelSaude
+    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar, calendario: abrirCalendarioDop, porCategoria: abrirVisaoPorCategoria, pedidosFotos: abrirPedidosFotos, registoErros: abrirRegistoErros, verificadorCategorias: abrirVerificadorCategorias, excecoesLoja: abrirExcecoesLoja, painelSaude: abrirPainelSaude, historicoAlteracoes: abrirHistoricoAlteracoes
   };
 
   const toolsBtn = document.createElement("button");
