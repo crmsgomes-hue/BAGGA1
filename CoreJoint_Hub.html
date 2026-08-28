@@ -81,14 +81,15 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="lembretesPessoaisSection" style="margin-bottom:14px;"></div>
   <div id="panoramaGeralSection" style="margin-bottom:14px;"></div>
 
-  <div id="topLinksRow" style="display:flex; gap:16px; margin-bottom:14px; font-size:.78rem; flex-wrap:wrap;">
-    <a href="CoreJoint_Reportes.html?ferramentas=1" style="color:var(--t2); text-decoration:none; font-weight:600;">🛠️ Ferramentas</a>
-    <button onclick="abrirAvisarTodos()" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📢 Avisar todas</button>
-    <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">🔔 Lembrar atrasos</button>
-    <button data-toggle-secao="painelLojasSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📋 Painel de gestão</button>
-    <button data-toggle-secao="resumoOntemSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📅 Resumo de ontem</button>
-    <button data-toggle-secao="avisosDadosSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📢 Avisos</button>
-    <button data-toggle-secao="porValidarSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">🕐 Por validar</button>
+  <div class="sec-divider" style="font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--t3); font-weight:700; margin-bottom:8px;">⚡ Atalhos rápidos</div>
+  <div id="topLinksRow" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px;">
+    <a href="CoreJoint_Reportes.html?ferramentas=1" class="sc" style="text-decoration:none; display:flex; align-items:center; gap:8px; color:var(--tx); font-size:.82rem; font-weight:600;"><span style="font-size:17px;">🛠️</span> Ferramentas</a>
+    <button onclick="abrirAvisarTodos()" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:600; color:var(--tx);"><span style="font-size:17px;">📢</span> Avisar todas</button>
+    <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:600; color:var(--tx);"><span style="font-size:17px;">🔔</span> Lembrar atrasos</button>
+    <button data-toggle-secao="painelLojasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:600; color:var(--tx);"><span style="font-size:17px;">📋</span> Painel de gestão</button>
+    <button data-toggle-secao="resumoOntemSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:600; color:var(--tx);"><span style="font-size:17px;">📅</span> Resumo de ontem</button>
+    <button data-toggle-secao="avisosDadosSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:600; color:var(--tx);"><span style="font-size:17px;">📢</span> Avisos</button>
+    <button data-toggle-secao="porValidarSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:600; color:var(--tx);"><span style="font-size:17px;">🕐</span> Por validar</button>
   </div>
 
   <div id="toggleTilesGrid" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px;"></div>
@@ -196,48 +197,61 @@ async function renderPanoramaGeral(){
     const [todayVendasPg, quebrasPendentesPg, invSemanaPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
-      api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`)
+      api(`cj_inventario_reportes?select=loja,categoria,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`)
     ]);
 
     const vendasFeitas = new Set(todayVendasPg.map(r=>r.loja));
-    const lojasComQuebra = new Set(quebrasPendentesPg.filter(r=>r.loja).map(r=>r.loja));
+
+    const quebrasPorLoja = {};
+    quebrasPendentesPg.forEach(r=>{
+      const l = r.loja || "⚠ Sem loja identificada";
+      quebrasPorLoja[l] = (quebrasPorLoja[l]||0) + Number(r.valor_quebra||0);
+    });
+    const quebrasLinhas = Object.entries(quebrasPorLoja).sort((a,b)=>b[1]-a[1]);
     const valorQuebrasTotal = quebrasPendentesPg.reduce((s,r)=>s+Number(r.valor_quebra||0),0);
-    const lojasComInv = new Set(invSemanaPg.map(r=>r.loja));
+
+    const invPorLoja = {};
+    invSemanaPg.forEach(r=>{ invPorLoja[r.loja] = (invPorLoja[r.loja]||0) + Number(r.valor_inventario||0); });
+    const invLinhas = LOJAS.map(l=>[l, invPorLoja[l]||0]).sort((a,b)=>b[1]-a[1]);
     const valorInvTotal = invSemanaPg.reduce((s,r)=>s+Number(r.valor_inventario||0),0);
 
-    function grid(setFeito, corFeitoInverso){
+    function gridVendas(){
       return LOJAS.map(l=>{
-        const feito = setFeito.has(l);
-        const ok = corFeitoInverso ? !feito : feito;
-        return `<span style="background:${ok?'var(--grn)':'var(--sf2)'}; color:${ok?'#fff':'var(--t2)'}; border-radius:99px; padding:4px 9px; font-size:.68rem; font-weight:700;">${ok?'✔ ':''}${l}</span>`;
+        const ok = vendasFeitas.has(l);
+        return `<a href="CoreJoint_Foto.html?loja=${encodeURIComponent(l)}" style="text-decoration:none; background:${ok?'var(--grn)':'var(--sf2)'}; color:${ok?'#fff':'var(--t2)'}; border-radius:99px; padding:4px 9px; font-size:.68rem; font-weight:700;">${ok?'✔ ':''}${l}</a>`;
       }).join("");
+    }
+    function linhasValores(linhas, linkBase, corPositiva){
+      if(linhas.length===0 || linhas.every(([,v])=>v===0)){
+        return `<div style="font-size:.75rem; color:var(--t2); padding:4px 0;">Nada a mostrar.</div>`;
+      }
+      return `<div style="display:flex; flex-direction:column; gap:1px;">
+        ${linhas.filter(([,v])=>v!==0 || linhas.length<=LOJAS.length).map(([l,v])=>`
+          <a href="${linkBase}" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit; padding:6px 2px; border-bottom:1px solid var(--br);">
+            <span style="font-size:.8rem; font-weight:600;">${l}</span>
+            <span style="font-size:.85rem; font-weight:800; color:${v>0?(corPositiva||'var(--tx)'):'var(--t2)'};">${v.toFixed(2)} €</span>
+          </a>
+        `).join("")}
+      </div>`;
     }
 
     el.innerHTML = `
       <div class="card" style="flex-direction:column; align-items:stretch; gap:0;">
         <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.88rem; margin-bottom:10px;">📊 Panorama Geral</div>
 
-        <div style="margin-bottom:12px;">
-          <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:5px;">🧾 Vendas hoje (${vendasFeitas.size}/${LOJAS.length})</div>
-          <div style="display:flex; flex-wrap:wrap; gap:5px;">${grid(vendasFeitas, false)}</div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:5px;">🧾 Vendas hoje (${vendasFeitas.size}/${LOJAS.length}) — toca numa loja para abrir</div>
+          <div style="display:flex; flex-wrap:wrap; gap:5px;">${gridVendas()}</div>
         </div>
 
-        <div style="margin-bottom:12px;">
-          <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:5px;">💸 Quebras por justificar (${lojasComQuebra.size} loja${lojasComQuebra.size===1?'':'s'})</div>
-          <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px;">${grid(lojasComQuebra, true)}</div>
-          <a href="CoreJoint_Reportes.html?abrir=relatorioQuebras" style="display:block; text-decoration:none; color:inherit;">
-            <div style="font-size:1.15rem; font-weight:800; color:${valorQuebrasTotal>0?'var(--red)':'var(--grn)'};">${valorQuebrasTotal.toFixed(2)} €</div>
-            <div style="font-size:.68rem; color:var(--t2);">valor total por justificar — ver relatório ›</div>
-          </a>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:5px;">💸 Quebras por justificar — total ${valorQuebrasTotal.toFixed(2)} €</div>
+          ${linhasValores(quebrasLinhas, "CoreJoint_Reportes.html?abrir=relatorioQuebras", "var(--red)")}
         </div>
 
         <div>
-          <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:5px;">📦 Inventário enviado esta semana (${lojasComInv.size}/${LOJAS.length})</div>
-          <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px;">${grid(lojasComInv, false)}</div>
-          <a href="CoreJoint_Reportes.html?abrir=porCategoria" style="display:block; text-decoration:none; color:inherit;">
-            <div style="font-size:1.15rem; font-weight:800;">${valorInvTotal.toFixed(2)} €</div>
-            <div style="font-size:.68rem; color:var(--t2);">soma dos valores enviados esta semana — ver por categoria ›</div>
-          </a>
+          <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:5px;">📦 Inventário desta semana — total ${valorInvTotal.toFixed(2)} €</div>
+          ${linhasValores(invLinhas, "CoreJoint_Reportes.html?abrir=porCategoria")}
         </div>
       </div>
     `;
