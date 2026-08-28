@@ -79,6 +79,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   </a>
 
   <div id="lembretesPessoaisSection" style="margin-bottom:14px;"></div>
+  <div id="panoramaGeralSection" style="margin-bottom:14px;"></div>
 
   <div id="topLinksRow" style="display:flex; gap:16px; margin-bottom:14px; font-size:.78rem; flex-wrap:wrap;">
     <a href="CoreJoint_Reportes.html?ferramentas=1" style="color:var(--t2); text-decoration:none; font-weight:600;">🛠️ Ferramentas</a>
@@ -183,6 +184,64 @@ async function api(path, method, body){
 }
 function setBadge(id, n){
   if(n>0) document.getElementById(id).innerHTML = `<span class="bk">${n}</span>`;
+}
+async function renderPanoramaGeral(){
+  const el = document.getElementById("panoramaGeralSection");
+  if(!el) return;
+  try{
+    const today = new Date();
+    const todayStr = isoDate(today);
+    const inicioSemana = isoDate(weekWindow(today).start);
+
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg] = await Promise.all([
+      api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
+      api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
+      api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`)
+    ]);
+
+    const vendasFeitas = new Set(todayVendasPg.map(r=>r.loja));
+    const lojasComQuebra = new Set(quebrasPendentesPg.filter(r=>r.loja).map(r=>r.loja));
+    const valorQuebrasTotal = quebrasPendentesPg.reduce((s,r)=>s+Number(r.valor_quebra||0),0);
+    const lojasComInv = new Set(invSemanaPg.map(r=>r.loja));
+    const valorInvTotal = invSemanaPg.reduce((s,r)=>s+Number(r.valor_inventario||0),0);
+
+    function grid(setFeito, corFeitoInverso){
+      return LOJAS.map(l=>{
+        const feito = setFeito.has(l);
+        const ok = corFeitoInverso ? !feito : feito;
+        return `<span style="background:${ok?'var(--grn)':'var(--sf2)'}; color:${ok?'#fff':'var(--t2)'}; border-radius:99px; padding:4px 9px; font-size:.68rem; font-weight:700;">${ok?'✔ ':''}${l}</span>`;
+      }).join("");
+    }
+
+    el.innerHTML = `
+      <div class="card" style="flex-direction:column; align-items:stretch; gap:0;">
+        <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.88rem; margin-bottom:10px;">📊 Panorama Geral</div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:5px;">🧾 Vendas hoje (${vendasFeitas.size}/${LOJAS.length})</div>
+          <div style="display:flex; flex-wrap:wrap; gap:5px;">${grid(vendasFeitas, false)}</div>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:5px;">💸 Quebras por justificar (${lojasComQuebra.size} loja${lojasComQuebra.size===1?'':'s'})</div>
+          <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px;">${grid(lojasComQuebra, true)}</div>
+          <a href="CoreJoint_Reportes.html?abrir=relatorioQuebras" style="display:block; text-decoration:none; color:inherit;">
+            <div style="font-size:1.15rem; font-weight:800; color:${valorQuebrasTotal>0?'var(--red)':'var(--grn)'};">${valorQuebrasTotal.toFixed(2)} €</div>
+            <div style="font-size:.68rem; color:var(--t2);">valor total por justificar — ver relatório ›</div>
+          </a>
+        </div>
+
+        <div>
+          <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:5px;">📦 Inventário enviado esta semana (${lojasComInv.size}/${LOJAS.length})</div>
+          <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px;">${grid(lojasComInv, false)}</div>
+          <a href="CoreJoint_Reportes.html?abrir=porCategoria" style="display:block; text-decoration:none; color:inherit;">
+            <div style="font-size:1.15rem; font-weight:800;">${valorInvTotal.toFixed(2)} €</div>
+            <div style="font-size:.68rem; color:var(--t2);">soma dos valores enviados esta semana — ver por categoria ›</div>
+          </a>
+        </div>
+      </div>
+    `;
+  }catch(e){ console.error(e); }
 }
 function toast(msg){
   let t = document.getElementById("_hubToast");
@@ -680,6 +739,7 @@ function semanaKey(d){
 
 (async ()=>{
   renderLembretesPessoais();
+  renderPanoramaGeral();
   const attn = [];
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
