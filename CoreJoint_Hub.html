@@ -66,12 +66,6 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div class="pt">Dashboard</div>
   <div class="ps">As tuas ferramentas de gestão, num só sítio.</div>
 
-  <div style="text-align:center; margin-bottom:8px;">
-    <span id="ultimaAtualizacao" style="font-size:11px; color:var(--t2);"></span>
-    <button onclick="location.reload(true)" style="background:none; border:1px solid var(--br); border-radius:20px; padding:3px 10px; font-size:11px; color:var(--tc); margin-left:6px;">🔄 Atualizar agora</button>
-  </div>
-  <div id="statsGrid" class="g4"></div>
-
   <a href="CoreJoint_Reportes.html?abrir=calendario" style="display:flex; align-items:center; gap:8px; text-decoration:none; background:var(--acl,#fbeee5); border:1px solid var(--ac,#C1622D); border-radius:10px; padding:8px 12px; margin:10px 0 14px;">
     <span style="font-size:15px;">📅</span>
     <span style="flex:1; font-family:'Syne',sans-serif; font-weight:700; font-size:.82rem; color:var(--ac2,#9c4d23);">Calendário</span>
@@ -80,7 +74,6 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
 
   <div id="lembretesPessoaisSection" style="margin-bottom:14px;"></div>
   <div id="panoramaGeralSection" style="margin-bottom:14px;"></div>
-  <div id="relatoriosRapidosSection" style="margin-bottom:14px;"></div>
 
   <div id="topLinksRow" style="display:flex; gap:16px; margin-bottom:14px; font-size:.78rem; flex-wrap:wrap;">
     <a href="CoreJoint_Reportes.html?ferramentas=1" style="color:var(--t2); text-decoration:none; font-weight:600;">🛠️ Ferramentas</a>
@@ -1764,15 +1757,6 @@ function semanaKey(d){
       if(chev) chev.textContent = abrir ? "▴" : "▾";
     };
   });
-
-  document.getElementById("ultimaAtualizacao").textContent = `Dados de agora — atualizado às ${new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
-
-  document.getElementById("statsGrid").innerHTML = `
-    <a class="sc" href="CoreJoint_Reportes.html" style="text-decoration:none; display:block;"><div class="slb">Reportes</div><div class="svl ${statReportes>0?'cr':'cg'}">${statReportes}</div></a>
-    <a class="sc" href="CoreJoint_Fardamento.html" style="text-decoration:none; display:block;"><div class="slb">Fardamento</div><div class="svl ${statFardamento>0?'cr':'cg'}">${statFardamento}</div></a>
-    <a class="sc" href="CoreJoint_Adendas.html" style="text-decoration:none; display:block;"><div class="slb">RH</div><div class="svl ${statAdendas>0?'cr':'cg'}">${statAdendas}</div></a>
-  `;
-  document.getElementById("statsGrid").style.gridTemplateColumns = "repeat(3,1fr)";
 
   const section = document.getElementById("attnSection");
   if(attn.length===0){
