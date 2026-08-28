@@ -3184,52 +3184,6 @@ async function generateWeeklyInventoryReport(){
   mostrarAcoesRelatorio(html, `CoreJoint_inventario_semanal_${todayStr()}.pdf`);
 }
 
-async function generateDailyReport(){
-  const today = new Date();
-  const ds = isoDate(today);
-  const dataFmt = today.toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
-
-  let html = `<h1>CoreJoint · Pendências do dia</h1><div style="font-size:8px; color:#555; margin-bottom:6px;">${dataFmt} · Gerado às ${today.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}</div>`;
-
-  const vendasJaAbriu = today.getHours() >= 21;
-  const linhasPorLoja = {};
-  LOJAS.forEach(l=>{ linhasPorLoja[l] = []; });
-
-  ["manha","almoco","lanche"].forEach(t=>{
-    const label = t==="manha"?"Manhã":t==="almoco"?"Almoço":"Lanche";
-    LOJAS.forEach(l=>{
-      if(!dailyStatus(l,"vitrine",ds,t)) linhasPorLoja[l].push(`Vitrine — ${label}`);
-    });
-  });
-  if(vendasJaAbriu){
-    LOJAS.forEach(l=>{
-      if(!dailyStatus(l,"vendas",ds,"unico")) linhasPorLoja[l].push("Vendas");
-    });
-  }
-  [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
-    LOJAS.forEach(l=>{
-      const st = invStatus(l, cat.key, cat.freq);
-      if(st.state==="late") linhasPorLoja[l].push(`${cat.label} (atrasado)`);
-    });
-  });
-
-  const lojasComPendencia = LOJAS.filter(l=>linhasPorLoja[l].length>0);
-  const lojasEmDia = LOJAS.filter(l=>linhasPorLoja[l].length===0);
-
-  if(lojasComPendencia.length===0){
-    html += `<div class="rl-ok" style="font-size:11px; margin:10px 0;">✔ Todas as lojas em dia neste momento.</div>`;
-  } else {
-    html += `<h2>Lojas com pendências (${lojasComPendencia.length})</h2>`;
-    lojasComPendencia.forEach(l=>{
-      html += `<div class="rl-cat"><b>${l}</b><div class="rl-falta">${linhasPorLoja[l].join(", ")}</div></div>`;
-    });
-    if(lojasEmDia.length>0){
-      html += `<h2>Em dia (${lojasEmDia.length})</h2><div class="rl-ok" style="font-size:11px;">${lojasEmDia.join(", ")}</div>`;
-    }
-  }
-
-  mostrarAcoesRelatorio(html, `CoreJoint_diario_${todayStr()}.pdf`);
-}
 async function generateWeeklyReport(){
   const days = [];
   for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days.push(d); }
@@ -4756,6 +4710,7 @@ function abrirRegistosQuebrasRapido(comLoja){
       <h2>🔎 Registos e justificações</h2>
       <div class="sub" style="margin-bottom:10px;">Últimos 30 dias, tudo numa lista — busca por loja, data ou nº de registo.</div>
       <input id="registosQuebrasFiltro" placeholder="Procurar (loja, data, nº registo...)" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line); margin-bottom:12px;">
+      <button class="cambtn secondary" id="registosCopiarBtn" style="width:100%; margin-bottom:12px;">📋 Copiar lista (texto simples)</button>
       <div id="registosQuebrasLista"></div>
       <div class="modal-actions" style="margin-top:14px;">
         <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('registosQuebrasOverlay').remove()">Fechar</button>
@@ -4764,6 +4719,7 @@ function abrirRegistosQuebrasRapido(comLoja){
   `;
   document.body.appendChild(overlay);
 
+  let ultimaListaFiltrada = ordenadas;
   function render(filtro){
     const f = (filtro||"").toLowerCase().trim();
     const filtradas = !f ? ordenadas : ordenadas.filter(r=>{
@@ -4774,6 +4730,7 @@ function abrirRegistosQuebrasRapido(comLoja){
              (r.operador||"").toLowerCase().includes(f) ||
              (r.justificacao||"").toLowerCase().includes(f);
     });
+    ultimaListaFiltrada = filtradas;
     const lista = document.getElementById("registosQuebrasLista");
     if(filtradas.length===0){
       lista.innerHTML = `<div class="empty" style="font-size:12.5px;">Nada encontrado.</div>`;
@@ -4798,6 +4755,22 @@ function abrirRegistosQuebrasRapido(comLoja){
   }
   render("");
   document.getElementById("registosQuebrasFiltro").addEventListener("input", (ev)=>render(ev.target.value));
+  document.getElementById("registosCopiarBtn").onclick = ()=>{
+    const linhas = ultimaListaFiltrada.map(r=>{
+      const dataFmt = new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT');
+      const registo = r.numero_registo ? r.numero_registo : (r.sem_registo ? "sem registo" : "por preencher");
+      return `${r.loja || ('⚠ '+(r.loja_original||'?'))} — ${dataFmt} — Nº registo: ${registo}`;
+    });
+    const texto = linhas.join("\n");
+    const btn = document.getElementById("registosCopiarBtn");
+    navigator.clipboard.writeText(texto).then(()=>{
+      const original = btn.textContent;
+      btn.textContent = "✔ Copiado!";
+      setTimeout(()=>{ btn.textContent = original; }, 1800);
+    }).catch(()=>{
+      toast("Não foi possível copiar automaticamente — seleciona o texto manualmente.");
+    });
+  };
 }
 function openManualEntry(){
   manualPhoto = null;
@@ -5444,7 +5417,6 @@ function renderGestao(){
   const grupos = [
     {titulo:"Relatórios", itens:[
       {icon:"📊", label:"Ver todos os relatórios", fn: ()=>abrirEcraComAbas("Relatórios", [
-        {icon:"📌", label:"Pendências do dia (PDF)", fn:generateDailyReport},
         {icon:"🖨️", label:"Relatório PDF (semanal)", fn:generateWeeklyReport},
         {icon:"📦", label:"Relatório de Inventário (semanal)", fn:generateWeeklyInventoryReport},
         {icon:"🗓️", label:"Relatório mensal", fn:generateMonthlyReport},
@@ -5499,7 +5471,7 @@ function renderGestao(){
   ];
   const todasFerramentas = grupos.flatMap(g=>g.itens);
   const mapaFerramentasPorChave = {
-    diario: generateDailyReport, semanal: generateWeeklyReport, invSemanal: generateWeeklyInventoryReport, mensal: generateMonthlyReport,
+    semanal: generateWeeklyReport, invSemanal: generateWeeklyInventoryReport, mensal: generateMonthlyReport,
     compliance: generateComplianceReport, excel: exportarExcel, historico12m: openHistoricoAnual,
     whatsapp: partilharResumoWhatsApp, avisosLista: openAvisos, sondagem: openSondagens, formulario: openFormularios,
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
