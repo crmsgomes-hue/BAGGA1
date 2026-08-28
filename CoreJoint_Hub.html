@@ -80,16 +80,16 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
 
   <div id="lembretesPessoaisSection" style="margin-bottom:14px;"></div>
   <div id="panoramaGeralSection" style="margin-bottom:14px;"></div>
+  <div id="relatoriosRapidosSection" style="margin-bottom:14px;"></div>
 
-  <div class="sec-divider" style="font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--t3); font-weight:700; margin-bottom:8px;">⚡ Atalhos rápidos</div>
-  <div id="topLinksRow" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px;">
-    <a href="CoreJoint_Reportes.html?ferramentas=1" class="sc" style="text-decoration:none; display:flex; align-items:center; gap:8px; color:var(--tx); font-size:.82rem; font-weight:600;"><span style="font-size:17px;">🛠️</span> Ferramentas</a>
-    <button onclick="abrirAvisarTodos()" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:600; color:var(--tx);"><span style="font-size:17px;">📢</span> Avisar todas</button>
-    <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:600; color:var(--tx);"><span style="font-size:17px;">🔔</span> Lembrar atrasos</button>
-    <button data-toggle-secao="painelLojasSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:600; color:var(--tx);"><span style="font-size:17px;">📋</span> Painel de gestão</button>
-    <button data-toggle-secao="resumoOntemSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:600; color:var(--tx);"><span style="font-size:17px;">📅</span> Resumo de ontem</button>
-    <button data-toggle-secao="avisosDadosSection" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:600; color:var(--tx);"><span style="font-size:17px;">📢</span> Avisos</button>
-    <button data-toggle-secao="porValidarSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; align-items:center; gap:8px; font-size:.82rem; font-weight:600; color:var(--tx);"><span style="font-size:17px;">🕐</span> Por validar</button>
+  <div id="topLinksRow" style="display:flex; gap:16px; margin-bottom:14px; font-size:.78rem; flex-wrap:wrap;">
+    <a href="CoreJoint_Reportes.html?ferramentas=1" style="color:var(--t2); text-decoration:none; font-weight:600;">🛠️ Ferramentas</a>
+    <button onclick="abrirAvisarTodos()" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📢 Avisar todas</button>
+    <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">🔔 Lembrar atrasos</button>
+    <button data-toggle-secao="painelLojasSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📋 Painel de gestão</button>
+    <button data-toggle-secao="resumoOntemSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📅 Resumo de ontem</button>
+    <button data-toggle-secao="avisosDadosSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">📢 Avisos</button>
+    <button data-toggle-secao="porValidarSection" style="background:none; border:none; padding:0; color:var(--t2); font-weight:600; font-size:.78rem; cursor:pointer; font-family:inherit;">🕐 Por validar</button>
   </div>
 
   <div id="toggleTilesGrid" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px;"></div>
@@ -186,75 +186,179 @@ async function api(path, method, body){
 function setBadge(id, n){
   if(n>0) document.getElementById(id).innerHTML = `<span class="bk">${n}</span>`;
 }
+function abrirModalTopico(titulo, corpoHtml){
+  const overlay = document.createElement("div");
+  overlay.id = "modalTopicoOverlay";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:480px; width:100%; margin-top:30px; max-height:88vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:16px; margin-bottom:12px;">${titulo}</div>
+      ${corpoHtml}
+      <button onclick="document.getElementById('modalTopicoOverlay').remove()" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+function linhasValoresTopico(linhas, linkBase, corPositiva){
+  if(linhas.length===0 || linhas.every(([,v])=>v===0)){
+    return `<div style="font-size:.8rem; color:var(--t2); padding:6px 0;">Nada a mostrar.</div>`;
+  }
+  return `<div style="display:flex; flex-direction:column; gap:1px; margin-bottom:12px;">
+    ${linhas.map(([l,v])=>`
+      <a href="${linkBase}" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit; padding:7px 2px; border-bottom:1px solid var(--br);">
+        <span style="font-size:.85rem; font-weight:600;">${l}</span>
+        <span style="font-size:.88rem; font-weight:800; color:${v>0?(corPositiva||'var(--tx)'):'var(--t2)'};">${v.toFixed(2)} €</span>
+      </a>
+    `).join("")}
+  </div>`;
+}
+function botoesAcao(lista){
+  return `<div style="display:flex; flex-direction:column; gap:6px;">
+    ${lista.map(([label,href])=>`<a href="${href}" style="text-decoration:none; display:block; text-align:center; background:var(--terracotta,#C1622D); color:#fff; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">${label}</a>`).join("")}
+  </div>`;
+}
 async function renderPanoramaGeral(){
   const el = document.getElementById("panoramaGeralSection");
+  const el2 = document.getElementById("relatoriosRapidosSection");
   if(!el) return;
+  if(el2) el2.innerHTML = "";
   try{
     const today = new Date();
     const todayStr = isoDate(today);
     const inicioSemana = isoDate(weekWindow(today).start);
 
-    const [todayVendasPg, quebrasPendentesPg, invSemanaPg] = await Promise.all([
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
-      api(`cj_inventario_reportes?select=loja,categoria,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`)
+      api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`),
+      api(`cj_fardamento_stock?select=*&quantidade=lt.5`),
+      api(`cj_fardamento_devolucoes?select=*&recolhido=eq.false`),
+      api(`cj_adendas?select=*&arquivada=eq.false`),
+      api(`cj_error_log?select=app&criado_em=gte.${new Date(Date.now()-24*3600*1000).toISOString()}`)
     ]);
 
     const vendasFeitas = new Set(todayVendasPg.map(r=>r.loja));
+    const vendasFaltam = LOJAS.filter(l=>!vendasFeitas.has(l));
 
     const quebrasPorLoja = {};
-    quebrasPendentesPg.forEach(r=>{
-      const l = r.loja || "⚠ Sem loja identificada";
-      quebrasPorLoja[l] = (quebrasPorLoja[l]||0) + Number(r.valor_quebra||0);
-    });
+    quebrasPendentesPg.forEach(r=>{ const l=r.loja||"⚠ Sem loja"; quebrasPorLoja[l]=(quebrasPorLoja[l]||0)+Number(r.valor_quebra||0); });
     const quebrasLinhas = Object.entries(quebrasPorLoja).sort((a,b)=>b[1]-a[1]);
     const valorQuebrasTotal = quebrasPendentesPg.reduce((s,r)=>s+Number(r.valor_quebra||0),0);
 
     const invPorLoja = {};
-    invSemanaPg.forEach(r=>{ invPorLoja[r.loja] = (invPorLoja[r.loja]||0) + Number(r.valor_inventario||0); });
+    invSemanaPg.forEach(r=>{ invPorLoja[r.loja]=(invPorLoja[r.loja]||0)+Number(r.valor_inventario||0); });
     const invLinhas = LOJAS.map(l=>[l, invPorLoja[l]||0]).sort((a,b)=>b[1]-a[1]);
     const valorInvTotal = invSemanaPg.reduce((s,r)=>s+Number(r.valor_inventario||0),0);
 
-    function gridVendas(){
-      return LOJAS.map(l=>{
-        const ok = vendasFeitas.has(l);
-        return `<a href="CoreJoint_Foto.html?loja=${encodeURIComponent(l)}" style="text-decoration:none; background:${ok?'var(--grn)':'var(--sf2)'}; color:${ok?'#fff':'var(--t2)'}; border-radius:99px; padding:4px 9px; font-size:.68rem; font-weight:700;">${ok?'✔ ':''}${l}</a>`;
-      }).join("");
-    }
-    function linhasValores(linhas, linkBase, corPositiva){
-      if(linhas.length===0 || linhas.every(([,v])=>v===0)){
-        return `<div style="font-size:.75rem; color:var(--t2); padding:4px 0;">Nada a mostrar.</div>`;
-      }
-      return `<div style="display:flex; flex-direction:column; gap:1px;">
-        ${linhas.filter(([,v])=>v!==0 || linhas.length<=LOJAS.length).map(([l,v])=>`
-          <a href="${linkBase}" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit; padding:6px 2px; border-bottom:1px solid var(--br);">
-            <span style="font-size:.8rem; font-weight:600;">${l}</span>
-            <span style="font-size:.85rem; font-weight:800; color:${v>0?(corPositiva||'var(--tx)'):'var(--t2)'};">${v.toFixed(2)} €</span>
-          </a>
-        `).join("")}
-      </div>`;
+    const porLojaAdendas = {};
+    adendasAtivasPg.forEach(a=>{ const l=a.loja||"Sem loja"; porLojaAdendas[l]=(porLojaAdendas[l]||0)+1; });
+
+    function tile(id, icon, label, valor, cor){
+      return `<button data-topico="${id}" class="sc" style="text-align:center; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; flex-direction:column; align-items:center; gap:2px; padding:12px 6px;">
+        <span style="font-size:19px;">${icon}</span>
+        <span style="font-size:.72rem; font-weight:700; color:var(--tx);">${label}</span>
+        <span style="font-size:.9rem; font-weight:800; color:${cor||'var(--tx)'};">${valor}</span>
+      </button>`;
     }
 
     el.innerHTML = `
-      <div class="card" style="flex-direction:column; align-items:stretch; gap:0;">
-        <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.88rem; margin-bottom:10px;">📊 Panorama Geral</div>
-
-        <div style="margin-bottom:14px;">
-          <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:5px;">🧾 Vendas hoje (${vendasFeitas.size}/${LOJAS.length}) — toca numa loja para abrir</div>
-          <div style="display:flex; flex-wrap:wrap; gap:5px;">${gridVendas()}</div>
-        </div>
-
-        <div style="margin-bottom:14px;">
-          <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:5px;">💸 Quebras por justificar — total ${valorQuebrasTotal.toFixed(2)} €</div>
-          ${linhasValores(quebrasLinhas, "CoreJoint_Reportes.html?abrir=relatorioQuebras", "var(--red)")}
-        </div>
-
-        <div>
-          <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:5px;">📦 Inventário desta semana — total ${valorInvTotal.toFixed(2)} €</div>
-          ${linhasValores(invLinhas, "CoreJoint_Reportes.html?abrir=porCategoria")}
-        </div>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
+        ${tile("vendas","🧾","Vendas", `${vendasFeitas.size}/${LOJAS.length}`, vendasFaltam.length>0?'var(--red)':'var(--grn)')}
+        ${tile("quebras","💸","Quebras", `${valorQuebrasTotal.toFixed(0)}€`, valorQuebrasTotal>0?'var(--red)':'var(--grn)')}
+        ${tile("inventario","📦","Inventário", `${valorInvTotal.toFixed(0)}€`)}
+        ${tile("rh","📋","RH", `${adendasAtivasPg.length}`, adendasAtivasPg.length>0?'var(--org,#c17817)':'var(--grn)')}
+        ${tile("fardamento","👕","Fardamento", `${fardStockLowPg.length+fardDevPg.length}`, (fardStockLowPg.length+fardDevPg.length)>0?'var(--org,#c17817)':'var(--grn)')}
+        ${tile("diagnostico","🩺","Diagnóstico", errosPg.length>0?`${errosPg.length}`:'✔', errosPg.length>0?'var(--red)':'var(--grn)')}
       </div>
     `;
+
+    document.querySelector('[data-topico="vendas"]').onclick = ()=>{
+      const corpo = `
+        <div style="font-size:.75rem; color:var(--t2); margin-bottom:10px;">Vendas de hoje — ${vendasFeitas.size}/${LOJAS.length} lojas já enviaram</div>
+        <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:14px;">
+          ${LOJAS.map(l=>`<a href="CoreJoint_Foto.html?loja=${encodeURIComponent(l)}" style="text-decoration:none; background:${vendasFeitas.has(l)?'var(--grn)':'var(--sf2)'}; color:${vendasFeitas.has(l)?'#fff':'var(--t2)'}; border-radius:99px; padding:5px 10px; font-size:.72rem; font-weight:700;">${vendasFeitas.has(l)?'✔ ':''}${l}</a>`).join("")}
+        </div>
+        ${botoesAcao([["📅 Resumo de ontem","#"],["🖨️ Relatório semanal","CoreJoint_Reportes.html?abrir=semanal"]])}
+      `;
+      abrirModalTopico("🧾 Vendas", corpo);
+      document.querySelector('#modalTopicoOverlay a[href="#"]').onclick = (ev)=>{ ev.preventDefault(); document.getElementById("modalTopicoOverlay").remove(); const b=document.querySelector('[data-toggle-secao="resumoOntemSection"]'); if(b) b.click(); };
+    };
+
+    document.querySelector('[data-topico="quebras"]').onclick = ()=>{
+      const corpo = `
+        <div style="font-size:.75rem; color:var(--t2); margin-bottom:2px;">Total por justificar</div>
+        <div style="font-size:1.4rem; font-weight:800; color:${valorQuebrasTotal>0?'var(--red)':'var(--grn)'}; margin-bottom:10px;">${valorQuebrasTotal.toFixed(2)} €</div>
+        ${linhasValoresTopico(quebrasLinhas, "CoreJoint_Reportes.html?abrir=relatorioQuebras", "var(--red)")}
+        ${botoesAcao([
+          ["👁️ Ver relatório completo","CoreJoint_Reportes.html?abrir=relatorioQuebras"],
+          ["🔎 Registos e justificações","CoreJoint_Reportes.html?abrir=relatorioQuebras"],
+          ["📤 Importar Excel de quebras","CoreJoint_Reportes.html?abrir=importarQuebras"],
+          ["🖨️ Relatório semanal","CoreJoint_Reportes.html?abrir=quebrasSemanal"]
+        ])}
+      `;
+      abrirModalTopico("💸 Quebras", corpo);
+    };
+
+    document.querySelector('[data-topico="inventario"]').onclick = ()=>{
+      const corpo = `
+        <div style="font-size:.75rem; color:var(--t2); margin-bottom:2px;">Total enviado esta semana</div>
+        <div style="font-size:1.4rem; font-weight:800; margin-bottom:10px;">${valorInvTotal.toFixed(2)} €</div>
+        ${linhasValoresTopico(invLinhas, "CoreJoint_Reportes.html?abrir=porCategoria")}
+        ${botoesAcao([
+          ["📦 Ver por categoria","CoreJoint_Reportes.html?abrir=porCategoria"],
+          ["🖨️ Relatório semanal","CoreJoint_Reportes.html?abrir=invSemanal"],
+          ["🗓️ Relatório mensal","CoreJoint_Reportes.html?abrir=mensal"]
+        ])}
+      `;
+      abrirModalTopico("📦 Inventário", corpo);
+    };
+
+    document.querySelector('[data-topico="rh"]').onclick = ()=>{
+      const linhasRh = Object.entries(porLojaAdendas).sort((a,b)=>b[1]-a[1]).map(([l,n])=>[l,n]);
+      const corpo = `
+        <div style="font-size:.75rem; color:var(--t2); margin-bottom:2px;">Adendas em curso</div>
+        <div style="font-size:1.4rem; font-weight:800; margin-bottom:10px;">${adendasAtivasPg.length}</div>
+        ${linhasRh.length===0 ? `<div style="font-size:.8rem; color:var(--t2); margin-bottom:12px;">✔ Sem adendas em curso.</div>` : `<div style="display:flex; flex-direction:column; gap:1px; margin-bottom:12px;">
+          ${linhasRh.map(([l,n])=>`<a href="CoreJoint_Adendas.html" style="display:flex; justify-content:space-between; text-decoration:none; color:inherit; padding:7px 2px; border-bottom:1px solid var(--br);"><span style="font-size:.85rem; font-weight:600;">${l}</span><span style="font-size:.85rem; font-weight:800;">${n}</span></a>`).join("")}
+        </div>`}
+        ${botoesAcao([["📋 Abrir RH / Adendas","CoreJoint_Adendas.html"]])}
+      `;
+      abrirModalTopico("📋 RH", corpo);
+    };
+
+    document.querySelector('[data-topico="fardamento"]').onclick = ()=>{
+      const corpo = `
+        <div style="display:flex; gap:10px; margin-bottom:12px;">
+          <div style="flex:1; text-align:center; background:var(--sf2); border-radius:10px; padding:10px;">
+            <div style="font-size:1.2rem; font-weight:800; color:${fardStockLowPg.length>0?'var(--red)':'var(--grn)'};">${fardStockLowPg.length}</div>
+            <div style="font-size:.68rem; color:var(--t2);">stock baixo</div>
+          </div>
+          <div style="flex:1; text-align:center; background:var(--sf2); border-radius:10px; padding:10px;">
+            <div style="font-size:1.2rem; font-weight:800; color:${fardDevPg.length>0?'var(--red)':'var(--grn)'};">${fardDevPg.length}</div>
+            <div style="font-size:.68rem; color:var(--t2);">devoluções</div>
+          </div>
+        </div>
+        ${fardStockLowPg.length>0 ? `<div style="display:flex; flex-direction:column; gap:1px; margin-bottom:12px;">
+          ${fardStockLowPg.slice(0,8).map(f=>`<div style="display:flex; justify-content:space-between; padding:7px 2px; border-bottom:1px solid var(--br); font-size:.82rem;"><span>${f.polo} · ${f.peca} ${f.tamanho}</span><b style="color:var(--red);">${f.quantidade}</b></div>`).join("")}
+        </div>` : ``}
+        ${botoesAcao([["👕 Abrir Fardamento","CoreJoint_Fardamento.html"]])}
+      `;
+      abrirModalTopico("👕 Fardamento", corpo);
+    };
+
+    document.querySelector('[data-topico="diagnostico"]').onclick = ()=>{
+      const corpo = `
+        <div style="font-size:.75rem; color:var(--t2); margin-bottom:2px;">Erros nas últimas 24h</div>
+        <div style="font-size:1.4rem; font-weight:800; color:${errosPg.length>0?'var(--red)':'var(--grn)'}; margin-bottom:14px;">${errosPg.length}</div>
+        ${botoesAcao([
+          ["✔ Painel de saúde","CoreJoint_Reportes.html?abrir=painelSaude"],
+          ["🐛 Registo de erros","CoreJoint_Reportes.html?abrir=registoErros"],
+          ["🔍 Verificador de categorias","CoreJoint_Reportes.html?abrir=verificadorCategorias"],
+          ["📋 Exceções por loja","CoreJoint_Reportes.html?abrir=excecoesLoja"]
+        ])}
+      `;
+      abrirModalTopico("🩺 Diagnóstico", corpo);
+    };
   }catch(e){ console.error(e); }
 }
 function toast(msg){
