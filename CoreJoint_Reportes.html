@@ -3456,7 +3456,7 @@ function openImportarQuebras(){
   card.className = "card";
   card.innerHTML = `
     <div class="card-title" style="margin-bottom:6px;">📤 Importar Excel de quebras</div>
-    <div class="card-sub" style="margin-bottom:12px;">Colunas esperadas: Loja, Data, Operador, Quebra, Safebag. Só as quebras de 20€ ou mais são importadas e as lojas avisadas.</div>
+    <div class="card-sub" style="margin-bottom:12px;">Colunas esperadas: Loja, Data, Operador, Quebra, Safebag. Todas as linhas válidas são guardadas (para nunca perderes o registo/safebag); só as quebras de 20€ ou mais avisam a loja.</div>
     <label style="display:block; width:100%; text-align:center; background:var(--terracotta); color:#fff; font-weight:700; padding:14px; border-radius:10px; cursor:pointer;">📁 Escolher ficheiro Excel<input type="file" id="quebrasFile" accept=".xlsx,.xls,.csv" style="display:none;"></label>
     <div id="quebrasPreview" style="margin-top:14px;"></div>
   `;
@@ -3547,12 +3547,12 @@ function handleQuebrasFile(ev){
         return {lojaOriginal, loja:lojaCanonica, data:dataStr, operador, valor_quebra:quebra, safebag};
       }).filter(r=>r.lojaOriginal && r.data && !isNaN(r.valor_quebra));
 
-      const comQuebraRelevante = todasLinhas.filter(r=>Math.abs(r.valor_quebra)>=20);
-      quebrasParaImportar = comQuebraRelevante.filter(r=>r.loja);
-      const semLoja = comQuebraRelevante.filter(r=>!r.loja);
+      const comQuebraRelevante = todasLinhas.filter(r=>r.loja);
+      quebrasParaImportar = comQuebraRelevante;
+      const semLoja = todasLinhas.filter(r=>!r.loja);
       quebrasForaDop = semLoja.filter(r=>ehLojaConhecidaForaDop(r.lojaOriginal));
       quebrasComErro = semLoja.filter(r=>!ehLojaConhecidaForaDop(r.lojaOriginal));
-      window._quebrasDebug = {colunasEncontradas: rows.length ? Object.keys(rows[0]) : [], linhasFicheiro: rows.length, linhasValidas: todasLinhas.length, motivosExclusao, abaixoDe20: todasLinhas.length - comQuebraRelevante.length};
+      window._quebrasDebug = {colunasEncontradas: rows.length ? Object.keys(rows[0]) : [], linhasFicheiro: rows.length, linhasValidas: todasLinhas.length, motivosExclusao, abaixoDe20: todasLinhas.filter(r=>Math.abs(r.valor_quebra)<20).length};
       renderQuebrasPreview(todasLinhas.length);
     }catch(err){
       console.error(err);
@@ -3622,44 +3622,68 @@ async function confirmarImportarQuebras(){
     btn.textContent = "A importar...";
   }
   try{
-    // Verifica na base de dados o que já existe (mesma loja+data+safebag+valor) para nunca duplicar,
-    // mesmo que este botao seja tocado mais que uma vez ou o ficheiro seja importado outra vez.
+    // Verifica na base de dados o que já existe (mesma loja+data+safebag) para nunca duplicar,
+    // e para reconhecer quando uma quebra foi corrigida/resolvida numa reimportação seguinte.
     const todasParaVerificar = [...quebrasParaImportar, ...quebrasComErro, ...quebrasForaDop];
     const datasEnvolvidas = [...new Set(todasParaVerificar.map(q=>q.data))];
-    const existentes = datasEnvolvidas.length ? await api("GET", `cj_quebras_reportes?select=loja,data,safebag,valor_quebra&data=in.(${datasEnvolvidas.join(",")})`) : [];
-    function jaExiste(q, loja){
-      return existentes.some(e=>
-        (e.loja||"")===(loja||"") && e.data===q.data &&
-        (e.safebag||"")===(q.safebag||"") && Math.abs(Number(e.valor_quebra)-Number(q.valor_quebra))<0.005
-      );
+    const existentes = datasEnvolvidas.length ? await api("GET", `cj_quebras_reportes?select=id,loja,data,safebag,valor_quebra,justificacao&data=in.(${datasEnvolvidas.join(",")})`) : [];
+    function encontrarExistente(q, loja){
+      if(q.safebag){
+        return existentes.find(e => (e.loja||"")===(loja||"") && e.data===q.data && (e.safebag||"")===q.safebag);
+      }
+      // sem safebag nao ha como distinguir "mesmo caso, valor corrigido" de "quebra diferente no mesmo dia" - só ignora se for exatamente igual
+      return existentes.find(e => (e.loja||"")===(loja||"") && e.data===q.data && !e.safebag && Math.abs(Number(e.valor_quebra)-Number(q.valor_quebra))<0.005);
     }
-    let ignoradosDuplicados = 0;
-    for(const q of quebrasParaImportar){
-      if(jaExiste(q, q.loja)){ ignoradosDuplicados++; continue; }
+    let ignoradosDuplicados = 0, resolvidosAuto = 0, atualizados = 0;
+    async function importarLinha(q, loja, extra){
+      const existente = encontrarExistente(q, loja);
+      if(existente){
+        const valorIgual = Math.abs(Number(existente.valor_quebra) - Number(q.valor_quebra)) < 0.005;
+        if(valorIgual){ ignoradosDuplicados++; return; }
+        // mesmo safebag, valor diferente: é uma correcao/resolucao, nao uma quebra nova - actualiza em vez de duplicar
+        const eraAbaixo20 = Math.abs(Number(existente.valor_quebra)) < 20;
+        const agoraAbaixo20 = Math.abs(Number(q.valor_quebra)) < 20;
+        const patch = { valor_quebra: q.valor_quebra };
+        if(agoraAbaixo20 && !existente.justificacao){
+          patch.justificacao = `Resolvido automaticamente — valor corrigido para ${q.valor_quebra} € (abaixo de 20€) numa reimportação`;
+          resolvidosAuto++;
+        } else {
+          atualizados++;
+        }
+        await api("PATCH", `cj_quebras_reportes?id=eq.${existente.id}`, patch);
+        // só avisa a loja agora se passou a ser relevante (estava abaixo de 20€ e agora ultrapassa)
+        if(loja && eraAbaixo20 && !agoraAbaixo20){
+          const descricao = `Quebra de ${q.valor_quebra} € em ${new Date(q.data+"T00:00:00").toLocaleDateString('pt-PT')} (op: ${q.operador||'-'}) — precisa do nº de registo e justificação`;
+          await api("POST", "cj_avisos", {loja, tipo:"outro", descricao, criado_por: currentUser});
+          notificarLojaAviso(loja, "outro", descricao);
+        }
+        return;
+      }
       await api("POST", "cj_quebras_reportes", {
-        loja:q.loja, loja_original:q.lojaOriginal, data:q.data, operador:q.operador, valor_quebra:q.valor_quebra, safebag:q.safebag,
-        importado_por: currentUser
+        loja, loja_original:q.lojaOriginal, data:q.data, operador:q.operador, valor_quebra:q.valor_quebra, safebag:q.safebag,
+        importado_por: currentUser, ...(extra||{})
       });
-      const descricao = `Quebra de ${q.valor_quebra} € em ${new Date(q.data+"T00:00:00").toLocaleDateString('pt-PT')} (op: ${q.operador||'-'}) — precisa do nº de registo e justificação`;
-      await api("POST", "cj_avisos", {loja:q.loja, tipo:"outro", descricao, criado_por: currentUser});
-      notificarLojaAviso(q.loja, "outro", descricao);
+      if(loja && Math.abs(Number(q.valor_quebra))>=20){
+        const descricao = `Quebra de ${q.valor_quebra} € em ${new Date(q.data+"T00:00:00").toLocaleDateString('pt-PT')} (op: ${q.operador||'-'}) — precisa do nº de registo e justificação`;
+        await api("POST", "cj_avisos", {loja, tipo:"outro", descricao, criado_por: currentUser});
+        notificarLojaAviso(loja, "outro", descricao);
+      }
+    }
+    for(const q of quebrasParaImportar){
+      await importarLinha(q, q.loja);
     }
     for(const q of quebrasComErro){
-      if(jaExiste(q, null)){ ignoradosDuplicados++; continue; }
-      await api("POST", "cj_quebras_reportes", {
-        loja:null, loja_original:q.lojaOriginal, data:q.data, operador:q.operador, valor_quebra:q.valor_quebra, safebag:q.safebag,
-        importado_por: currentUser
-      });
+      await importarLinha(q, null);
     }
     for(const q of quebrasForaDop){
-      if(jaExiste(q, null)){ ignoradosDuplicados++; continue; }
-      await api("POST", "cj_quebras_reportes", {
-        loja:null, loja_original:q.lojaOriginal, data:q.data, operador:q.operador, valor_quebra:q.valor_quebra, safebag:q.safebag,
-        importado_por: currentUser, fora_dop: true
-      });
+      await importarLinha(q, null, {fora_dop: true});
     }
-    const totalImportado = quebrasParaImportar.length + quebrasComErro.length + quebrasForaDop.length - ignoradosDuplicados;
-    let msg = `${totalImportado} quebra(s) importada(s)`;
+    const totalImportado = quebrasParaImportar.length + quebrasComErro.length + quebrasForaDop.length - ignoradosDuplicados - resolvidosAuto - atualizados;
+    const abaixoDe20 = quebrasParaImportar.filter(q=>Math.abs(Number(q.valor_quebra))<20).length;
+    let msg = `${totalImportado} quebra(s) nova(s) importada(s)`;
+    if(abaixoDe20>0) msg += ` (${abaixoDe20} abaixo de 20€, guardadas mas sem aviso à loja)`;
+    if(resolvidosAuto>0) msg += ` — ${resolvidosAuto} reconhecida(s) como resolvida(s) automaticamente (valor corrigido para <20€)`;
+    if(atualizados>0) msg += ` — ${atualizados} atualizada(s) (mesmo safebag, valor corrigido)`;
     if(ignoradosDuplicados>0) msg += ` — ${ignoradosDuplicados} já existiam, não repetidas`;
     if(quebrasComErro.length>0) msg += ` — ${quebrasComErro.length} sem loja identificada (corrige no Relatório)`;
     if(quebrasForaDop.length>0) msg += ` — ${quebrasForaDop.length} fora da rede (sem aviso)`;
