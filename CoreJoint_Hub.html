@@ -283,9 +283,11 @@ async function renderPanoramaGeral(){
     const vendasFaltam = LOJAS.filter(l=>!vendasFeitas.has(l));
 
     const quebrasPorLoja = {};
-    quebrasPendentesPg.forEach(r=>{ const l=r.loja||"⚠ Sem loja"; quebrasPorLoja[l]=(quebrasPorLoja[l]||0)+Number(r.valor_quebra||0); });
+    quebrasPendentesPg.forEach(r=>{ const l=r.loja||"⚠ Sem loja (verificar)"; quebrasPorLoja[l]=(quebrasPorLoja[l]||0)+Number(r.valor_quebra||0); });
     const quebrasLinhas = Object.entries(quebrasPorLoja).sort((a,b)=>b[1]-a[1]);
-    const valorQuebrasTotal = quebrasPendentesPg.reduce((s,r)=>s+Number(r.valor_quebra||0),0);
+    // O total em destaque só conta quebras atribuidas a uma loja real - registos sem loja (normalmente falhas de integracao/importacao)
+    // ficam visiveis na lista por baixo, mas nao inflacionam o numero principal
+    const valorQuebrasTotal = quebrasPendentesPg.filter(r=>r.loja).reduce((s,r)=>s+Number(r.valor_quebra||0),0);
 
     const invPorLoja = {};
     invSemanaPg.forEach(r=>{ invPorLoja[r.loja]=(invPorLoja[r.loja]||0)+Number(r.valor_inventario||0); });
