@@ -382,10 +382,16 @@ async function renderPanoramaGeral(){
     };
 
     document.querySelector('[data-topico="fardamento"]').onclick = ()=>{
+      const fardStockOrdenado = [...fardStockLowPg].sort((a,b)=>Number(a.quantidade)-Number(b.quantidade));
+      const numEsgotados = fardStockOrdenado.filter(f=>Number(f.quantidade)===0).length;
       const corpo = `
         <div style="display:flex; gap:10px; margin-bottom:12px;">
           <div style="flex:1; text-align:center; background:var(--sf2); border-radius:10px; padding:10px;">
-            <div style="font-size:1.2rem; font-weight:800; color:${fardStockLowPg.length>0?'var(--red)':'var(--grn)'};">${fardStockLowPg.length}</div>
+            <div style="font-size:1.2rem; font-weight:800; color:${numEsgotados>0?'var(--red)':'var(--grn)'};">${numEsgotados}</div>
+            <div style="font-size:.68rem; color:var(--t2);">esgotados</div>
+          </div>
+          <div style="flex:1; text-align:center; background:var(--sf2); border-radius:10px; padding:10px;">
+            <div style="font-size:1.2rem; font-weight:800; color:${fardStockLowPg.length>numEsgotados?'var(--org,#c17817)':'var(--grn)'};">${fardStockLowPg.length-numEsgotados}</div>
             <div style="font-size:.68rem; color:var(--t2);">stock baixo</div>
           </div>
           <div style="flex:1; text-align:center; background:var(--sf2); border-radius:10px; padding:10px;">
@@ -393,8 +399,8 @@ async function renderPanoramaGeral(){
             <div style="font-size:.68rem; color:var(--t2);">devoluções</div>
           </div>
         </div>
-        ${fardStockLowPg.length>0 ? `<div style="display:flex; flex-direction:column; gap:1px; margin-bottom:12px;">
-          ${fardStockLowPg.slice(0,8).map(f=>`<div style="display:flex; justify-content:space-between; padding:7px 2px; border-bottom:1px solid var(--br); font-size:.82rem;"><span>${f.polo} · ${f.peca} ${f.tamanho}</span><b style="color:var(--red);">${f.quantidade}</b></div>`).join("")}
+        ${fardStockOrdenado.length>0 ? `<div style="display:flex; flex-direction:column; gap:1px; margin-bottom:12px;">
+          ${fardStockOrdenado.slice(0,10).map(f=>`<div style="display:flex; justify-content:space-between; padding:7px 2px; border-bottom:1px solid var(--br); font-size:.82rem;"><span>${f.polo} · ${f.peca} ${f.tamanho}</span><b style="color:var(--red);">${Number(f.quantidade)===0?'ESGOTADO':f.quantidade}</b></div>`).join("")}
         </div>` : ``}
         ${botoesAcao([["👕 Abrir Fardamento","CoreJoint_Fardamento.html"]])}
       `;
