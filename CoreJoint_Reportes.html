@@ -3755,6 +3755,171 @@ function renderQuebrasPreview(totalLinhas){
   if(btnConfirmar) btnConfirmar.onclick = confirmarImportarQuebras;
 }
 
+function openImportarTrocas(){
+  currentView = openImportarTrocas;
+  window._formEmEdicao = true;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <div class="card-title" style="margin-bottom:6px;">📤 Importar Excel de trocas de horário</div>
+    <div class="card-sub" style="margin-bottom:12px;">Colunas esperadas: Loja, Operador (ou Colaborador), Data. Motivo/Descrição é opcional.</div>
+    <label style="display:block; width:100%; text-align:center; background:var(--terracotta); color:#fff; font-weight:700; padding:14px; border-radius:10px; cursor:pointer;">📁 Escolher ficheiro Excel<input type="file" id="trocasFile" accept=".xlsx,.xls,.csv" style="display:none;"></label>
+    <div id="trocasPreview" style="margin-top:14px;"></div>
+  `;
+  main.appendChild(card);
+  document.getElementById("trocasFile").addEventListener("change", handleTrocasFile);
+}
+
+let trocasParaImportar = [];
+function handleTrocasFile(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:"array", cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
+      function normalizarCabecalho(s){
+        return String(s).toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+      }
+      function pegar(row, ...nomes){
+        const nomesNorm = nomes.map(normalizarCabecalho);
+        for(const k of Object.keys(row)){
+          const kNorm = normalizarCabecalho(k);
+          if(nomesNorm.includes(kNorm)) return row[k];
+        }
+        for(const k of Object.keys(row)){
+          const kNorm = normalizarCabecalho(k);
+          if(nomesNorm.some(n=>kNorm.includes(n))) return row[k];
+        }
+        return "";
+      }
+      trocasParaImportar = rows.map(row=>{
+        const lojaOriginal = String(pegar(row, "loja")).trim();
+        const loja = encontrarLojaCorrespondente(lojaOriginal);
+        const operador = String(pegar(row, "operador", "colaborador", "nome")).trim();
+        let dataVal = pegar(row, "data");
+        let dataStr = "";
+        if(dataVal instanceof Date) dataStr = isoDate(dataVal);
+        else if(dataVal) {
+          const d = new Date(dataVal);
+          dataStr = isNaN(d) ? "" : isoDate(d);
+        }
+        const descricao = String(pegar(row, "descricao", "motivo", "notas")).trim();
+        return {lojaOriginal, loja, operador, data: dataStr, descricao};
+      }).filter(r=>r.operador && r.data);
+      renderTrocasPreview();
+    }catch(err){
+      toast("Erro a ler o ficheiro: " + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function renderTrocasPreview(){
+  const semLoja = trocasParaImportar.filter(r=>!r.loja).length;
+  const comLoja = trocasParaImportar.filter(r=>r.loja).length;
+  const el = document.getElementById("trocasPreview");
+  el.innerHTML = `
+    <div class="card-sub" style="margin-bottom:10px;">${comLoja} linha(s) prontas a importar${semLoja>0?` — ${semLoja} sem loja reconhecida (ficam de fora)`:''}.</div>
+    <button class="cambtn" id="confirmarImportarTrocasBtn" style="width:100%;">✔ Confirmar importação</button>
+  `;
+  const btn = document.getElementById("confirmarImportarTrocasBtn");
+  btn.onclick = protegerClique(btn, confirmarImportarTrocas, "A importar...");
+}
+async function confirmarImportarTrocas(){
+  const validas = trocasParaImportar.filter(r=>r.loja);
+  for(const t of validas){
+    await api("POST", "cj_trocas", {
+      loja: t.loja, tipo:"troca_horario", descricao: t.descricao || null, data: t.data, data_iso: t.data,
+      estado: "pendente", criado_por: t.operador
+    });
+  }
+  mostrarSucesso(`${validas.length} troca(s) de horário importada(s)`);
+  trocasParaImportar = [];
+  const v = previousView; previousView = null; (v||render)();
+}
+
+async function abrirPivotTrocas(){
+  currentView = abrirPivotTrocas;
+  pararAutoAtualizacao();
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ pararAutoAtualizacao(); const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const actionsRow = document.createElement("div");
+  actionsRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px;";
+  actionsRow.innerHTML = `<a href="CoreJoint_Reportes.html?abrir=importarTrocas" class="cambtn secondary" style="flex:1; text-align:center; text-decoration:none; display:block;">📤 Importar Excel</a>`;
+  main.appendChild(actionsRow);
+
+  const h = document.createElement("h2");
+  h.textContent = "🔁 Trocas de horário pendentes";
+  main.appendChild(h);
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  sub.style.marginBottom = "14px";
+  sub.innerHTML = `Loja, operador e quantas trocas por resolver. <span style="color:var(--green); font-weight:700;">🔄 Atualiza-se sozinha</span>`;
+  main.appendChild(sub);
+
+  const tableWrap = document.createElement("div");
+  tableWrap.style.cssText = "background:#fff; border-radius:14px; padding:16px; border:1px solid var(--line); display:inline-block; max-width:100%; overflow-x:auto;";
+  main.appendChild(tableWrap);
+
+  async function renderPivot(){
+    const trocas = await api("GET", "cj_trocas?select=loja,criado_por&estado=eq.pendente");
+    if(trocas.length===0){
+      tableWrap.outerHTML = `<div class="empty">✔ Sem trocas de horário pendentes.</div>`;
+      pararAutoAtualizacao();
+      return;
+    }
+    const grupos = {};
+    trocas.forEach(t=>{
+      const chave = `${t.loja}|||${t.criado_por||"—"}`;
+      grupos[chave] = (grupos[chave]||0) + 1;
+    });
+    const linhas = Object.entries(grupos).map(([chave, qtd])=>{
+      const [loja, operador] = chave.split("|||");
+      return {loja, operador, qtd};
+    }).sort((a,b)=> a.loja.localeCompare(b.loja) || b.qtd - a.qtd);
+
+    const linhasHtml = linhas.map(r=>`
+      <tr>
+        <td style="font-weight:700; font-size:12px; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap;">${r.loja}</td>
+        <td style="font-size:12px; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap;">${r.operador}</td>
+        <td style="text-align:center; font-weight:800; font-size:13px; color:var(--terracotta); padding:6px 8px; border-bottom:1px solid var(--line);">${r.qtd}</td>
+      </tr>
+    `).join("");
+    tableWrap.innerHTML = `
+      <table style="border-collapse:collapse;">
+        <thead><tr>
+          <th style="font-size:10px; color:var(--terracotta); text-transform:uppercase; padding:4px 8px; border-bottom:2px solid var(--terracotta); text-align:left;">Loja</th>
+          <th style="font-size:10px; color:var(--terracotta); text-transform:uppercase; padding:4px 8px; border-bottom:2px solid var(--terracotta); text-align:left;">Operador</th>
+          <th style="font-size:10px; color:var(--terracotta); text-transform:uppercase; padding:4px 8px; border-bottom:2px solid var(--terracotta);">Trocas</th>
+        </tr></thead>
+        <tbody>${linhasHtml}</tbody>
+      </table>
+    `;
+  }
+
+  await renderPivot();
+  iniciarAutoAtualizacao(renderPivot, 20);
+}
+
 async function confirmarImportarQuebras(){
   const btn = document.getElementById("confirmarImportarQuebrasBtn");
   if(btn){
@@ -5769,6 +5934,7 @@ function renderGestao(){
     {titulo:"Relatórios", itens:[
       {icon:"📊", label:"Ver todos os relatórios", fn: ()=>abrirEcraComAbas("Relatórios", [
         {icon:"📌", label:"Pendências do dia (PDF)", fn:generateDailyReport},
+        {icon:"🔁", label:"Trocas de horário pendentes", fn:abrirPivotTrocas},
         {icon:"📸", label:"Vendas/Vitrine/Inventário (imagem p/ WhatsApp)", fn:abrirRelatorioVisualDiario},
         {icon:"🖨️", label:"Relatório PDF (semanal)", fn:generateWeeklyReport},
         {icon:"📦", label:"Relatório de Inventário (semanal)", fn:generateWeeklyInventoryReport},
@@ -5828,6 +5994,7 @@ function renderGestao(){
     diario: generateDailyReport, diarioVisual: abrirRelatorioVisualDiario, semanal: generateWeeklyReport, invSemanal: generateWeeklyInventoryReport, mensal: generateMonthlyReport,
     compliance: generateComplianceReport, excel: exportarExcel, historico12m: openHistoricoAnual,
     whatsapp: partilharResumoWhatsApp, avisosLista: openAvisos, sondagem: openSondagens, formulario: openFormularios, grelhaSondagensForms: abrirGrelhaSondagensForms,
+    importarTrocas: openImportarTrocas, pivotTrocas: abrirPivotTrocas,
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
