@@ -3843,7 +3843,7 @@ async function confirmarImportarTrocas(){
   const validas = trocasParaImportar.filter(r=>r.loja);
   for(const t of validas){
     await api("POST", "cj_trocas", {
-      loja: t.loja, tipo:"troca_horario", descricao: t.descricao || null, data: t.data, data_iso: t.data,
+      id: crypto.randomUUID(), loja: t.loja, tipo:"troca_horario", descricao: t.descricao || null, data: t.data, data_iso: t.data,
       estado: "pendente", criado_por: t.operador
     });
   }
