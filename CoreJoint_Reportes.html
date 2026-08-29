@@ -6011,6 +6011,23 @@ function renderGestao(){
     manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar, calendario: abrirCalendarioDop, porCategoria: abrirVisaoPorCategoria, pedidosFotos: abrirPedidosFotos, registoErros: abrirRegistoErros, verificadorCategorias: abrirVerificadorCategorias, excecoesLoja: abrirExcecoesLoja, painelSaude: abrirPainelSaude, historicoAlteracoes: abrirHistoricoAlteracoes
   };
 
+  const relatoriosRapidos = document.createElement("div");
+  relatoriosRapidos.style.cssText = "margin-bottom:14px;";
+  relatoriosRapidos.innerHTML = `
+    <div style="font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:700; margin-bottom:6px;">📊 Relatórios rápidos</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+      <button id="rrPendencias" style="background:var(--card,#fff); border:1px solid var(--line); border-radius:10px; padding:10px 8px; font-size:12.5px; font-weight:700; color:var(--ink); text-align:center;">📌 Pendências<br>do dia</button>
+      <button id="rrVisual" style="background:var(--card,#fff); border:1px solid var(--line); border-radius:10px; padding:10px 8px; font-size:12.5px; font-weight:700; color:var(--ink); text-align:center;">📸 Imagem p/<br>WhatsApp</button>
+      <button id="rrSemanal" style="background:var(--card,#fff); border:1px solid var(--line); border-radius:10px; padding:10px 8px; font-size:12.5px; font-weight:700; color:var(--ink); text-align:center;">🖨️ PDF<br>semanal</button>
+      <button id="rrQuebras" style="background:var(--card,#fff); border:1px solid var(--line); border-radius:10px; padding:10px 8px; font-size:12.5px; font-weight:700; color:var(--ink); text-align:center;">💸 Relatório<br>de quebras</button>
+    </div>
+  `;
+  main.appendChild(relatoriosRapidos);
+  document.getElementById("rrPendencias").onclick = ()=>{ previousView = currentView; generateDailyReport(); };
+  document.getElementById("rrVisual").onclick = ()=>{ previousView = currentView; abrirRelatorioVisualDiario(); };
+  document.getElementById("rrSemanal").onclick = ()=>{ previousView = currentView; generateWeeklyReport(); };
+  document.getElementById("rrQuebras").onclick = ()=>{ previousView = currentView; openRelatorioQuebras(); };
+
   const toolsBtn = document.createElement("button");
   toolsBtn.style.cssText = "width:100%; margin-bottom:16px; display:flex; align-items:center; justify-content:center; gap:6px; background:var(--card,#fff); border:1px solid var(--line); color:var(--terracotta-dark); padding:9px; border-radius:10px; font-size:13px; font-weight:700;";
   toolsBtn.innerHTML = `🛠️ Ferramentas <span style="color:var(--ink-soft); font-weight:400;">(${todasFerramentas.length})</span>`;
