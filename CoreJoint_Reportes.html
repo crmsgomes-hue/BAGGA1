@@ -3269,31 +3269,31 @@ async function abrirRelatorioVisualDiario(){
     return {loja:l, vendas, manha, almoco, lanche, laranjas, tabacoAplicavel, tabaco, jscAplicavel, jsc};
   });
 
-  function chip(ok, label){
-    if(ok===null) return "";
-    return `<span style="display:inline-flex; align-items:center; gap:3px; background:${ok?'#e8f3e8':'#fbeaea'}; color:${ok?'#3a6b3a':'#a83232'}; border-radius:7px; padding:3px 8px; font-size:11.5px; font-weight:700; margin:2px 4px 2px 0;">${ok?'✔':'✕'} ${label}</span>`;
+  const COLS = [["vendas","Vend."],["manha","Manhã"],["almoco","Almoço"],["lanche","Lanche"],["laranjas","Laranja"],["tabaco","Tabaco"],["jsc","JSC"]];
+  function cell(ok){
+    if(ok===null) return `<td style="text-align:center; color:#ccc; padding:5px 4px; border-bottom:1px solid #f0ebe3;">—</td>`;
+    const cor = ok ? "#2e7d32" : "#b0432f";
+    return `<td style="text-align:center; color:${cor}; font-weight:800; padding:5px 4px; border-bottom:1px solid #f0ebe3; font-size:13px;">${ok?'✔':'✕'}</td>`;
   }
+  const headerHtml = COLS.map(([,label])=>`<th style="font-size:10px; color:#9c4d23; text-transform:uppercase; padding:4px 3px; border-bottom:2px solid #C1622D; white-space:nowrap;">${label}</th>`).join("");
+  const linhasHtml = linhas.map(r=>{
+    const colsHtml = COLS.map(([key])=>{
+      if(key==="tabaco" && !r.tabacoAplicavel) return cell(null);
+      if(key==="jsc" && !r.jscAplicavel) return cell(null);
+      return cell(r[key]);
+    }).join("");
+    return `<tr><td style="font-weight:700; font-size:12px; padding:5px 6px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${r.loja}</td>${colsHtml}</tr>`;
+  }).join("");
 
-  let html = `
-    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; color:#C1622D; margin-bottom:2px;">CoreJoint · Vendas, Vitrine e Inventário</div>
-    <div style="font-size:11px; color:#777; margin-bottom:14px; text-transform:capitalize;">${dataFmt} · ${horaFmt}</div>
+  const html = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:1px;">CoreJoint · Vendas, Vitrine e Inventário</div>
+    <div style="font-size:10px; color:#777; margin-bottom:10px; text-transform:capitalize;">${dataFmt} · ${horaFmt}</div>
+    <table style="border-collapse:collapse;">
+      <thead><tr><th></th>${headerHtml}</tr></thead>
+      <tbody>${linhasHtml}</tbody>
+    </table>
   `;
-  linhas.forEach(r=>{
-    html += `
-      <div style="padding:10px 0; border-top:1px solid #eee;">
-        <div style="font-weight:700; font-size:13.5px; margin-bottom:5px;">${r.loja}</div>
-        <div>
-          ${chip(r.vendas, "Vendas")}
-          ${chip(r.manha, "Manhã")}
-          ${chip(r.almoco, "Almoço")}
-          ${chip(r.lanche, "Lanche")}
-          ${chip(r.laranjas, "Laranjas")}
-          ${r.tabacoAplicavel ? chip(r.tabaco, "Tabaco") : ""}
-          ${r.jscAplicavel ? chip(r.jsc, "JSC") : ""}
-        </div>
-      </div>
-    `;
-  });
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:16px; border:1px solid var(--line); display:inline-block; max-width:100%; overflow-x:auto;";
   capturaWrap.innerHTML = html;
 
   document.getElementById("copiarImagemBtn").onclick = async (ev)=>{
