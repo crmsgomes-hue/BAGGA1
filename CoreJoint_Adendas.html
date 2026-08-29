@@ -28,12 +28,13 @@
     --card:#FFFFFF;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  body{margin:0; font-family:'DM Sans',-apple-system,Segoe UI,Roboto,sans-serif; background:var(--cream); color:var(--ink); padding-bottom:40px; font-size:14px;}
+  body{margin:0; font-family:'DM Sans',-apple-system,Segoe UI,Roboto,sans-serif; background:#d8d0c2; color:var(--ink); padding-bottom:40px; font-size:14px;}
+  #app{max-width:480px; margin:0 auto; background:var(--cream); min-height:100vh; box-shadow:0 0 30px rgba(0,0,0,.12);}
   h1,h2,h3{font-family:'Syne',sans-serif; font-weight:800; letter-spacing:-.5px; margin:0;}
   @font-face{font-family:'Syne'; src:local('Georgia');}
 
   /* ---------- LOGIN ---------- */
-  #login{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;}
+  #login{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; max-width:480px; margin:0 auto; background:var(--cream); box-shadow:0 0 30px rgba(0,0,0,.12);}
   #login h1{font-size:28px; color:var(--terracotta-dark); margin-bottom:6px;}
   #login p{color:var(--ink-soft); margin-bottom:24px; text-align:center;}
   #login input{width:100%; max-width:320px; padding:14px 16px; font-size:17px; border:1px solid var(--line); border-radius:10px; margin-bottom:14px; background:#fff;}
@@ -49,7 +50,7 @@
   .tab{flex:none; padding:7px 13px; border-radius:16px; font-size:13px; background:#fff; border:1px solid var(--line); color:var(--ink-soft);}
   .tab.active{background:var(--ink); color:#fff; border-color:var(--ink);}
 
-  main{padding:14px 16px 60px; max-width:640px; margin:0 auto;}
+  main{padding:14px 16px 60px; max-width:480px; margin:0 auto;}
   .section-title{font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin:20px 0 8px;}
   .empty{color:var(--ink-soft); font-size:14px; padding:30px 10px; text-align:center; background:var(--card,var(--sf)); border:1px dashed var(--line,var(--br)); border-radius:12px;}
 
