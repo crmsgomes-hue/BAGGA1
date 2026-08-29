@@ -1363,6 +1363,66 @@ function monthLabel(d){ return d.toLocaleDateString('pt-PT',{month:'short'}).rep
 let sondagemOpcoes = [];
 let sondagemLojaAlvo = "";
 
+async function abrirGrelhaSondagensForms(){
+  currentView = abrirGrelhaSondagensForms;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const h = document.createElement("h2");
+  h.textContent = "📊 Grelha de Sondagens e Formulários";
+  main.appendChild(h);
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  sub.style.marginBottom = "14px";
+  sub.textContent = "Quem já respondeu, num relance — como no relatório diário.";
+  main.appendChild(sub);
+
+  const [sondagensAtivas, respostasSond, formsAtivos, respostasForm] = await Promise.all([
+    api("GET", "cj_sondagens?select=*&ativa=eq.true&order=criado_em.desc"),
+    api("GET", "cj_sondagens_respostas?select=*"),
+    api("GET", "cj_formularios?select=*&ativa=eq.true&order=criado_em.desc"),
+    api("GET", "cj_formularios_respostas?select=*")
+  ]);
+
+  if(sondagensAtivas.length===0 && formsAtivos.length===0){
+    main.innerHTML += `<div class="empty">Nenhuma sondagem ou formulário ativo neste momento.</div>`;
+    return;
+  }
+
+  const colunas = [
+    ...sondagensAtivas.map(s=>({tipo:"sondagem", id:s.id, label: s.pergunta.length>18 ? s.pergunta.slice(0,18)+"…" : s.pergunta, alvo: lojasAlvoDe(s)})),
+    ...formsAtivos.map(f=>({tipo:"formulario", id:f.id, label: f.titulo.length>18 ? f.titulo.slice(0,18)+"…" : f.titulo, alvo: lojasAlvoDe(f)}))
+  ];
+
+  function respostaCelula(col, loja){
+    if(!col.alvo.includes(loja)) return `<td style="text-align:center; color:#ccc; padding:5px 4px; border-bottom:1px solid var(--line);">—</td>`;
+    if(col.tipo==="sondagem"){
+      const r = respostasSond.find(x=>x.sondagem_id===col.id && x.loja===loja);
+      if(!r) return `<td style="text-align:center; color:var(--red); font-weight:800; padding:5px 4px; border-bottom:1px solid var(--line); font-size:13px;">✕</td>`;
+      return `<td style="text-align:center; color:var(--green); font-weight:700; padding:5px 4px; border-bottom:1px solid var(--line); font-size:11px;">${r.opcao}</td>`;
+    } else {
+      const r = respostasForm.find(x=>x.formulario_id===col.id && x.loja===loja);
+      return `<td style="text-align:center; color:${r?'var(--green)':'var(--red)'}; font-weight:800; padding:5px 4px; border-bottom:1px solid var(--line); font-size:13px;">${r?'✔':'✕'}</td>`;
+    }
+  }
+
+  const headerHtml = colunas.map(c=>`<th style="font-size:9.5px; color:var(--terracotta); text-transform:uppercase; padding:4px 3px; border-bottom:2px solid var(--terracotta); white-space:nowrap; max-width:70px;" title="${c.label}">${c.tipo==="sondagem"?"📊":"📝"} ${c.label}</th>`).join("");
+  const linhasHtml = LOJAS.map(l=>{
+    const cols = colunas.map(c=>respostaCelula(c, l)).join("");
+    return `<tr><td style="font-weight:700; font-size:12px; padding:5px 6px; border-bottom:1px solid var(--line); white-space:nowrap;">${l}</td>${cols}</tr>`;
+  }).join("");
+
+  const tableWrap = document.createElement("div");
+  tableWrap.style.cssText = "background:#fff; border-radius:14px; padding:16px; border:1px solid var(--line); display:inline-block; max-width:100%; overflow-x:auto;";
+  tableWrap.innerHTML = `<table style="border-collapse:collapse;"><thead><tr><th></th>${headerHtml}</tr></thead><tbody>${linhasHtml}</tbody></table>`;
+  main.appendChild(tableWrap);
+}
 async function openSondagens(){
   currentView = openSondagens;
   window._formEmEdicao = true;
@@ -1374,6 +1434,12 @@ async function openSondagens(){
   back.textContent = "← Voltar ao painel";
   back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
+
+  const linkGrelha = document.createElement("a");
+  linkGrelha.href = "CoreJoint_Reportes.html?abrir=grelhaSondagensForms";
+  linkGrelha.style.cssText = "display:block; text-align:center; margin-bottom:14px; font-size:13px; color:var(--terracotta); text-decoration:underline;";
+  linkGrelha.textContent = "📊 Ver grelha — quem já respondeu";
+  main.appendChild(linkGrelha);
 
   sondagemOpcoes = [];
   sondagemLojaAlvo = "";
@@ -5730,7 +5796,7 @@ function renderGestao(){
   const mapaFerramentasPorChave = {
     diario: generateDailyReport, diarioVisual: abrirRelatorioVisualDiario, semanal: generateWeeklyReport, invSemanal: generateWeeklyInventoryReport, mensal: generateMonthlyReport,
     compliance: generateComplianceReport, excel: exportarExcel, historico12m: openHistoricoAnual,
-    whatsapp: partilharResumoWhatsApp, avisosLista: openAvisos, sondagem: openSondagens, formulario: openFormularios,
+    whatsapp: partilharResumoWhatsApp, avisosLista: openAvisos, sondagem: openSondagens, formulario: openFormularios, grelhaSondagensForms: abrirGrelhaSondagensForms,
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
