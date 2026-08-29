@@ -26,10 +26,12 @@
     --line:#E4DDD0; --green:#3F7D5C; --amber:#C08A2E; --red:#B44435; --card:#FFFFFF;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  body{margin:0; font-family:'DM Sans',-apple-system,Segoe UI,Roboto,sans-serif; background:var(--cream); color:var(--ink); padding-bottom:50px; font-size:14px;}
+  body{margin:0; font-family:'DM Sans',-apple-system,Segoe UI,Roboto,sans-serif; background:#d8d0c2; color:var(--ink); padding-bottom:50px; font-size:14px;}
   h1,h2,h3{font-family:'Syne',sans-serif; font-weight:800; letter-spacing:-.5px; margin:0;}
 
-  #login{min-height:100vh; padding:26px 18px; display:flex; flex-direction:column; align-items:center;}
+  #app{max-width:480px; margin:0 auto; background:var(--cream); min-height:100vh; box-shadow:0 0 30px rgba(0,0,0,.12);}
+
+  #login{min-height:100vh; padding:26px 18px; display:flex; flex-direction:column; align-items:center; max-width:480px; margin:0 auto; background:var(--cream); box-shadow:0 0 30px rgba(0,0,0,.12);}
   #login h1{font-size:24px; color:var(--terracotta-dark); text-align:center;}
   #login p{color:var(--ink-soft); text-align:center; margin:6px 0 20px; font-size:14px;}
   .loja-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; max-width:420px;}
@@ -45,7 +47,7 @@
   .tab{padding:10px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:14px; font-weight:700; color:var(--ink-soft); text-align:center;}
   .tab.active{background:var(--terracotta); color:#fff; border-color:var(--terracotta);}
 
-  main{padding:14px 16px 60px; max-width:640px; margin:0 auto;}
+  main{padding:14px 16px 60px; max-width:480px; margin:0 auto;}
   .card{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.06);}
   .card-top{display:flex; justify-content:space-between; align-items:center;}
   .card-title{font-size:16px; font-weight:600;}
