@@ -450,6 +450,17 @@ let mode = null; // 'loja' | 'gestao'
 let agendamentos = [];
 let currentView = ()=>render();
 let previousView = null;
+let _autoAtualizacaoInterval = null;
+function pararAutoAtualizacao(){
+  if(_autoAtualizacaoInterval){ clearInterval(_autoAtualizacaoInterval); _autoAtualizacaoInterval = null; }
+}
+function iniciarAutoAtualizacao(fn, segundos){
+  pararAutoAtualizacao();
+  _autoAtualizacaoInterval = setInterval(()=>{
+    if(document.hidden) return; // nao gasta pedidos com o ecra em segundo plano
+    fn();
+  }, segundos*1000);
+}
 let currentLoja = localStorage.getItem("cj_rep_loja") || null;
 let currentUser = localStorage.getItem("cj_rep_user") || "CG";
 const PERFIS = ["CG", "JM"];
@@ -990,6 +1001,7 @@ function turnoSquareState(done, horaLimite){
 /* ---------- RENDER: LOJA ---------- */
 function render(){
   currentView = render;
+  pararAutoAtualizacao();
   window._formEmEdicao = false;
   if(mode==="gestao"){ renderGestao(); return; }
   const main = document.getElementById("main");
@@ -1365,13 +1377,14 @@ let sondagemLojaAlvo = "";
 
 async function abrirGrelhaSondagensForms(){
   currentView = abrirGrelhaSondagensForms;
+  pararAutoAtualizacao();
   const main = document.getElementById("main");
   main.innerHTML = "";
   const back = document.createElement("button");
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
   back.textContent = "← Voltar ao painel";
-  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  back.onclick = ()=>{ pararAutoAtualizacao(); const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
   const h = document.createElement("h2");
@@ -1380,48 +1393,55 @@ async function abrirGrelhaSondagensForms(){
   const sub = document.createElement("div");
   sub.className = "sub";
   sub.style.marginBottom = "14px";
-  sub.textContent = "Quem já respondeu, num relance — como no relatório diário.";
+  sub.innerHTML = `Quem já respondeu, num relance — como no relatório diário. <span style="color:var(--green); font-weight:700;">🔄 Atualiza-se sozinha</span>`;
   main.appendChild(sub);
-
-  const [sondagensAtivas, respostasSond, formsAtivos, respostasForm] = await Promise.all([
-    api("GET", "cj_sondagens?select=*&ativa=eq.true&order=criado_em.desc"),
-    api("GET", "cj_sondagens_respostas?select=*"),
-    api("GET", "cj_formularios?select=*&ativa=eq.true&order=criado_em.desc"),
-    api("GET", "cj_formularios_respostas?select=*")
-  ]);
-
-  if(sondagensAtivas.length===0 && formsAtivos.length===0){
-    main.innerHTML += `<div class="empty">Nenhuma sondagem ou formulário ativo neste momento.</div>`;
-    return;
-  }
-
-  const colunas = [
-    ...sondagensAtivas.map(s=>({tipo:"sondagem", id:s.id, label: s.pergunta.length>18 ? s.pergunta.slice(0,18)+"…" : s.pergunta, alvo: lojasAlvoDe(s)})),
-    ...formsAtivos.map(f=>({tipo:"formulario", id:f.id, label: f.titulo.length>18 ? f.titulo.slice(0,18)+"…" : f.titulo, alvo: lojasAlvoDe(f)}))
-  ];
-
-  function respostaCelula(col, loja){
-    if(!col.alvo.includes(loja)) return `<td style="text-align:center; color:#ccc; padding:5px 4px; border-bottom:1px solid var(--line);">—</td>`;
-    if(col.tipo==="sondagem"){
-      const r = respostasSond.find(x=>x.sondagem_id===col.id && x.loja===loja);
-      if(!r) return `<td style="text-align:center; color:var(--red); font-weight:800; padding:5px 4px; border-bottom:1px solid var(--line); font-size:13px;">✕</td>`;
-      return `<td style="text-align:center; color:var(--green); font-weight:700; padding:5px 4px; border-bottom:1px solid var(--line); font-size:11px;">${r.opcao}</td>`;
-    } else {
-      const r = respostasForm.find(x=>x.formulario_id===col.id && x.loja===loja);
-      return `<td style="text-align:center; color:${r?'var(--green)':'var(--red)'}; font-weight:800; padding:5px 4px; border-bottom:1px solid var(--line); font-size:13px;">${r?'✔':'✕'}</td>`;
-    }
-  }
-
-  const headerHtml = colunas.map(c=>`<th style="font-size:9.5px; color:var(--terracotta); text-transform:uppercase; padding:4px 3px; border-bottom:2px solid var(--terracotta); white-space:nowrap; max-width:70px;" title="${c.label}">${c.tipo==="sondagem"?"📊":"📝"} ${c.label}</th>`).join("");
-  const linhasHtml = LOJAS.map(l=>{
-    const cols = colunas.map(c=>respostaCelula(c, l)).join("");
-    return `<tr><td style="font-weight:700; font-size:12px; padding:5px 6px; border-bottom:1px solid var(--line); white-space:nowrap;">${l}</td>${cols}</tr>`;
-  }).join("");
 
   const tableWrap = document.createElement("div");
   tableWrap.style.cssText = "background:#fff; border-radius:14px; padding:16px; border:1px solid var(--line); display:inline-block; max-width:100%; overflow-x:auto;";
-  tableWrap.innerHTML = `<table style="border-collapse:collapse;"><thead><tr><th></th>${headerHtml}</tr></thead><tbody>${linhasHtml}</tbody></table>`;
   main.appendChild(tableWrap);
+
+  async function renderGrelha(){
+    const [sondagensAtivas, respostasSond, formsAtivos, respostasForm] = await Promise.all([
+      api("GET", "cj_sondagens?select=*&ativa=eq.true&order=criado_em.desc"),
+      api("GET", "cj_sondagens_respostas?select=*"),
+      api("GET", "cj_formularios?select=*&ativa=eq.true&order=criado_em.desc"),
+      api("GET", "cj_formularios_respostas?select=*")
+    ]);
+
+    if(sondagensAtivas.length===0 && formsAtivos.length===0){
+      tableWrap.outerHTML = `<div class="empty">Nenhuma sondagem ou formulário ativo neste momento.</div>`;
+      pararAutoAtualizacao();
+      return;
+    }
+
+    const colunas = [
+      ...sondagensAtivas.map(s=>({tipo:"sondagem", id:s.id, label: s.pergunta.length>18 ? s.pergunta.slice(0,18)+"…" : s.pergunta, alvo: lojasAlvoDe(s)})),
+      ...formsAtivos.map(f=>({tipo:"formulario", id:f.id, label: f.titulo.length>18 ? f.titulo.slice(0,18)+"…" : f.titulo, alvo: lojasAlvoDe(f)}))
+    ];
+
+    function respostaCelula(col, loja){
+      if(!col.alvo.includes(loja)) return `<td style="text-align:center; color:#ccc; padding:5px 4px; border-bottom:1px solid var(--line);">—</td>`;
+      if(col.tipo==="sondagem"){
+        const r = respostasSond.find(x=>x.sondagem_id===col.id && x.loja===loja);
+        if(!r) return `<td style="text-align:center; color:var(--red); font-weight:800; padding:5px 4px; border-bottom:1px solid var(--line); font-size:13px;">✕</td>`;
+        return `<td style="text-align:center; color:var(--green); font-weight:700; padding:5px 4px; border-bottom:1px solid var(--line); font-size:11px;">${r.opcao}</td>`;
+      } else {
+        const r = respostasForm.find(x=>x.formulario_id===col.id && x.loja===loja);
+        return `<td style="text-align:center; color:${r?'var(--green)':'var(--red)'}; font-weight:800; padding:5px 4px; border-bottom:1px solid var(--line); font-size:13px;">${r?'✔':'✕'}</td>`;
+      }
+    }
+
+    const headerHtml = colunas.map(c=>`<th style="font-size:9.5px; color:var(--terracotta); text-transform:uppercase; padding:4px 3px; border-bottom:2px solid var(--terracotta); white-space:nowrap; max-width:70px;" title="${c.label}">${c.tipo==="sondagem"?"📊":"📝"} ${c.label}</th>`).join("");
+    const linhasHtml = LOJAS.map(l=>{
+      const cols = colunas.map(c=>respostaCelula(c, l)).join("");
+      return `<tr><td style="font-weight:700; font-size:12px; padding:5px 6px; border-bottom:1px solid var(--line); white-space:nowrap;">${l}</td>${cols}</tr>`;
+    }).join("");
+
+    tableWrap.innerHTML = `<table style="border-collapse:collapse;"><thead><tr><th></th>${headerHtml}</tr></thead><tbody>${linhasHtml}</tbody></table>`;
+  }
+
+  await renderGrelha();
+  iniciarAutoAtualizacao(renderGrelha, 20);
 }
 async function openSondagens(){
   currentView = openSondagens;
@@ -3298,13 +3318,14 @@ async function generateDailyReport(){
 }
 async function abrirRelatorioVisualDiario(){
   currentView = abrirRelatorioVisualDiario;
+  pararAutoAtualizacao();
   const main = document.getElementById("main");
   main.innerHTML = "";
   const back = document.createElement("button");
   back.className = "cambtn secondary";
   back.style.marginBottom = "14px";
   back.textContent = "← Voltar ao painel";
-  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  back.onclick = ()=>{ pararAutoAtualizacao(); const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
   const actionsRow = document.createElement("div");
@@ -3315,55 +3336,65 @@ async function abrirRelatorioVisualDiario(){
   `;
   main.appendChild(actionsRow);
 
-  const today = new Date();
-  const ds = isoDate(today);
-  const dataFmt = today.toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
-  const horaFmt = today.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
-
   const capturaWrap = document.createElement("div");
   capturaWrap.id = "capturaVisualDiario";
   capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line);";
   main.appendChild(capturaWrap);
 
-  const linhas = LOJAS.map(l=>{
-    const vendas = dailyStatus(l,"vendas",ds,"unico");
-    const manha = dailyStatus(l,"vitrine",ds,"manha");
-    const almoco = dailyStatus(l,"vitrine",ds,"almoco");
-    const lanche = dailyStatus(l,"vitrine",ds,"lanche");
-    const laranjas = dailyRows.some(r=>r.loja===l && r.tipo==="laranjas_maquina" && r.data===ds);
-    const tabacoAplicavel = !categoriaNaoAplicavel(l, "expositor_tabaco");
-    const tabaco = dailyRows.some(r=>r.loja===l && r.tipo==="expositor_tabaco" && r.data===ds);
-    const jscAplicavel = !categoriaNaoAplicavel(l, "raspadinhas");
-    const jsc = jscAplicavel ? invStatus(l, "raspadinhas", "semanal").state === "ok" : null;
-    return {loja:l, vendas, manha, almoco, lanche, laranjas, tabacoAplicavel, tabaco, jscAplicavel, jsc};
-  });
+  const avisoAuto = document.createElement("div");
+  avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
+  avisoAuto.textContent = "🔄 Atualiza-se sozinha";
+  main.appendChild(avisoAuto);
 
-  const COLS = [["vendas","Vend."],["manha","Manhã"],["almoco","Almoço"],["lanche","Lanche"],["laranjas","Laranja"],["tabaco","Tabaco"],["jsc","JSC"]];
-  function cell(ok){
-    if(ok===null) return `<td style="text-align:center; color:#ccc; padding:5px 4px; border-bottom:1px solid #f0ebe3;">—</td>`;
-    const cor = ok ? "#2e7d32" : "#b0432f";
-    return `<td style="text-align:center; color:${cor}; font-weight:800; padding:5px 4px; border-bottom:1px solid #f0ebe3; font-size:13px;">${ok?'✔':'✕'}</td>`;
-  }
-  const headerHtml = COLS.map(([,label])=>`<th style="font-size:10px; color:#9c4d23; text-transform:uppercase; padding:4px 3px; border-bottom:2px solid #C1622D; white-space:nowrap;">${label}</th>`).join("");
-  const linhasHtml = linhas.map(r=>{
-    const colsHtml = COLS.map(([key])=>{
-      if(key==="tabaco" && !r.tabacoAplicavel) return cell(null);
-      if(key==="jsc" && !r.jscAplicavel) return cell(null);
-      return cell(r[key]);
+  async function renderTabela(){
+    const today = new Date();
+    const ds = isoDate(today);
+    const dataFmt = today.toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+    const horaFmt = today.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
+
+    const linhas = LOJAS.map(l=>{
+      const vendas = dailyStatus(l,"vendas",ds,"unico");
+      const manha = dailyStatus(l,"vitrine",ds,"manha");
+      const almoco = dailyStatus(l,"vitrine",ds,"almoco");
+      const lanche = dailyStatus(l,"vitrine",ds,"lanche");
+      const laranjas = dailyRows.some(r=>r.loja===l && r.tipo==="laranjas_maquina" && r.data===ds);
+      const tabacoAplicavel = !categoriaNaoAplicavel(l, "expositor_tabaco");
+      const tabaco = dailyRows.some(r=>r.loja===l && r.tipo==="expositor_tabaco" && r.data===ds);
+      const jscAplicavel = !categoriaNaoAplicavel(l, "raspadinhas");
+      const jsc = jscAplicavel ? invStatus(l, "raspadinhas", "semanal").state === "ok" : null;
+      return {loja:l, vendas, manha, almoco, lanche, laranjas, tabacoAplicavel, tabaco, jscAplicavel, jsc};
+    });
+
+    const COLS = [["vendas","Vend."],["manha","Manhã"],["almoco","Almoço"],["lanche","Lanche"],["laranjas","Laranja"],["tabaco","Tabaco"],["jsc","JSC"]];
+    function cell(ok){
+      if(ok===null) return `<td style="text-align:center; color:#ccc; padding:5px 4px; border-bottom:1px solid #f0ebe3;">—</td>`;
+      const cor = ok ? "#2e7d32" : "#b0432f";
+      return `<td style="text-align:center; color:${cor}; font-weight:800; padding:5px 4px; border-bottom:1px solid #f0ebe3; font-size:13px;">${ok?'✔':'✕'}</td>`;
+    }
+    const headerHtml = COLS.map(([,label])=>`<th style="font-size:10px; color:#9c4d23; text-transform:uppercase; padding:4px 3px; border-bottom:2px solid #C1622D; white-space:nowrap;">${label}</th>`).join("");
+    const linhasHtml = linhas.map(r=>{
+      const colsHtml = COLS.map(([key])=>{
+        if(key==="tabaco" && !r.tabacoAplicavel) return cell(null);
+        if(key==="jsc" && !r.jscAplicavel) return cell(null);
+        return cell(r[key]);
+      }).join("");
+      return `<tr><td style="font-weight:700; font-size:12px; padding:5px 6px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${r.loja}</td>${colsHtml}</tr>`;
     }).join("");
-    return `<tr><td style="font-weight:700; font-size:12px; padding:5px 6px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${r.loja}</td>${colsHtml}</tr>`;
-  }).join("");
 
-  const html = `
-    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:1px;">CoreJoint · Vendas, Vitrine e Inventário</div>
-    <div style="font-size:10px; color:#777; margin-bottom:10px; text-transform:capitalize;">${dataFmt} · ${horaFmt}</div>
-    <table style="border-collapse:collapse;">
-      <thead><tr><th></th>${headerHtml}</tr></thead>
-      <tbody>${linhasHtml}</tbody>
-    </table>
-  `;
-  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:16px; border:1px solid var(--line); display:inline-block; max-width:100%; overflow-x:auto;";
-  capturaWrap.innerHTML = html;
+    const html = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:1px;">CoreJoint · Vendas, Vitrine e Inventário</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px; text-transform:capitalize;">${dataFmt} · ${horaFmt}</div>
+      <table style="border-collapse:collapse;">
+        <thead><tr><th></th>${headerHtml}</tr></thead>
+        <tbody>${linhasHtml}</tbody>
+      </table>
+    `;
+    capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:16px; border:1px solid var(--line); display:inline-block; max-width:100%; overflow-x:auto;";
+    capturaWrap.innerHTML = html;
+  }
+
+  await renderTabela();
+  iniciarAutoAtualizacao(async ()=>{ await loadAll(); await renderTabela(); }, 20);
 
   document.getElementById("partilharImagemBtn").onclick = async (ev)=>{
     const btn = ev.currentTarget;
