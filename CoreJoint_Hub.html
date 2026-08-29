@@ -67,6 +67,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div class="ps">As tuas ferramentas de gestão, num só sítio.</div>
 
   <div id="panoramaGeralSection" style="margin-bottom:14px;"></div>
+  <div id="semaforoLojasSection" style="margin-bottom:14px;"></div>
 
   <div id="topLinksRow" style="display:flex; gap:10px; margin-bottom:14px; font-size:.76rem; flex-wrap:wrap; justify-content:center;">
     <button onclick="abrirAvisarTodos()" style="background:var(--sf2); border:none; border-radius:99px; padding:6px 12px; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">📢 Avisar todas</button>
@@ -198,6 +199,63 @@ function botoesAcao(lista){
   return `<div style="display:flex; flex-direction:column; gap:6px;">
     ${lista.map(([label,href])=>`<a href="${href}" style="text-decoration:none; display:block; text-align:center; background:var(--terracotta,#C1622D); color:#fff; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">${label}</a>`).join("")}
   </div>`;
+}
+async function renderSemaforoLojas(){
+  const el = document.getElementById("semaforoLojasSection");
+  if(!el) return;
+  try{
+    const today = new Date();
+    const todayStr = isoDate(today);
+    const desde3dias = isoDate(new Date(Date.now() - 3*24*60*60*1000));
+
+    const [todayVendasSf, quebrasPendSf, dailyRecenteSf, invRecenteSf] = await Promise.all([
+      api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
+      api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
+      api(`cj_daily_reportes?select=loja&data=gte.${desde3dias}`),
+      api(`cj_inventario_reportes?select=loja&data=gte.${desde3dias}`)
+    ]);
+
+    const vendasFeitasSf = new Set(todayVendasSf.map(r=>r.loja));
+    const quebrasPorLojaSf = {};
+    quebrasPendSf.forEach(r=>{ if(!r.loja) return; (quebrasPorLojaSf[r.loja] ||= []).push(Number(r.valor_quebra||0)); });
+    const lojasAtivasSf = new Set([...dailyRecenteSf.map(r=>r.loja), ...invRecenteSf.map(r=>r.loja)]);
+
+    const linhas = LOJAS.map(l=>{
+      const semEnvio3dias = !lojasAtivasSf.has(l);
+      const quebrasLoja = quebrasPorLojaSf[l] || [];
+      const temQuebraAlta = quebrasLoja.some(v=>Math.abs(v)>=200);
+      const semVendasHoje = !vendasFeitasSf.has(l);
+
+      let cor, motivo;
+      if(semEnvio3dias || temQuebraAlta){
+        cor = "🔴";
+        motivo = semEnvio3dias ? "sem nenhum envio há 3+ dias" : `quebra alta por justificar`;
+      } else if(semVendasHoje || quebrasLoja.length>0){
+        cor = "🟡";
+        motivo = semVendasHoje && quebrasLoja.length>0 ? "vendas hoje + quebras por justificar" : (semVendasHoje ? "sem vendas hoje" : "quebras por justificar");
+      } else {
+        cor = "🟢";
+        motivo = "tudo em dia";
+      }
+      return {loja:l, cor, motivo};
+    });
+    linhas.sort((a,b)=>{ const ordem = {"🔴":0,"🟡":1,"🟢":2}; return ordem[a.cor]-ordem[b.cor]; });
+
+    el.innerHTML = `
+      <div class="card" style="flex-direction:column; align-items:stretch; gap:0;">
+        <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.88rem; margin-bottom:10px;">🚦 Semáforo das lojas</div>
+        <div style="display:flex; flex-direction:column; gap:1px;">
+          ${linhas.map(r=>`
+            <div style="display:flex; align-items:center; gap:8px; padding:7px 2px; border-bottom:1px solid var(--br);">
+              <span style="font-size:1rem;">${r.cor}</span>
+              <span style="font-size:.82rem; font-weight:600; flex:1;">${r.loja}</span>
+              <span style="font-size:.7rem; color:var(--t2);">${r.motivo}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }catch(e){ console.error(e); }
 }
 async function renderPanoramaGeral(){
   const el = document.getElementById("panoramaGeralSection");
@@ -851,6 +909,7 @@ function semanaKey(d){
 
 (async ()=>{
   renderPanoramaGeral();
+  renderSemaforoLojas();
   const attn = [];
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
