@@ -5896,10 +5896,17 @@ function abrirMenuFerramentas(grupos){
   const lista = document.getElementById("ferramentasLista");
   grupos.forEach((g, gi)=>{
     const grupoBox = document.createElement("div");
-    grupoBox.style.cssText = `background:var(--cream); border-radius:12px; padding:4px 10px; margin-bottom:14px;`;
-    const titulo = document.createElement("div");
-    titulo.style.cssText = "font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--terracotta); font-weight:800; padding:10px 2px 6px;";
-    titulo.textContent = g.titulo;
+    grupoBox.style.cssText = `background:var(--cream); border-radius:12px; padding:2px 10px; margin-bottom:10px;`;
+    const titulo = document.createElement("button");
+    titulo.style.cssText = "display:flex; align-items:center; justify-content:space-between; width:100%; text-align:left; border:none; background:none; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--terracotta); font-weight:800; padding:12px 2px; cursor:pointer;";
+    titulo.innerHTML = `<span>${g.titulo} <span style="color:var(--ink-soft); font-weight:600; text-transform:none;">(${g.itens.length})</span></span><span class="chev-grupo">▾</span>`;
+    const corpo = document.createElement("div");
+    corpo.style.display = "none";
+    titulo.onclick = ()=>{
+      const abrir = corpo.style.display === "none";
+      corpo.style.display = abrir ? "block" : "none";
+      titulo.querySelector(".chev-grupo").textContent = abrir ? "▴" : "▾";
+    };
     grupoBox.appendChild(titulo);
     g.itens.forEach((t, ti)=>{
       const item = document.createElement("button");
@@ -5917,8 +5924,9 @@ function abrirMenuFerramentas(grupos){
           toast("Erro ao abrir: " + (e.message||e).slice(0,150));
         }
       };
-      grupoBox.appendChild(item);
+      corpo.appendChild(item);
     });
+    grupoBox.appendChild(corpo);
     lista.appendChild(grupoBox);
   });
 }
