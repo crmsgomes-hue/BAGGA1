@@ -3243,7 +3243,10 @@ async function abrirRelatorioVisualDiario(){
 
   const actionsRow = document.createElement("div");
   actionsRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px;";
-  actionsRow.innerHTML = `<button class="cambtn" id="copiarImagemBtn" style="flex:1;">📸 Copiar como imagem</button>`;
+  actionsRow.innerHTML = `
+    <button class="cambtn" id="partilharImagemBtn" style="flex:1;">📱 Partilhar (WhatsApp)</button>
+    <button class="cambtn secondary" id="copiarImagemBtn" style="flex:1;">📸 Copiar</button>
+  `;
   main.appendChild(actionsRow);
 
   const today = new Date();
@@ -3295,6 +3298,47 @@ async function abrirRelatorioVisualDiario(){
   `;
   capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:16px; border:1px solid var(--line); display:inline-block; max-width:100%; overflow-x:auto;";
   capturaWrap.innerHTML = html;
+
+  document.getElementById("partilharImagemBtn").onclick = async (ev)=>{
+    const btn = ev.currentTarget;
+    if(btn.disabled) return;
+    btn.disabled = true;
+    const textoOriginal = btn.textContent;
+    btn.textContent = "A gerar imagem...";
+    try{
+      const canvas = await html2canvas(capturaWrap, {scale:2, backgroundColor:"#ffffff"});
+      canvas.toBlob(async (blob)=>{
+        const ficheiro = new File([blob], `CoreJoint_diario_${todayStr()}.png`, {type:"image/png"});
+        if(navigator.share && navigator.canShare && navigator.canShare({files:[ficheiro]})){
+          try{
+            await navigator.share({files:[ficheiro], title:"CoreJoint · Vendas, Vitrine e Inventário"});
+          }catch(e){
+            // utilizador cancelou a partilha ou o navegador recusou - nao e um erro real, nao mostra nada
+          }
+          btn.textContent = textoOriginal;
+          btn.disabled = false;
+        } else {
+          // navegador nao suporta partilha nativa de ficheiros (ex: desktop) - cai para copiar
+          try{
+            await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
+            btn.textContent = "✔ Copiado! Cola no WhatsApp";
+          }catch(e2){
+            const link = document.createElement("a");
+            link.download = `CoreJoint_diario_${todayStr()}.png`;
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            btn.textContent = "📥 Descarregada";
+          }
+          setTimeout(()=>{ btn.textContent = textoOriginal; btn.disabled = false; }, 2500);
+        }
+      }, "image/png");
+    }catch(e){
+      console.error(e);
+      toast("Erro ao gerar imagem: " + (e.message||e).slice(0,100));
+      btn.textContent = textoOriginal;
+      btn.disabled = false;
+    }
+  };
 
   document.getElementById("copiarImagemBtn").onclick = async (ev)=>{
     const btn = ev.currentTarget;
