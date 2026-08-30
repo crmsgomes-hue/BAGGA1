@@ -3377,6 +3377,7 @@ function criarBotoesPartilha(main, capturaWrap, nomeFicheiro, tituloPartilha){
         btn.textContent = textoOriginal;
         btn.disabled = false;
       } else {
+        btn.textContent = "A copiar...";
         try{
           await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
           btn.textContent = "✔ Copiado! Cola no WhatsApp";
@@ -3404,8 +3405,10 @@ function criarBotoesPartilha(main, capturaWrap, nomeFicheiro, tituloPartilha){
     const textoOriginal = btn.textContent;
     btn.textContent = "A copiar...";
     try{
-      const blob = await gerarImagem();
-      await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
+      // importante: passar a Promise da imagem diretamente ao ClipboardItem, chamando write() logo
+      // no toque do botao - se esperarmos a imagem terminar de ser gerada antes de chamar write(),
+      // muitos telemoveis recusam por a "autorizacao" do toque ja ter expirado
+      await navigator.clipboard.write([new ClipboardItem({"image/png": gerarImagem()})]);
       btn.textContent = "✔ Copiado!";
     }catch(e){
       console.error(e);
