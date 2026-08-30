@@ -6663,6 +6663,9 @@ function calLojasDoEvento(ev){
 
 function calEventosNoDiaDop(dataStr){
   return _calEventos.filter(ev=>{
+    if(ev.data_fim){
+      return dataStr>=ev.data_inicio && dataStr<=ev.data_fim;
+    }
     if(ev.data_inicio > dataStr) return false;
     if(ev.recorrencia==="unica") return ev.data_inicio===dataStr;
     const d0 = new Date(ev.data_inicio+"T00:00:00");
@@ -6696,6 +6699,7 @@ function calRenderMesDop(){
     const isHoje = dataStr===hoje;
     const isSel = dataStr===_calDiaSel;
     const dotsHtml = evs.slice(0,4).map(ev=>{
+      if(ev.tipo==="ferias") return `<div style="width:6px; height:6px; border-radius:50%; background:#3b82c4;"></div>`;
       const lj = calLojasDoEvento(ev);
       const feito = lj.length>0 && lj.every(l=>_calChecks.some(c=>c.evento_id===ev.id && c.data===dataStr && c.loja===l));
       return `<div style="width:6px; height:6px; border-radius:50%; background:${feito?'var(--green)':'var(--red)'};"></div>`;
@@ -6731,7 +6735,10 @@ function calRenderDiaDetailDop(dataStr){
   let html = `<div class="card" style="flex-direction:column; align-items:stretch;">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
       <div style="font-weight:700;">${dia}/${mes}/${ano}${feriado ? ` <span style="color:var(--red); font-weight:600; font-size:13px;">🎉 ${feriado}</span>` : ''}</div>
-      <button data-cal-criar style="background:var(--terracotta); color:#fff; border:none; border-radius:8px; padding:7px 14px; font-size:13px; font-weight:700;">+ Tarefa</button>
+      <div style="display:flex; gap:6px;">
+        <button data-cal-ferias style="background:none; border:1.5px solid var(--terracotta); color:var(--terracotta); border-radius:8px; padding:7px 12px; font-size:13px; font-weight:700;">🏖️ Férias</button>
+        <button data-cal-criar style="background:var(--terracotta); color:#fff; border:none; border-radius:8px; padding:7px 14px; font-size:13px; font-weight:700;">+ Tarefa</button>
+      </div>
     </div>`;
   if(evs.length===0){
     html += `<div style="font-size:13px; color:var(--ink-soft);">Sem tarefas neste dia.</div>`;
@@ -6759,10 +6766,66 @@ function calRenderDiaDetailDop(dataStr){
   html += `</div>`;
   detail.innerHTML = html;
   const criarBtn = detail.querySelector("[data-cal-criar]");
+  const feriasBtn = detail.querySelector("[data-cal-ferias]");
+  if(feriasBtn) feriasBtn.onclick = ()=>calAbrirCriarFerias(dataStr);
   if(criarBtn) criarBtn.onclick = ()=>calAbrirCriarDop(dataStr);
   detail.querySelectorAll("[data-cal-apagar]").forEach(el=>{
     el.onclick = ()=>calApagarEventoDop(el.getAttribute("data-cal-apagar"), el.getAttribute("data-cal-apagar-data"));
   });
+}
+
+function calAbrirCriarFerias(dataStr){
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "calFeriasOverlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>🏖️ Marcar férias</h2>
+      <div class="field" style="margin-top:10px;">
+        <label>Nome do gerente/colaborador</label>
+        <input id="calFeriasNome" placeholder="Ex: João Martinho">
+      </div>
+      <div class="field">
+        <label>Loja</label>
+        <select id="calFeriasLoja">
+          <option value="">— Sem loja específica —</option>
+          ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+        </select>
+      </div>
+      <div class="field">
+        <label>Data de início</label>
+        <input id="calFeriasInicio" type="date" value="${dataStr}">
+      </div>
+      <div class="field">
+        <label>Data de fim</label>
+        <input id="calFeriasFim" type="date" value="${dataStr}">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" style="flex:1;">Cancelar</button>
+        <button class="btn-save" style="flex:1;">Marcar férias</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector(".btn-cancel").onclick = ()=>overlay.remove();
+  overlay.querySelector(".btn-save").onclick = async ()=>{
+    const nome = document.getElementById("calFeriasNome").value.trim();
+    const loja = document.getElementById("calFeriasLoja").value;
+    const inicio = document.getElementById("calFeriasInicio").value;
+    const fim = document.getElementById("calFeriasFim").value;
+    if(!nome){ toast("Escreve o nome"); return; }
+    if(!inicio || !fim || fim<inicio){ toast("Verifica as datas"); return; }
+    await api("POST", "cj_calendario_dop", {
+      titulo: `🏖️ Férias — ${nome}`, descricao: loja||null,
+      data_inicio: inicio, data_fim: fim, tipo: "ferias", recorrencia: "unica",
+      lojas: loja ? [loja] : "todas", criado_por: currentUser
+    });
+    overlay.remove();
+    mostrarSucesso("Férias marcadas!");
+    await calCarregarDadosDop();
+    calRenderMesDop();
+    calRenderDiaDetailDop(_calDiaSel || inicio);
+  };
 }
 
 function calAbrirCriarDop(dataStr){
