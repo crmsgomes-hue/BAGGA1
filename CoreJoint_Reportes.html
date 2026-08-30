@@ -4465,6 +4465,231 @@ async function abrirPivotTrocas(){
   iniciarAutoAtualizacao(renderPivot, 20);
 }
 
+function openImportarStockNegativo(){
+  currentView = openImportarStockNegativo;
+  window._formEmEdicao = true;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <div class="card-title" style="margin-bottom:6px;">📤 Importar Excel de stock negativo</div>
+    <div class="card-sub" style="margin-bottom:12px;">Colunas esperadas: Loja, Data, Operador, Produto, Stock/Quantidade. Todas as linhas válidas são guardadas.</div>
+    <label style="display:block; width:100%; text-align:center; background:var(--terracotta); color:#fff; font-weight:700; padding:14px; border-radius:10px; cursor:pointer;">📁 Escolher ficheiro Excel<input type="file" id="stockNegFile" accept=".xlsx,.xls,.csv" style="display:none;"></label>
+    <div id="stockNegPreview" style="margin-top:14px;"></div>
+  `;
+  main.appendChild(card);
+  document.getElementById("stockNegFile").addEventListener("change", handleStockNegFile);
+}
+
+let stockNegParaImportar = [], stockNegForaDop = [], stockNegComErro = [];
+function handleStockNegFile(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:"array", cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
+      function normalizarCabecalho(s){
+        return String(s).toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+      }
+      function pegar(row, ...nomes){
+        const nomesNorm = nomes.map(normalizarCabecalho);
+        for(const k of Object.keys(row)){
+          const kNorm = normalizarCabecalho(k);
+          if(nomesNorm.includes(kNorm)) return row[k];
+        }
+        for(const k of Object.keys(row)){
+          const kNorm = normalizarCabecalho(k);
+          if(nomesNorm.some(n=>kNorm.includes(n))) return row[k];
+        }
+        return "";
+      }
+      const todasLinhas = rows.map(r=>{
+        const lojaOriginal = String(pegar(r,"loja","cód. loja","cod. loja")).trim();
+        const lojaCanonica = encontrarLojaCorrespondente(lojaOriginal);
+        const dataRaw = pegar(r,"data");
+        let dataStr = "";
+        if(dataRaw instanceof Date) dataStr = isoDate(dataRaw);
+        else if(typeof dataRaw === "number" && window.XLSX && XLSX.SSF){
+          const d = XLSX.SSF.parse_date_code(dataRaw);
+          dataStr = `${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`;
+        } else {
+          dataStr = String(dataRaw).trim();
+        }
+        const operador = String(pegar(r,"operador","nome")).trim();
+        const produto = String(pegar(r,"produto","artigo","descricao","descrição")).trim();
+        const stockRaw = String(pegar(r,"stock","quantidade","qtd")).replace(/\s/g,"").replace(",", ".").trim();
+        const stock = parseFloat(stockRaw);
+        return {lojaOriginal, loja:lojaCanonica, data:dataStr, operador, produto, valor_stock:stock};
+      }).filter(r=>r.lojaOriginal && r.data && !isNaN(r.valor_stock) && r.valor_stock<0);
+
+      stockNegParaImportar = todasLinhas.filter(r=>r.loja);
+      const semLoja = todasLinhas.filter(r=>!r.loja);
+      stockNegForaDop = semLoja.filter(r=>ehLojaConhecidaForaDop(r.lojaOriginal));
+      stockNegComErro = semLoja.filter(r=>!ehLojaConhecidaForaDop(r.lojaOriginal));
+      renderStockNegPreview(todasLinhas.length);
+    }catch(err){
+      console.error(err);
+      toast("Erro a ler o ficheiro: " + (err.message||err).slice(0,100));
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function renderStockNegPreview(totalLinhas){
+  const semLoja = stockNegComErro.length + stockNegForaDop.length;
+  const el = document.getElementById("stockNegPreview");
+  el.innerHTML = `
+    <div class="card-sub" style="margin-bottom:10px;">${totalLinhas} linha(s) com stock negativo encontradas${semLoja>0?` — ${semLoja} sem loja reconhecida`:''}.</div>
+    <button class="cambtn" id="confirmarImportarStockNegBtn" style="width:100%;">✔ Confirmar importação</button>
+  `;
+  const btn = document.getElementById("confirmarImportarStockNegBtn");
+  btn.onclick = protegerClique(btn, confirmarImportarStockNeg, "A importar...");
+}
+async function confirmarImportarStockNeg(){
+  const todos = [...stockNegParaImportar, ...stockNegForaDop, ...stockNegComErro];
+  for(const r of todos){
+    await api("POST", "cj_stock_negativo", {
+      loja: r.loja, loja_original: r.lojaOriginal, data: r.data, operador: r.operador,
+      produto: r.produto, valor_stock: r.valor_stock, importado_por: currentUser,
+      fora_dop: stockNegForaDop.includes(r)
+    });
+  }
+  mostrarSucesso(`${todos.length} registo(s) de stock negativo importado(s)`);
+  stockNegParaImportar = []; stockNegForaDop = []; stockNegComErro = [];
+  const v = previousView; previousView = null; (v||render)();
+}
+
+async function abrirRelatorioVisualStockNegativo(){
+  currentView = abrirRelatorioVisualStockNegativo;
+  pararAutoAtualizacao();
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ pararAutoAtualizacao(); const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const actionsRow = document.createElement("div");
+  actionsRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px;";
+  actionsRow.innerHTML = `<a href="CoreJoint_Reportes.html?abrir=importarStockNeg" class="cambtn secondary" style="flex:1; text-align:center; text-decoration:none; display:block;">📤 Importar Excel</a>`;
+  main.appendChild(actionsRow);
+
+  const tituloRede = document.createElement("div");
+  tituloRede.style.cssText = "font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:700; margin-bottom:6px;";
+  tituloRede.textContent = "🏪 As tuas lojas";
+  main.appendChild(tituloRede);
+  const capturaRede = document.createElement("div");
+  capturaRede.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line); margin-bottom:8px;";
+  main.appendChild(capturaRede);
+  criarBotoesPartilha(main, capturaRede, "CoreJoint_stock_negativo_rede", "CoreJoint · Stock negativo");
+
+  const separador = document.createElement("div");
+  separador.style.cssText = "height:1px; background:var(--line); margin:22px 0 16px;";
+  main.appendChild(separador);
+
+  const tituloFora = document.createElement("div");
+  tituloFora.style.cssText = "font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:700; margin-bottom:6px;";
+  tituloFora.textContent = "🚫 Fora da rede";
+  main.appendChild(tituloFora);
+  const capturaFora = document.createElement("div");
+  capturaFora.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line); margin-bottom:8px;";
+  main.appendChild(capturaFora);
+  criarBotoesPartilha(main, capturaFora, "CoreJoint_stock_negativo_fora_rede", "CoreJoint · Stock negativo fora da rede");
+
+  const avisoAuto = document.createElement("div");
+  avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
+  avisoAuto.textContent = "🔄 Atualiza-se sozinha";
+  main.appendChild(avisoAuto);
+
+  async function renderTabelas(){
+    const [pendentesRede, pendentesFora] = await Promise.all([
+      api("GET", "cj_stock_negativo?select=loja,valor_stock&justificacao=is.null&loja=not.is.null"),
+      api("GET", "cj_stock_negativo?select=loja_original,valor_stock&justificacao=is.null&loja=is.null&fora_dop=eq.true")
+    ]);
+    const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+
+    const porLoja = {};
+    LOJAS.forEach(l=>porLoja[l]={n:0, total:0});
+    pendentesRede.forEach(r=>{ if(porLoja[r.loja]){ porLoja[r.loja].n++; porLoja[r.loja].total += Number(r.valor_stock||0); } });
+    const linhasRedeHtml = LOJAS.map(l=>{
+      const d = porLoja[l];
+      const ok = d.n===0;
+      const cor = ok ? "#2e7d32" : "#b0432f";
+      return `<tr>
+        <td style="font-weight:700; font-size:11px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>
+        <td style="text-align:center; font-size:12px; padding:4px 2px; border-bottom:1px solid #f0ebe3; color:${cor}; font-weight:800;">${ok?'✔':d.n}</td>
+        <td style="text-align:right; font-size:11px; padding:4px 3px; border-bottom:1px solid #f0ebe3; color:${cor}; font-weight:700;">${ok?'—':d.total.toFixed(2)}</td>
+      </tr>`;
+    }).join("");
+    capturaRede.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--line); width:100%; box-sizing:border-box;";
+    capturaRede.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Stock negativo</div>
+      <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt}</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th></th>
+          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; padding:3px 4px; border-bottom:2px solid #C1622D;">Registos</th>
+          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; padding:3px 4px; border-bottom:2px solid #C1622D;">Total</th>
+        </tr></thead>
+        <tbody>${linhasRedeHtml}</tbody>
+      </table>
+    `;
+
+    const porOriginal = {};
+    pendentesFora.forEach(r=>{
+      const chave = r.loja_original || "(sem identificação)";
+      (porOriginal[chave] ||= {n:0, total:0});
+      porOriginal[chave].n++;
+      porOriginal[chave].total += Number(r.valor_stock||0);
+    });
+    const linhasFora = Object.entries(porOriginal).sort((a,b)=>a[1].total - b[1].total);
+    capturaFora.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--line); width:100%; box-sizing:border-box;";
+    if(linhasFora.length===0){
+      capturaFora.innerHTML = `
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Stock negativo fora da rede</div>
+        <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt}</div>
+        <div style="font-size:12px; color:var(--ink-soft);">✔ Nenhum registo.</div>
+      `;
+    } else {
+      const linhasForaHtml = linhasFora.map(([nome, d])=>`
+        <tr>
+          <td style="font-weight:700; font-size:11px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap; max-width:140px; overflow:hidden; text-overflow:ellipsis;" title="${nome}">${nome}</td>
+          <td style="text-align:center; font-size:12px; padding:4px 2px; border-bottom:1px solid #f0ebe3; color:#b0432f; font-weight:800;">${d.n}</td>
+          <td style="text-align:right; font-size:11px; padding:4px 3px; border-bottom:1px solid #f0ebe3; color:#b0432f; font-weight:700;">${d.total.toFixed(2)}</td>
+        </tr>
+      `).join("");
+      capturaFora.innerHTML = `
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Stock negativo fora da rede</div>
+        <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt}</div>
+        <table style="border-collapse:collapse; width:100%;">
+          <thead><tr>
+            <th></th>
+            <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; padding:3px 4px; border-bottom:2px solid #C1622D;">Registos</th>
+            <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; padding:3px 4px; border-bottom:2px solid #C1622D;">Total</th>
+          </tr></thead>
+          <tbody>${linhasForaHtml}</tbody>
+        </table>
+      `;
+    }
+  }
+
+  await renderTabelas();
+  iniciarAutoAtualizacao(renderTabelas, 20);
+}
+
 async function confirmarImportarQuebras(){
   const btn = document.getElementById("confirmarImportarQuebrasBtn");
   if(btn){
@@ -6559,6 +6784,7 @@ function renderGestao(){
       {icon:"📤", label:"Importar Excel de quebras", fn:openImportarQuebras},
       {icon:"📊", label:"Relatório de quebras", fn:openRelatorioQuebras},
       {icon:"🏷️", label:"Corrigir lojas não reconhecidas", fn:abrirCorrigirLojasQuebras},
+      {icon:"📉", label:"Stock negativo", fn:abrirRelatorioVisualStockNegativo},
       {icon:"🗓️", label:"Relatório semanal de quebras (PDF/Excel)", fn:gerarRelatorioSemanalQuebras}
     ]},
     {titulo:"Visão por categoria", itens:[
@@ -6592,6 +6818,7 @@ function renderGestao(){
     visualInventario: abrirRelatorioVisualInventario, visualQuebras: abrirRelatorioVisualQuebras, visualFotosPontuais: abrirRelatorioVisualFotosPontuais,
     importarTrocas: openImportarTrocas, pivotTrocas: abrirPivotTrocas, corrigirLojasQuebras: abrirCorrigirLojasQuebras,
     relatorioMensalCompleto: abrirRelatorioMensalCompleto,
+    importarStockNeg: openImportarStockNegativo, visualStockNeg: abrirRelatorioVisualStockNegativo,
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
