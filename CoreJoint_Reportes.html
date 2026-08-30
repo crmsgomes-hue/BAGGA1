@@ -1389,18 +1389,17 @@ async function abrirGrelhaSondagensForms(){
   back.onclick = ()=>{ pararAutoAtualizacao(); const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
-  const h = document.createElement("h2");
-  h.textContent = "📊 Grelha de Sondagens e Formulários";
-  main.appendChild(h);
   const sub = document.createElement("div");
   sub.className = "sub";
   sub.style.marginBottom = "14px";
-  sub.innerHTML = `Quem já respondeu, num relance — como no relatório diário. <span style="color:var(--green); font-weight:700;">🔄 Atualiza-se sozinha</span>`;
+  sub.innerHTML = `Quem já respondeu, num relance. <span style="color:var(--green); font-weight:700;">🔄 Atualiza-se sozinha</span>`;
   main.appendChild(sub);
 
   const tableWrap = document.createElement("div");
+  tableWrap.id = "capturaSondagensGrelha";
   tableWrap.style.cssText = "background:#fff; border-radius:14px; padding:16px; border:1px solid var(--line); display:inline-block; max-width:100%; overflow-x:auto;";
   main.appendChild(tableWrap);
+  criarBotoesPartilha(main, tableWrap, "CoreJoint_sondagens", "CoreJoint · Sondagens e Formulários");
 
   async function renderGrelha(){
     const [sondagensAtivas, respostasSond, formsAtivos, respostasForm] = await Promise.all([
@@ -1439,7 +1438,11 @@ async function abrirGrelhaSondagensForms(){
       return `<tr><td style="font-weight:700; font-size:12px; padding:5px 6px; border-bottom:1px solid var(--line); white-space:nowrap;">${l}</td>${cols}</tr>`;
     }).join("");
 
-    tableWrap.innerHTML = `<table style="border-collapse:collapse;"><thead><tr><th></th>${headerHtml}</tr></thead><tbody>${linhasHtml}</tbody></table>`;
+    tableWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:1px;">CoreJoint · Sondagens e Formulários</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})}</div>
+      <table style="border-collapse:collapse;"><thead><tr><th></th>${headerHtml}</tr></thead><tbody>${linhasHtml}</tbody></table>
+    `;
   }
 
   await renderGrelha();
@@ -3318,6 +3321,261 @@ async function generateDailyReport(){
 
   mostrarAcoesRelatorio(html, `CoreJoint_diario_${todayStr()}.pdf`);
 }
+function criarBotoesPartilha(main, capturaWrap, nomeFicheiro, tituloPartilha){
+  const actionsRow = document.createElement("div");
+  actionsRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px;";
+  actionsRow.innerHTML = `
+    <button class="cambtn" id="partilharImgBtn">📱 Partilhar (WhatsApp)</button>
+    <button class="cambtn secondary" id="copiarImgBtn">📸 Copiar</button>
+  `;
+  main.appendChild(actionsRow);
+
+  async function gerarImagem(){
+    return new Promise((resolve, reject)=>{
+      html2canvas(capturaWrap, {scale:2, backgroundColor:"#ffffff"}).then(canvas=>{
+        canvas.toBlob(blob=> blob ? resolve(blob) : reject(new Error("falha ao gerar imagem")), "image/png");
+      }).catch(reject);
+    });
+  }
+
+  document.getElementById("partilharImgBtn").onclick = async (ev)=>{
+    const btn = ev.currentTarget;
+    if(btn.disabled) return;
+    btn.disabled = true;
+    const textoOriginal = btn.textContent;
+    btn.textContent = "A gerar imagem...";
+    try{
+      const blob = await gerarImagem();
+      const ficheiro = new File([blob], `${nomeFicheiro}_${todayStr()}.png`, {type:"image/png"});
+      if(navigator.share && navigator.canShare && navigator.canShare({files:[ficheiro]})){
+        try{ await navigator.share({files:[ficheiro], title:tituloPartilha}); }catch(e){ /* cancelado, ignora */ }
+        btn.textContent = textoOriginal;
+        btn.disabled = false;
+      } else {
+        try{
+          await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
+          btn.textContent = "✔ Copiado! Cola no WhatsApp";
+        }catch(e2){
+          const link = document.createElement("a");
+          link.download = `${nomeFicheiro}_${todayStr()}.png`;
+          link.href = URL.createObjectURL(blob);
+          link.click();
+          btn.textContent = "📥 Descarregada";
+        }
+        setTimeout(()=>{ btn.textContent = textoOriginal; btn.disabled = false; }, 2500);
+      }
+    }catch(e){
+      console.error(e);
+      toast("Erro ao gerar imagem: " + (e.message||e).slice(0,100));
+      btn.textContent = textoOriginal;
+      btn.disabled = false;
+    }
+  };
+
+  document.getElementById("copiarImgBtn").onclick = async (ev)=>{
+    const btn = ev.currentTarget;
+    if(btn.disabled) return;
+    btn.disabled = true;
+    const textoOriginal = btn.textContent;
+    btn.textContent = "A copiar...";
+    try{
+      const blob = await gerarImagem();
+      await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
+      btn.textContent = "✔ Copiado!";
+    }catch(e){
+      console.error(e);
+      toast("Não foi possível copiar: " + (e.message||e).slice(0,100));
+    }
+    setTimeout(()=>{ btn.textContent = textoOriginal; btn.disabled = false; }, 1500);
+  };
+}
+
+async function abrirRelatorioVisualInventario(){
+  currentView = abrirRelatorioVisualInventario;
+  pararAutoAtualizacao();
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ pararAutoAtualizacao(); const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const capturaWrap = document.createElement("div");
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line);";
+  main.appendChild(capturaWrap);
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_inventario", "CoreJoint · Inventário");
+
+  const avisoAuto = document.createElement("div");
+  avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
+  avisoAuto.textContent = "🔄 Atualiza-se sozinha";
+  main.appendChild(avisoAuto);
+
+  const COLS = [["raspadinhas","JSC"],["laranja","Laranja"],["cafe","Café"],["tabaco","Tabaco"],["global","Global"]];
+
+  async function renderTabela(){
+    const [invRowsFresh, naoAplicaveisFresh] = await Promise.all([
+      api("GET", "cj_inventario_reportes?select=*&order=data.desc&limit=5000"),
+      api("GET", "cj_categoria_nao_aplicavel?select=*")
+    ]);
+    invRows = invRowsFresh;
+    naoAplicaveis = naoAplicaveisFresh;
+    const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+
+    function cell(catKey, freq, loja){
+      const r = invStatus(loja, catKey, freq);
+      if(r.state==="na" || r.state==="pausado") return `<td style="text-align:center; color:#ccc; padding:5px 4px; border-bottom:1px solid #f0ebe3;">—</td>`;
+      const ok = r.state==="ok";
+      const cor = ok ? "#2e7d32" : "#b0432f";
+      return `<td style="text-align:center; color:${cor}; font-weight:800; padding:5px 4px; border-bottom:1px solid #f0ebe3; font-size:13px;">${ok?'✔':'✕'}</td>`;
+    }
+    const FREQS = {raspadinhas:"semanal", laranja:"semanal", cafe:"semanal", tabaco:"quinzenal", global:"mensal3"};
+    const headerHtml = COLS.map(([,label])=>`<th style="font-size:10px; color:#9c4d23; text-transform:uppercase; padding:4px 3px; border-bottom:2px solid #C1622D; white-space:nowrap;">${label}</th>`).join("");
+    const linhasHtml = LOJAS.map(l=>{
+      const cols = COLS.map(([key])=>cell(key, FREQS[key], l)).join("");
+      return `<tr><td style="font-weight:700; font-size:12px; padding:5px 6px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${l}</td>${cols}</tr>`;
+    }).join("");
+
+    capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:16px; border:1px solid var(--line); display:inline-block; max-width:100%; overflow-x:auto;";
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:1px;">CoreJoint · Inventário</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px; text-transform:capitalize;">${dataFmt}</div>
+      <table style="border-collapse:collapse;">
+        <thead><tr><th></th>${headerHtml}</tr></thead>
+        <tbody>${linhasHtml}</tbody>
+      </table>
+    `;
+  }
+
+  await renderTabela();
+  iniciarAutoAtualizacao(renderTabela, 20);
+}
+
+async function abrirRelatorioVisualQuebras(){
+  currentView = abrirRelatorioVisualQuebras;
+  pararAutoAtualizacao();
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ pararAutoAtualizacao(); const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const capturaWrap = document.createElement("div");
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line);";
+  main.appendChild(capturaWrap);
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_quebras", "CoreJoint · Quebras de caixa");
+
+  const avisoAuto = document.createElement("div");
+  avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
+  avisoAuto.textContent = "🔄 Atualiza-se sozinha";
+  main.appendChild(avisoAuto);
+
+  async function renderTabela(){
+    const pendentes = await api("GET", "cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null&loja=not.is.null");
+    const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+    const porLoja = {};
+    LOJAS.forEach(l=>porLoja[l]={n:0, total:0});
+    pendentes.forEach(r=>{ if(porLoja[r.loja]){ porLoja[r.loja].n++; porLoja[r.loja].total += Number(r.valor_quebra||0); } });
+
+    const linhasHtml = LOJAS.map(l=>{
+      const d = porLoja[l];
+      const ok = d.n===0;
+      const cor = ok ? "#2e7d32" : "#b0432f";
+      return `<tr>
+        <td style="font-weight:700; font-size:12px; padding:6px 8px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${l}</td>
+        <td style="text-align:center; font-size:13px; padding:6px 8px; border-bottom:1px solid #f0ebe3; color:${cor}; font-weight:800;">${ok?'✔':d.n}</td>
+        <td style="text-align:right; font-size:12px; padding:6px 8px; border-bottom:1px solid #f0ebe3; color:${cor}; font-weight:700;">${ok?'—':d.total.toFixed(2)+' €'}</td>
+      </tr>`;
+    }).join("");
+
+    capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:16px; border:1px solid var(--line); display:inline-block; max-width:100%; overflow-x:auto;";
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:1px;">CoreJoint · Quebras de caixa</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px; text-transform:capitalize;">${dataFmt}</div>
+      <table style="border-collapse:collapse;">
+        <thead><tr>
+          <th></th>
+          <th style="font-size:10px; color:#9c4d23; text-transform:uppercase; padding:4px 8px; border-bottom:2px solid #C1622D;">Por justificar</th>
+          <th style="font-size:10px; color:#9c4d23; text-transform:uppercase; padding:4px 8px; border-bottom:2px solid #C1622D;">Valor</th>
+        </tr></thead>
+        <tbody>${linhasHtml}</tbody>
+      </table>
+    `;
+  }
+
+  await renderTabela();
+  iniciarAutoAtualizacao(renderTabela, 20);
+}
+
+async function abrirRelatorioVisualFotosPontuais(){
+  currentView = abrirRelatorioVisualFotosPontuais;
+  pararAutoAtualizacao();
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ pararAutoAtualizacao(); const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const capturaWrap = document.createElement("div");
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line);";
+  main.appendChild(capturaWrap);
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_fotos_pontuais", "CoreJoint · Fotos pontuais");
+
+  const avisoAuto = document.createElement("div");
+  avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
+  avisoAuto.textContent = "🔄 Atualiza-se sozinha";
+  main.appendChild(avisoAuto);
+
+  async function renderTabela(){
+    const pedidos = await api("GET", "cj_pedidos_fotos?select=id,titulo,lojas&ativo=eq.true");
+    const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+
+    if(pedidos.length===0){
+      capturaWrap.innerHTML = `<div style="padding:10px; color:var(--ink-soft); font-size:13px;">Nenhum pedido de fotos pontual ativo neste momento.</div>`;
+      pararAutoAtualizacao();
+      return;
+    }
+
+    const respostasPorPedido = {};
+    for(const p of pedidos){
+      const r = await api("GET", `cj_pedidos_fotos_respostas?select=loja&pedido_id=eq.${p.id}`);
+      respostasPorPedido[p.id] = new Set(r.map(x=>x.loja));
+    }
+
+    const headerHtml = pedidos.map(p=>`<th style="font-size:9.5px; color:#9c4d23; text-transform:uppercase; padding:4px 3px; border-bottom:2px solid #C1622D; white-space:nowrap; max-width:70px;" title="${p.titulo}">📸 ${p.titulo.length>14?p.titulo.slice(0,14)+'…':p.titulo}</th>`).join("");
+    const linhasHtml = LOJAS.map(l=>{
+      const cols = pedidos.map(p=>{
+        const alvo = (p.lojas && p.lojas.length>0) ? p.lojas : LOJAS;
+        if(!alvo.includes(l)) return `<td style="text-align:center; color:#ccc; padding:5px 4px; border-bottom:1px solid #f0ebe3;">—</td>`;
+        const ok = respostasPorPedido[p.id].has(l);
+        const cor = ok ? "#2e7d32" : "#b0432f";
+        return `<td style="text-align:center; color:${cor}; font-weight:800; padding:5px 4px; border-bottom:1px solid #f0ebe3; font-size:13px;">${ok?'✔':'✕'}</td>`;
+      }).join("");
+      return `<tr><td style="font-weight:700; font-size:12px; padding:5px 6px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${l}</td>${cols}</tr>`;
+    }).join("");
+
+    capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:16px; border:1px solid var(--line); display:inline-block; max-width:100%; overflow-x:auto;";
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:1px;">CoreJoint · Fotos pontuais</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px; text-transform:capitalize;">${dataFmt}</div>
+      <table style="border-collapse:collapse;">
+        <thead><tr><th></th>${headerHtml}</tr></thead>
+        <tbody>${linhasHtml}</tbody>
+      </table>
+    `;
+  }
+
+  await renderTabela();
+  iniciarAutoAtualizacao(renderTabela, 20);
+}
+
 async function abrirRelatorioVisualDiario(){
   currentView = abrirRelatorioVisualDiario;
   pararAutoAtualizacao();
@@ -6077,6 +6335,7 @@ function renderGestao(){
     diario: generateDailyReport, diarioVisual: abrirRelatorioVisualDiario, semanal: generateWeeklyReport, invSemanal: generateWeeklyInventoryReport, mensal: generateMonthlyReport,
     compliance: generateComplianceReport, excel: exportarExcel, historico12m: openHistoricoAnual,
     whatsapp: partilharResumoWhatsApp, avisosLista: openAvisos, sondagem: openSondagens, formulario: openFormularios, grelhaSondagensForms: abrirGrelhaSondagensForms,
+    visualInventario: abrirRelatorioVisualInventario, visualQuebras: abrirRelatorioVisualQuebras, visualFotosPontuais: abrirRelatorioVisualFotosPontuais,
     importarTrocas: openImportarTrocas, pivotTrocas: abrirPivotTrocas, corrigirLojasQuebras: abrirCorrigirLojasQuebras,
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
