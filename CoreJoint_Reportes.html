@@ -3964,8 +3964,10 @@ function encontrarLojaCorrespondente(nomeInput){
   return LOJAS.find(l => normalizarNomeLoja(l) === norm) || null;
 }
 function ehLojaConhecidaForaDop(nomeInput){
-  // lojas BAGGA que existem no ficheiro mas não pertencem à tua rede (DOP)
-  return normalizarNomeLoja(nomeInput).startsWith("BAGGA") || normalizarNomeLoja(nomeInput).includes("CZ CNT");
+  // lojas BAGGA conhecidas que existem no ficheiro mas não pertencem à tua rede (DOP) - lista exata dela
+  const nome = normalizarNomeLoja(nomeInput);
+  const CONHECIDAS_FORA_REDE = ["BELAS", "LOURES", "ARROJA", "JOAO", "MARECHAL"];
+  return CONHECIDAS_FORA_REDE.some(k => nome.includes(k));
 }
 
 let quebrasComErro = [];
