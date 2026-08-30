@@ -3506,7 +3506,7 @@ async function abrirRelatorioVisualQuebras(){
   async function renderTabelas(){
     const [pendentesRede, pendentesFora] = await Promise.all([
       api("GET", "cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null&loja=not.is.null"),
-      api("GET", "cj_quebras_reportes?select=loja_original,valor_quebra&justificacao=is.null&loja=is.null")
+      api("GET", "cj_quebras_reportes?select=loja_original,valor_quebra&justificacao=is.null&loja=is.null&fora_dop=eq.true")
     ]);
     const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
 
