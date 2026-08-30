@@ -1416,8 +1416,8 @@ async function abrirGrelhaSondagensForms(){
     }
 
     const colunas = [
-      ...sondagensAtivas.map(s=>({tipo:"sondagem", id:s.id, label: s.pergunta.length>10 ? s.pergunta.slice(0,10)+"…" : s.pergunta, full: s.pergunta, alvo: lojasAlvoDe(s)})),
-      ...formsAtivos.map(f=>({tipo:"formulario", id:f.id, label: f.titulo.length>10 ? f.titulo.slice(0,10)+"…" : f.titulo, full: f.titulo, alvo: lojasAlvoDe(f)}))
+      ...sondagensAtivas.map(s=>({tipo:"sondagem", id:s.id, full: s.pergunta, alvo: lojasAlvoDe(s)})),
+      ...formsAtivos.map(f=>({tipo:"formulario", id:f.id, full: f.titulo, alvo: lojasAlvoDe(f)}))
     ];
 
     function respostaCelula(col, loja){
@@ -1432,16 +1432,18 @@ async function abrirGrelhaSondagensForms(){
       }
     }
 
-    const headerHtml = colunas.map(c=>`<th style="font-size:8px; color:var(--terracotta); text-transform:uppercase; padding:3px 1px; border-bottom:2px solid var(--terracotta); white-space:nowrap; max-width:44px; overflow:hidden; text-overflow:ellipsis;" title="${c.full}">${c.tipo==="sondagem"?"📊":"📝"}${c.label}</th>`).join("");
+    const headerHtml = colunas.map((c,i)=>`<th style="font-size:11px; color:var(--terracotta); padding:3px 1px; border-bottom:2px solid var(--terracotta); white-space:nowrap;">${c.tipo==="sondagem"?"📊":"📝"}${i+1}</th>`).join("");
     const linhasHtml = LOJAS.map(l=>{
       const cols = colunas.map(c=>respostaCelula(c, l)).join("");
-      return `<tr><td style="font-weight:700; font-size:10.5px; padding:4px 3px; border-bottom:1px solid var(--line); white-space:nowrap;" title="${l}">${abreviarLoja(l)}</td>${cols}</tr>`;
+      return `<tr><td style="font-weight:700; font-size:10.5px; padding:4px 3px; border-bottom:1px solid var(--line); white-space:nowrap;">${abreviarLoja(l)}</td>${cols}</tr>`;
     }).join("");
+    const legendaHtml = colunas.map((c,i)=>`<div style="font-size:10px; color:var(--ink-soft); margin-bottom:2px;"><b style="color:var(--terracotta);">${c.tipo==="sondagem"?"📊":"📝"}${i+1}</b> — ${c.full}</div>`).join("");
 
     tableWrap.innerHTML = `
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Sondagens e Formulários</div>
       <div style="font-size:9px; color:#777; margin-bottom:8px;">${new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})}</div>
       <table style="border-collapse:collapse; width:100%;"><thead><tr><th></th>${headerHtml}</tr></thead><tbody>${linhasHtml}</tbody></table>
+      <div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--line);">${legendaHtml}</div>
     `;
   }
 
@@ -3617,7 +3619,7 @@ async function abrirRelatorioVisualFotosPontuais(){
       respostasPorPedido[p.id] = new Set(r.map(x=>x.loja));
     }
 
-    const headerHtml = pedidos.map(p=>`<th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:3px 1px; border-bottom:2px solid #C1622D; white-space:nowrap; max-width:44px; overflow:hidden; text-overflow:ellipsis;" title="${p.titulo}">📸${p.titulo.length>7?p.titulo.slice(0,7)+'…':p.titulo}</th>`).join("");
+    const headerHtml = pedidos.map((p,i)=>`<th style="font-size:11px; color:#9c4d23; padding:3px 1px; border-bottom:2px solid #C1622D; white-space:nowrap;">📸${i+1}</th>`).join("");
     const linhasHtml = LOJAS.map(l=>{
       const cols = pedidos.map(p=>{
         const alvo = (p.lojas && p.lojas.length>0) ? p.lojas : LOJAS;
@@ -3626,8 +3628,9 @@ async function abrirRelatorioVisualFotosPontuais(){
         const cor = ok ? "#2e7d32" : "#b0432f";
         return `<td style="text-align:center; color:${cor}; font-weight:800; padding:4px 1px; border-bottom:1px solid #f0ebe3; font-size:11px;">${ok?'✔':'✕'}</td>`;
       }).join("");
-      return `<tr><td style="font-weight:700; font-size:10.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;" title="${l}">${abreviarLoja(l)}</td>${cols}</tr>`;
+      return `<tr><td style="font-weight:700; font-size:10.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>${cols}</tr>`;
     }).join("");
+    const legendaHtml = pedidos.map((p,i)=>`<div style="font-size:10px; color:var(--ink-soft); margin-bottom:2px;"><b style="color:#C1622D;">📸${i+1}</b> — ${p.titulo}</div>`).join("");
 
     capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--line); width:100%; box-sizing:border-box;";
     capturaWrap.innerHTML = `
@@ -3637,6 +3640,7 @@ async function abrirRelatorioVisualFotosPontuais(){
         <thead><tr><th></th>${headerHtml}</tr></thead>
         <tbody>${linhasHtml}</tbody>
       </table>
+      <div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--line);">${legendaHtml}</div>
     `;
   }
 
