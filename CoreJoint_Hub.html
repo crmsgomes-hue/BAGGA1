@@ -268,7 +268,8 @@ async function renderPanoramaGeral(){
     const todayStr = isoDate(today);
     const inicioSemana = isoDate(weekWindow(today).start);
 
-    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg] = await Promise.all([
+    const inicioMesAtual = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg, horariosMesPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
       api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`),
@@ -278,8 +279,27 @@ async function renderPanoramaGeral(){
       api(`cj_error_log?select=app&criado_em=gte.${new Date(Date.now()-24*3600*1000).toISOString()}`),
       api(`cj_lembretes_pessoais?select=id&feito=eq.false`),
       api(`cj_stock_negativo?select=loja&justificacao=is.null&loja=not.is.null`),
-      api(`cj_formacoes?select=loja&justificacao=is.null&loja=not.is.null`)
+      api(`cj_formacoes?select=loja&justificacao=is.null&loja=not.is.null`),
+      api(`cj_horarios?select=loja,data,colaborador,hora_inicio,hora_fim&data=gte.${inicioMesAtual}&data=lte.${todayStr}`)
     ]);
+
+    // Conta dias/lojas sem cobertura de abertura (antes das 07:15) ou fecho (ate as 21:00), so onde ha horas importadas
+    const porDiaLojaSet = {}, porDiaLojaHor = {};
+    horariosMesPg.forEach(r=>{
+      const chave = `${r.data}|${r.loja}`;
+      (porDiaLojaSet[chave] ||= new Set()).add(r.colaborador);
+      if(!r.hora_inicio && !r.hora_fim) return;
+      (porDiaLojaHor[chave] ||= {temAbertura:false, temFecho:false, temDadosHora:false});
+      const info = porDiaLojaHor[chave];
+      if(r.hora_inicio){ info.temDadosHora = true; if(r.hora_inicio<="07:15") info.temAbertura = true; }
+      if(r.hora_fim){ info.temDadosHora = true; if(r.hora_fim>="21:00") info.temFecho = true; }
+    });
+    let horariosAlertas = 0;
+    Object.keys(porDiaLojaSet).forEach(chave=>{
+      const info = porDiaLojaHor[chave];
+      if(!info || !info.temDadosHora) return;
+      if(!info.temAbertura || !info.temFecho) horariosAlertas++;
+    });
 
     const vendasFeitas = new Set(todayVendasPg.map(r=>r.loja));
     const vendasFaltam = LOJAS.filter(l=>!vendasFeitas.has(l));
@@ -327,6 +347,7 @@ async function renderPanoramaGeral(){
         ${tile("diagnostico","🩺","Diagnóstico", errosPg.length>0?`${errosPg.length}`:'✔', errosPg.length>0?'var(--red)':'var(--grn)')}
         ${tile("stockneg","📉","Stock Neg.", `${stockNegPendentesPg.length}`, stockNegPendentesPg.length>0?'var(--red)':'var(--grn)')}
         ${tile("formacoes","🎓","Formações", `${formacoesPendentesPg.length}`, formacoesPendentesPg.length>0?'var(--org,#c17817)':'var(--grn)')}
+        ${tile("horarios","👥","Horários", horariosAlertas>0?`${horariosAlertas}`:'✔', horariosAlertas>0?'var(--red)':'var(--grn)')}
         ${tile("partilhar","📱","Partilhar", "", 'var(--t2)')}
       </div>
     `;
@@ -348,6 +369,14 @@ async function renderPanoramaGeral(){
       abrirModalTopico("🎓 Formações", corpo);
     };
 
+    document.querySelector('[data-topico="horarios"]').onclick = ()=>{
+      const corpo = `
+        <div class="sub" style="margin-bottom:10px;">${horariosAlertas>0 ? `${horariosAlertas} dia(s)/loja este mês sem abertura ou fecho cobertos.` : 'Tudo coberto este mês (onde há horas importadas).'}</div>
+        ${botoesAcao([["👥 Ver relatório mensal","CoreJoint_Reportes.html?abrir=relatorioHorarios"],["📤 Importar horário","CoreJoint_Reportes.html?abrir=importarHorarios"]])}
+      `;
+      abrirModalTopico("👥 Horários", corpo);
+    };
+
     document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
       const corpo = `
         <div class="sub" style="margin-bottom:10px;">Relatórios prontos a partilhar no grupo, num toque.</div>
@@ -360,6 +389,7 @@ async function renderPanoramaGeral(){
           ["📅 Relatório mensal completo","CoreJoint_Reportes.html?abrir=relatorioMensalCompleto"],
           ["📉 Stock negativo","CoreJoint_Reportes.html?abrir=visualStockNeg"],
           ["🎓 Formações","CoreJoint_Reportes.html?abrir=visualFormacoes"],
+          ["👥 Horários","CoreJoint_Reportes.html?abrir=relatorioHorarios"],
         ])}
       `;
       abrirModalTopico("📱 Partilhar", corpo);
