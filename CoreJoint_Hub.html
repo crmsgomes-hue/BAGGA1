@@ -323,9 +323,24 @@ async function renderPanoramaGeral(){
         ${tile("rh","📋","RH", `${adendasAtivasPg.length}`, adendasAtivasPg.length>0?'var(--org,#c17817)':'var(--grn)')}
         ${tile("fardamento","👕","Fardamento", `${fardStockLowPg.length+fardDevPg.length}`, (fardStockLowPg.length+fardDevPg.length)>0?'var(--org,#c17817)':'var(--grn)')}
         ${tile("diagnostico","🩺","Diagnóstico", errosPg.length>0?`${errosPg.length}`:'✔', errosPg.length>0?'var(--red)':'var(--grn)')}
+        ${tile("partilhar","📱","Partilhar", "", 'var(--t2)')}
       </div>
     `;
     document.querySelector('[data-topico="espaco"]').onclick = ()=>abrirLembretesOverlay();
+
+    document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
+      const corpo = `
+        <div class="sub" style="margin-bottom:10px;">Relatórios prontos a partilhar no grupo, num toque.</div>
+        ${botoesAcao([
+          ["🧾 Vendas / Vitrine / Inventário","CoreJoint_Reportes.html?abrir=diarioVisual"],
+          ["📦 Inventário","CoreJoint_Reportes.html?abrir=visualInventario"],
+          ["💸 Quebras de caixa","CoreJoint_Reportes.html?abrir=visualQuebras"],
+          ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
+          ["📊 Sondagens e Formulários","CoreJoint_Reportes.html?abrir=grelhaSondagensForms"],
+        ])}
+      `;
+      abrirModalTopico("📱 Partilhar", corpo);
+    };
 
     document.querySelector('[data-topico="vendas"]').onclick = ()=>{
       const corpo = `
