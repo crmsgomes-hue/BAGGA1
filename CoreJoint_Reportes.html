@@ -1432,7 +1432,7 @@ async function abrirGrelhaSondagensForms(){
       }
     }
 
-    const headerHtml = colunas.map(c=>`<th style="font-size:9.5px; color:var(--terracotta); text-transform:uppercase; padding:4px 3px; border-bottom:2px solid var(--terracotta); white-space:nowrap; max-width:70px;" title="${c.label}">${c.tipo==="sondagem"?"📊":"📝"} ${c.label}</th>`).join("");
+    const headerHtml = colunas.map(c=>`<th style="font-size:9.5px; color:var(--terracotta); text-transform:uppercase; padding:4px 3px; border-bottom:2px solid var(--terracotta); white-space:nowrap; max-width:70px; overflow:hidden; text-overflow:ellipsis;" title="${c.label}">${c.tipo==="sondagem"?"📊":"📝"} ${c.label}</th>`).join("");
     const linhasHtml = LOJAS.map(l=>{
       const cols = colunas.map(c=>respostaCelula(c, l)).join("");
       return `<tr><td style="font-weight:700; font-size:12px; padding:5px 6px; border-bottom:1px solid var(--line); white-space:nowrap;">${l}</td>${cols}</tr>`;
