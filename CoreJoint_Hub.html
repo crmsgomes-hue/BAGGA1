@@ -269,7 +269,7 @@ async function renderPanoramaGeral(){
     const inicioSemana = isoDate(weekWindow(today).start);
 
     const inicioMesAtual = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg, horariosMesPg] = await Promise.all([
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
       api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`),
@@ -280,7 +280,8 @@ async function renderPanoramaGeral(){
       api(`cj_lembretes_pessoais?select=id&feito=eq.false`),
       api(`cj_stock_negativo?select=loja&justificacao=is.null&loja=not.is.null`),
       api(`cj_formacoes?select=loja&justificacao=is.null&loja=not.is.null`),
-      api(`cj_horarios?select=loja,data,colaborador,hora_inicio,hora_fim&data=gte.${inicioMesAtual}&data=lte.${todayStr}`)
+      api(`cj_horarios?select=loja,data,colaborador,hora_inicio,hora_fim&data=gte.${inicioMesAtual}&data=lte.${todayStr}`),
+      api(`cj_trocas?select=loja&estado=eq.pendente`)
     ]);
 
     // Conta dias/lojas sem cobertura de abertura (antes das 07:15) ou fecho (ate as 21:00), so onde ha horas importadas
@@ -348,6 +349,7 @@ async function renderPanoramaGeral(){
         ${tile("stockneg","📉","Stock Neg.", `${stockNegPendentesPg.length}`, stockNegPendentesPg.length>0?'var(--red)':'var(--grn)')}
         ${tile("formacoes","🎓","Formações", `${formacoesPendentesPg.length}`, formacoesPendentesPg.length>0?'var(--org,#c17817)':'var(--grn)')}
         ${tile("horarios","👥","Horários", horariosAlertas>0?`${horariosAlertas}`:'✔', horariosAlertas>0?'var(--red)':'var(--grn)')}
+        ${tile("trocas","🔁","Trocas", `${trocasPendentesPg.length}`, trocasPendentesPg.length>0?'var(--org,#c17817)':'var(--grn)')}
         ${tile("partilhar","📱","Partilhar", "", 'var(--t2)')}
       </div>
     `;
@@ -377,6 +379,14 @@ async function renderPanoramaGeral(){
       abrirModalTopico("👥 Horários", corpo);
     };
 
+    document.querySelector('[data-topico="trocas"]').onclick = ()=>{
+      const corpo = `
+        <div class="sub" style="margin-bottom:10px;">${trocasPendentesPg.length} troca(s) de horário pendente(s).</div>
+        ${botoesAcao([["🔁 Ver relatório","CoreJoint_Reportes.html?abrir=pivotTrocas"],["📤 Importar Excel","CoreJoint_Reportes.html?abrir=importarTrocas"]])}
+      `;
+      abrirModalTopico("🔁 Trocas de horário", corpo);
+    };
+
     document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
       const corpo = `
         <div class="sub" style="margin-bottom:10px;">Relatórios prontos a partilhar no grupo, num toque.</div>
@@ -390,6 +400,7 @@ async function renderPanoramaGeral(){
           ["📉 Stock negativo","CoreJoint_Reportes.html?abrir=visualStockNeg"],
           ["🎓 Formações","CoreJoint_Reportes.html?abrir=visualFormacoes"],
           ["👥 Horários","CoreJoint_Reportes.html?abrir=relatorioHorarios"],
+          ["🔁 Trocas de horário","CoreJoint_Reportes.html?abrir=pivotTrocas"],
         ])}
       `;
       abrirModalTopico("📱 Partilhar", corpo);
