@@ -3325,10 +3325,12 @@ function criarBotoesPartilha(main, capturaWrap, nomeFicheiro, tituloPartilha){
   const actionsRow = document.createElement("div");
   actionsRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px;";
   actionsRow.innerHTML = `
-    <button class="cambtn" id="partilharImgBtn">📱 Partilhar (WhatsApp)</button>
-    <button class="cambtn secondary" id="copiarImgBtn">📸 Copiar</button>
+    <button class="cambtn">📱 Partilhar (WhatsApp)</button>
+    <button class="cambtn secondary">📸 Copiar</button>
   `;
   main.appendChild(actionsRow);
+  const btnPartilhar = actionsRow.children[0];
+  const btnCopiar = actionsRow.children[1];
 
   async function gerarImagem(){
     return new Promise((resolve, reject)=>{
@@ -3338,7 +3340,7 @@ function criarBotoesPartilha(main, capturaWrap, nomeFicheiro, tituloPartilha){
     });
   }
 
-  document.getElementById("partilharImgBtn").onclick = async (ev)=>{
+  btnPartilhar.onclick = async (ev)=>{
     const btn = ev.currentTarget;
     if(btn.disabled) return;
     btn.disabled = true;
@@ -3372,7 +3374,7 @@ function criarBotoesPartilha(main, capturaWrap, nomeFicheiro, tituloPartilha){
     }
   };
 
-  document.getElementById("copiarImgBtn").onclick = async (ev)=>{
+  btnCopiar.onclick = async (ev)=>{
     const btn = ev.currentTarget;
     if(btn.disabled) return;
     btn.disabled = true;
@@ -3464,24 +3466,45 @@ async function abrirRelatorioVisualQuebras(){
   back.onclick = ()=>{ pararAutoAtualizacao(); const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
-  const capturaWrap = document.createElement("div");
-  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line);";
-  main.appendChild(capturaWrap);
-  criarBotoesPartilha(main, capturaWrap, "CoreJoint_quebras", "CoreJoint · Quebras de caixa");
+  const tituloRede = document.createElement("div");
+  tituloRede.style.cssText = "font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:700; margin-bottom:6px;";
+  tituloRede.textContent = "🏪 As tuas lojas";
+  main.appendChild(tituloRede);
+  const capturaRede = document.createElement("div");
+  capturaRede.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line); margin-bottom:8px;";
+  main.appendChild(capturaRede);
+  criarBotoesPartilha(main, capturaRede, "CoreJoint_quebras_rede", "CoreJoint · Quebras de caixa");
+
+  const separador = document.createElement("div");
+  separador.style.cssText = "height:1px; background:var(--line); margin:22px 0 16px;";
+  main.appendChild(separador);
+
+  const tituloFora = document.createElement("div");
+  tituloFora.style.cssText = "font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:700; margin-bottom:6px;";
+  tituloFora.textContent = "🚫 Fora da rede / sem loja reconhecida";
+  main.appendChild(tituloFora);
+  const capturaFora = document.createElement("div");
+  capturaFora.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line); margin-bottom:8px;";
+  main.appendChild(capturaFora);
+  criarBotoesPartilha(main, capturaFora, "CoreJoint_quebras_fora_rede", "CoreJoint · Quebras fora da rede");
 
   const avisoAuto = document.createElement("div");
   avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
   avisoAuto.textContent = "🔄 Atualiza-se sozinha";
   main.appendChild(avisoAuto);
 
-  async function renderTabela(){
-    const pendentes = await api("GET", "cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null&loja=not.is.null");
+  async function renderTabelas(){
+    const [pendentesRede, pendentesFora] = await Promise.all([
+      api("GET", "cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null&loja=not.is.null"),
+      api("GET", "cj_quebras_reportes?select=loja_original,valor_quebra&justificacao=is.null&loja=is.null")
+    ]);
     const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+
+    // Tabela 1: as tuas lojas
     const porLoja = {};
     LOJAS.forEach(l=>porLoja[l]={n:0, total:0});
-    pendentes.forEach(r=>{ if(porLoja[r.loja]){ porLoja[r.loja].n++; porLoja[r.loja].total += Number(r.valor_quebra||0); } });
-
-    const linhasHtml = LOJAS.map(l=>{
+    pendentesRede.forEach(r=>{ if(porLoja[r.loja]){ porLoja[r.loja].n++; porLoja[r.loja].total += Number(r.valor_quebra||0); } });
+    const linhasRedeHtml = LOJAS.map(l=>{
       const d = porLoja[l];
       const ok = d.n===0;
       const cor = ok ? "#2e7d32" : "#b0432f";
@@ -3491,9 +3514,8 @@ async function abrirRelatorioVisualQuebras(){
         <td style="text-align:right; font-size:12px; padding:6px 8px; border-bottom:1px solid #f0ebe3; color:${cor}; font-weight:700;">${ok?'—':d.total.toFixed(2)+' €'}</td>
       </tr>`;
     }).join("");
-
-    capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:16px; border:1px solid var(--line); display:inline-block; max-width:100%; overflow-x:auto;";
-    capturaWrap.innerHTML = `
+    capturaRede.style.cssText = "background:#fff; border-radius:14px; padding:16px; border:1px solid var(--line); display:inline-block; max-width:100%; overflow-x:auto;";
+    capturaRede.innerHTML = `
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:1px;">CoreJoint · Quebras de caixa</div>
       <div style="font-size:10px; color:#777; margin-bottom:10px; text-transform:capitalize;">${dataFmt}</div>
       <table style="border-collapse:collapse;">
@@ -3502,13 +3524,51 @@ async function abrirRelatorioVisualQuebras(){
           <th style="font-size:10px; color:#9c4d23; text-transform:uppercase; padding:4px 8px; border-bottom:2px solid #C1622D;">Por justificar</th>
           <th style="font-size:10px; color:#9c4d23; text-transform:uppercase; padding:4px 8px; border-bottom:2px solid #C1622D;">Valor</th>
         </tr></thead>
-        <tbody>${linhasHtml}</tbody>
+        <tbody>${linhasRedeHtml}</tbody>
       </table>
     `;
+
+    // Tabela 2: fora da rede / sem loja reconhecida, agrupada por nome/codigo original
+    const porOriginal = {};
+    pendentesFora.forEach(r=>{
+      const chave = r.loja_original || "(sem identificação)";
+      (porOriginal[chave] ||= {n:0, total:0});
+      porOriginal[chave].n++;
+      porOriginal[chave].total += Number(r.valor_quebra||0);
+    });
+    const linhasFora = Object.entries(porOriginal).sort((a,b)=>b[1].total - a[1].total || b[1].n - a[1].n);
+    const linhasForaHtml = linhasFora.map(([nome, d])=>`
+      <tr>
+        <td style="font-weight:700; font-size:12px; padding:6px 8px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${nome}</td>
+        <td style="text-align:center; font-size:13px; padding:6px 8px; border-bottom:1px solid #f0ebe3; color:#b0432f; font-weight:800;">${d.n}</td>
+        <td style="text-align:right; font-size:12px; padding:6px 8px; border-bottom:1px solid #f0ebe3; color:#b0432f; font-weight:700;">${d.total.toFixed(2)} €</td>
+      </tr>
+    `).join("");
+    capturaFora.style.cssText = "background:#fff; border-radius:14px; padding:16px; border:1px solid var(--line); display:inline-block; max-width:100%; overflow-x:auto;";
+    if(linhasFora.length===0){
+      capturaFora.innerHTML = `
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:1px;">CoreJoint · Quebras fora da rede</div>
+        <div style="font-size:10px; color:#777; margin-bottom:10px; text-transform:capitalize;">${dataFmt}</div>
+        <div style="font-size:13px; color:var(--ink-soft);">✔ Nenhuma pendente.</div>
+      `;
+    } else {
+      capturaFora.innerHTML = `
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:1px;">CoreJoint · Quebras fora da rede</div>
+        <div style="font-size:10px; color:#777; margin-bottom:10px; text-transform:capitalize;">${dataFmt}</div>
+        <table style="border-collapse:collapse;">
+          <thead><tr>
+            <th></th>
+            <th style="font-size:10px; color:#9c4d23; text-transform:uppercase; padding:4px 8px; border-bottom:2px solid #C1622D;">Por justificar</th>
+            <th style="font-size:10px; color:#9c4d23; text-transform:uppercase; padding:4px 8px; border-bottom:2px solid #C1622D;">Valor</th>
+          </tr></thead>
+          <tbody>${linhasForaHtml}</tbody>
+        </table>
+      `;
+    }
   }
 
-  await renderTabela();
-  iniciarAutoAtualizacao(renderTabela, 20);
+  await renderTabelas();
+  iniciarAutoAtualizacao(renderTabelas, 20);
 }
 
 async function abrirRelatorioVisualFotosPontuais(){
