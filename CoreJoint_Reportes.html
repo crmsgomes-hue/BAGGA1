@@ -4405,6 +4405,78 @@ async function abrirCorrigirLojasQuebras(){
   });
 }
 
+async function abrirCorrigirLojasStockNeg(){
+  currentView = abrirCorrigirLojasStockNeg;
+  pararAutoAtualizacao();
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ pararAutoAtualizacao(); const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const h = document.createElement("h2");
+  h.textContent = "🏷️ Stock negativo sem loja reconhecida";
+  main.appendChild(h);
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  sub.style.marginBottom = "14px";
+  sub.textContent = "Estes códigos/nomes não foram reconhecidos como uma das tuas lojas nem como fora da rede. Escolhe a loja certa, ou marca como fora da rede.";
+  main.appendChild(sub);
+
+  const rows = await api("GET", "cj_stock_negativo?select=id,loja_original,data,operador,produto,valor_stock&justificacao=is.null&loja=is.null&fora_dop=eq.false&order=loja_original");
+  if(rows.length===0){
+    main.innerHTML += `<div class="empty">✔ Nada por resolver — todos os registos já têm loja ou estão marcados fora da rede.</div>`;
+    return;
+  }
+
+  const grupos = {};
+  rows.forEach(r=>{ (grupos[r.loja_original] ||= []).push(r); });
+
+  const opcoesLojas = LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("");
+
+  Object.entries(grupos).forEach(([lojaOriginal, itens])=>{
+    const total = itens.reduce((s,r)=>s+Number(r.valor_stock||0),0);
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.cssText = "flex-direction:column; align-items:stretch; gap:8px;";
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <span style="font-weight:700; font-size:14px;">${lojaOriginal}</span>
+        <span style="font-size:12px; color:var(--ink-soft);">${itens.length} registo(s) · ${total.toFixed(2)}</span>
+      </div>
+      <select class="selLoja" style="padding:8px; border-radius:8px; border:1px solid var(--line); font-size:13px;">
+        <option value="">— Escolher loja —</option>
+        ${opcoesLojas}
+      </select>
+      <div style="display:flex; gap:8px;">
+        <button class="cambtn btnAtribuir" style="flex:1;">✔ Atribuir</button>
+        <button class="cambtn secondary btnForaDop" style="flex:1;">🚫 Fora da rede</button>
+      </div>
+    `;
+    const sel = card.querySelector(".selLoja");
+    card.querySelector(".btnAtribuir").onclick = protegerClique(card.querySelector(".btnAtribuir"), async ()=>{
+      const lojaEscolhida = sel.value;
+      if(!lojaEscolhida){ toast("Escolhe uma loja primeiro"); return; }
+      for(const item of itens){
+        await api("PATCH", `cj_stock_negativo?id=eq.${item.id}`, { loja: lojaEscolhida });
+      }
+      mostrarSucesso(`${itens.length} registo(s) de "${lojaOriginal}" atribuído(s) a ${lojaEscolhida}`);
+      card.remove();
+    }, "A atribuir...");
+    card.querySelector(".btnForaDop").onclick = protegerClique(card.querySelector(".btnForaDop"), async ()=>{
+      for(const item of itens){
+        await api("PATCH", `cj_stock_negativo?id=eq.${item.id}`, { fora_dop: true });
+      }
+      mostrarSucesso(`${itens.length} registo(s) de "${lojaOriginal}" marcado(s) fora da rede`);
+      card.remove();
+    }, "A marcar...");
+    main.appendChild(card);
+  });
+}
+
 async function abrirPivotTrocas(){
   currentView = abrirPivotTrocas;
   pararAutoAtualizacao();
@@ -7314,6 +7386,7 @@ function renderGestao(){
       {icon:"📊", label:"Relatório de quebras", fn:openRelatorioQuebras},
       {icon:"🏷️", label:"Corrigir lojas não reconhecidas", fn:abrirCorrigirLojasQuebras},
       {icon:"📉", label:"Stock negativo", fn:abrirRelatorioVisualStockNegativo},
+      {icon:"🏷️", label:"Corrigir lojas não reconhecidas (Stock)", fn:abrirCorrigirLojasStockNeg},
       {icon:"🎓", label:"Formações", fn:abrirRelatorioVisualFormacoes},
       {icon:"👥", label:"Horários — colaboradores por dia", fn:abrirRelatorioHorarios},
       {icon:"🗓️", label:"Relatório semanal de quebras (PDF/Excel)", fn:gerarRelatorioSemanalQuebras}
@@ -7348,6 +7421,7 @@ function renderGestao(){
     whatsapp: partilharResumoWhatsApp, avisosLista: openAvisos, sondagem: openSondagens, formulario: openFormularios, grelhaSondagensForms: abrirGrelhaSondagensForms,
     visualInventario: abrirRelatorioVisualInventario, visualQuebras: abrirRelatorioVisualQuebras, visualFotosPontuais: abrirRelatorioVisualFotosPontuais,
     importarTrocas: openImportarTrocas, pivotTrocas: abrirPivotTrocas, corrigirLojasQuebras: abrirCorrigirLojasQuebras,
+    corrigirLojasStockNeg: abrirCorrigirLojasStockNeg,
     relatorioMensalCompleto: abrirRelatorioMensalCompleto,
     importarStockNeg: openImportarStockNegativo, visualStockNeg: abrirRelatorioVisualStockNegativo,
     importarFormacoes: openImportarFormacoes, visualFormacoes: abrirRelatorioVisualFormacoes,
