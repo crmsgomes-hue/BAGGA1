@@ -3581,6 +3581,145 @@ async function abrirRelatorioVisualQuebras(){
   iniciarAutoAtualizacao(renderTabelas, 20);
 }
 
+let _relMensalMes = new Date().getMonth();
+let _relMensalAno = new Date().getFullYear();
+if(_relMensalMes===0){ _relMensalMes=11; _relMensalAno--; } else { _relMensalMes--; } // por defeito, mes anterior completo
+
+function pontosDoMes(catKey, freq, mesRef){
+  const inicioMes = new Date(mesRef.getFullYear(), mesRef.getMonth(), 1);
+  const fimMes = new Date(mesRef.getFullYear(), mesRef.getMonth()+1, 0);
+  const dow = CATEGORY_DOW[catKey];
+  const pontos = [];
+  if(freq==="diario"){
+    for(let d=new Date(inicioMes); d<=fimMes; d.setDate(d.getDate()+1)){
+      pontos.push({label:String(d.getDate()), data:new Date(d)});
+    }
+    return pontos;
+  }
+  if(freq==="semanal" && dow){
+    let d = new Date(inicioMes);
+    while((((d.getDay()+6)%7)+1) !== dow) d.setDate(d.getDate()+1);
+    let semana = 1;
+    while(d<=fimMes){
+      pontos.push({label:`S${semana}`, data:new Date(d)});
+      d.setDate(d.getDate()+7);
+      semana++;
+    }
+    return pontos;
+  }
+  if(freq==="quinzenal" && dow){
+    [{ini:1,fim:15},{ini:16,fim:new Date(mesRef.getFullYear(),mesRef.getMonth()+1,0).getDate()}].forEach((q,i)=>{
+      const inicioQ = new Date(mesRef.getFullYear(), mesRef.getMonth(), q.ini);
+      const fimQ = new Date(mesRef.getFullYear(), mesRef.getMonth(), q.fim);
+      const alvo = findWeekdayInRange(inicioQ, fimQ, dow);
+      pontos.push({label:`Q${i+1}`, data:alvo});
+    });
+    return pontos;
+  }
+  return pontos;
+}
+
+function criarTabelaMensal(main, titulo, pontos, checkFn, nomeFicheiro){
+  const bloco = document.createElement("div");
+  bloco.style.marginBottom = "20px";
+  const tituloEl = document.createElement("div");
+  tituloEl.style.cssText = "font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:700; margin-bottom:6px;";
+  tituloEl.textContent = titulo;
+  bloco.appendChild(tituloEl);
+  const captura = document.createElement("div");
+  captura.style.cssText = "background:#fff; border-radius:14px; padding:10px 6px; border:1px solid var(--line); width:100%; box-sizing:border-box;";
+  bloco.appendChild(captura);
+  main.appendChild(bloco);
+  criarBotoesPartilha(bloco, captura, nomeFicheiro, `CoreJoint · ${titulo}`);
+
+  const headerHtml = LOJAS.map(l=>`<th style="font-size:8px; color:#9c4d23; padding:2px 1px; border-bottom:2px solid #C1622D; white-space:nowrap;" title="${l}">${abreviarLoja(l).slice(0,4)}</th>`).join("");
+  const linhasHtml = pontos.map(p=>{
+    const cols = LOJAS.map(l=>{
+      const ok = checkFn(l, p.data);
+      if(ok===null) return `<td style="text-align:center; color:#ccc; padding:2px 1px; border-bottom:1px solid #f0ebe3; font-size:9px;">—</td>`;
+      const cor = ok ? "#2e7d32" : "#b0432f";
+      return `<td style="text-align:center; color:${cor}; font-weight:800; padding:2px 1px; border-bottom:1px solid #f0ebe3; font-size:9.5px;">${ok?'✔':'✕'}</td>`;
+    }).join("");
+    return `<tr><td style="font-weight:700; font-size:9px; padding:2px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${p.label}</td>${cols}</tr>`;
+  }).join("");
+  captura.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:13px; color:#C1622D; margin-bottom:1px; padding:0 4px;">CoreJoint · ${titulo}</div>
+    <div style="font-size:9px; color:#777; margin-bottom:6px; padding:0 4px;">${MESES_PT_CAL[pontos[0]?.data.getMonth() ?? new Date().getMonth()]} ${pontos[0]?.data.getFullYear() ?? new Date().getFullYear()}</div>
+    <table style="border-collapse:collapse; width:100%;"><thead><tr><th></th>${headerHtml}</tr></thead><tbody>${linhasHtml}</tbody></table>
+  `;
+}
+
+async function abrirRelatorioMensalCompleto(){
+  currentView = abrirRelatorioMensalCompleto;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const navRow = document.createElement("div");
+  navRow.style.cssText = "display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;";
+  navRow.innerHTML = `
+    <button id="relMensalPrev" class="cambtn secondary" style="padding:8px 14px;">‹</button>
+    <div id="relMensalLabel" style="font-weight:700; font-family:'Syne',sans-serif; font-size:16px; text-transform:capitalize;"></div>
+    <button id="relMensalNext" class="cambtn secondary" style="padding:8px 14px;">›</button>
+  `;
+  main.appendChild(navRow);
+
+  const corpo = document.createElement("div");
+  corpo.id = "relMensalCorpo";
+  main.appendChild(corpo);
+
+  document.getElementById("relMensalPrev").onclick = ()=>{ _relMensalMes--; if(_relMensalMes<0){_relMensalMes=11; _relMensalAno--;} renderRelatorioMensal(); };
+  document.getElementById("relMensalNext").onclick = ()=>{ _relMensalMes++; if(_relMensalMes>11){_relMensalMes=0; _relMensalAno++;} renderRelatorioMensal(); };
+
+  await loadAll();
+  renderRelatorioMensal();
+}
+
+function renderRelatorioMensal(){
+  document.getElementById("relMensalLabel").textContent = `${MESES_PT_CAL[_relMensalMes]} ${_relMensalAno}`;
+  const corpo = document.getElementById("relMensalCorpo");
+  corpo.innerHTML = "";
+  const mesRef = new Date(_relMensalAno, _relMensalMes, 15);
+  const sufixo = `${_relMensalAno}-${String(_relMensalMes+1).padStart(2,'0')}`;
+
+  function checkDaily(tipo, turno){
+    return (loja, data)=>{
+      const ds = isoDate(data);
+      return dailyRows.some(r=>r.loja===loja && r.tipo===tipo && r.turno===turno && r.data===ds);
+    };
+  }
+  function checkPeriodica(catKey, freq){
+    return (loja, dataAlvo)=>{
+      if(categoriaNaoAplicavel(loja, catKey)) return null;
+      const diaConfirmacao = new Date(dataAlvo); diaConfirmacao.setDate(diaConfirmacao.getDate()+1);
+      const deadline = new Date(diaConfirmacao); deadline.setHours(21,0,0,0);
+      const w = freq==="semanal" ? weekWindow(dataAlvo) : biweekWindow(dataAlvo);
+      const rows = invRows.filter(r=>r.loja===loja && r.categoria===catKey && inRange(r.data, w.start, w.end));
+      return rows.some(r=>{
+        if(r.criado_em){
+          const t = new Date(r.criado_em);
+          return t >= dataAlvo && t <= deadline;
+        }
+        return r.data===isoDate(dataAlvo) || r.data===isoDate(diaConfirmacao);
+      });
+    };
+  }
+
+  criarTabelaMensal(corpo, "Vendas", pontosDoMes(null,"diario",mesRef), checkDaily("vendas","unico"), `CoreJoint_mensal_vendas_${sufixo}`);
+  criarTabelaMensal(corpo, "Vitrine — Manhã", pontosDoMes(null,"diario",mesRef), checkDaily("vitrine","manha"), `CoreJoint_mensal_vitrine_manha_${sufixo}`);
+  criarTabelaMensal(corpo, "Vitrine — Almoço", pontosDoMes(null,"diario",mesRef), checkDaily("vitrine","almoco"), `CoreJoint_mensal_vitrine_almoco_${sufixo}`);
+  criarTabelaMensal(corpo, "Vitrine — Lanche", pontosDoMes(null,"diario",mesRef), checkDaily("vitrine","lanche"), `CoreJoint_mensal_vitrine_lanche_${sufixo}`);
+  criarTabelaMensal(corpo, "JSC — semana a semana", pontosDoMes("raspadinhas","semanal",mesRef), checkPeriodica("raspadinhas","semanal"), `CoreJoint_mensal_jsc_${sufixo}`);
+  criarTabelaMensal(corpo, "Laranja — semana a semana", pontosDoMes("laranja","semanal",mesRef), checkPeriodica("laranja","semanal"), `CoreJoint_mensal_laranja_${sufixo}`);
+  criarTabelaMensal(corpo, "Café — semana a semana", pontosDoMes("cafe","semanal",mesRef), checkPeriodica("cafe","semanal"), `CoreJoint_mensal_cafe_${sufixo}`);
+  criarTabelaMensal(corpo, "Tabaco — por quinzena", pontosDoMes("tabaco","quinzenal",mesRef), checkPeriodica("tabaco","quinzenal"), `CoreJoint_mensal_tabaco_${sufixo}`);
+}
+
 async function abrirRelatorioVisualFotosPontuais(){
   currentView = abrirRelatorioVisualFotosPontuais;
   pararAutoAtualizacao();
@@ -6452,6 +6591,7 @@ function renderGestao(){
     whatsapp: partilharResumoWhatsApp, avisosLista: openAvisos, sondagem: openSondagens, formulario: openFormularios, grelhaSondagensForms: abrirGrelhaSondagensForms,
     visualInventario: abrirRelatorioVisualInventario, visualQuebras: abrirRelatorioVisualQuebras, visualFotosPontuais: abrirRelatorioVisualFotosPontuais,
     importarTrocas: openImportarTrocas, pivotTrocas: abrirPivotTrocas, corrigirLojasQuebras: abrirCorrigirLojasQuebras,
+    relatorioMensalCompleto: abrirRelatorioMensalCompleto,
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
