@@ -2394,18 +2394,31 @@ async function openChecklistHistorico(){
   }
   arquivados.forEach(a=>{
     const mesLabel = new Date(a.mes+"-01T00:00:00").toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
-    const card = document.createElement("div");
-    card.className = "card";
-    let html = `<div class="card-title" style="margin-bottom:8px; text-transform:capitalize;">${mesLabel}</div>`;
-    html += `<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:11px;"><tr><th style="text-align:left; padding:4px;">Loja</th>${colunas.map(c=>`<th style="padding:4px;">${c.label}</th>`).join("")}</tr>`;
-    LOJAS.forEach(l=>{
+    const tituloWrap = document.createElement("div");
+    tituloWrap.style.cssText = "font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:700; margin-bottom:6px; text-transform:capitalize;";
+    tituloWrap.textContent = mesLabel;
+    main.appendChild(tituloWrap);
+    const captura = document.createElement("div");
+    main.appendChild(captura);
+    criarBotoesPartilha(main, captura, `CoreJoint_checklist_${a.mes}`, `CoreJoint · Checklist ${mesLabel}`);
+
+    const headerHtml = colunas.map(c=>`<th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 1px; border-bottom:2px solid #C1622D; white-space:nowrap;">${c.label}</th>`).join("");
+    const linhasHtml = LOJAS.map(l=>{
       const lojaDados = a.dados[l] || {};
-      html += `<tr><td style="padding:4px; font-weight:600; white-space:nowrap;">${l}</td>${colunas.map(c=>`<td style="text-align:center; padding:4px;">${lojaDados[c.key]||'—'}</td>`).join("")}</tr>`;
-    });
-    html += `</table></div>`;
-    html += `<div class="card-sub" style="margin-top:8px;">Arquivado por ${a.guardado_por||'—'} em ${new Date(a.guardado_em).toLocaleDateString('pt-PT')}</div>`;
-    card.innerHTML = html;
-    main.appendChild(card);
+      const cols = colunas.map(c=>{
+        const v = lojaDados[c.key]||'—';
+        const cor = v==='✔' ? '#2e7d32' : v==='✕' ? '#b0432f' : '#ccc';
+        return `<td style="text-align:center; color:${cor}; font-weight:800; padding:2px 1px; border-bottom:1px solid #f0ebe3; font-size:9.5px;">${v}</td>`;
+      }).join("");
+      return `<tr><td style="font-weight:700; font-size:9px; padding:2px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;" title="${l}">${abreviarLoja(l)}</td>${cols}</tr>`;
+    }).join("");
+    captura.style.cssText = "background:#fff; border-radius:14px; padding:10px 6px; border:1px solid var(--line); width:100%; box-sizing:border-box; margin-bottom:6px;";
+    captura.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:13px; color:#C1622D; margin-bottom:1px; padding:0 4px;">CoreJoint · Checklist</div>
+      <div style="font-size:9px; color:#777; margin-bottom:6px; padding:0 4px; text-transform:capitalize;">${mesLabel}</div>
+      <table style="border-collapse:collapse; width:100%;"><thead><tr><th></th>${headerHtml}</tr></thead><tbody>${linhasHtml}</tbody></table>
+      <div style="font-size:9px; color:#999; margin-top:6px; padding:0 4px;">Arquivado por ${a.guardado_por||'—'} em ${new Date(a.guardado_em).toLocaleDateString('pt-PT')}</div>
+    `;
   });
 }
 
@@ -3326,7 +3339,7 @@ async function generateDailyReport(){
 const ABREV_LOJAS = {
   "Caldas da Rainha": "Caldas", "Bombarral": "Bombarral", "Peniche": "Peniche",
   "Rio Maior": "Rio Maior", "Santarém": "Santarém", "Almeirim": "Almeirim",
-  "Carregado": "Carregado", "Ponte de Sor": "P. Sor", "Torres MCH": "T. MCH", "Torres MH": "T. MH"
+  "Carregado": "Carregado", "Ponte de Sor": "P. Sor", "Torres MCH": "TMCH", "Torres MH": "TMH"
 };
 function abreviarLoja(loja){
   return ABREV_LOJAS[loja] || loja;
@@ -3799,18 +3812,11 @@ async function abrirRelatorioVisualDiario(){
   back.onclick = ()=>{ pararAutoAtualizacao(); const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
-  const actionsRow = document.createElement("div");
-  actionsRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px;";
-  actionsRow.innerHTML = `
-    <button class="cambtn" id="partilharImagemBtn" style="flex:1;">📱 Partilhar (WhatsApp)</button>
-    <button class="cambtn secondary" id="copiarImagemBtn" style="flex:1;">📸 Copiar</button>
-  `;
-  main.appendChild(actionsRow);
-
   const capturaWrap = document.createElement("div");
   capturaWrap.id = "capturaVisualDiario";
   capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line);";
   main.appendChild(capturaWrap);
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_diario", "CoreJoint · Vendas, Vitrine e Inventário");
 
   const avisoAuto = document.createElement("div");
   avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
@@ -3866,78 +3872,6 @@ async function abrirRelatorioVisualDiario(){
 
   await renderTabela();
   iniciarAutoAtualizacao(async ()=>{ await loadAll(); await renderTabela(); }, 20);
-
-  document.getElementById("partilharImagemBtn").onclick = async (ev)=>{
-    const btn = ev.currentTarget;
-    if(btn.disabled) return;
-    btn.disabled = true;
-    const textoOriginal = btn.textContent;
-    btn.textContent = "A gerar imagem...";
-    try{
-      const canvas = await html2canvas(capturaWrap, {scale:2, backgroundColor:"#ffffff"});
-      canvas.toBlob(async (blob)=>{
-        const ficheiro = new File([blob], `CoreJoint_diario_${todayStr()}.png`, {type:"image/png"});
-        if(navigator.share && navigator.canShare && navigator.canShare({files:[ficheiro]})){
-          try{
-            await navigator.share({files:[ficheiro], title:"CoreJoint · Vendas, Vitrine e Inventário"});
-          }catch(e){
-            // utilizador cancelou a partilha ou o navegador recusou - nao e um erro real, nao mostra nada
-          }
-          btn.textContent = textoOriginal;
-          btn.disabled = false;
-        } else {
-          // navegador nao suporta partilha nativa de ficheiros (ex: desktop) - cai para copiar
-          try{
-            await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
-            btn.textContent = "✔ Copiado! Cola no WhatsApp";
-          }catch(e2){
-            const link = document.createElement("a");
-            link.download = `CoreJoint_diario_${todayStr()}.png`;
-            link.href = URL.createObjectURL(blob);
-            link.click();
-            btn.textContent = "📥 Descarregada";
-          }
-          setTimeout(()=>{ btn.textContent = textoOriginal; btn.disabled = false; }, 2500);
-        }
-      }, "image/png");
-    }catch(e){
-      console.error(e);
-      toast("Erro ao gerar imagem: " + (e.message||e).slice(0,100));
-      btn.textContent = textoOriginal;
-      btn.disabled = false;
-    }
-  };
-
-  document.getElementById("copiarImagemBtn").onclick = async (ev)=>{
-    const btn = ev.currentTarget;
-    if(btn.disabled) return;
-    btn.disabled = true;
-    const textoOriginal = btn.textContent;
-    btn.textContent = "A gerar imagem...";
-    try{
-      const canvas = await html2canvas(capturaWrap, {scale:2, backgroundColor:"#ffffff"});
-      canvas.toBlob(async (blob)=>{
-        try{
-          await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
-          btn.textContent = "✔ Copiado! Cola no WhatsApp";
-          setTimeout(()=>{ btn.textContent = textoOriginal; btn.disabled = false; }, 2500);
-        }catch(e){
-          // fallback: descarrega a imagem se o copiar direto nao for suportado
-          const link = document.createElement("a");
-          link.download = `CoreJoint_diario_${todayStr()}.png`;
-          link.href = URL.createObjectURL(blob);
-          link.click();
-          btn.textContent = "📥 Descarregada (copiar direto não suportado)";
-          setTimeout(()=>{ btn.textContent = textoOriginal; btn.disabled = false; }, 3000);
-        }
-      }, "image/png");
-    }catch(e){
-      console.error(e);
-      toast("Erro ao gerar imagem: " + (e.message||e).slice(0,100));
-      btn.textContent = textoOriginal;
-      btn.disabled = false;
-    }
-  };
 }
 async function generateWeeklyReport(){
   const days = [];
@@ -4485,23 +4419,25 @@ async function abrirPivotTrocas(){
   actionsRow.innerHTML = `<a href="CoreJoint_Reportes.html?abrir=importarTrocas" class="cambtn secondary" style="flex:1; text-align:center; text-decoration:none; display:block;">📤 Importar Excel</a>`;
   main.appendChild(actionsRow);
 
-  const h = document.createElement("h2");
-  h.textContent = "🔁 Trocas de horário pendentes";
-  main.appendChild(h);
-  const sub = document.createElement("div");
-  sub.className = "sub";
-  sub.style.marginBottom = "14px";
-  sub.innerHTML = `Loja, operador e quantas trocas por resolver. <span style="color:var(--green); font-weight:700;">🔄 Atualiza-se sozinha</span>`;
-  main.appendChild(sub);
-
   const tableWrap = document.createElement("div");
-  tableWrap.style.cssText = "background:#fff; border-radius:14px; padding:16px; border:1px solid var(--line); display:inline-block; max-width:100%; overflow-x:auto;";
   main.appendChild(tableWrap);
+  criarBotoesPartilha(main, tableWrap, "CoreJoint_trocas_horario", "CoreJoint · Trocas de horário pendentes");
+
+  const avisoAuto = document.createElement("div");
+  avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
+  avisoAuto.textContent = "🔄 Atualiza-se sozinha";
+  main.appendChild(avisoAuto);
 
   async function renderPivot(){
     const trocas = await api("GET", "cj_trocas?select=loja,criado_por&estado=eq.pendente");
+    const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+    tableWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--line); width:100%; box-sizing:border-box;";
     if(trocas.length===0){
-      tableWrap.outerHTML = `<div class="empty">✔ Sem trocas de horário pendentes.</div>`;
+      tableWrap.innerHTML = `
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Trocas de horário pendentes</div>
+        <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt}</div>
+        <div style="font-size:12px; color:var(--ink-soft);">✔ Sem trocas de horário pendentes.</div>
+      `;
       pararAutoAtualizacao();
       return;
     }
@@ -4517,17 +4453,19 @@ async function abrirPivotTrocas(){
 
     const linhasHtml = linhas.map(r=>`
       <tr>
-        <td style="font-weight:700; font-size:12px; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap;">${r.loja}</td>
-        <td style="font-size:12px; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap;">${r.operador}</td>
-        <td style="text-align:center; font-weight:800; font-size:13px; color:var(--terracotta); padding:6px 8px; border-bottom:1px solid var(--line);">${r.qtd}</td>
+        <td style="font-weight:700; font-size:11px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;" title="${r.loja}">${abreviarLoja(r.loja)}</td>
+        <td style="font-size:11px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap; max-width:110px; overflow:hidden; text-overflow:ellipsis;">${r.operador}</td>
+        <td style="text-align:center; font-weight:800; font-size:12px; color:var(--terracotta); padding:4px 2px; border-bottom:1px solid #f0ebe3;">${r.qtd}</td>
       </tr>
     `).join("");
     tableWrap.innerHTML = `
-      <table style="border-collapse:collapse;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Trocas de horário pendentes</div>
+      <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt}</div>
+      <table style="border-collapse:collapse; width:100%;">
         <thead><tr>
-          <th style="font-size:10px; color:var(--terracotta); text-transform:uppercase; padding:4px 8px; border-bottom:2px solid var(--terracotta); text-align:left;">Loja</th>
-          <th style="font-size:10px; color:var(--terracotta); text-transform:uppercase; padding:4px 8px; border-bottom:2px solid var(--terracotta); text-align:left;">Operador</th>
-          <th style="font-size:10px; color:var(--terracotta); text-transform:uppercase; padding:4px 8px; border-bottom:2px solid var(--terracotta);">Trocas</th>
+          <th style="font-size:9px; color:var(--terracotta); text-transform:uppercase; padding:3px 4px; border-bottom:2px solid var(--terracotta); text-align:left;">Loja</th>
+          <th style="font-size:9px; color:var(--terracotta); text-transform:uppercase; padding:3px 4px; border-bottom:2px solid var(--terracotta); text-align:left;">Operador</th>
+          <th style="font-size:9px; color:var(--terracotta); text-transform:uppercase; padding:3px 4px; border-bottom:2px solid var(--terracotta);">Trocas</th>
         </tr></thead>
         <tbody>${linhasHtml}</tbody>
       </table>
@@ -6307,6 +6245,7 @@ function openRelatorioQuebras(){
       </div>
     `;
     main.appendChild(resumo);
+    criarBotoesPartilha(main, resumo, "CoreJoint_resumo_quebras", "CoreJoint · Resumo de Quebras");
 
     // Aguarda validação — sempre em destaque, ação para ti/GOP
     if(aguardaValidacao.length>0){
