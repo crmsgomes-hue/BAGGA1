@@ -268,7 +268,7 @@ async function renderPanoramaGeral(){
     const todayStr = isoDate(today);
     const inicioSemana = isoDate(weekWindow(today).start);
 
-    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg] = await Promise.all([
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
       api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`),
@@ -276,7 +276,9 @@ async function renderPanoramaGeral(){
       api(`cj_fardamento_devolucoes?select=*&recolhido=eq.false`),
       api(`cj_adendas?select=*&arquivada=eq.false`),
       api(`cj_error_log?select=app&criado_em=gte.${new Date(Date.now()-24*3600*1000).toISOString()}`),
-      api(`cj_lembretes_pessoais?select=id&feito=eq.false`)
+      api(`cj_lembretes_pessoais?select=id&feito=eq.false`),
+      api(`cj_stock_negativo?select=loja&justificacao=is.null&loja=not.is.null`),
+      api(`cj_formacoes?select=loja&justificacao=is.null&loja=not.is.null`)
     ]);
 
     const vendasFeitas = new Set(todayVendasPg.map(r=>r.loja));
@@ -323,10 +325,28 @@ async function renderPanoramaGeral(){
         ${tile("rh","📋","RH", `${adendasAtivasPg.length}`, adendasAtivasPg.length>0?'var(--org,#c17817)':'var(--grn)')}
         ${tile("fardamento","👕","Fardamento", `${fardStockLowPg.length+fardDevPg.length}`, (fardStockLowPg.length+fardDevPg.length)>0?'var(--org,#c17817)':'var(--grn)')}
         ${tile("diagnostico","🩺","Diagnóstico", errosPg.length>0?`${errosPg.length}`:'✔', errosPg.length>0?'var(--red)':'var(--grn)')}
+        ${tile("stockneg","📉","Stock Neg.", `${stockNegPendentesPg.length}`, stockNegPendentesPg.length>0?'var(--red)':'var(--grn)')}
+        ${tile("formacoes","🎓","Formações", `${formacoesPendentesPg.length}`, formacoesPendentesPg.length>0?'var(--org,#c17817)':'var(--grn)')}
         ${tile("partilhar","📱","Partilhar", "", 'var(--t2)')}
       </div>
     `;
     document.querySelector('[data-topico="espaco"]').onclick = ()=>abrirLembretesOverlay();
+
+    document.querySelector('[data-topico="stockneg"]').onclick = ()=>{
+      const corpo = `
+        <div class="sub" style="margin-bottom:10px;">${stockNegPendentesPg.length} registo(s) de stock negativo por justificar.</div>
+        ${botoesAcao([["📉 Ver relatório","CoreJoint_Reportes.html?abrir=visualStockNeg"],["📤 Importar Excel","CoreJoint_Reportes.html?abrir=importarStockNeg"]])}
+      `;
+      abrirModalTopico("📉 Stock Negativo", corpo);
+    };
+
+    document.querySelector('[data-topico="formacoes"]').onclick = ()=>{
+      const corpo = `
+        <div class="sub" style="margin-bottom:10px;">${formacoesPendentesPg.length} formação(ões) pendente(s).</div>
+        ${botoesAcao([["🎓 Ver relatório","CoreJoint_Reportes.html?abrir=visualFormacoes"],["📤 Importar Excel","CoreJoint_Reportes.html?abrir=importarFormacoes"]])}
+      `;
+      abrirModalTopico("🎓 Formações", corpo);
+    };
 
     document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
       const corpo = `
@@ -338,6 +358,8 @@ async function renderPanoramaGeral(){
           ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
           ["📊 Sondagens e Formulários","CoreJoint_Reportes.html?abrir=grelhaSondagensForms"],
           ["📅 Relatório mensal completo","CoreJoint_Reportes.html?abrir=relatorioMensalCompleto"],
+          ["📉 Stock negativo","CoreJoint_Reportes.html?abrir=visualStockNeg"],
+          ["🎓 Formações","CoreJoint_Reportes.html?abrir=visualFormacoes"],
         ])}
       `;
       abrirModalTopico("📱 Partilhar", corpo);
