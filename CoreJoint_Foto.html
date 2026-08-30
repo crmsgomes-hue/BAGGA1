@@ -312,7 +312,7 @@ function isLastDaysOfMonth(threshold=3){
   const lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
   return d.getDate() > lastDay - threshold;
 }
-const CATEGORY_DOW = { raspadinhas:1, cafe:2, laranja:3 };
+const CATEGORY_DOW = { raspadinhas:1, cafe:2, laranja:3, tabaco:4 };
 const FREQ_DOW_LABELS = {1:"2ª feira", 2:"3ª feira", 3:"4ª feira", 4:"5ª feira", 5:"6ª feira", 6:"sábado", 7:"domingo"};
 function descricaoRegra(catKey, freq){
   if(catKey==="global") return "Mensal — semana de 15 a 21, entre 2ª e 5ª feira";
