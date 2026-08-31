@@ -5052,13 +5052,26 @@ async function confirmarImportarHorarios(){
     toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
     return;
   }
+  // detecta automaticamente o mes com mais dados importados, para abrir o relatorio logo no sitio certo
+  // (em vez de adivinhar "mes atual" ou "mes anterior", que pode nao ter nada a ver com os dados reais do ficheiro)
+  const contagemPorMes = {};
+  payload.forEach(r=>{
+    const chave = r.data.slice(0,7); // "2026-09"
+    contagemPorMes[chave] = (contagemPorMes[chave]||0) + 1;
+  });
+  const mesComMaisDados = Object.entries(contagemPorMes).sort((a,b)=>b[1]-a[1])[0]?.[0];
+  if(mesComMaisDados){
+    const [ano, mes] = mesComMaisDados.split("-").map(Number);
+    _horAno = ano; _horMes = mes - 1;
+  }
   mostrarSucesso(`${horariosParaImportar.length} turno(s) importado(s)`);
   horariosParaImportar = [];
-  const v = previousView; previousView = null; (v||render)();
+  await abrirRelatorioHorarios();
 }
 
 let _horMes = new Date().getMonth();
 let _horAno = new Date().getFullYear();
+let _horMesJaAjustado = false;
 
 async function abrirPainelMonitorizacao(){
   currentView = abrirPainelMonitorizacao;
@@ -5197,6 +5210,21 @@ async function abrirRelatorioHorarios(){
 
   document.getElementById("horPrev").onclick = ()=>{ _horMes--; if(_horMes<0){_horMes=11; _horAno--;} renderRelatorioHorarios(capturaWrap); };
   document.getElementById("horNext").onclick = ()=>{ _horMes++; if(_horMes>11){_horMes=0; _horAno++;} renderRelatorioHorarios(capturaWrap); };
+
+  // se o mes por defeito nao tiver nenhum dado, salta automaticamente (uma so vez) para o mes mais recente que tenha
+  if(!_horMesJaAjustado){
+    _horMesJaAjustado = true;
+    const inicioMesAtual = isoDate(new Date(_horAno, _horMes, 1));
+    const fimMesAtual = isoDate(new Date(_horAno, _horMes+1, 0));
+    const temNoMesAtual = await api("GET", `cj_horarios?select=id&data=gte.${inicioMesAtual}&data=lte.${fimMesAtual}&limit=1`);
+    if(temNoMesAtual.length===0){
+      const maisRecente = await api("GET", `cj_horarios?select=data&order=data.desc&limit=1`);
+      if(maisRecente.length>0){
+        const [ano, mes] = maisRecente[0].data.split("-").map(Number);
+        _horAno = ano; _horMes = mes - 1;
+      }
+    }
+  }
 
   await renderRelatorioHorarios(capturaWrap);
 }
