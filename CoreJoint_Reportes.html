@@ -4292,7 +4292,7 @@ function handleTrocasFile(ev){
         {key:"data", label:"Data", sinonimos:["data"], obrigatorio:true},
         {key:"descricao", label:"Descrição / Motivo", sinonimos:["descricao","motivo","notas"], obrigatorio:false},
       ], rows, (mapa)=>{
-        trocasParaImportar = rows.map(row=>{
+        const todasLinhas = rows.map(row=>{
           const lojaOriginal = String(row[mapa.loja]||"").trim();
           const loja = encontrarLojaCorrespondente(lojaOriginal);
           const operador = String(row[mapa.operador]||"").trim();
@@ -4300,6 +4300,10 @@ function handleTrocasFile(ev){
           const descricao = mapa.descricao ? String(row[mapa.descricao]||"").trim() : "";
           return {lojaOriginal, loja, operador, data: dataStr, descricao};
         }).filter(r=>r.operador && r.data);
+        trocasParaImportar = todasLinhas.filter(r=>r.loja);
+        const semLoja = todasLinhas.filter(r=>!r.loja);
+        trocasForaDop = semLoja.filter(r=>ehLojaConhecidaForaDop(r.lojaOriginal));
+        trocasComErro = semLoja.filter(r=>!ehLojaConhecidaForaDop(r.lojaOriginal));
         window._formEmEdicao = true;
         const main = document.getElementById("main");
         main.innerHTML = "";
@@ -4321,28 +4325,39 @@ function handleTrocasFile(ev){
   };
   reader.readAsArrayBuffer(file);
 }
+let trocasForaDop = [], trocasComErro = [];
 function renderTrocasPreview(){
-  const semLoja = trocasParaImportar.filter(r=>!r.loja).length;
+  const semLoja = trocasComErro.length + trocasForaDop.length;
   const comLoja = trocasParaImportar.filter(r=>r.loja).length;
   const el = document.getElementById("trocasPreview");
+  const amostra = trocasParaImportar.slice(0,5);
+  const amostraHtml = amostra.map(r=>{
+    const dataOk = /^\d{4}-\d{2}-\d{2}$/.test(r.data);
+    const cor = dataOk ? "var(--ink)" : "var(--red)";
+    return `<div style="font-size:12px; padding:5px 0; border-bottom:1px solid var(--line); color:${cor};">${r.operador} (${r.lojaOriginal}) — <b>${r.data||'(sem data!)'}</b></div>`;
+  }).join("");
   el.innerHTML = `
-    <div class="card-sub" style="margin-bottom:10px;">${comLoja} linha(s) prontas a importar${semLoja>0?` — ${semLoja} sem loja reconhecida (ficam de fora)`:''}.</div>
+    <div class="card-sub" style="margin-bottom:6px;">${comLoja} linha(s) na tua rede${semLoja>0?` + ${semLoja} sem loja reconhecida (também vão ser importadas, para não se perderem)`:''}.</div>
+    ${amostra.length>0?`<div style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:8px 10px; margin-bottom:12px;">
+      <div style="font-size:10px; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:4px;">Amostra — confirma que as datas fazem sentido:</div>
+      ${amostraHtml}
+    </div>`:''}
     <button class="cambtn" id="confirmarImportarTrocasBtn" style="width:100%;">✔ Confirmar importação</button>
   `;
   const btn = document.getElementById("confirmarImportarTrocasBtn");
   btn.onclick = protegerClique(btn, confirmarImportarTrocas, "A importar...");
 }
 async function confirmarImportarTrocas(){
-  const validas = trocasParaImportar.filter(r=>r.loja);
-  const invalidas = validas.filter(r=>!/^\d{4}-\d{2}-\d{2}$/.test(r.data));
+  const todas = [...trocasParaImportar, ...trocasComErro, ...trocasForaDop];
+  const invalidas = todas.filter(r=>!/^\d{4}-\d{2}-\d{2}$/.test(r.data));
   if(invalidas.length>0){
     const exemplos = invalidas.slice(0,5).map(r=>`${r.operador}: "${r.data}"`).join(", ");
     toast(`${invalidas.length} linha(s) com data inválida — nada foi gravado. Exemplos: ${exemplos}`);
     return;
   }
-  const payload = validas.map(t=>({
-    id: crypto.randomUUID(), loja: t.loja, tipo:"troca_horario", descricao: t.descricao || null, data: t.data, data_iso: t.data,
-    estado: "pendente", criado_por: t.operador
+  const payload = todas.map(t=>({
+    id: crypto.randomUUID(), loja: t.loja||null, loja_original: t.lojaOriginal, tipo:"troca_horario", descricao: t.descricao || null, data: t.data, data_iso: t.data,
+    estado: "pendente", criado_por: t.operador, fora_dop: trocasForaDop.includes(t)
   }));
   try{
     await api("POST", "cj_trocas", payload);
@@ -4350,8 +4365,8 @@ async function confirmarImportarTrocas(){
     toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
     return;
   }
-  mostrarSucesso(`${validas.length} troca(s) de horário importada(s)`);
-  trocasParaImportar = [];
+  mostrarSucesso(`${todas.length} troca(s) de horário importada(s)`);
+  trocasParaImportar = []; trocasComErro = []; trocasForaDop = [];
   const v = previousView; previousView = null; (v||render)();
 }
 
@@ -4425,6 +4440,87 @@ async function abrirCorrigirLojasQuebras(){
     }, "A marcar...");
     main.appendChild(card);
   });
+}
+
+// Ecra generico de "corrigir lojas nao reconhecidas" - reutilizavel por qualquer tabela com loja_original/loja/fora_dop
+async function abrirCorrigirLojasGenerico({titulo, tabela, campoValor, labelValor, campoDescricaoExtra}){
+  pararAutoAtualizacao();
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ pararAutoAtualizacao(); const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const h = document.createElement("h2");
+  h.textContent = `🏷️ ${titulo}`;
+  main.appendChild(h);
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  sub.style.marginBottom = "14px";
+  sub.textContent = "Estes códigos/nomes não foram reconhecidos como uma das tuas lojas nem como fora da rede. Escolhe a loja certa, ou marca como fora da rede.";
+  main.appendChild(sub);
+
+  const camposSelect = campoValor ? `id,loja_original,${campoValor},${campoDescricaoExtra||''}`.replace(/,$/,'') : `id,loja_original,${campoDescricaoExtra||''}`.replace(/,$/,'');
+  const rows = await api("GET", `${tabela}?select=${camposSelect}&justificacao=is.null&loja=is.null&fora_dop=eq.false&order=loja_original`);
+  if(rows.length===0){
+    main.innerHTML += `<div class="empty">✔ Nada por resolver — todos os registos já têm loja ou estão marcados fora da rede.</div>`;
+    return;
+  }
+
+  const grupos = {};
+  rows.forEach(r=>{ (grupos[r.loja_original] ||= []).push(r); });
+
+  const opcoesLojas = LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("");
+
+  Object.entries(grupos).forEach(([lojaOriginal, itens])=>{
+    const total = campoValor ? itens.reduce((s,r)=>s+Number(r[campoValor]||0),0) : null;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.cssText = "flex-direction:column; align-items:stretch; gap:8px;";
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <span style="font-weight:700; font-size:14px;">${lojaOriginal}</span>
+        <span style="font-size:12px; color:var(--ink-soft);">${itens.length} registo(s)${total!==null?' · '+total.toFixed(2)+' '+(labelValor||''):''}</span>
+      </div>
+      <select class="selLoja" style="padding:8px; border-radius:8px; border:1px solid var(--line); font-size:13px;">
+        <option value="">— Escolher loja —</option>
+        ${opcoesLojas}
+      </select>
+      <div style="display:flex; gap:8px;">
+        <button class="cambtn btnAtribuir" style="flex:1;">✔ Atribuir</button>
+        <button class="cambtn secondary btnForaDop" style="flex:1;">🚫 Fora da rede</button>
+      </div>
+    `;
+    const sel = card.querySelector(".selLoja");
+    card.querySelector(".btnAtribuir").onclick = protegerClique(card.querySelector(".btnAtribuir"), async ()=>{
+      const lojaEscolhida = sel.value;
+      if(!lojaEscolhida){ toast("Escolhe uma loja primeiro"); return; }
+      for(const item of itens){
+        await api("PATCH", `${tabela}?id=eq.${item.id}`, { loja: lojaEscolhida });
+      }
+      mostrarSucesso(`${itens.length} registo(s) de "${lojaOriginal}" atribuído(s) a ${lojaEscolhida}`);
+      card.remove();
+    }, "A atribuir...");
+    card.querySelector(".btnForaDop").onclick = protegerClique(card.querySelector(".btnForaDop"), async ()=>{
+      for(const item of itens){
+        await api("PATCH", `${tabela}?id=eq.${item.id}`, { fora_dop: true });
+      }
+      mostrarSucesso(`${itens.length} registo(s) de "${lojaOriginal}" marcado(s) fora da rede`);
+      card.remove();
+    }, "A marcar...");
+    main.appendChild(card);
+  });
+}
+function abrirCorrigirLojasFormacoes(){
+  currentView = abrirCorrigirLojasFormacoes;
+  return abrirCorrigirLojasGenerico({titulo:"Formações sem loja reconhecida", tabela:"cj_formacoes", campoDescricaoExtra:"colaborador,formacao"});
+}
+function abrirCorrigirLojasTrocas(){
+  currentView = abrirCorrigirLojasTrocas;
+  return abrirCorrigirLojasGenerico({titulo:"Trocas de horário sem loja reconhecida", tabela:"cj_trocas", campoDescricaoExtra:"criado_por"});
 }
 
 async function abrirCorrigirLojasStockNeg(){
@@ -4657,8 +4753,18 @@ function handleStockNegFile(ev){
 function renderStockNegPreview(totalLinhas){
   const semLoja = stockNegComErro.length + stockNegForaDop.length;
   const el = document.getElementById("stockNegPreview");
+  const amostra = stockNegParaImportar.slice(0,5);
+  const amostraHtml = amostra.map(r=>{
+    const dataOk = /^\d{4}-\d{2}-\d{2}$/.test(r.data);
+    const cor = dataOk ? "var(--ink)" : "var(--red)";
+    return `<div style="font-size:12px; padding:5px 0; border-bottom:1px solid var(--line); color:${cor};">${r.loja} — ${r.produto||'—'} — <b>${r.data||'(sem data!)'}</b></div>`;
+  }).join("");
   el.innerHTML = `
-    <div class="card-sub" style="margin-bottom:10px;">${totalLinhas} linha(s) com stock negativo encontradas${semLoja>0?` — ${semLoja} sem loja reconhecida`:''}.</div>
+    <div class="card-sub" style="margin-bottom:6px;">${totalLinhas} linha(s) com stock negativo encontradas${semLoja>0?` — ${semLoja} sem loja reconhecida`:''}.</div>
+    ${amostra.length>0?`<div style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:8px 10px; margin-bottom:12px;">
+      <div style="font-size:10px; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:4px;">Amostra — confirma que as datas fazem sentido:</div>
+      ${amostraHtml}
+    </div>`:''}
     <button class="cambtn" id="confirmarImportarStockNegBtn" style="width:100%;">✔ Confirmar importação</button>
   `;
   const btn = document.getElementById("confirmarImportarStockNegBtn");
@@ -4747,8 +4853,18 @@ function handleFormacoesFile(ev){
 function renderFormacoesPreview(totalLinhas){
   const semLoja = formacoesComErro.length + formacoesForaDop.length;
   const el = document.getElementById("formacoesPreview");
+  const amostra = formacoesParaImportar.slice(0,5);
+  const amostraHtml = amostra.map(r=>{
+    const dataOk = !r.data || /^\d{4}-\d{2}-\d{2}$/.test(r.data);
+    const cor = dataOk ? "var(--ink)" : "var(--red)";
+    return `<div style="font-size:12px; padding:5px 0; border-bottom:1px solid var(--line); color:${cor};">${r.colaborador} — ${r.formacao} — <b>${r.data||'(sem data)'}</b></div>`;
+  }).join("");
   el.innerHTML = `
-    <div class="card-sub" style="margin-bottom:10px;">${totalLinhas} linha(s) encontradas${semLoja>0?` — ${semLoja} sem loja reconhecida`:''}.</div>
+    <div class="card-sub" style="margin-bottom:6px;">${totalLinhas} linha(s) encontradas${semLoja>0?` — ${semLoja} sem loja reconhecida`:''}.</div>
+    ${amostra.length>0?`<div style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:8px 10px; margin-bottom:12px;">
+      <div style="font-size:10px; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:4px;">Amostra — confirma que as datas fazem sentido:</div>
+      ${amostraHtml}
+    </div>`:''}
     <button class="cambtn" id="confirmarImportarFormacoesBtn" style="width:100%;">✔ Confirmar importação</button>
   `;
   const btn = document.getElementById("confirmarImportarFormacoesBtn");
@@ -4868,8 +4984,19 @@ function handleHorariosFile(ev){
 }
 function renderHorariosPreview(loja, totalLinhas){
   const el = document.getElementById("horariosPreview");
+  const amostra = horariosParaImportar.slice(0,5);
+  const datasUnicas = [...new Set(horariosParaImportar.map(r=>r.data))];
+  const amostraHtml = amostra.map(r=>{
+    const dataOk = /^\d{4}-\d{2}-\d{2}$/.test(r.data);
+    const cor = dataOk ? "var(--ink)" : "var(--red)";
+    return `<div style="font-size:12px; padding:5px 0; border-bottom:1px solid var(--line); color:${cor};">${r.colaborador} — <b>${r.data||'(sem data!)'}</b>${r.hora_inicio?` · ${r.hora_inicio}-${r.hora_fim||'?'}`:''}</div>`;
+  }).join("");
   el.innerHTML = `
-    <div class="card-sub" style="margin-bottom:10px;">${totalLinhas} turno(s) encontrado(s) para ${loja}.</div>
+    <div class="card-sub" style="margin-bottom:6px;">${totalLinhas} turno(s) encontrado(s) para ${loja}, em ${datasUnicas.length} dia(s) diferentes.</div>
+    <div style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:8px 10px; margin-bottom:12px;">
+      <div style="font-size:10px; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:4px;">Amostra — confirma que as datas fazem sentido:</div>
+      ${amostraHtml}
+    </div>
     <button class="cambtn" id="confirmarImportarHorariosBtn" style="width:100%;">✔ Confirmar importação</button>
   `;
   const btn = document.getElementById("confirmarImportarHorariosBtn");
@@ -6125,6 +6252,54 @@ async function abrirPainelSaude(){
     card.onclick = ()=>{ previousView = abrirPainelSaude; c.fn(); };
     main.appendChild(card);
   });
+}
+
+async function abrirExportarBackup(){
+  currentView = abrirExportarBackup;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.style.cssText = "flex-direction:column; align-items:stretch;";
+  card.innerHTML = `
+    <div class="card-title" style="margin-bottom:6px;">📥 Exportar backup</div>
+    <div class="card-sub" style="margin-bottom:14px;">O plano gratuito não tem cópias de segurança automáticas. Descarrega aqui uma cópia própria de todos os dados importados, para nunca ficares sem nada se algo correr mal.</div>
+    <button class="cambtn" id="exportarBackupBtn" style="width:100%;">📥 Descarregar backup completo (.json)</button>
+    <div id="exportarBackupStatus" style="margin-top:12px; font-size:12px; color:var(--ink-soft);"></div>
+  `;
+  main.appendChild(card);
+
+  document.getElementById("exportarBackupBtn").onclick = protegerClique(document.getElementById("exportarBackupBtn"), async ()=>{
+    const status = document.getElementById("exportarBackupStatus");
+    status.textContent = "A recolher dados...";
+    const tabelas = [
+      "cj_quebras_reportes", "cj_stock_negativo", "cj_formacoes", "cj_horarios", "cj_trocas",
+      "cj_daily_reportes", "cj_inventario_reportes", "cj_avisos", "cj_adendas",
+      "cj_fardamento_stock", "cj_fardamento_devolucoes", "cj_calendario_dop"
+    ];
+    const backup = { gerado_em: new Date().toISOString(), gerado_por: currentUser };
+    for(const t of tabelas){
+      try{
+        backup[t] = await api("GET", `${t}?select=*`);
+      }catch(e){
+        backup[t] = {erro: String(e.message||e)};
+      }
+    }
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {type:"application/json"});
+    const link = document.createElement("a");
+    link.download = `CoreJoint_backup_${todayStr()}.json`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    const totalLinhas = Object.entries(backup).filter(([k])=>tabelas.includes(k)).reduce((s,[,v])=>s+(Array.isArray(v)?v.length:0), 0);
+    status.textContent = `✔ Backup descarregado — ${totalLinhas} registo(s) no total, de ${tabelas.length} tabelas.`;
+  }, "A gerar backup...");
 }
 
 async function abrirRegistoErros(){
@@ -7522,6 +7697,7 @@ function renderGestao(){
       {icon:"📊", label:"Ver todos os relatórios", fn: ()=>abrirEcraComAbas("Relatórios", [
         {icon:"📌", label:"Pendências do dia (PDF)", fn:generateDailyReport},
         {icon:"🔁", label:"Trocas de horário pendentes", fn:abrirPivotTrocas},
+        {icon:"🏷️", label:"Corrigir lojas não reconhecidas (Trocas)", fn:abrirCorrigirLojasTrocas},
         {icon:"📸", label:"Vendas/Vitrine/Inventário (imagem p/ WhatsApp)", fn:abrirRelatorioVisualDiario},
         {icon:"🖨️", label:"Relatório PDF (semanal)", fn:generateWeeklyReport},
         {icon:"📦", label:"Relatório de Inventário (semanal)", fn:generateWeeklyInventoryReport},
@@ -7555,6 +7731,7 @@ function renderGestao(){
       {icon:"📉", label:"Stock negativo", fn:abrirRelatorioVisualStockNegativo},
       {icon:"🏷️", label:"Corrigir lojas não reconhecidas (Stock)", fn:abrirCorrigirLojasStockNeg},
       {icon:"🎓", label:"Formações", fn:abrirRelatorioVisualFormacoes},
+      {icon:"🏷️", label:"Corrigir lojas não reconhecidas (Formações)", fn:abrirCorrigirLojasFormacoes},
       {icon:"👥", label:"Horários — colaboradores por dia", fn:abrirRelatorioHorarios},
       {icon:"📊", label:"Monitorização de lojas (ranking)", fn:abrirPainelMonitorizacao},
       {icon:"🗓️", label:"Relatório semanal de quebras (PDF/Excel)", fn:gerarRelatorioSemanalQuebras}
@@ -7568,6 +7745,7 @@ function renderGestao(){
     {titulo:"Diagnóstico", itens:[
       {icon:"✔", label:"Painel de saúde", fn:abrirPainelSaude},
       {icon:"🕘", label:"Histórico de alterações", fn:abrirHistoricoAlteracoes},
+      {icon:"📥", label:"Exportar backup completo", fn:abrirExportarBackup},
       {icon:"🐛", label:"Registo de erros", fn:abrirRegistoErros},
       {icon:"🔍", label:"Verificador de categorias", fn:abrirVerificadorCategorias},
       {icon:"📋", label:"Exceções por loja", fn:abrirExcecoesLoja}
@@ -7590,6 +7768,7 @@ function renderGestao(){
     visualInventario: abrirRelatorioVisualInventario, visualQuebras: abrirRelatorioVisualQuebras, visualFotosPontuais: abrirRelatorioVisualFotosPontuais,
     importarTrocas: openImportarTrocas, pivotTrocas: abrirPivotTrocas, corrigirLojasQuebras: abrirCorrigirLojasQuebras,
     corrigirLojasStockNeg: abrirCorrigirLojasStockNeg,
+    corrigirLojasFormacoes: abrirCorrigirLojasFormacoes, corrigirLojasTrocas: abrirCorrigirLojasTrocas,
     relatorioMensalCompleto: abrirRelatorioMensalCompleto,
     importarStockNeg: openImportarStockNegativo, visualStockNeg: abrirRelatorioVisualStockNegativo,
     importarFormacoes: openImportarFormacoes, visualFormacoes: abrirRelatorioVisualFormacoes,
@@ -7598,7 +7777,7 @@ function renderGestao(){
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
-    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar, calendario: abrirCalendarioDop, porCategoria: abrirVisaoPorCategoria, pedidosFotos: abrirPedidosFotos, registoErros: abrirRegistoErros, verificadorCategorias: abrirVerificadorCategorias, excecoesLoja: abrirExcecoesLoja, painelSaude: abrirPainelSaude, historicoAlteracoes: abrirHistoricoAlteracoes
+    manualEntry: openManualEntry, apresentacao: openModoApresentacao, integridade: abrirRelatorioIntegridade, porValidar: abrirPorValidar, calendario: abrirCalendarioDop, porCategoria: abrirVisaoPorCategoria, pedidosFotos: abrirPedidosFotos, registoErros: abrirRegistoErros, verificadorCategorias: abrirVerificadorCategorias, excecoesLoja: abrirExcecoesLoja, painelSaude: abrirPainelSaude, historicoAlteracoes: abrirHistoricoAlteracoes, exportarBackup: abrirExportarBackup
   };
 
   const relatoriosRapidos = document.createElement("div");
