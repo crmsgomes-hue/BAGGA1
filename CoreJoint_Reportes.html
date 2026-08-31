@@ -4036,7 +4036,19 @@ function parseDataExcel(dataRaw){
     const d = XLSX.SSF.parse_date_code(dataRaw);
     return `${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`;
   }
-  if(dataRaw) return String(dataRaw).trim();
+  if(dataRaw){
+    const s = String(dataRaw).trim();
+    // ja em ISO (YYYY-MM-DD)?
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    // DD/MM/YYYY ou DD-MM-YYYY (formato português/europeu, o mais comum nestes ficheiros)
+    const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if(m){
+      let [, dia, mes, ano] = m;
+      if(ano.length===2) ano = (Number(ano)<50 ? "20" : "19") + ano;
+      return `${ano}-${mes.padStart(2,"0")}-${dia.padStart(2,"0")}`;
+    }
+    return s;
+  }
   return "";
 }
 
