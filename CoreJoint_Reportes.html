@@ -4870,6 +4870,112 @@ async function confirmarImportarHorarios(){
 let _horMes = new Date().getMonth();
 let _horAno = new Date().getFullYear();
 
+async function abrirPainelMonitorizacao(){
+  currentView = abrirPainelMonitorizacao;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const capturaWrap = document.createElement("div");
+  main.appendChild(capturaWrap);
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_monitorizacao", "CoreJoint · Monitorização de lojas");
+
+  const avisoAuto = document.createElement("div");
+  avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
+  avisoAuto.textContent = "🔄 Atualiza-se sozinha";
+  main.appendChild(avisoAuto);
+
+  async function render(){
+    const hoje = new Date();
+    const inicio30 = new Date(hoje); inicio30.setDate(inicio30.getDate()-29);
+    const inicio30Str = isoDate(inicio30);
+
+    const [dailyMes, quebrasMes] = await Promise.all([
+      api("GET", `cj_daily_reportes?select=loja,tipo,turno,data&data=gte.${inicio30Str}`),
+      api("GET", `cj_quebras_reportes?select=loja,valor_quebra,data&data=gte.${inicio30Str}&loja=not.is.null`)
+    ]);
+
+    function diaCompleto(loja, ds){
+      const vendasOk = dailyMes.some(r=>r.loja===loja && r.tipo==="vendas" && r.turno==="unico" && r.data===ds);
+      const vitrineOk = ["manha","almoco","lanche"].every(t=>dailyMes.some(r=>r.loja===loja && r.tipo==="vitrine" && r.turno===t && r.data===ds));
+      return vendasOk && vitrineOk;
+    }
+
+    const dadosLojas = LOJAS.map(l=>{
+      // % cumprimento nos ultimos 30 dias
+      let diasOk = 0;
+      const dias30 = [];
+      for(let i=29;i>=0;i--){ const d = new Date(hoje); d.setDate(d.getDate()-i); dias30.push(isoDate(d)); }
+      dias30.forEach(ds=>{ if(diaCompleto(l, ds)) diasOk++; });
+      const pctCumprimento = Math.round((diasOk/30)*100);
+
+      // quebras totais (30 dias)
+      const quebrasLoja = quebrasMes.filter(q=>q.loja===l);
+      const totalQuebras = quebrasLoja.reduce((s,q)=>s+Math.abs(Number(q.valor_quebra||0)),0);
+
+      // streak positivo (dias consecutivos completos, a contar de hoje para tras)
+      let streak = 0;
+      for(let i=0;i<60;i++){
+        const d = new Date(hoje); d.setDate(d.getDate()-i);
+        const ds = isoDate(d);
+        if(diaCompleto(l, ds)) streak++;
+        else break;
+      }
+
+      // historico dos ultimos 7 dias
+      const dias7 = [];
+      for(let i=6;i>=0;i--){ const d = new Date(hoje); d.setDate(d.getDate()-i); dias7.push(isoDate(d)); }
+      const historico7 = dias7.map(ds=>diaCompleto(l, ds));
+
+      // score: cumprimento pesa mais, quebras e falta de streak penalizam
+      const score = pctCumprimento - (totalQuebras/20) - (streak===0 ? 10 : 0);
+
+      return {loja:l, pctCumprimento, totalQuebras, streak, historico7, score};
+    });
+
+    dadosLojas.sort((a,b)=>b.score-a.score);
+
+    const linhasHtml = dadosLojas.map((d,i)=>{
+      const corPct = d.pctCumprimento>=80 ? "#2e7d32" : d.pctCumprimento>=50 ? "#c17817" : "#b0432f";
+      const dotsHtml = d.historico7.map(ok=>`<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${ok?'#2e7d32':'#b0432f'}; margin:0 1px;"></span>`).join("");
+      return `<tr>
+        <td style="font-weight:800; font-size:10px; padding:4px 3px; border-bottom:1px solid #f0ebe3; color:var(--ink-soft);">${i+1}º</td>
+        <td style="font-weight:700; font-size:10.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(d.loja)}</td>
+        <td style="text-align:center; font-size:10.5px; font-weight:800; padding:4px 2px; border-bottom:1px solid #f0ebe3; color:${corPct};">${d.pctCumprimento}%</td>
+        <td style="text-align:center; font-size:10px; padding:4px 2px; border-bottom:1px solid #f0ebe3; color:${d.totalQuebras>0?'#b0432f':'#2e7d32'};">${d.totalQuebras.toFixed(0)}</td>
+        <td style="text-align:center; font-size:10px; padding:4px 2px; border-bottom:1px solid #f0ebe3; color:${d.streak>=7?'#2e7d32':'inherit'}; font-weight:${d.streak>=7?'800':'400'};">${d.streak>0?d.streak+'d':'—'}</td>
+        <td style="text-align:center; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${dotsHtml}</td>
+      </tr>`;
+    }).join("");
+
+    capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--line); width:100%; box-sizing:border-box;";
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px; padding:0 4px;">CoreJoint · Monitorização de lojas</div>
+      <div style="font-size:9px; color:#777; margin-bottom:8px; padding:0 4px;">Últimos 30 dias · ordenado por saúde geral</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th></th>
+          <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:3px; text-align:left; border-bottom:2px solid #C1622D;">Loja</th>
+          <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:3px; border-bottom:2px solid #C1622D;">Cumpr.</th>
+          <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:3px; border-bottom:2px solid #C1622D;">Quebras€</th>
+          <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:3px; border-bottom:2px solid #C1622D;">Streak</th>
+          <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:3px; border-bottom:2px solid #C1622D;">7 dias</th>
+        </tr></thead>
+        <tbody>${linhasHtml}</tbody>
+      </table>
+      <div style="font-size:8px; color:#999; margin-top:8px; padding:0 4px;">Cumpr. = % dias com vendas+vitrine completos · Streak = dias seguidos sem falhas · 7 dias = últimos 7 dias (verde=ok)</div>
+    `;
+  }
+
+  await render();
+  iniciarAutoAtualizacao(render, 30);
+}
+
 async function abrirRelatorioHorarios(){
   currentView = abrirRelatorioHorarios;
   const main = document.getElementById("main");
@@ -7389,6 +7495,7 @@ function renderGestao(){
       {icon:"🏷️", label:"Corrigir lojas não reconhecidas (Stock)", fn:abrirCorrigirLojasStockNeg},
       {icon:"🎓", label:"Formações", fn:abrirRelatorioVisualFormacoes},
       {icon:"👥", label:"Horários — colaboradores por dia", fn:abrirRelatorioHorarios},
+      {icon:"📊", label:"Monitorização de lojas (ranking)", fn:abrirPainelMonitorizacao},
       {icon:"🗓️", label:"Relatório semanal de quebras (PDF/Excel)", fn:gerarRelatorioSemanalQuebras}
     ]},
     {titulo:"Visão por categoria", itens:[
@@ -7426,6 +7533,7 @@ function renderGestao(){
     importarStockNeg: openImportarStockNegativo, visualStockNeg: abrirRelatorioVisualStockNegativo,
     importarFormacoes: openImportarFormacoes, visualFormacoes: abrirRelatorioVisualFormacoes,
     importarHorarios: openImportarHorarios, relatorioHorarios: abrirRelatorioHorarios,
+    painelMonitorizacao: abrirPainelMonitorizacao,
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
