@@ -665,10 +665,19 @@ function protegerClique(btn, fn, textoDurante){
     if(btn.disabled) return;
     const textoOriginal = btn.textContent;
     btn.disabled = true;
-    if(textoDurante) btn.textContent = textoDurante;
+    let inicio = Date.now();
+    let ticker = null;
+    if(textoDurante){
+      btn.textContent = textoDurante;
+      ticker = setInterval(()=>{
+        const seg = Math.floor((Date.now()-inicio)/1000);
+        if(seg>=3) btn.textContent = `${textoDurante} (${seg}s)`;
+      }, 1000);
+    }
     try{
       await fn(...args);
     } finally {
+      if(ticker) clearInterval(ticker);
       btn.disabled = false;
       if(textoDurante) btn.textContent = textoOriginal;
     }
@@ -4345,7 +4354,7 @@ function renderTrocasPreview(){
     <button class="cambtn" id="confirmarImportarTrocasBtn" style="width:100%;">✔ Confirmar importação</button>
   `;
   const btn = document.getElementById("confirmarImportarTrocasBtn");
-  btn.onclick = protegerClique(btn, confirmarImportarTrocas, "A importar...");
+  btn.onclick = protegerClique(btn, confirmarImportarTrocas, `A gravar ${trocasParaImportar.length + trocasComErro.length + trocasForaDop.length} registo(s)...`);
 }
 async function confirmarImportarTrocas(){
   const todas = [...trocasParaImportar, ...trocasComErro, ...trocasForaDop];
@@ -4768,7 +4777,7 @@ function renderStockNegPreview(totalLinhas){
     <button class="cambtn" id="confirmarImportarStockNegBtn" style="width:100%;">✔ Confirmar importação</button>
   `;
   const btn = document.getElementById("confirmarImportarStockNegBtn");
-  btn.onclick = protegerClique(btn, confirmarImportarStockNeg, "A importar...");
+  btn.onclick = protegerClique(btn, confirmarImportarStockNeg, `A gravar ${stockNegParaImportar.length + stockNegForaDop.length + stockNegComErro.length} registo(s)...`);
 }
 function openImportarFormacoes(){
   currentView = openImportarFormacoes;
@@ -4868,7 +4877,7 @@ function renderFormacoesPreview(totalLinhas){
     <button class="cambtn" id="confirmarImportarFormacoesBtn" style="width:100%;">✔ Confirmar importação</button>
   `;
   const btn = document.getElementById("confirmarImportarFormacoesBtn");
-  btn.onclick = protegerClique(btn, confirmarImportarFormacoes, "A importar...");
+  btn.onclick = protegerClique(btn, confirmarImportarFormacoes, `A gravar ${formacoesParaImportar.length + formacoesForaDop.length + formacoesComErro.length} registo(s)...`);
 }
 function openImportarHorarios(){
   currentView = openImportarHorarios;
@@ -5000,7 +5009,7 @@ function renderHorariosPreview(loja, totalLinhas){
     <button class="cambtn" id="confirmarImportarHorariosBtn" style="width:100%;">✔ Confirmar importação</button>
   `;
   const btn = document.getElementById("confirmarImportarHorariosBtn");
-  btn.onclick = protegerClique(btn, confirmarImportarHorarios, "A importar...");
+  btn.onclick = protegerClique(btn, confirmarImportarHorarios, `A gravar ${horariosParaImportar.length} registo(s)...`);
 }
 async function confirmarImportarHorarios(){
   // valida todas as datas ANTES de gravar - uma so linha invalida nunca deve deixar lixo parcial na base de dados
@@ -6300,6 +6309,81 @@ async function abrirExportarBackup(){
     const totalLinhas = Object.entries(backup).filter(([k])=>tabelas.includes(k)).reduce((s,[,v])=>s+(Array.isArray(v)?v.length:0), 0);
     status.textContent = `✔ Backup descarregado — ${totalLinhas} registo(s) no total, de ${tabelas.length} tabelas.`;
   }, "A gerar backup...");
+
+  const card2 = document.createElement("div");
+  card2.className = "card";
+  card2.style.cssText = "flex-direction:column; align-items:stretch; margin-top:14px;";
+  card2.innerHTML = `
+    <div class="card-title" style="margin-bottom:6px;">📤 Restaurar backup</div>
+    <div class="card-sub" style="margin-bottom:14px;">Escolhe um ficheiro de backup (.json) gerado antes. Repõe os dados por tabela — seguro de repetir, nunca duplica (usa o id de cada registo).</div>
+    <label style="display:block; width:100%; text-align:center; background:var(--terracotta); color:#fff; font-weight:700; padding:14px; border-radius:10px; cursor:pointer;">📁 Escolher ficheiro de backup<input type="file" id="restaurarBackupFile" accept=".json" style="display:none;"></label>
+    <div id="restaurarBackupPreview" style="margin-top:14px;"></div>
+  `;
+  main.appendChild(card2);
+  document.getElementById("restaurarBackupFile").addEventListener("change", handleRestaurarBackupFile);
+}
+
+let _backupParaRestaurar = null;
+function handleRestaurarBackupFile(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const backup = JSON.parse(e.target.result);
+      _backupParaRestaurar = backup;
+      const tabelas = Object.keys(backup).filter(k=>Array.isArray(backup[k]));
+      const preview = document.getElementById("restaurarBackupPreview");
+      preview.innerHTML = `
+        <div class="card-sub" style="margin-bottom:10px;">Backup de ${backup.gerado_em ? new Date(backup.gerado_em).toLocaleString('pt-PT') : '(data desconhecida)'}${backup.gerado_por?` por ${backup.gerado_por}`:''}:</div>
+        ${tabelas.map(t=>`
+          <label style="display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13px; border-bottom:1px solid var(--line);">
+            <input type="checkbox" class="chkTabelaRestaurar" data-tabela="${t}" checked>
+            <span>${t} <b>(${backup[t].length} registo(s))</b></span>
+          </label>
+        `).join("")}
+        <button class="cambtn" id="confirmarRestaurarBtn" style="width:100%; margin-top:14px;">✔ Restaurar tabelas selecionadas</button>
+        <div id="restaurarStatus" style="margin-top:10px; font-size:12px; color:var(--ink-soft);"></div>
+      `;
+      document.getElementById("confirmarRestaurarBtn").onclick = protegerClique(document.getElementById("confirmarRestaurarBtn"), confirmarRestaurarBackup, "A restaurar...");
+    }catch(err){
+      toast("Ficheiro de backup inválido: " + (err.message||err).slice(0,100));
+    }
+  };
+  reader.readAsText(file);
+}
+async function confirmarRestaurarBackup(){
+  const status = document.getElementById("restaurarStatus");
+  const checks = Array.from(document.querySelectorAll(".chkTabelaRestaurar:checked"));
+  if(checks.length===0){ toast("Escolhe pelo menos uma tabela"); return; }
+  let totalRestaurado = 0, erros = [];
+  for(const chk of checks){
+    const tabela = chk.dataset.tabela;
+    const rows = _backupParaRestaurar[tabela];
+    status.textContent = `A restaurar ${tabela} (${rows.length} registo(s))...`;
+    try{
+      // upsert (on conflict do id, atualiza) - seguro de repetir sem duplicar
+      const res = await fetch(`${SUPA_URL}/rest/v1/${tabela}`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY,
+          "Content-Type": "application/json",
+          "Prefer": "resolution=merge-duplicates,return=minimal"
+        },
+        body: JSON.stringify(rows)
+      });
+      if(!res.ok) throw new Error(await res.text());
+      totalRestaurado += rows.length;
+    }catch(e){
+      erros.push(`${tabela}: ${(e.message||e).slice(0,100)}`);
+    }
+  }
+  if(erros.length>0){
+    status.innerHTML = `⚠ Restaurado parcialmente (${totalRestaurado} registo(s)). Erros:<br>${erros.join("<br>")}`;
+  } else {
+    status.textContent = `✔ Restaurado com sucesso — ${totalRestaurado} registo(s) em ${checks.length} tabela(s).`;
+    mostrarSucesso(`Backup restaurado — ${totalRestaurado} registo(s)`);
+  }
 }
 
 async function abrirRegistoErros(){
