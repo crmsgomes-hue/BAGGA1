@@ -4145,14 +4145,7 @@ let quebrasForaDop = [];
 function handleQuebrasFile(ev){
   const file = ev.target.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = (e)=>{
-    try{
-      const data = new Uint8Array(e.target.result);
-      const wb = XLSX.read(data, {type:"array", cellDates:true});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
-      if(rows.length===0){ toast("O ficheiro parece estar vazio"); return; }
+  lerFicheiroTabular(file, (rows)=>{
       const headers = Object.keys(rows[0]);
       abrirMapeamentoColunas("Quebras", headers, [
         {key:"loja", label:"Loja", sinonimos:["loja","cód. loja","cod. loja"], obrigatorio:true},
@@ -4198,12 +4191,7 @@ function handleQuebrasFile(ev){
         main.appendChild(card);
         renderQuebrasPreview(todasLinhas.length);
       });
-    }catch(err){
-      console.error(err);
-      toast("Erro a ler o ficheiro: " + (err.message||err).slice(0,100));
-    }
-  };
-  reader.readAsArrayBuffer(file);
+  });
 }
 
 function renderQuebrasPreview(totalLinhas){
@@ -4286,14 +4274,7 @@ let trocasParaImportar = [];
 function handleTrocasFile(ev){
   const file = ev.target.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = (e)=>{
-    try{
-      const data = new Uint8Array(e.target.result);
-      const wb = XLSX.read(data, {type:"array", cellDates:true});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
-      if(rows.length===0){ toast("O ficheiro parece estar vazio"); return; }
+  lerFicheiroTabular(file, (rows)=>{
       const headers = Object.keys(rows[0]);
       abrirMapeamentoColunas("Trocas de horário", headers, [
         {key:"loja", label:"Loja", sinonimos:["loja"], obrigatorio:true},
@@ -4328,11 +4309,7 @@ function handleTrocasFile(ev){
         main.appendChild(card);
         renderTrocasPreview();
       });
-    }catch(err){
-      toast("Erro a ler o ficheiro: " + err.message);
-    }
-  };
-  reader.readAsArrayBuffer(file);
+  });
 }
 let trocasForaDop = [], trocasComErro = [];
 function renderTrocasPreview(){
@@ -4706,14 +4683,7 @@ let stockNegParaImportar = [], stockNegForaDop = [], stockNegComErro = [];
 function handleStockNegFile(ev){
   const file = ev.target.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = (e)=>{
-    try{
-      const data = new Uint8Array(e.target.result);
-      const wb = XLSX.read(data, {type:"array", cellDates:true});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
-      if(rows.length===0){ toast("O ficheiro parece estar vazio"); return; }
+  lerFicheiroTabular(file, (rows)=>{
       const headers = Object.keys(rows[0]);
       abrirMapeamentoColunas("Stock negativo", headers, [
         {key:"loja", label:"Loja", sinonimos:["loja","cód. loja","cod. loja"], obrigatorio:true},
@@ -4737,6 +4707,7 @@ function handleStockNegFile(ev){
         const semLoja = todasLinhas.filter(r=>!r.loja);
         stockNegForaDop = semLoja.filter(r=>ehLojaConhecidaForaDop(r.lojaOriginal));
         stockNegComErro = semLoja.filter(r=>!ehLojaConhecidaForaDop(r.lojaOriginal));
+        window._stockNegDebug = {linhasFicheiro: rows.length, linhasComLojaEData: rows.filter(r=>String(r[mapa.loja]||"").trim() && parseDataExcel(r[mapa.data])).length, linhasValidas: todasLinhas.length};
         window._formEmEdicao = true;
         const main = document.getElementById("main");
         main.innerHTML = "";
@@ -4752,12 +4723,7 @@ function handleStockNegFile(ev){
         main.appendChild(card);
         renderStockNegPreview(todasLinhas.length);
       });
-    }catch(err){
-      console.error(err);
-      toast("Erro a ler o ficheiro: " + (err.message||err).slice(0,100));
-    }
-  };
-  reader.readAsArrayBuffer(file);
+  });
 }
 function renderStockNegPreview(totalLinhas){
   const semLoja = stockNegComErro.length + stockNegForaDop.length;
@@ -4807,14 +4773,7 @@ let formacoesParaImportar = [], formacoesForaDop = [], formacoesComErro = [];
 function handleFormacoesFile(ev){
   const file = ev.target.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = (e)=>{
-    try{
-      const data = new Uint8Array(e.target.result);
-      const wb = XLSX.read(data, {type:"array", cellDates:true});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
-      if(rows.length===0){ toast("O ficheiro parece estar vazio"); return; }
+  lerFicheiroTabular(file, (rows)=>{
       const headers = Object.keys(rows[0]);
       abrirMapeamentoColunas("Formações", headers, [
         {key:"loja", label:"Loja", sinonimos:["loja","cód. loja","cod. loja"], obrigatorio:true},
@@ -4852,12 +4811,7 @@ function handleFormacoesFile(ev){
         main.appendChild(card);
         renderFormacoesPreview(todasLinhas.length);
       });
-    }catch(err){
-      console.error(err);
-      toast("Erro a ler o ficheiro: " + (err.message||err).slice(0,100));
-    }
-  };
-  reader.readAsArrayBuffer(file);
+  });
 }
 function renderFormacoesPreview(totalLinhas){
   const semLoja = formacoesComErro.length + formacoesForaDop.length;
@@ -4909,6 +4863,32 @@ function openImportarHorarios(){
 
 let horariosParaImportar = [];
 // Parser de CSV tolerante a aspas, quebras de linha dentro de celulas, e separador ; ou , (deteta automaticamente)
+// Leitor partilhado por todas as importacoes: deteta CSV (usa o parser proprio, tolerante a ; e celulas com varias linhas)
+// ou Excel (usa XLSX como antes). onRows recebe sempre um array de objetos, tal como XLSX.utils.sheet_to_json.
+function lerFicheiroTabular(file, onRows){
+  const ehCSV = /\.csv$/i.test(file.name);
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      let rows;
+      if(ehCSV){
+        rows = parseCSVTexto(e.target.result);
+      } else {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, {type:"array", cellDates:true});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, {defval:""});
+      }
+      if(rows.length===0){ toast("O ficheiro parece estar vazio"); return; }
+      onRows(rows);
+    }catch(err){
+      console.error(err);
+      toast("Erro a ler o ficheiro: " + (err.message||err).slice(0,100));
+    }
+  };
+  if(ehCSV) reader.readAsText(file, "UTF-8");
+  else reader.readAsArrayBuffer(file);
+}
 function parseCSVTexto(texto){
   texto = texto.replace(/^\uFEFF/, ""); // remove BOM se existir
   const primeiraLinha = texto.split(/\r?\n/, 1)[0] || "";
@@ -4959,20 +4939,7 @@ function handleHorariosFile(ev){
   if(!loja){ toast("Escolhe a loja primeiro"); ev.target.value = ""; return; }
   const file = ev.target.files[0];
   if(!file) return;
-  const ehCSV = /\.csv$/i.test(file.name);
-  const reader = new FileReader();
-  reader.onload = (e)=>{
-    try{
-      let rows;
-      if(ehCSV){
-        rows = parseCSVTexto(e.target.result);
-      } else {
-        const data = new Uint8Array(e.target.result);
-        const wb = XLSX.read(data, {type:"array", cellDates:true});
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        rows = XLSX.utils.sheet_to_json(ws, {defval:""});
-      }
-      if(rows.length===0){ toast("O ficheiro parece estar vazio"); return; }
+  lerFicheiroTabular(file, (rows)=>{
       const headers = Object.keys(rows[0]);
       abrirMapeamentoColunas(`Horário — ${loja}`, headers, [
         {key:"colaborador", label:"Colaborador", sinonimos:["colaborador","nome","operador"], obrigatorio:true},
@@ -5004,13 +4971,7 @@ function handleHorariosFile(ev){
         main.appendChild(card);
         renderHorariosPreview(loja, horariosParaImportar.length);
       });
-    }catch(err){
-      console.error(err);
-      toast("Erro a ler o ficheiro: " + (err.message||err).slice(0,100));
-    }
-  };
-  if(ehCSV) reader.readAsText(file, "UTF-8");
-  else reader.readAsArrayBuffer(file);
+  });
 }
 function renderHorariosPreview(loja, totalLinhas){
   const el = document.getElementById("horariosPreview");
