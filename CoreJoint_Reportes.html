@@ -4334,11 +4334,21 @@ function renderTrocasPreview(){
 }
 async function confirmarImportarTrocas(){
   const validas = trocasParaImportar.filter(r=>r.loja);
-  for(const t of validas){
-    await api("POST", "cj_trocas", {
-      id: crypto.randomUUID(), loja: t.loja, tipo:"troca_horario", descricao: t.descricao || null, data: t.data, data_iso: t.data,
-      estado: "pendente", criado_por: t.operador
-    });
+  const invalidas = validas.filter(r=>!/^\d{4}-\d{2}-\d{2}$/.test(r.data));
+  if(invalidas.length>0){
+    const exemplos = invalidas.slice(0,5).map(r=>`${r.operador}: "${r.data}"`).join(", ");
+    toast(`${invalidas.length} linha(s) com data inválida — nada foi gravado. Exemplos: ${exemplos}`);
+    return;
+  }
+  const payload = validas.map(t=>({
+    id: crypto.randomUUID(), loja: t.loja, tipo:"troca_horario", descricao: t.descricao || null, data: t.data, data_iso: t.data,
+    estado: "pendente", criado_por: t.operador
+  }));
+  try{
+    await api("POST", "cj_trocas", payload);
+  }catch(e){
+    toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
+    return;
   }
   mostrarSucesso(`${validas.length} troca(s) de horário importada(s)`);
   trocasParaImportar = [];
@@ -4866,13 +4876,24 @@ function renderHorariosPreview(loja, totalLinhas){
   btn.onclick = protegerClique(btn, confirmarImportarHorarios, "A importar...");
 }
 async function confirmarImportarHorarios(){
-  for(const r of horariosParaImportar){
-    await api("POST", "cj_horarios", {
-      loja: r.loja, loja_original: r.loja_original, data: r.data,
-      colaborador: r.colaborador, turno: r.turno||null,
-      hora_inicio: r.hora_inicio||null, hora_fim: r.hora_fim||null,
-      importado_por: currentUser
-    });
+  // valida todas as datas ANTES de gravar - uma so linha invalida nunca deve deixar lixo parcial na base de dados
+  const invalidas = horariosParaImportar.filter(r=>!/^\d{4}-\d{2}-\d{2}$/.test(r.data));
+  if(invalidas.length>0){
+    const exemplos = invalidas.slice(0,5).map(r=>`${r.colaborador}: "${r.data}"`).join(", ");
+    toast(`${invalidas.length} linha(s) com data inválida — nada foi gravado. Exemplos: ${exemplos}`);
+    return;
+  }
+  const payload = horariosParaImportar.map(r=>({
+    loja: r.loja, loja_original: r.loja_original, data: r.data,
+    colaborador: r.colaborador, turno: r.turno||null,
+    hora_inicio: r.hora_inicio||null, hora_fim: r.hora_fim||null,
+    importado_por: currentUser
+  }));
+  try{
+    await api("POST", "cj_horarios", payload);
+  }catch(e){
+    toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
+    return;
   }
   mostrarSucesso(`${horariosParaImportar.length} turno(s) importado(s)`);
   horariosParaImportar = [];
@@ -5091,12 +5112,22 @@ async function renderRelatorioHorarios(capturaWrap){
 
 async function confirmarImportarFormacoes(){
   const todos = [...formacoesParaImportar, ...formacoesForaDop, ...formacoesComErro];
-  for(const r of todos){
-    await api("POST", "cj_formacoes", {
-      loja: r.loja, loja_original: r.lojaOriginal, data: r.data, colaborador: r.colaborador,
-      formacao: r.formacao, estado: r.estado||null, importado_por: currentUser,
-      fora_dop: formacoesForaDop.includes(r)
-    });
+  const invalidas = todos.filter(r=>r.data && !/^\d{4}-\d{2}-\d{2}$/.test(r.data));
+  if(invalidas.length>0){
+    const exemplos = invalidas.slice(0,5).map(r=>`${r.colaborador}: "${r.data}"`).join(", ");
+    toast(`${invalidas.length} linha(s) com data inválida — nada foi gravado. Exemplos: ${exemplos}`);
+    return;
+  }
+  const payload = todos.map(r=>({
+    loja: r.loja, loja_original: r.lojaOriginal, data: r.data, colaborador: r.colaborador,
+    formacao: r.formacao, estado: r.estado||null, importado_por: currentUser,
+    fora_dop: formacoesForaDop.includes(r)
+  }));
+  try{
+    await api("POST", "cj_formacoes", payload);
+  }catch(e){
+    toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
+    return;
   }
   mostrarSucesso(`${todos.length} registo(s) de formação importado(s)`);
   formacoesParaImportar = []; formacoesForaDop = []; formacoesComErro = [];
@@ -5213,12 +5244,22 @@ async function abrirRelatorioVisualFormacoes(){
 
 async function confirmarImportarStockNeg(){
   const todos = [...stockNegParaImportar, ...stockNegForaDop, ...stockNegComErro];
-  for(const r of todos){
-    await api("POST", "cj_stock_negativo", {
-      loja: r.loja, loja_original: r.lojaOriginal, data: r.data, operador: r.operador,
-      produto: r.produto, valor_stock: r.valor_stock, importado_por: currentUser,
-      fora_dop: stockNegForaDop.includes(r)
-    });
+  const invalidas = todos.filter(r=>!/^\d{4}-\d{2}-\d{2}$/.test(r.data));
+  if(invalidas.length>0){
+    const exemplos = invalidas.slice(0,5).map(r=>`${r.operador||r.produto||'?'}: "${r.data}"`).join(", ");
+    toast(`${invalidas.length} linha(s) com data inválida — nada foi gravado. Exemplos: ${exemplos}`);
+    return;
+  }
+  const payload = todos.map(r=>({
+    loja: r.loja, loja_original: r.lojaOriginal, data: r.data, operador: r.operador,
+    produto: r.produto, valor_stock: r.valor_stock, importado_por: currentUser,
+    fora_dop: stockNegForaDop.includes(r)
+  }));
+  try{
+    await api("POST", "cj_stock_negativo", payload);
+  }catch(e){
+    toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
+    return;
   }
   mostrarSucesso(`${todos.length} registo(s) de stock negativo importado(s)`);
   stockNegParaImportar = []; stockNegForaDop = []; stockNegComErro = [];
@@ -5353,6 +5394,14 @@ async function confirmarImportarQuebras(){
     btn.textContent = "A importar...";
   }
   try{
+    const todasParaVerificarDatas = [...quebrasParaImportar, ...quebrasComErro, ...quebrasForaDop];
+    const invalidas = todasParaVerificarDatas.filter(q=>!/^\d{4}-\d{2}-\d{2}$/.test(q.data));
+    if(invalidas.length>0){
+      const exemplos = invalidas.slice(0,5).map(q=>`${q.operador||'?'}: "${q.data}"`).join(", ");
+      toast(`${invalidas.length} linha(s) com data inválida — nada foi gravado. Exemplos: ${exemplos}`);
+      if(btn){ btn.disabled = false; btn.textContent = "✔ Confirmar importação"; }
+      return;
+    }
     // Verifica na base de dados o que já existe (mesma loja+data+safebag) para nunca duplicar,
     // e para reconhecer quando uma quebra foi corrigida/resolvida numa reimportação seguinte.
     const todasParaVerificar = [...quebrasParaImportar, ...quebrasComErro, ...quebrasForaDop];
