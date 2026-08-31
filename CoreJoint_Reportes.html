@@ -4908,57 +4908,87 @@ function openImportarHorarios(){
 }
 
 let horariosParaImportar = [];
+// Parser de CSV tolerante a aspas, quebras de linha dentro de celulas, e separador ; ou , (deteta automaticamente)
+function parseCSVTexto(texto){
+  texto = texto.replace(/^\uFEFF/, ""); // remove BOM se existir
+  const primeiraLinha = texto.split(/\r?\n/, 1)[0] || "";
+  const delimitador = (primeiraLinha.split(";").length >= primeiraLinha.split(",").length) ? ";" : ",";
+  const linhas = [];
+  let linha = [], campo = "", dentroAspas = false;
+  for(let i=0; i<texto.length; i++){
+    const c = texto[i];
+    if(dentroAspas){
+      if(c === '"'){
+        if(texto[i+1] === '"'){ campo += '"'; i++; }
+        else dentroAspas = false;
+      } else campo += c;
+    } else {
+      if(c === '"') dentroAspas = true;
+      else if(c === delimitador){ linha.push(campo); campo = ""; }
+      else if(c === '\r'){ /* ignora, o \n a seguir fecha a linha */ }
+      else if(c === '\n'){ linha.push(campo); linhas.push(linha); linha = []; campo = ""; }
+      else campo += c;
+    }
+  }
+  if(campo !== "" || linha.length > 0){ linha.push(campo); linhas.push(linha); }
+  if(linhas.length===0) return [];
+  const cabecalhos = linhas[0];
+  return linhas.slice(1).filter(l=>l.some(v=>v!=="")).map(l=>{
+    const obj = {};
+    cabecalhos.forEach((h,idx)=>{ obj[h] = l[idx]!==undefined ? l[idx] : ""; });
+    return obj;
+  });
+}
+// Encontra TODOS os intervalos "HH:MM - HH:MM" num texto (mesmo com varias linhas ou misturado com "FOLGA"/"FERIAS"/etc)
+// e devolve a hora mais cedo de inicio e a mais tarde de fim. Devolve null se nao houver nenhum intervalo real (ex: so "FOLGA").
+function extrairIntervaloHoras(texto){
+  const s = String(texto||"");
+  const matches = [...s.matchAll(/(\d{1,2})[:h](\d{2})\s*[-–]\s*(\d{1,2})[:h](\d{2})/g)];
+  if(matches.length===0) return null;
+  let minInicio = null, maxFim = null;
+  matches.forEach(m=>{
+    const inicioMin = Number(m[1])*60 + Number(m[2]);
+    const fimMin = Number(m[3])*60 + Number(m[4]);
+    if(minInicio===null || inicioMin < minInicio.min){ minInicio = {min:inicioMin, texto:`${m[1].padStart(2,"0")}:${m[2]}`}; }
+    if(maxFim===null || fimMin > maxFim.min){ maxFim = {min:fimMin, texto:`${m[3].padStart(2,"0")}:${m[4]}`}; }
+  });
+  return {inicio: minInicio.texto, fim: maxFim.texto};
+}
 function handleHorariosFile(ev){
   const loja = document.getElementById("horariosLojaSel").value;
   if(!loja){ toast("Escolhe a loja primeiro"); ev.target.value = ""; return; }
   const file = ev.target.files[0];
   if(!file) return;
+  const ehCSV = /\.csv$/i.test(file.name);
   const reader = new FileReader();
   reader.onload = (e)=>{
     try{
-      const data = new Uint8Array(e.target.result);
-      const wb = XLSX.read(data, {type:"array", cellDates:true});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
+      let rows;
+      if(ehCSV){
+        rows = parseCSVTexto(e.target.result);
+      } else {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, {type:"array", cellDates:true});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, {defval:""});
+      }
       if(rows.length===0){ toast("O ficheiro parece estar vazio"); return; }
       const headers = Object.keys(rows[0]);
-      function paraHora(v){
-        if(v==="" || v===null || v===undefined) return null;
-        if(typeof v === "number"){
-          const totalMin = Math.round(v*24*60);
-          const h = Math.floor(totalMin/60)%24, m = totalMin%60;
-          return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
-        }
-        if(v instanceof Date) return `${String(v.getHours()).padStart(2,"0")}:${String(v.getMinutes()).padStart(2,"0")}`;
-        const s = String(v).trim();
-        const m = s.match(/(\d{1,2})[:h](\d{2})/);
-        return m ? `${m[1].padStart(2,"0")}:${m[2]}` : null;
-      }
       abrirMapeamentoColunas(`Horário — ${loja}`, headers, [
         {key:"colaborador", label:"Colaborador", sinonimos:["colaborador","nome","operador"], obrigatorio:true},
-        {key:"data", label:"Data", sinonimos:["data"], obrigatorio:true},
-        {key:"turno", label:"Turno", sinonimos:["turno"], obrigatorio:false},
-        {key:"horaInicio", label:"Hora de início (ou 'Horário'/'Período' se vier tudo junto)", sinonimos:["entrada","inicio","início","hora inicio","horario","horário","periodo","período"], obrigatorio:false},
-        {key:"horaFim", label:"Hora de fim (preenchido sozinho se vier tudo junto com a de início)", sinonimos:["saida","saída","fim","hora fim"], obrigatorio:false},
+        {key:"data", label:"Data", sinonimos:["data","data da escala"], obrigatorio:true},
+        {key:"turno", label:"Turno / Posto", sinonimos:["turno","posto"], obrigatorio:false},
+        {key:"horario", label:"Horário (a coluna com as horas — pode ter FOLGA/FÉRIAS/turnos partidos, é tratado automaticamente)", sinonimos:["horario","horário","periodo","período","entrada"], obrigatorio:true},
       ], rows, (mapa)=>{
         const todasLinhas = rows.map(r=>{
           const colaborador = mapa.colaborador ? String(r[mapa.colaborador]||"").trim() : "";
           const dataStr = mapa.data ? parseDataExcel(r[mapa.data]) : "";
           const turno = mapa.turno ? String(r[mapa.turno]||"").trim() : "";
-          let horaInicio = null, horaFim = null;
-          if(mapa.horaInicio && mapa.horaFim && mapa.horaInicio===mapa.horaFim){
-            // mesma coluna escolhida para as duas - assume-se "HH:MM-HH:MM" junto
-            const partes = String(r[mapa.horaInicio]||"").split(/[-–]/).map(p=>p.trim());
-            if(partes.length===2){ horaInicio = paraHora(partes[0]); horaFim = paraHora(partes[1]); }
-            else { horaInicio = paraHora(r[mapa.horaInicio]); }
-          } else {
-            if(mapa.horaInicio) horaInicio = paraHora(r[mapa.horaInicio]);
-            if(mapa.horaFim) horaFim = paraHora(r[mapa.horaFim]);
-          }
-          return {loja, loja_original:loja, colaborador, data:dataStr, turno, hora_inicio:horaInicio, hora_fim:horaFim};
-        }).filter(r=>r.colaborador && r.data);
+          const intervalo = extrairIntervaloHoras(r[mapa.horario]);
+          return {loja, loja_original:loja, colaborador, data:dataStr, turno, hora_inicio: intervalo?.inicio||null, hora_fim: intervalo?.fim||null, _temHorario: !!intervalo};
+        }).filter(r=>r.colaborador && r.data && r._temHorario); // linhas so com FOLGA/FERIAS/BAIXA (sem nenhum intervalo de horas) nao sao turnos reais - ficam de fora
 
-        horariosParaImportar = todasLinhas;
+        horariosParaImportar = todasLinhas.map(({_temHorario, ...resto})=>resto);
         window._formEmEdicao = true;
         const main = document.getElementById("main");
         main.innerHTML = "";
@@ -4972,24 +5002,15 @@ function handleHorariosFile(ev){
         card.className = "card";
         card.innerHTML = `<div id="horariosPreview"></div>`;
         main.appendChild(card);
-        renderHorariosPreview(loja, todasLinhas.length);
-      }, ()=>{
-        // ajuste automatico: se a coluna escolhida para "hora inicio" tiver o padrao "07:00-15:00" e nao houver palpite para "hora fim", usa a mesma coluna para as duas
-        const selInicio = document.getElementById("mapCampo_horaInicio");
-        const selFim = document.getElementById("mapCampo_horaFim");
-        if(selInicio.value && !selFim.value){
-          const amostra = String(rows[0]?.[selInicio.value] || "");
-          if(/\d{1,2}[:h]\d{2}.{0,3}[-–].{0,3}\d{1,2}[:h]\d{2}/.test(amostra)){
-            selFim.value = selInicio.value;
-          }
-        }
+        renderHorariosPreview(loja, horariosParaImportar.length);
       });
     }catch(err){
       console.error(err);
       toast("Erro a ler o ficheiro: " + (err.message||err).slice(0,100));
     }
   };
-  reader.readAsArrayBuffer(file);
+  if(ehCSV) reader.readAsText(file, "UTF-8");
+  else reader.readAsArrayBuffer(file);
 }
 function renderHorariosPreview(loja, totalLinhas){
   const el = document.getElementById("horariosPreview");
