@@ -5034,6 +5034,59 @@ let _horMes = new Date().getMonth();
 let _horAno = new Date().getFullYear();
 let _horMesJaAjustado = false;
 
+async function abrirRelatorioGlobalAgendamento(){
+  currentView = abrirRelatorioGlobalAgendamento;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const capturaWrap = document.createElement("div");
+  main.appendChild(capturaWrap);
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_global_agendamento", "CoreJoint · Global — datas marcadas");
+
+  const avisoAuto = document.createElement("div");
+  avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
+  avisoAuto.textContent = "🔄 Atualiza-se sozinha";
+  main.appendChild(avisoAuto);
+
+  async function render(){
+    const meses = ["2026-09", "2026-10"];
+    const agendamentos = await api("GET", `cj_global_agendamento?select=loja,mes,data_agendada&mes=in.(${meses.join(",")})`);
+    const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+
+    const linhasHtml = LOJAS.map(l=>{
+      const cols = meses.map(m=>{
+        const ag = agendamentos.find(a=>a.loja===l && a.mes===m);
+        if(ag) return `<td style="text-align:center; color:#2e7d32; font-weight:800; padding:4px 2px; border-bottom:1px solid #f0ebe3; font-size:10.5px;">${new Date(ag.data_agendada+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}</td>`;
+        return `<td style="text-align:center; color:#b0432f; font-weight:800; padding:4px 2px; border-bottom:1px solid #f0ebe3; font-size:12px;">✕</td>`;
+      }).join("");
+      return `<tr><td style="font-weight:700; font-size:11px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>${cols}</tr>`;
+    }).join("");
+
+    capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--line); width:100%; box-sizing:border-box;";
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Global — datas marcadas</div>
+      <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt}</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th></th>
+          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; padding:3px; border-bottom:2px solid #C1622D;">Setembro</th>
+          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; padding:3px; border-bottom:2px solid #C1622D;">Outubro</th>
+        </tr></thead>
+        <tbody>${linhasHtml}</tbody>
+      </table>
+    `;
+  }
+
+  await render();
+  iniciarAutoAtualizacao(render, 20);
+}
+
 async function abrirPainelMonitorizacao(){
   currentView = abrirPainelMonitorizacao;
   const main = document.getElementById("main");
@@ -7828,6 +7881,7 @@ function renderGestao(){
       {icon:"🏷️", label:"Corrigir lojas não reconhecidas (Formações)", fn:abrirCorrigirLojasFormacoes},
       {icon:"👥", label:"Horários — colaboradores por dia", fn:abrirRelatorioHorarios},
       {icon:"📊", label:"Monitorização de lojas (ranking)", fn:abrirPainelMonitorizacao},
+      {icon:"🗓️", label:"Global — datas marcadas (Set/Out)", fn:abrirRelatorioGlobalAgendamento},
       {icon:"🗓️", label:"Relatório semanal de quebras (PDF/Excel)", fn:gerarRelatorioSemanalQuebras}
     ]},
     {titulo:"Visão por categoria", itens:[
@@ -7867,7 +7921,7 @@ function renderGestao(){
     importarStockNeg: openImportarStockNegativo, visualStockNeg: abrirRelatorioVisualStockNegativo,
     importarFormacoes: openImportarFormacoes, visualFormacoes: abrirRelatorioVisualFormacoes,
     importarHorarios: openImportarHorarios, relatorioHorarios: abrirRelatorioHorarios,
-    painelMonitorizacao: abrirPainelMonitorizacao,
+    painelMonitorizacao: abrirPainelMonitorizacao, relatorioGlobalAgendamento: abrirRelatorioGlobalAgendamento,
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
