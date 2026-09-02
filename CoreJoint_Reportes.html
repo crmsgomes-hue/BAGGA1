@@ -5034,6 +5034,64 @@ let _horMes = new Date().getMonth();
 let _horAno = new Date().getFullYear();
 let _horMesJaAjustado = false;
 
+async function abrirRelatorioEstivaLaranjas(){
+  currentView = abrirRelatorioEstivaLaranjas;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const capturaWrap = document.createElement("div");
+  main.appendChild(capturaWrap);
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_estiva_laranjas", "CoreJoint · Estiva das Laranjas");
+
+  const avisoAuto = document.createElement("div");
+  avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
+  avisoAuto.textContent = "🔄 Atualiza-se sozinha";
+  main.appendChild(avisoAuto);
+
+  async function render(){
+    const formularios = await api("GET", `cj_formularios?select=id,perguntas&titulo=eq.Estiva das Laranjas&order=criado_em.desc&limit=1`);
+    if(formularios.length===0){
+      capturaWrap.innerHTML = `<div class="empty">Formulário "Estiva das Laranjas" não encontrado.</div>`;
+      pararAutoAtualizacao();
+      return;
+    }
+    const form = formularios[0];
+    const respostas = await api("GET", `cj_formularios_respostas?select=loja,respostas&formulario_id=eq.${form.id}`);
+    const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+
+    const linhasHtml = LOJAS.map(l=>{
+      const r = respostas.find(x=>x.loja===l);
+      const cols = form.perguntas.map(p=>{
+        const v = r ? (r.respostas[p.id] ?? '—') : '—';
+        const cor = r ? "var(--ink)" : "#b0432f";
+        return `<td style="text-align:center; font-size:10.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; color:${cor}; font-weight:${r?'400':'800'};">${v}</td>`;
+      }).join("");
+      return `<tr><td style="font-weight:700; font-size:10.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>${cols}</tr>`;
+    }).join("");
+
+    const headerHtml = form.perguntas.map(p=>`<th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:3px 2px; border-bottom:2px solid #C1622D;">${p.texto}</th>`).join("");
+
+    capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--line); width:100%; box-sizing:border-box;";
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Estiva das Laranjas</div>
+      <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} — ${respostas.length}/${LOJAS.length} lojas responderam</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr><th></th>${headerHtml}</tr></thead>
+        <tbody>${linhasHtml}</tbody>
+      </table>
+    `;
+  }
+
+  await render();
+  iniciarAutoAtualizacao(render, 20);
+}
+
 async function abrirRelatorioGlobalAgendamento(){
   currentView = abrirRelatorioGlobalAgendamento;
   const main = document.getElementById("main");
@@ -7869,7 +7927,8 @@ function renderGestao(){
         {icon:"🖼️", label:"Galeria fotos", fn:openGaleria},
         {icon:"📈", label:"CNVs Global", fn:openEvolucaoCnvs},
         {icon:"📅", label:"Quem marcou o Global", fn:openAgendamentosGlobal},
-        {icon:"🗓️", label:"Global — datas marcadas (Set/Out, partilhável)", fn:abrirRelatorioGlobalAgendamento}
+        {icon:"🗓️", label:"Global — datas marcadas (Set/Out, partilhável)", fn:abrirRelatorioGlobalAgendamento},
+        {icon:"🍊", label:"Estiva das Laranjas (partilhável)", fn:abrirRelatorioEstivaLaranjas}
       ])}
     ]},
     {titulo:"Quebras de caixa", itens:[
@@ -7922,6 +7981,7 @@ function renderGestao(){
     importarFormacoes: openImportarFormacoes, visualFormacoes: abrirRelatorioVisualFormacoes,
     importarHorarios: openImportarHorarios, relatorioHorarios: abrirRelatorioHorarios,
     painelMonitorizacao: abrirPainelMonitorizacao, relatorioGlobalAgendamento: abrirRelatorioGlobalAgendamento,
+    relatorioEstivaLaranjas: abrirRelatorioEstivaLaranjas,
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
     atividade: openRegistoAtividade, galeria: openGaleria, cnvs: openEvolucaoCnvs, agendamentosGlobal: openAgendamentosGlobal,
     importarQuebras: openImportarQuebras, relatorioQuebras: openRelatorioQuebras, quebrasSemanal: gerarRelatorioSemanalQuebras,
