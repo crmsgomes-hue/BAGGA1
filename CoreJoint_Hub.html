@@ -143,6 +143,22 @@ if(localStorage.getItem("cj_dark_mode")==="1"){
 
 const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k";
+// Mesmo mecanismo de perfil do Reportes.html (mesma chave de localStorage, para ficar consistente
+// no mesmo aparelho entre as duas apps). CG = Cristina, JM = Joao - cada um ve so os seus lembretes.
+let currentUser = localStorage.getItem("cj_rep_user") || "CG";
+const PERFIS = ["CG", "JM"];
+const NOMES_PERFIS = {CG:"Cristina", JM:"João"};
+function alternarPerfilHub(){
+  const idx = PERFIS.indexOf(currentUser);
+  currentUser = PERFIS[(idx+1) % PERFIS.length];
+  localStorage.setItem("cj_rep_user", currentUser);
+  const overlay = document.getElementById("lembretesOverlay");
+  if(overlay){
+    document.getElementById("perfilLembretesLabel").textContent = `👤 ${NOMES_PERFIS[currentUser]}`;
+    renderListaLembretes();
+  }
+  toast(`Espaço trocado para ${NOMES_PERFIS[currentUser]}`);
+}
 function _logErro(app, mensagem, contexto){
   try{
     fetch(SUPA_URL + "/rest/v1/cj_error_log", {
@@ -277,7 +293,7 @@ async function renderPanoramaGeral(){
       api(`cj_fardamento_devolucoes?select=*&recolhido=eq.false`),
       api(`cj_adendas?select=*&arquivada=eq.false`),
       api(`cj_error_log?select=app&criado_em=gte.${new Date(Date.now()-24*3600*1000).toISOString()}`),
-      api(`cj_lembretes_pessoais?select=id&feito=eq.false`),
+      api(`cj_lembretes_pessoais?select=id&feito=eq.false&criado_por=eq.${currentUser}`),
       api(`cj_stock_negativo?select=loja&justificacao=is.null&loja=not.is.null`),
       api(`cj_formacoes?select=loja&justificacao=is.null&loja=not.is.null`),
       api(`cj_horarios?select=loja,data,colaborador,hora_inicio,hora_fim&data=gte.${inicioMesAtual}&data=lte.${todayStr}`),
@@ -522,7 +538,7 @@ async function renderLembretesPessoais(){
   if(!wrap) return;
   let lembretes;
   try{
-    lembretes = await api("cj_lembretes_pessoais?select=*&order=criado_em.desc&limit=100");
+    lembretes = await api(`cj_lembretes_pessoais?select=*&criado_por=eq.${currentUser}&order=criado_em.desc&limit=100`);
   }catch(e){ console.error(e); return; }
   window._lembretesCache = lembretes;
   const pendentes = lembretes.filter(l=>!l.feito);
@@ -593,7 +609,7 @@ function abrirColarMensagemOverlay(){
     try{
       const loja = lojaSelect.value || null;
       const dataLimite = document.getElementById("colarDataLimite").value || null;
-      await api("cj_lembretes_pessoais", "POST", {texto, loja, data_limite: dataLimite, criado_por:"Cristina"});
+      await api("cj_lembretes_pessoais", "POST", {texto, loja, data_limite: dataLimite, criado_por: currentUser});
       overlay.remove();
       await renderPanoramaGeral();
       if(document.getElementById("lembretesLista")) await renderListaLembretes();
@@ -612,8 +628,11 @@ function abrirLembretesOverlay(){
   overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
   overlay.innerHTML = `
     <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
-      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">🌿 O Meu Espaço</div>
-      <div style="font-size:.78rem; color:var(--t2); margin-bottom:12px;">Separado das lojas e dos pendentes — só teu.</div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px;">🌿 O Meu Espaço</div>
+        <button id="perfilLembretesLabel" onclick="alternarPerfilHub()" style="background:var(--sf,#f5f0e6); border:1px solid var(--br); border-radius:99px; padding:5px 12px; font-size:.76rem; font-weight:700; color:var(--t2); cursor:pointer;">👤 ${NOMES_PERFIS[currentUser]}</button>
+      </div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:12px;">Separado das lojas e dos pendentes — e separado entre perfis (toca no nome para trocar).</div>
       <div style="display:flex; gap:6px; margin-bottom:8px;">
         <input id="novoLembreteInput" placeholder="Escrever um lembrete..." style="flex:1; padding:10px 12px; border-radius:8px; border:1px solid var(--br); background:var(--sf); font-size:.88rem;" autofocus>
         <button id="novoLembreteBtn" style="background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:.9rem; font-weight:700;">+</button>
@@ -639,7 +658,7 @@ function abrirLembretesOverlay(){
     if(!texto) return;
     addBtn.disabled = true;
     try{
-      await api("cj_lembretes_pessoais", "POST", {texto, criado_por:"Cristina"});
+      await api("cj_lembretes_pessoais", "POST", {texto, criado_por: currentUser});
       addInput.value = "";
       await renderListaLembretes();
       await renderPanoramaGeral();
@@ -654,7 +673,7 @@ function abrirLembretesOverlay(){
 async function renderListaLembretes(){
   let lembretes;
   try{
-    lembretes = await api("cj_lembretes_pessoais?select=*&order=criado_em.desc&limit=100");
+    lembretes = await api(`cj_lembretes_pessoais?select=*&criado_por=eq.${currentUser}&order=criado_em.desc&limit=100`);
   }catch(e){ console.error(e); return; }
   window._lembretesCache = lembretes;
   const pendentes = lembretes.filter(l=>!l.feito);
@@ -1200,12 +1219,12 @@ function semanaKey(d){
 
     let html = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
       <span>Painel de gestão</span>
-      <a href="CoreJoint_Reportes.html" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Ver detalhe →</a>
+      <a href="CoreJoint_Reportes.html?abrir=integridade" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Ver detalhe →</a>
     </div>`;
     if(comPendencia.length===0){
       html += `<div class="all-clear" style="margin-bottom:14px;">✔ Todas as lojas em dia agora.</div>`;
     } else {
-      html += `<a href="CoreJoint_Reportes.html" class="card" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit;">
+      html += `<a href="CoreJoint_Reportes.html?abrir=integridade" class="card" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit;">
         <span style="font-weight:700; font-size:.9rem;">${comPendencia.length} loja(s) com pendências</span>
         <span style="font-size:.78rem; color:var(--t2);">${semPendencia.length} em dia ›</span>
       </a>`;
