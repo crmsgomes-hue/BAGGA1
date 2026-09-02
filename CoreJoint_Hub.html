@@ -431,10 +431,13 @@ async function renderPanoramaGeral(){
         <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:14px;">
           ${LOJAS.map(l=>`<a href="CoreJoint_Foto.html?loja=${encodeURIComponent(l)}" style="text-decoration:none; background:${vendasFeitas.has(l)?'var(--grn)':'var(--sf2)'}; color:${vendasFeitas.has(l)?'#fff':'var(--t2)'}; border-radius:99px; padding:5px 10px; font-size:.72rem; font-weight:700;">${vendasFeitas.has(l)?'✔ ':''}${l}</a>`).join("")}
         </div>
-        ${botoesAcao([["📅 Resumo de ontem","#"],["📸 Vendas/Vitrine/Inventário (imagem p/ WhatsApp)","CoreJoint_Reportes.html?abrir=diarioVisual"],["🖨️ Relatório semanal","CoreJoint_Reportes.html?abrir=semanal"]])}
+        <button id="btnAbrirResumoOntemModal" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📅 Resumo de ontem</button>
+        <button id="btnAbrirDiarioVisualHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📸 Vendas/Vitrine/Inventário (imagem p/ WhatsApp)</button>
+        ${botoesAcao([["🖨️ Relatório semanal","CoreJoint_Reportes.html?abrir=semanal"]])}
       `;
       abrirModalTopico("🧾 Vendas", corpo);
-      document.querySelector('#modalTopicoOverlay a[href="#"]').onclick = (ev)=>{ ev.preventDefault(); document.getElementById("modalTopicoOverlay").remove(); const b=document.querySelector('[data-toggle-secao="resumoOntemSection"]'); if(b) b.click(); };
+      document.getElementById("btnAbrirResumoOntemModal").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirResumoOntem(); };
+      document.getElementById("btnAbrirDiarioVisualHub").onclick = abrirDiarioVisualHub;
     };
 
     document.querySelector('[data-topico="quebras"]').onclick = ()=>{
@@ -617,6 +620,81 @@ function abrirColarMensagemOverlay(){
       btn.disabled = false; btn.textContent = "Guardar";
     }
   };
+}
+
+async function abrirDiarioVisualHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "diarioVisualOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:12px;">🧾 Vendas, Vitrine e Inventário — hoje</div>
+      <div id="diarioVisualCapturaWrapHub"></div>
+      <div id="diarioVisualPartilhaBtnsHub"></div>
+      <button id="fecharDiarioVisualHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("fecharDiarioVisualHubBtn").onclick = ()=>overlay.remove();
+
+  const capturaWrap = document.getElementById("diarioVisualCapturaWrapHub");
+  let botoesJaCriados = false;
+
+  async function render(){
+    const today = new Date();
+    const ds = isoDate(today);
+    const dataFmt = today.toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+    const horaFmt = today.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
+
+    const [dailyHoje, naoAplic, invSemana] = await Promise.all([
+      api(`cj_daily_reportes?select=loja,tipo,turno,data&data=eq.${ds}`, "GET"),
+      api(`cj_categoria_nao_aplicavel?select=*`, "GET"),
+      api(`cj_inventario_reportes?select=loja,categoria,data&data=gte.${isoDate(weekWindow(today).start)}&data=lte.${isoDate(weekWindow(today).end)}`, "GET")
+    ]);
+    function dailyStatusHub(loja, tipo, turno){ return dailyHoje.some(r=>r.loja===loja && r.tipo===tipo && r.turno===turno); }
+    function naoAplicavel(loja, cat){ return naoAplic.some(n=>n.loja===loja && n.categoria===cat); }
+
+    const linhas = LOJAS.map(l=>{
+      const vendas = dailyStatusHub(l,"vendas","unico");
+      const manha = dailyStatusHub(l,"vitrine","manha");
+      const almoco = dailyStatusHub(l,"vitrine","almoco");
+      const lanche = dailyStatusHub(l,"vitrine","lanche");
+      const laranjas = dailyHoje.some(r=>r.loja===l && r.tipo==="laranjas_maquina");
+      const tabacoAplicavel = !naoAplicavel(l, "expositor_tabaco");
+      const tabaco = dailyHoje.some(r=>r.loja===l && r.tipo==="expositor_tabaco");
+      const jscAplicavel = !naoAplicavel(l, "raspadinhas");
+      const jsc = jscAplicavel ? invSemana.some(r=>r.loja===l && r.categoria==="raspadinhas") : null;
+      return {loja:l, vendas, manha, almoco, lanche, laranjas, tabacoAplicavel, tabaco, jscAplicavel, jsc};
+    });
+
+    const COLS = [["vendas","Vd"],["manha","Mã"],["almoco","Al"],["lanche","Ln"],["laranjas","Lj"],["tabaco","Tb"],["jsc","JSC"]];
+    function cell(ok){
+      if(ok===null) return `<td style="text-align:center; color:#ccc; padding:4px 1px; border-bottom:1px solid #f0ebe3;">—</td>`;
+      const cor = ok ? "#2e7d32" : "#b0432f";
+      return `<td style="text-align:center; color:${cor}; font-weight:800; padding:4px 1px; border-bottom:1px solid #f0ebe3; font-size:12px;">${ok?'✔':'✕'}</td>`;
+    }
+    const headerHtml = COLS.map(([,label])=>`<th style="font-size:9px; color:#9c4d23; text-transform:uppercase; padding:3px 1px; border-bottom:2px solid #C1622D; white-space:nowrap;">${label}</th>`).join("");
+    const linhasHtml = linhas.map(r=>{
+      const colsHtml = COLS.map(([key])=>{
+        if(key==="tabaco" && !r.tabacoAplicavel) return cell(null);
+        if(key==="jsc" && !r.jscAplicavel) return cell(null);
+        return cell(r[key]);
+      }).join("");
+      return `<tr><td style="font-weight:700; font-size:10.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(r.loja)}</td>${colsHtml}</tr>`;
+    }).join("");
+
+    capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Vendas, Vitrine e Inventário</div>
+      <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} · ${horaFmt}</div>
+      <table style="border-collapse:collapse; width:100%;"><thead><tr><th></th>${headerHtml}</tr></thead><tbody>${linhasHtml}</tbody></table>
+    `;
+    if(!botoesJaCriados){
+      botoesJaCriados = true;
+      criarBotoesPartilhaHub(document.getElementById("diarioVisualPartilhaBtnsHub"), capturaWrap, `CoreJoint_diario`, "CoreJoint · Vendas, Vitrine e Inventário");
+    }
+  }
+  await render();
 }
 
 async function abrirDiagnosticoHub(){
