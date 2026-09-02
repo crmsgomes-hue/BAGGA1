@@ -461,13 +461,15 @@ async function renderPanoramaGeral(){
         <div style="font-size:.75rem; color:var(--t2); margin-bottom:2px;">Total enviado esta semana</div>
         <div style="font-size:1.4rem; font-weight:800; margin-bottom:10px;">${valorInvTotal.toFixed(2)} €</div>
         ${linhasValoresTopico(invLinhas, "CoreJoint_Reportes.html?abrir=porCategoria")}
-        ${botoesAcao([
-          ["📦 Ver por categoria","CoreJoint_Reportes.html?abrir=porCategoria"],
-          ["🖨️ Relatório semanal","CoreJoint_Reportes.html?abrir=invSemanal"],
-          ["🗓️ Relatório mensal","CoreJoint_Reportes.html?abrir=mensal"]
-        ])}
+        <button id="btnVerCategoriaHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📦 Ver por categoria</button>
+        <button id="btnAbrirMensalHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🗓️ Relatório mensal</button>
       `;
       abrirModalTopico("📦 Inventário", corpo);
+      document.getElementById("btnVerCategoriaHub").onclick = ()=>{
+        document.getElementById("modalTopicoOverlay").remove();
+        document.getElementById("categoriaLojasSection").scrollIntoView({behavior:"smooth"});
+      };
+      document.getElementById("btnAbrirMensalHub").onclick = abrirRelatorioMensalHub;
     };
 
     document.querySelector('[data-topico="rh"]').onclick = ()=>{
@@ -621,6 +623,61 @@ function abrirColarMensagemOverlay(){
       btn.disabled = false; btn.textContent = "Guardar";
     }
   };
+}
+
+async function abrirRelatorioMensalHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "mensalOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:12px;">🗓️ Relatório mensal</div>
+      <div id="mensalCapturaWrapHub"></div>
+      <div id="mensalPartilhaBtnsHub"></div>
+      <button id="fecharMensalHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("fecharMensalHubBtn").onclick = ()=>overlay.remove();
+
+  const capturaWrap = document.getElementById("mensalCapturaWrapHub");
+  const hoje = new Date();
+  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const fimMes = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0);
+  const mesLabel = hoje.toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
+
+  const dailyMes = await api(`cj_daily_reportes?select=loja,tipo,turno,data&data=gte.${isoDate(inicioMes)}&data=lte.${isoDate(fimMes)}`, "GET");
+  const diasNoMes = [];
+  for(let d=new Date(inicioMes); d<=fimMes; d.setDate(d.getDate()+1)) diasNoMes.push(isoDate(new Date(d)));
+
+  const linhasHtml = LOJAS.map(l=>{
+    const vitOk = diasNoMes.filter(ds=>["manha","almoco","lanche"].every(t=>dailyMes.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t && r.data===ds))).length;
+    const vendOk = diasNoMes.filter(ds=>dailyMes.some(r=>r.loja===l && r.tipo==="vendas" && r.turno==="unico" && r.data===ds)).length;
+    const pctVit = Math.round(vitOk/diasNoMes.length*100);
+    const pctVend = Math.round(vendOk/diasNoMes.length*100);
+    const corVit = pctVit===100 ? "#2e7d32" : pctVit>=70 ? "#c17817" : "#b0432f";
+    const corVend = pctVend===100 ? "#2e7d32" : pctVend>=70 ? "#c17817" : "#b0432f";
+    return `<tr>
+      <td style="font-weight:700; font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>
+      <td style="text-align:center; font-weight:800; font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3; color:${corVit};">${pctVit}%</td>
+      <td style="text-align:center; font-weight:800; font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3; color:${corVend};">${pctVend}%</td>
+    </tr>`;
+  }).join("");
+
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+  capturaWrap.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Relatório Mensal</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${mesLabel} — % de dias completos</div>
+    <table style="border-collapse:collapse; width:100%;">
+      <thead><tr>
+        <th></th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 4px; border-bottom:2px solid #C1622D;">Vitrine</th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 4px; border-bottom:2px solid #C1622D;">Vendas</th>
+      </tr></thead>
+      <tbody>${linhasHtml}</tbody>
+    </table>
+  `;
+  criarBotoesPartilhaHub(document.getElementById("mensalPartilhaBtnsHub"), capturaWrap, `CoreJoint_mensal`, "CoreJoint · Relatório Mensal");
 }
 
 async function abrirRelatorioSemanalHub(){
