@@ -433,11 +433,12 @@ async function renderPanoramaGeral(){
         </div>
         <button id="btnAbrirResumoOntemModal" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📅 Resumo de ontem</button>
         <button id="btnAbrirDiarioVisualHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📸 Vendas/Vitrine/Inventário (imagem p/ WhatsApp)</button>
-        ${botoesAcao([["🖨️ Relatório semanal","CoreJoint_Reportes.html?abrir=semanal"]])}
+        <button id="btnAbrirSemanalHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🖨️ Relatório semanal</button>
       `;
       abrirModalTopico("🧾 Vendas", corpo);
       document.getElementById("btnAbrirResumoOntemModal").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirResumoOntem(); };
       document.getElementById("btnAbrirDiarioVisualHub").onclick = abrirDiarioVisualHub;
+      document.getElementById("btnAbrirSemanalHub").onclick = abrirRelatorioSemanalHub;
     };
 
     document.querySelector('[data-topico="quebras"]').onclick = ()=>{
@@ -620,6 +621,56 @@ function abrirColarMensagemOverlay(){
       btn.disabled = false; btn.textContent = "Guardar";
     }
   };
+}
+
+async function abrirRelatorioSemanalHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "semanalOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:12px;">🖨️ Vendas — últimos 7 dias</div>
+      <div id="semanalCapturaWrapHub"></div>
+      <div id="semanalPartilhaBtnsHub"></div>
+      <button id="fecharSemanalHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("fecharSemanalHubBtn").onclick = ()=>overlay.remove();
+
+  const capturaWrap = document.getElementById("semanalCapturaWrapHub");
+  const days = [];
+  for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days.push(d); }
+  const seteDiasAtrasStr = isoDate(days[0]);
+  const rangeTxt = `${days[0].toLocaleDateString('pt-PT')} a ${days[6].toLocaleDateString('pt-PT')}`;
+
+  const dailySemana = await api(`cj_daily_reportes?select=loja,tipo,turno,data&tipo=eq.vendas&data=gte.${seteDiasAtrasStr}`, "GET");
+
+  const linhasHtml = LOJAS.map(l=>{
+    const diasOk = days.filter(d=>dailySemana.some(r=>r.loja===l && r.turno==="unico" && r.data===isoDate(d))).length;
+    const pct = Math.round(diasOk/7*100);
+    const cor = pct===100 ? "#2e7d32" : pct>=70 ? "#c17817" : "#b0432f";
+    return `<tr>
+      <td style="font-weight:700; font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>
+      <td style="text-align:center; font-weight:800; font-size:12px; padding:5px 4px; border-bottom:1px solid #f0ebe3; color:${cor};">${pct}%</td>
+      <td style="text-align:center; font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3; color:var(--t2,#777);">${diasOk}/7</td>
+    </tr>`;
+  }).join("");
+
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+  capturaWrap.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Vendas — % dias enviados</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px;">${rangeTxt}</div>
+    <table style="border-collapse:collapse; width:100%;">
+      <thead><tr>
+        <th></th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 4px; border-bottom:2px solid #C1622D;">%</th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 4px; border-bottom:2px solid #C1622D;">Dias</th>
+      </tr></thead>
+      <tbody>${linhasHtml}</tbody>
+    </table>
+  `;
+  criarBotoesPartilhaHub(document.getElementById("semanalPartilhaBtnsHub"), capturaWrap, `CoreJoint_semanal`, "CoreJoint · Vendas — % dias enviados");
 }
 
 async function abrirDiarioVisualHub(){
