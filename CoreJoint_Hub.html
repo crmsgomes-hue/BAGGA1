@@ -73,6 +73,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="topLinksRow" style="display:flex; gap:10px; margin-bottom:14px; font-size:.76rem; flex-wrap:wrap; justify-content:center;">
     <button onclick="abrirAvisarTodos()" style="background:var(--sf2); border:none; border-radius:99px; padding:6px 12px; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">📢 Avisar todas</button>
     <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="background:var(--sf2); border:none; border-radius:99px; padding:6px 12px; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">🔔 Lembrar atrasos</button>
+    <button onclick="abrirResumoOntem()" style="background:var(--sf2); border:none; border-radius:99px; padding:6px 12px; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">📅 Resumo de ontem</button>
     <a href="CoreJoint_Reportes.html?ferramentas=1" style="background:var(--sf2); border-radius:99px; padding:6px 12px; color:var(--t2); text-decoration:none; font-weight:600; font-size:.76rem;">🛠️ Mais ferramentas</a>
   </div>
 
@@ -622,6 +623,78 @@ function abrirColarMensagemOverlay(){
   };
 }
 
+async function abrirResumoOntem(){
+  const overlay = document.createElement("div");
+  overlay.id = "resumoOntemOverlay";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:12px;">📅 Resumo de ontem</div>
+      <div id="resumoOntemVendasWrap"></div>
+      <div id="resumoOntemInvWrap" style="margin-top:18px;"></div>
+      <button id="fecharResumoOntemBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("fecharResumoOntemBtn").onclick = ()=>overlay.remove();
+
+  const ontem = new Date(); ontem.setDate(ontem.getDate()-1);
+  const ontemStr = isoDate(ontem);
+  const dataFmt = ontem.toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+
+  // ---------- VENDAS de ontem ----------
+  const vendasRows = await api(`cj_daily_reportes?select=loja&tipo=eq.vendas&turno=eq.unico&data=eq.${ontemStr}`);
+  const lojasComVendas = new Set(vendasRows.map(r=>r.loja));
+
+  const vendasWrap = document.getElementById("resumoOntemVendasWrap");
+  const tituloVendas = document.createElement("div");
+  tituloVendas.style.cssText = "font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin-bottom:6px;";
+  tituloVendas.textContent = "Vendas";
+  vendasWrap.appendChild(tituloVendas);
+  const capturaVendas = document.createElement("div");
+  vendasWrap.appendChild(capturaVendas);
+  criarBotoesPartilhaHub(vendasWrap, capturaVendas, "CoreJoint_vendas_ontem", "CoreJoint · Vendas de ontem");
+
+  const linhasVendasHtml = LOJAS.map(l=>{
+    const ok = lojasComVendas.has(l);
+    const cor = ok ? "#2e7d32" : "#b0432f";
+    return `<tr><td style="font-weight:700; font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td><td style="text-align:center; color:${cor}; font-weight:800; padding:5px 4px; border-bottom:1px solid #f0ebe3; font-size:13px;">${ok?'✔':'✕'}</td></tr>`;
+  }).join("");
+  capturaVendas.style.cssText = "background:#fff; border-radius:14px; padding:12px 10px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+  capturaVendas.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Vendas</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt}</div>
+    <table style="border-collapse:collapse; width:100%;"><tbody>${linhasVendasHtml}</tbody></table>
+  `;
+
+  // ---------- INVENTÁRIO de ontem ----------
+  const invRows = await api(`cj_inventario_reportes?select=loja,categoria&data=eq.${ontemStr}`);
+  const invWrap = document.getElementById("resumoOntemInvWrap");
+  const tituloInv = document.createElement("div");
+  tituloInv.style.cssText = "font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin-bottom:6px;";
+  tituloInv.textContent = "Inventário";
+  invWrap.appendChild(tituloInv);
+  const capturaInv = document.createElement("div");
+  invWrap.appendChild(capturaInv);
+  criarBotoesPartilhaHub(invWrap, capturaInv, "CoreJoint_inventario_ontem", "CoreJoint · Inventário de ontem");
+
+  const headerInvHtml = INV_CATS.map(c=>`<th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:3px 2px; border-bottom:2px solid #C1622D;">${c.label}</th>`).join("");
+  const linhasInvHtml = LOJAS.map(l=>{
+    const cols = INV_CATS.map(c=>{
+      const ok = invRows.some(r=>r.loja===l && r.categoria===c.key);
+      const cor = ok ? "#2e7d32" : "#ccc";
+      return `<td style="text-align:center; color:${cor}; font-weight:800; padding:4px 2px; border-bottom:1px solid #f0ebe3; font-size:11px;">${ok?'✔':'—'}</td>`;
+    }).join("");
+    return `<tr><td style="font-weight:700; font-size:10.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>${cols}</tr>`;
+  }).join("");
+  capturaInv.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+  capturaInv.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Inventário</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt}</div>
+    <table style="border-collapse:collapse; width:100%;"><thead><tr><th></th>${headerInvHtml}</tr></thead><tbody>${linhasInvHtml}</tbody></table>
+  `;
+}
+
 function abrirLembretesOverlay(){
   const overlay = document.createElement("div");
   overlay.id = "lembretesOverlay";
@@ -777,6 +850,80 @@ const JSC_LOJAS = ["Almeirim", "Ponte de Sor"];
 const TABACO_EXCLUIR = ["Caldas da Rainha"];
 const CATEGORY_DOW = { raspadinhas: 1, cafe: 2, laranja: 3, tabaco: 4 };
 const RESET_GRACE_UNTIL = new Date("2026-08-07T08:00:00"); // início real da operação: nada conta como pendente/atrasado antes disto
+
+const ABREV_LOJAS = {
+  "Caldas da Rainha": "Caldas", "Bombarral": "Bombarral", "Peniche": "Peniche",
+  "Rio Maior": "Rio Maior", "Santarém": "Santarém", "Almeirim": "Almeirim",
+  "Carregado": "Carregado", "Ponte de Sor": "P. Sor", "Torres MCH": "TMCH", "Torres MH": "TMH"
+};
+function abreviarLoja(loja){ return ABREV_LOJAS[loja] || loja; }
+function isoDate(d){ return d.toISOString().slice(0,10); }
+function todayStrHub(){ return isoDate(new Date()); }
+
+// Mesmo padrao de partilha usado no Reportes.html - gera imagem da area capturada e partilha/copia
+function criarBotoesPartilhaHub(main, capturaWrap, nomeFicheiro, tituloPartilha){
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex; gap:8px; margin:10px 0;";
+  row.innerHTML = `
+    <button class="cambtnHub" id="btnPartilharHub_${nomeFicheiro}" style="flex:1; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:12px; font-weight:700; font-size:13px;">📱 Partilhar (WhatsApp)</button>
+    <button class="cambtnHub" id="btnCopiarHub_${nomeFicheiro}" style="flex:1; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:12px; font-weight:700; font-size:13px;">📸 Copiar</button>
+  `;
+  main.appendChild(row);
+  const btnPartilhar = row.querySelector(`#btnPartilharHub_${nomeFicheiro}`);
+  const btnCopiar = row.querySelector(`#btnCopiarHub_${nomeFicheiro}`);
+
+  function gerarImagem(){ return html2canvas(capturaWrap, {scale:2, backgroundColor:"#ffffff"}).then(canvas=>new Promise(res=>canvas.toBlob(res, "image/png"))); }
+
+  btnPartilhar.onclick = async ()=>{
+    if(btnPartilhar.disabled) return;
+    btnPartilhar.disabled = true;
+    const original = btnPartilhar.textContent;
+    btnPartilhar.textContent = "A gerar imagem...";
+    try{
+      const blob = await gerarImagem();
+      const ficheiro = new File([blob], `${nomeFicheiro}_${todayStrHub()}.png`, {type:"image/png"});
+      if(navigator.share && navigator.canShare && navigator.canShare({files:[ficheiro]})){
+        try{ await navigator.share({files:[ficheiro], title:tituloPartilha}); }catch(e){ /* cancelado */ }
+        btnPartilhar.textContent = original;
+        btnPartilhar.disabled = false;
+      } else {
+        btnPartilhar.textContent = "A copiar...";
+        try{
+          await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
+          btnPartilhar.textContent = "✔ Copiado! Cola no WhatsApp";
+        }catch(e2){
+          const link = document.createElement("a");
+          link.download = `${nomeFicheiro}_${todayStrHub()}.png`;
+          link.href = URL.createObjectURL(blob);
+          link.click();
+          btnPartilhar.textContent = "📥 Descarregada";
+        }
+        setTimeout(()=>{ btnPartilhar.textContent = original; btnPartilhar.disabled = false; }, 2500);
+      }
+    }catch(e){
+      console.error(e);
+      toast("Erro ao gerar imagem: " + (e.message||e).slice(0,100));
+      btnPartilhar.textContent = original;
+      btnPartilhar.disabled = false;
+    }
+  };
+  btnCopiar.onclick = async ()=>{
+    if(btnCopiar.disabled) return;
+    btnCopiar.disabled = true;
+    const original = btnCopiar.textContent;
+    btnCopiar.textContent = "A copiar...";
+    try{
+      // chama clipboard.write() logo aqui, passando uma Promise (nao um blob resolvido) - importante
+      // para nao perder a autorizacao do toque do utilizador enquanto a imagem ainda esta a ser gerada
+      await navigator.clipboard.write([new ClipboardItem({"image/png": gerarImagem()})]);
+      btnCopiar.textContent = "✔ Copiado!";
+    }catch(e){
+      console.error(e);
+      toast("Não foi possível copiar: " + (e.message||e).slice(0,100));
+    }
+    setTimeout(()=>{ btnCopiar.textContent = original; btnCopiar.disabled = false; }, 1500);
+  };
+}
 
 function categoriasParaLoja(loja){
   return INV_CATS.filter(c=>{
@@ -1936,6 +2083,14 @@ async function verificarAtualizacao(){
 setInterval(verificarAtualizacao, 90*1000);
 verificarAtualizacao();
 
+</script>
+<button id="voltarTopoBtn" onclick="document.body.scrollTo({top:0, behavior:'smooth'})" style="display:none; position:fixed; bottom:20px; right:20px; width:48px; height:48px; border-radius:50%; background:var(--terracotta,#C1622D); color:#fff; border:none; font-size:20px; box-shadow:0 3px 10px rgba(0,0,0,.25); z-index:9998; cursor:pointer;">⬆</button>
+<script>
+  document.body.addEventListener("scroll", ()=>{
+    const btn = document.getElementById("voltarTopoBtn");
+    if(!btn) return;
+    btn.style.display = document.body.scrollTop > 400 ? "block" : "none";
+  });
 </script>
 </body>
 </html>
