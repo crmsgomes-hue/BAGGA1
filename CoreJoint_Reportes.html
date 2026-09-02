@@ -6828,7 +6828,7 @@ function openRelatorioQuebras(){
 
   api("GET", "cj_quebras_reportes?select=*&order=data.desc&limit=500").then(rows=>{
     const trintaDiasAtras = isoDate(new Date(Date.now()-30*86400000));
-    const recentes = rows.filter(r=>r.data>=trintaDiasAtras);
+    const recentes = rows.filter(r=>r.data>=trintaDiasAtras && Math.abs(Number(r.valor_quebra))>=20);
     if(recentes.length===0){
       main.insertAdjacentHTML("beforeend", '<div class="empty">Nenhuma quebra registada nos últimos 30 dias.</div>');
       return;
@@ -7057,20 +7057,22 @@ function openRelatorioQuebras(){
 
     document.getElementById("qbRegistosBtn").onclick = ()=>abrirRegistosQuebrasRapido(comLoja);
     document.getElementById("qbExcelBtn").onclick = async ()=>{
+      const comInfoExport = recentes.filter(r=>r.numero_registo || r.justificacao);
       const wb = XLSX.utils.book_new();
-      const linhas = recentes.map(r=>({
-        Loja:r.loja||("(não identificada: "+(r.loja_original||"?")+")"), Data:r.data, Operador:r.operador, "Quebra (€)":r.valor_quebra, Safebag:r.safebag,
-        "Nº Registo":r.numero_registo||"", Justificação:r.justificacao||"", Estado: estadoQuebra(r)
+      const linhas = comInfoExport.map(r=>({
+        Loja:r.loja||("(não identificada: "+(r.loja_original||"?")+")"), Data:r.data, "Quebra (€)":r.valor_quebra,
+        "Nº Registo":r.numero_registo||"", Justificação:r.justificacao||""
       }));
       const ws = XLSX.utils.json_to_sheet(linhas);
       XLSX.utils.book_append_sheet(wb, ws, "Quebras");
       await salvarOuPartilharExcel(wb, `CoreJoint_quebras_${todayStr()}.xlsx`);
     };
     document.getElementById("qbPdfBtn").onclick = ()=>{
-      let html = `<h1>CoreJoint · Relatório de Quebras (≥20€)</h1><div style="font-size:8px; color:#555; margin-bottom:8px;">Últimos 30 dias · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
-      html += `<table><tr><th>Loja</th><th>Data</th><th>Operador</th><th>Quebra</th><th>Nº Registo</th><th>Justificação</th></tr>`;
-      recentes.forEach(r=>{
-        html += `<tr><td class="name">${r.loja||('⚠ '+(r.loja_original||'?'))}</td><td>${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</td><td>${r.operador||'-'}</td><td>${Number(r.valor_quebra).toFixed(2)} €</td><td>${r.numero_registo||'—'}</td><td>${r.justificacao||'—'}</td></tr>`;
+      const comInfoExport = recentes.filter(r=>r.numero_registo || r.justificacao);
+      let html = `<h1>CoreJoint · Relatório de Quebras (≥20€)</h1><div style="font-size:8px; color:#555; margin-bottom:8px;">Últimos 30 dias, só com registo ou justificação · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
+      html += `<table><tr><th>Loja</th><th>Data</th><th>Quebra</th><th>Nº Registo</th><th>Justificação</th></tr>`;
+      comInfoExport.forEach(r=>{
+        html += `<tr><td class="name">${r.loja}</td><td>${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</td><td>${Number(r.valor_quebra).toFixed(2)} €</td><td>${r.numero_registo||'—'}</td><td>${r.justificacao||'—'}</td></tr>`;
       });
       html += `</table>`;
       mostrarAcoesRelatorio(html, `CoreJoint_quebras_${todayStr()}.pdf`);
@@ -7082,13 +7084,17 @@ function abrirRegistosQuebrasRapido(comLoja){
   const overlay = document.createElement("div");
   overlay.className = "overlay";
   overlay.id = "registosQuebrasOverlay";
-  const ordenadas = [...comLoja].sort((a,b)=> new Date(b.data)-new Date(a.data));
+  // so entram quebras com numero de registo OU justificacao - as "por preencher" sao ruido, nao servem para colar num Excel de registos
+  const comInfo = comLoja.filter(r=>r.numero_registo || r.justificacao);
+  const ordenadas = [...comInfo].sort((a,b)=> new Date(b.data)-new Date(a.data));
   overlay.innerHTML = `
     <div class="modal" style="max-height:90vh; overflow-y:auto; max-width:560px;">
       <h2>🔎 Registos e justificações</h2>
-      <div class="sub" style="margin-bottom:10px;">Últimos 30 dias, tudo numa lista — busca por loja, data ou nº de registo.</div>
-      <input id="registosQuebrasFiltro" placeholder="Procurar (loja, data, nº registo...)" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line); margin-bottom:12px;">
-      <button class="cambtn secondary" id="registosCopiarBtn" style="width:100%; margin-bottom:12px;">📋 Copiar lista (texto simples)</button>
+      <div class="sub" style="margin-bottom:10px;">Últimos 30 dias, ≥20€, só com registo ou justificação preenchidos.</div>
+      <div id="registosQuebrasCapturaWrap"></div>
+      <div id="registosQuebrasPartilhaBtns"></div>
+      <input id="registosQuebrasFiltro" placeholder="Procurar (loja, data, nº registo...)" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line); margin:14px 0 12px;">
+      <button class="cambtn secondary" id="registosCopiarBtn" style="width:100%; margin-bottom:12px;">📋 Copiar para Excel</button>
       <div id="registosQuebrasLista"></div>
       <div class="modal-actions" style="margin-top:14px;">
         <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('registosQuebrasOverlay').remove()">Fechar</button>
@@ -7096,6 +7102,39 @@ function abrirRegistosQuebrasRapido(comLoja){
     </div>
   `;
   document.body.appendChild(overlay);
+
+  // tabela compacta partilhavel por WhatsApp, tal como os outros relatorios
+  const capturaWrap = document.getElementById("registosQuebrasCapturaWrap");
+  const dataFmtHoje = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+  const linhasCapturaHtml = ordenadas.map(r=>{
+    const info = r.numero_registo ? `Nº ${r.numero_registo}` : (r.justificacao||"").slice(0,28);
+    return `<tr>
+      <td style="font-weight:700; font-size:10px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(r.loja)}</td>
+      <td style="font-size:9.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}</td>
+      <td style="text-align:right; font-size:10px; font-weight:800; color:#b0432f; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${Number(r.valor_quebra).toFixed(2)}€</td>
+      <td style="font-size:9.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${info}</td>
+    </tr>`;
+  }).join("");
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--line); width:100%; box-sizing:border-box;";
+  capturaWrap.innerHTML = ordenadas.length===0 ? `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D;">CoreJoint · Quebras (≥20€, com registo/justificação)</div>
+    <div style="font-size:12px; color:var(--ink-soft); margin-top:8px;">Nenhuma nos últimos 30 dias.</div>
+  ` : `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Quebras (≥20€)</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmtHoje} — últimos 30 dias, com registo/justificação</div>
+    <table style="border-collapse:collapse; width:100%;">
+      <thead><tr>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; border-bottom:2px solid #C1622D; text-align:left;">Loja</th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; border-bottom:2px solid #C1622D; text-align:left;">Data</th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; border-bottom:2px solid #C1622D; text-align:right;">Valor</th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; border-bottom:2px solid #C1622D; text-align:left;">Registo/Justif.</th>
+      </tr></thead>
+      <tbody>${linhasCapturaHtml}</tbody>
+    </table>
+  `;
+  if(ordenadas.length>0){
+    criarBotoesPartilha(document.getElementById("registosQuebrasPartilhaBtns"), capturaWrap, `CoreJoint_quebras_registos_${todayStr()}`, "CoreJoint · Quebras (≥20€, com registo/justificação)");
+  }
 
   let ultimaListaFiltrada = ordenadas;
   function render(filtro){
@@ -7115,35 +7154,35 @@ function abrirRegistosQuebrasRapido(comLoja){
       return;
     }
     lista.innerHTML = filtradas.map(r=>{
-      const temRegisto = !!r.numero_registo;
-      const temJustif = !!r.justificacao;
       return `
       <div style="padding:10px 0; border-bottom:1px solid var(--line); font-size:13px;">
         <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">
-          <span style="font-weight:700;">${r.loja||('⚠ '+(r.loja_original||'?'))}</span>
+          <span style="font-weight:700;">${r.loja}</span>
           <span style="color:var(--ink-soft); font-size:12px; white-space:nowrap;">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</span>
         </div>
-        <div style="color:var(--ink-soft); font-size:12px; margin-top:1px;">${r.operador||'—'} · <b style="color:var(--red);">${Number(r.valor_quebra).toFixed(2)} €</b></div>
-        <div style="margin-top:5px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-          <span style="font-size:12.5px; font-weight:700; color:${temRegisto?'var(--green)':'var(--ink-soft)'};">Nº registo: ${r.numero_registo || (r.sem_registo?'— (sem registo)':'— por preencher')}</span>
-        </div>
-        ${temJustif ? `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:3px; font-style:italic;">"${r.justificacao}"</div>` : `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:3px;">Sem justificação ainda.</div>`}
+        <div style="color:var(--ink-soft); font-size:12px; margin-top:1px;"><b style="color:var(--red);">${Number(r.valor_quebra).toFixed(2)} €</b></div>
+        ${r.numero_registo ? `<div style="font-size:12.5px; font-weight:700; color:var(--green); margin-top:5px;">Nº registo: ${r.numero_registo}</div>` : ``}
+        ${r.justificacao ? `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:3px; font-style:italic;">"${r.justificacao}"</div>` : ``}
       </div>`;
     }).join("");
   }
   render("");
   document.getElementById("registosQuebrasFiltro").addEventListener("input", (ev)=>render(ev.target.value));
   document.getElementById("registosCopiarBtn").onclick = ()=>{
+    // formato em colunas separadas por tabulacao - cola diretamente num Excel, cada campo na sua celula
+    const cabecalho = "Loja\tData\tValor (€)\tNº Registo\tJustificação";
     const linhas = ultimaListaFiltrada.map(r=>{
       const dataFmt = new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT');
-      const registo = r.numero_registo ? r.numero_registo : (r.sem_registo ? "sem registo" : "por preencher");
-      return `${r.loja || ('⚠ '+(r.loja_original||'?'))} — ${dataFmt} — Nº registo: ${registo}`;
+      const valor = Number(r.valor_quebra).toFixed(2).replace(".", ",");
+      const registo = r.numero_registo || "";
+      const justif = (r.justificacao || "").replace(/\t|\n/g, " ");
+      return `${r.loja}\t${dataFmt}\t${valor}\t${registo}\t${justif}`;
     });
-    const texto = linhas.join("\n");
+    const texto = [cabecalho, ...linhas].join("\n");
     const btn = document.getElementById("registosCopiarBtn");
     navigator.clipboard.writeText(texto).then(()=>{
       const original = btn.textContent;
-      btn.textContent = "✔ Copiado!";
+      btn.textContent = "✔ Copiado! Cola no Excel";
       setTimeout(()=>{ btn.textContent = original; }, 1800);
     }).catch(()=>{
       toast("Não foi possível copiar automaticamente — seleciona o texto manualmente.");
