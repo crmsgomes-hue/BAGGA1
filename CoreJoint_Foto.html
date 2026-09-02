@@ -2151,11 +2151,18 @@ function renderMiniCalendar(containerId, mes, onSelect){
   // offset: segunda=0 ... domingo=6
   const offset = (primeiroDiaMes.getDay()+6)%7;
 
+  // A 3a semana do mes e a semana (2a a domingo) que contem o dia 15. As datas elegiveis sao
+  // sempre segunda a quinta DESSA semana - nao um intervalo fixo de dias do mes, porque o dia 15
+  // cai num dia da semana diferente todos os meses (ex: em setembro/2026 a 3a semana e 14-20,
+  // logo 2a a 5a e 14-17, nao 15-18 nem 15-21).
+  const dia15 = new Date(ano, mesNum-1, 15);
+  const offsetDia15 = (dia15.getDay()+6)%7; // 0=Segunda ... 6=Domingo
+  const segundaDaSemana = new Date(ano, mesNum-1, 15 - offsetDia15);
   const elegiveis = new Set();
-  for(let dia=15; dia<=21; dia++){
-    const d = new Date(ano, mesNum-1, dia);
-    const dow = d.getDay(); // 1=Seg ... 4=Qui
-    if(dow>=1 && dow<=4) elegiveis.add(dia);
+  for(let i=0;i<4;i++){
+    const d = new Date(segundaDaSemana);
+    d.setDate(d.getDate()+i);
+    if(d.getMonth()===mesNum-1) elegiveis.add(d.getDate());
   }
 
   let html = `<div style="background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,.06);">
