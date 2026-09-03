@@ -367,6 +367,7 @@ async function renderPanoramaGeral(){
         ${tile("formacoes","🎓","Formações", `${formacoesPendentesPg.length}`, formacoesPendentesPg.length>0?'var(--org,#c17817)':'var(--grn)')}
         ${tile("horarios","👥","Horários", horariosAlertas>0?`${horariosAlertas}`:'✔', horariosAlertas>0?'var(--red)':'var(--grn)')}
         ${tile("trocas","🔁","Trocas", `${trocasPendentesPg.length}`, trocasPendentesPg.length>0?'var(--org,#c17817)':'var(--grn)')}
+        ${tile("gerenteLoja","🔒","Área gerente", "", 'var(--t2)')}
         ${tile("partilhar","📱","Partilhar", "", 'var(--t2)')}
       </div>
     `;
@@ -402,6 +403,16 @@ async function renderPanoramaGeral(){
         ${botoesAcao([["🔁 Ver relatório","CoreJoint_Reportes.html?abrir=pivotTrocas"],["📤 Importar Excel","CoreJoint_Reportes.html?abrir=importarTrocas"]])}
       `;
       abrirModalTopico("🔁 Trocas de horário", corpo);
+    };
+
+    document.querySelector('[data-topico="gerenteLoja"]').onclick = ()=>{
+      const corpo = `
+        <div class="sub" style="margin-bottom:10px;">Escolhe a loja para entrar direto na área do gerente/RT (sem PIN, já estás na gestão).</div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          ${LOJAS.map(l=>`<a href="CoreJoint_Foto.html?loja=${encodeURIComponent(l)}&gestao=1" style="text-decoration:none; background:var(--sf2); color:var(--tx); border-radius:99px; padding:7px 12px; font-size:.78rem; font-weight:700;">${l}</a>`).join("")}
+        </div>
+      `;
+      abrirModalTopico("🔒 Área do gerente", corpo);
     };
 
     document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
