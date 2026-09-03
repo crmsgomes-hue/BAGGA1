@@ -368,6 +368,7 @@ async function renderPanoramaGeral(){
         ${tile("horarios","👥","Horários", horariosAlertas>0?`${horariosAlertas}`:'✔', horariosAlertas>0?'var(--red)':'var(--grn)')}
         ${tile("trocas","🔁","Trocas", `${trocasPendentesPg.length}`, trocasPendentesPg.length>0?'var(--org,#c17817)':'var(--grn)')}
         ${tile("gerenteLoja","🔒","Área gerente", "", 'var(--t2)')}
+        ${tile("fotosPontuais","📸","Fotos pontuais", "", 'var(--t2)')}
         ${tile("partilhar","📱","Partilhar", "", 'var(--t2)')}
       </div>
     `;
@@ -414,6 +415,8 @@ async function renderPanoramaGeral(){
       `;
       abrirModalTopico("🔒 Área do gerente", corpo);
     };
+
+    document.querySelector('[data-topico="fotosPontuais"]').onclick = abrirFotosPontuaisHub;
 
     document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
       const corpo = `
@@ -1832,6 +1835,69 @@ async function abrirDiagnosticoHub(){
       </div>
     `).join("");
   };
+}
+
+async function abrirFotosPontuaisHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "fotosPontuaisOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:440px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:2px;">📸 Fotos pontuais</div>
+      <div style="font-size:12px; color:var(--t2); margin-bottom:14px;">Pedidos ativos — quem enviou e as fotos.</div>
+      <div id="fotosPontuaisCorpoHub"><div style="text-align:center; padding:20px 0; color:var(--t2); font-size:.85rem;">A carregar...</div></div>
+      <button id="fecharFotosPontuaisHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("fecharFotosPontuaisHubBtn").onclick = ()=>overlay.remove();
+
+  const pedidos = await api(`cj_pedidos_fotos?select=*&ativo=eq.true&order=criado_em.desc`, "GET");
+  const corpo = document.getElementById("fotosPontuaisCorpoHub");
+  if(pedidos.length===0){
+    corpo.innerHTML = `<div style="text-align:center; padding:20px 0; color:var(--t2); font-size:.85rem;">Nenhum pedido de fotos pontual ativo.</div>`;
+    return;
+  }
+  corpo.innerHTML = "";
+  for(const p of pedidos){
+    const respostas = await api(`cj_pedidos_fotos_respostas?select=*&pedido_id=eq.${p.id}`, "GET");
+    const alvo = (p.lojas && p.lojas.length>0) ? p.lojas : LOJAS;
+    const respondidas = new Set(respostas.map(r=>r.loja));
+    const faltam = alvo.filter(l=>!respondidas.has(l));
+
+    const bloco = document.createElement("div");
+    bloco.style.cssText = "margin-bottom:20px;";
+    bloco.innerHTML = `
+      <div style="font-weight:700; font-size:.9rem; margin-bottom:2px;">${p.titulo}</div>
+      <div style="font-size:.75rem; color:var(--t2); margin-bottom:8px;">${respostas.length}/${alvo.length} lojas responderam${faltam.length?` — faltam: ${faltam.join(", ")}`:''}</div>
+      <div id="fpCapturaWrap_${p.id}"></div>
+      <div id="fpPartilhaBtns_${p.id}"></div>
+    `;
+    corpo.appendChild(bloco);
+
+    const capturaWrap = document.getElementById(`fpCapturaWrap_${p.id}`);
+    const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+    const fotosHtml = respostas.length===0 ? `<div style="font-size:12px; color:var(--t2);">Ainda ninguém enviou.</div>` :
+      respostas.sort((a,b)=>a.loja.localeCompare(b.loja)).map(r=>(r.fotos||[]).map(f=>`
+        <div style="text-align:center; display:inline-block; margin:0 6px 8px 0; vertical-align:top;">
+          <img src="${f.url}" style="width:74px; height:74px; object-fit:cover; border-radius:8px; border:1px solid #eee; display:block;">
+          <div style="font-size:8.5px; color:#777; font-weight:700; margin-top:2px; max-width:74px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${abreviarLoja(r.loja)}</div>
+        </div>
+      `).join("")).join("");
+
+    capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 10px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · ${p.titulo}</div>
+      <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} — ${respostas.length}/${alvo.length} lojas</div>
+      <div>${fotosHtml}</div>
+    `;
+    if(respostas.length>0){
+      // espera as imagens carregarem antes de disponibilizar a partilha, para o html2canvas nao capturar em branco
+      const imgs = Array.from(capturaWrap.querySelectorAll("img"));
+      await Promise.all(imgs.map(img=>img.complete ? Promise.resolve() : new Promise(res=>{ img.onload=res; img.onerror=res; })));
+      criarBotoesPartilhaHub(document.getElementById(`fpPartilhaBtns_${p.id}`), capturaWrap, `CoreJoint_fotos_${p.titulo.replace(/\s+/g,"_")}`, `CoreJoint · ${p.titulo}`);
+    }
+  }
 }
 
 async function abrirRegistosQuebrasHub(){
