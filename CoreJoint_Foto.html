@@ -861,19 +861,29 @@ async function render(){
       tile.onclick = ()=>openCapture("inv", c.key, c.label, null, late);
       invGrid.appendChild(tile);
       if(c.key==="global"){
-        const mes = mesKey(new Date());
-        const ag = agendamentos.find(a=>a.mes===mes);
+        const hojeRef = new Date();
+        const mesAtualKey = mesKey(hojeRef);
+        const proxMesRef = new Date(hojeRef.getFullYear(), hojeRef.getMonth()+1, 1);
+        const proxMesKey = mesKey(proxMesRef);
+        const agAtual = agendamentos.find(a=>a.mes===mesAtualKey);
+        const agProx = agendamentos.find(a=>a.mes===proxMesKey);
         globalAgRow = document.createElement("div");
         globalAgRow.className = "card";
-        globalAgRow.style.padding = "12px 14px";
-        if(ag){
-          globalAgRow.innerHTML = `<div style="font-size:12px; color:var(--ink-soft);">📅 Global agendado para ${new Date(ag.data_agendada+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} <span style="text-decoration:underline; cursor:pointer;" id="mudarAgendamento">(mudar)</span></div>`;
-        } else {
-          globalAgRow.innerHTML = `
-            <div style="font-size:12px; color:var(--ink-soft); margin-bottom:6px;">📅 Marca o dia do Global (só 3ª semana, segunda a quinta):</div>
-            <div id="miniCalWrap"></div>
-          `;
+        globalAgRow.style.cssText = "padding:12px 14px; flex-direction:column; align-items:stretch; gap:10px;";
+
+        function blocoMes(mesRef, mesKeyVal, ag, nomeMes){
+          if(ag){
+            return `<div style="font-size:12px; color:var(--ink-soft);">📅 Global de ${nomeMes} agendado para ${new Date(ag.data_agendada+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} <span style="text-decoration:underline; cursor:pointer;" data-mudar-global="${mesKeyVal}">(mudar)</span></div>`;
+          }
+          return `<div>
+            <div style="font-size:12px; color:var(--ink-soft); margin-bottom:6px;">📅 Marca o dia do Global de <b>${nomeMes}</b> (só 3ª semana, segunda a quinta):</div>
+            <div id="miniCalWrap_${mesKeyVal}"></div>
+          </div>`;
         }
+        const nomeMesAtual = hojeRef.toLocaleDateString('pt-PT',{month:'long'});
+        const nomeMesProx = proxMesRef.toLocaleDateString('pt-PT',{month:'long'});
+        globalAgRow.innerHTML = blocoMes(hojeRef, mesAtualKey, agAtual, nomeMesAtual) + blocoMes(proxMesRef, proxMesKey, agProx, nomeMesProx);
+
         if(isLastDaysOfMonth()){
           const warnGlobal = document.createElement("div");
           warnGlobal.className = "warn-card";
@@ -899,13 +909,19 @@ async function render(){
     });
     if(globalAgRow){
       main.appendChild(globalAgRow);
-      const mes = mesKey(new Date());
-      const ag = agendamentos.find(a=>a.mes===mes);
-      if(!ag){
-        setTimeout(()=>{ renderMiniCalendar("miniCalWrap", mes, (ds)=>agendarGlobal(mes, ds)); }, 0);
-      }
-      const mudar = document.getElementById("mudarAgendamento");
-      if(mudar) mudar.onclick = ()=>{ agendamentos = agendamentos.filter(a=>a.mes!==mes); render(); };
+      const hojeRef = new Date();
+      const mesAtualKey = mesKey(hojeRef);
+      const proxMesRef = new Date(hojeRef.getFullYear(), hojeRef.getMonth()+1, 1);
+      const proxMesKey = mesKey(proxMesRef);
+      [[hojeRef, mesAtualKey], [proxMesRef, proxMesKey]].forEach(([mesRef, mesKeyVal])=>{
+        const ag = agendamentos.find(a=>a.mes===mesKeyVal);
+        if(!ag){
+          setTimeout(()=>{ renderMiniCalendar(`miniCalWrap_${mesKeyVal}`, mesKeyVal, (ds)=>agendarGlobal(mesKeyVal, ds)); }, 0);
+        }
+      });
+      globalAgRow.querySelectorAll("[data-mudar-global]").forEach(el=>{
+        el.onclick = ()=>{ agendamentos = agendamentos.filter(a=>a.mes!==el.dataset.mudarGlobal); render(); };
+      });
     }
     if(tabacoAgRow){
       main.appendChild(tabacoAgRow);
