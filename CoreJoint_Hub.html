@@ -478,11 +478,13 @@ async function renderPanoramaGeral(){
         <div style="font-size:.75rem; color:var(--t2); margin-bottom:2px;">Adendas em curso</div>
         <div style="font-size:1.4rem; font-weight:800; margin-bottom:10px;">${adendasAtivasPg.length}</div>
         ${linhasRh.length===0 ? `<div style="font-size:.8rem; color:var(--t2); margin-bottom:12px;">✔ Sem adendas em curso.</div>` : `<div style="display:flex; flex-direction:column; gap:1px; margin-bottom:12px;">
-          ${linhasRh.map(([l,n])=>`<a href="CoreJoint_Adendas.html" style="display:flex; justify-content:space-between; text-decoration:none; color:inherit; padding:7px 2px; border-bottom:1px solid var(--br);"><span style="font-size:.85rem; font-weight:600;">${l}</span><span style="font-size:.85rem; font-weight:800;">${n}</span></a>`).join("")}
+          ${linhasRh.map(([l,n])=>`<div style="display:flex; justify-content:space-between; padding:7px 2px; border-bottom:1px solid var(--br);"><span style="font-size:.85rem; font-weight:600;">${l}</span><span style="font-size:.85rem; font-weight:800;">${n}</span></div>`).join("")}
         </div>`}
-        ${botoesAcao([["📋 Abrir RH / Adendas","CoreJoint_Adendas.html"]])}
+        <button id="btnNovaAdendaHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">➕ Nova adenda</button>
+        ${botoesAcao([["📋 Abrir RH / Adendas (acompanhar etapas e assinaturas)","CoreJoint_Adendas.html"]])}
       `;
       abrirModalTopico("📋 RH", corpo);
+      document.getElementById("btnNovaAdendaHub").onclick = abrirNovaAdendaHub;
     };
 
     document.querySelector('[data-topico="fardamento"]').onclick = ()=>{
@@ -504,11 +506,23 @@ async function renderPanoramaGeral(){
           </div>
         </div>
         ${fardStockOrdenado.length>0 ? `<div style="display:flex; flex-direction:column; gap:1px; margin-bottom:12px;">
-          ${fardStockOrdenado.slice(0,10).map(f=>`<div style="display:flex; justify-content:space-between; padding:7px 2px; border-bottom:1px solid var(--br); font-size:.82rem;"><span>${f.polo} · ${f.peca} ${f.tamanho}</span><b style="color:var(--red);">${Number(f.quantidade)===0?'ESGOTADO':f.quantidade}</b></div>`).join("")}
+          ${fardStockOrdenado.slice(0,10).map((f,i)=>{
+            const spanId = `fardQtd_${i}`;
+            const qtdInicial = Number(f.quantidade)===0 ? "ESGOTADO" : f.quantidade;
+            return `<div style="display:flex; justify-content:space-between; align-items:center; padding:7px 2px; border-bottom:1px solid var(--br); font-size:.82rem; gap:6px;">
+              <span style="flex:1;">${f.polo} · ${f.peca} ${f.tamanho}</span>
+              <b id="${spanId}" data-qtd="${Number(f.quantidade)}" style="color:var(--red); min-width:22px; text-align:right;">${qtdInicial}</b>
+              <button class="fardAjustarBtn" data-polo="${f.polo}" data-peca="${f.peca}" data-tamanho="${f.tamanho}" data-delta="1" data-span="${spanId}" style="background:var(--grn); color:#fff; border:none; border-radius:6px; width:26px; height:26px; font-weight:800; font-size:.9rem;">+</button>
+              <button class="fardAjustarBtn" data-polo="${f.polo}" data-peca="${f.peca}" data-tamanho="${f.tamanho}" data-delta="-1" data-span="${spanId}" style="background:var(--sf2); color:var(--t2); border:none; border-radius:6px; width:26px; height:26px; font-weight:800; font-size:.9rem;">−</button>
+            </div>`;
+          }).join("")}
         </div>` : ``}
-        ${botoesAcao([["👕 Abrir Fardamento","CoreJoint_Fardamento.html"]])}
+        ${botoesAcao([["👕 Abrir Fardamento (saída, devolução, admissão)","CoreJoint_Fardamento.html"]])}
       `;
       abrirModalTopico("👕 Fardamento", corpo);
+      document.querySelectorAll(".fardAjustarBtn").forEach(btn=>{
+        btn.onclick = ()=>ajustarStockFardamentoHub(btn.dataset.polo, btn.dataset.peca, btn.dataset.tamanho, Number(btn.dataset.delta), btn, btn.dataset.span);
+      });
     };
 
     document.querySelector('[data-topico="diagnostico"]').onclick = ()=>{
@@ -622,6 +636,131 @@ function abrirColarMensagemOverlay(){
       toast("Erro ao guardar: " + (e.message||e).slice(0,100));
       btn.disabled = false; btn.textContent = "Guardar";
     }
+  };
+}
+
+async function ajustarStockFardamentoHub(polo, peca, tamanho, delta, btn, spanId){
+  const original = btn.textContent;
+  btn.disabled = true;
+  try{
+    await api("rpc/increment_fardamento_stock", "POST", {p_polo:polo, p_peca:peca, p_tamanho:tamanho, p_delta:delta, p_por:NOMES_PERFIS[currentUser]});
+    await api("cj_fardamento_movimentos", "POST", {
+      polo, peca, tamanho, quantidade:Math.abs(delta), tipo: delta>0 ? "entrada":"ajuste",
+      registado_por: NOMES_PERFIS[currentUser], nota: delta>0 ? "Reposição/contagem (Hub)" : "Ajuste/contagem (Hub)",
+      criado_em: new Date().toISOString()
+    });
+    const span = document.getElementById(spanId);
+    if(span){
+      const atual = span.dataset.qtd==="ESGOTADO" ? 0 : Number(span.dataset.qtd);
+      const novo = Math.max(0, atual+delta);
+      span.dataset.qtd = novo;
+      span.textContent = novo===0 ? "ESGOTADO" : novo;
+    }
+    toast(delta>0 ? "✔ Stock reposto" : "✔ Stock ajustado");
+  }catch(e){
+    console.error(e);
+    toast("Erro ao gravar: " + (e.message||e).slice(0,100));
+  }finally{
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+function abrirNovaAdendaHub(){
+  let selectedColabHub = "__novo__";
+  const overlay = document.createElement("div");
+  overlay.id = "novaAdendaOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:14px;">📋 Nova adenda</div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:.78rem; font-weight:700; color:var(--t2); display:block; margin-bottom:4px;">Loja</label>
+        <select id="hLoja" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br);" onchange="document.getElementById('hLojaOutra').style.display = this.value==='__outra__' ? 'block' : 'none';">
+          <option value="" selected disabled>— Escolhe a loja —</option>
+          ${LOJAS.map(l=>`<option>${l}</option>`).join("")}
+          <option value="__outra__">Outra...</option>
+        </select>
+        <input id="hLojaOutra" placeholder="Nome da loja" style="display:none; margin-top:8px; width:100%; padding:10px; border-radius:8px; border:1px solid var(--br);">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:.78rem; font-weight:700; color:var(--t2); display:block; margin-bottom:4px;">Colaborador</label>
+        <input id="hColabNovo" placeholder="Nome do colaborador" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br);">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:.78rem; font-weight:700; color:var(--t2); display:block; margin-bottom:4px;">Tipo de adenda</label>
+        <select id="hTipo" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br);" onchange="
+          const tipo=this.value;
+          document.getElementById('hCamposSimplificados').style.display = tipo==='Alteração de horário' ? 'none' : 'block';
+          const ehBaixa = tipo==='Baixa';
+          document.getElementById('hCampoAssinaturas').style.display = ehBaixa ? 'none' : 'flex';
+          document.getElementById('hCampoEnviadaRh').style.display = ehBaixa ? 'none' : 'flex';
+        ">
+          <option>Alteração de horário</option>
+          <option>Baixa</option>
+          <option>Carta de rescisão</option>
+          <option>Carta de efetividade</option>
+          <option>Pluralidade</option>
+          <option>Pedido de flexibilidade</option>
+          <option>Outra</option>
+        </select>
+      </div>
+      <div id="hCamposSimplificados" style="display:none;">
+        <div id="hCampoAssinaturas" style="margin-bottom:10px; display:flex; align-items:center; gap:10px;">
+          <input type="checkbox" id="hPrecisaAssinaturas" style="width:18px; height:18px;">
+          <label for="hPrecisaAssinaturas" style="margin:0; font-size:.85rem;">Precisa de recolher assinaturas?</label>
+        </div>
+        <div id="hCampoEnviadaRh" style="margin-bottom:10px; display:flex; align-items:center; gap:10px;">
+          <input type="checkbox" id="hEnviadaRh" style="width:18px; height:18px;">
+          <label for="hEnviadaRh" style="margin:0; font-size:.85rem;">Já foi enviada aos RH?</label>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <button id="hCancelarAdendaBtn" style="flex:1; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Cancelar</button>
+        <button id="hCriarAdendaBtn" style="flex:1; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">Criar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("hCancelarAdendaBtn").onclick = ()=>overlay.remove();
+  document.getElementById("hCriarAdendaBtn").onclick = protegerCliqueHub(document.getElementById("hCriarAdendaBtn"), async ()=>{
+    const colaborador = document.getElementById("hColabNovo").value.trim();
+    const tipo = document.getElementById("hTipo").value;
+    let loja = document.getElementById("hLoja").value;
+    if(loja==="__outra__") loja = document.getElementById("hLojaOutra").value.trim();
+    if(!colaborador){ toast("Escreve o nome do colaborador"); return; }
+    if(!loja){ toast("Escolhe a loja"); return; }
+    const now = new Date().toISOString();
+    const isSimplificada = tipo!=="Alteração de horário";
+    const payload = { colaborador, tipo, loja, criado_em:now, criado_por: NOMES_PERFIS[currentUser], updated_at:now };
+    if(isSimplificada){
+      if(tipo==="Baixa"){
+        payload.lancada_wfm = false;
+        payload.arquivada = false;
+      } else {
+        payload.precisa_assinaturas = document.getElementById("hPrecisaAssinaturas").checked;
+        payload.enviada_rh = document.getElementById("hEnviadaRh").checked;
+        payload.assinaturas_recolhidas = false;
+        const checklistCompletoNovo = (!payload.precisa_assinaturas) && payload.enviada_rh;
+        if(payload.enviada_rh){ payload.enviada_em = now; payload.enviada_por = NOMES_PERFIS[currentUser]; }
+        payload.arquivada = checklistCompletoNovo;
+      }
+    }
+    await api("cj_adendas", "POST", payload);
+    toast("✔ Adenda criada!");
+    overlay.remove();
+  }, "A criar...");
+}
+// versao simples de protegerClique para uso no Hub (sem depender de nenhuma outra funcao)
+function protegerCliqueHub(btn, fn, textoDurante){
+  return async (...args)=>{
+    if(btn.disabled) return;
+    const original = btn.textContent;
+    btn.disabled = true;
+    if(textoDurante) btn.textContent = textoDurante;
+    try{ await fn(...args); }
+    catch(e){ console.error(e); toast("Erro: " + (e.message||e).slice(0,100)); }
+    finally{ btn.disabled = false; if(textoDurante) btn.textContent = original; }
   };
 }
 
