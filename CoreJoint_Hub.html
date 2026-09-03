@@ -1584,9 +1584,9 @@ async function abrirRelatorioMensalHub(){
     const corVit = pctVit===100 ? "#2e7d32" : pctVit>=70 ? "#c17817" : "#b0432f";
     const corVend = pctVend===100 ? "#2e7d32" : pctVend>=70 ? "#c17817" : "#b0432f";
     return `<tr>
-      <td style="font-weight:700; font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>
-      <td style="text-align:center; font-weight:800; font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3; color:${corVit};">${pctVit}%</td>
-      <td style="text-align:center; font-weight:800; font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3; color:${corVend};">${pctVend}%</td>
+      <td style="font-weight:700; font-size:10.5px; padding:5px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>
+      <td style="text-align:center; font-weight:800; font-size:11px; padding:5px 2px; border-bottom:1px solid #f0ebe3; color:${corVit};">${pctVit===100?'✔':'✕'} ${pctVit}%</td>
+      <td style="text-align:center; font-weight:800; font-size:11px; padding:5px 2px; border-bottom:1px solid #f0ebe3; color:${corVend};">${pctVend===100?'✔':'✕'} ${pctVend}%</td>
     </tr>`;
   }).join("");
 
@@ -1630,30 +1630,31 @@ async function abrirRelatorioSemanalHub(){
   const dailySemana = await api(`cj_daily_reportes?select=loja,tipo,turno,data&tipo=eq.vendas&data=gte.${seteDiasAtrasStr}`, "GET");
 
   const linhasHtml = LOJAS.map(l=>{
-    const diasOk = days.filter(d=>dailySemana.some(r=>r.loja===l && r.turno==="unico" && r.data===isoDate(d))).length;
-    const pct = Math.round(diasOk/7*100);
-    const cor = pct===100 ? "#2e7d32" : pct>=70 ? "#c17817" : "#b0432f";
+    const cols = days.map(d=>{
+      const ok = dailySemana.some(r=>r.loja===l && r.turno==="unico" && r.data===isoDate(d));
+      const cor = ok ? "#2e7d32" : "#b0432f";
+      return `<td style="text-align:center; color:${cor}; font-weight:800; padding:4px 1px; border-bottom:1px solid #f0ebe3; font-size:12px;">${ok?'✔':'✕'}</td>`;
+    }).join("");
     return `<tr>
-      <td style="font-weight:700; font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>
-      <td style="text-align:center; font-weight:800; font-size:12px; padding:5px 4px; border-bottom:1px solid #f0ebe3; color:${cor};">${pct}%</td>
-      <td style="text-align:center; font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3; color:var(--t2,#777);">${diasOk}/7</td>
+      <td style="font-weight:700; font-size:10.5px; padding:5px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>
+      ${cols}
     </tr>`;
   }).join("");
+  const headerDiasHtml = days.map(d=>`<th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 1px; border-bottom:2px solid #C1622D; white-space:nowrap;">${d.toLocaleDateString('pt-PT',{weekday:'short'}).slice(0,3)}</th>`).join("");
 
   capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
   capturaWrap.innerHTML = `
-    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Vendas — % dias enviados</div>
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Vendas — últimos 7 dias</div>
     <div style="font-size:9px; color:#777; margin-bottom:8px;">${rangeTxt}</div>
     <table style="border-collapse:collapse; width:100%;">
       <thead><tr>
         <th></th>
-        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 4px; border-bottom:2px solid #C1622D;">%</th>
-        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 4px; border-bottom:2px solid #C1622D;">Dias</th>
+        ${headerDiasHtml}
       </tr></thead>
       <tbody>${linhasHtml}</tbody>
     </table>
   `;
-  criarBotoesPartilhaHub(document.getElementById("semanalPartilhaBtnsHub"), capturaWrap, `CoreJoint_semanal`, "CoreJoint · Vendas — % dias enviados");
+  criarBotoesPartilhaHub(document.getElementById("semanalPartilhaBtnsHub"), capturaWrap, `CoreJoint_semanal`, "CoreJoint · Vendas — últimos 7 dias");
 }
 
 async function abrirDiarioVisualHub(){
@@ -1887,9 +1888,15 @@ async function abrirFotosPontuaisHub(){
       `).join("")).join("");
 
     capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 10px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+    const linhasStatusHtml = alvo.map(l=>{
+      const ok = respondidas.has(l);
+      const cor = ok ? "#2e7d32" : "#b0432f";
+      return `<span style="display:inline-flex; align-items:center; gap:3px; margin:0 8px 4px 0; font-size:10px; font-weight:700;"><span style="color:${cor}; font-weight:800;">${ok?'✔':'✕'}</span> ${abreviarLoja(l)}</span>`;
+    }).join("");
     capturaWrap.innerHTML = `
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · ${p.titulo}</div>
       <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} — ${respostas.length}/${alvo.length} lojas</div>
+      <div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #f0ebe3;">${linhasStatusHtml}</div>
       <div>${fotosHtml}</div>
     `;
     if(respostas.length>0){
