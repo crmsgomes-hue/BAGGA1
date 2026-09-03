@@ -102,6 +102,7 @@
   </div>
   <div id="notifDiscreto" style="display:none; font-size:11px; color:var(--ink-soft); margin-top:6px; text-decoration:underline; cursor:pointer;" onclick="testarNotificacaoLoja()">🔔 Notificações ativas — testar</div>
   <div style="text-align:center; margin-top:10px;"><span style="font-size:12.5px; color:var(--ink-soft); text-decoration:underline; cursor:pointer;" onclick="abrirAjuda()">❓ Dúvidas frequentes</span></div>
+  <div style="text-align:center; margin-top:6px;"><span style="font-size:11.5px; color:var(--ink-soft); text-decoration:underline; cursor:pointer;" onclick="pedirPinGestao()">🔒 Área do gerente/RT</span></div>
 </header>
 <main id="main"></main>
 <div id="toast" class="toast"></div>
@@ -1768,6 +1769,143 @@ async function adicionarFotoEnvio(r, file){
   }
 }
 
+const PIN_GESTAO = "1234";
+function pedirPinGestao(){
+  const o = document.createElement("div");
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:999999; display:flex; align-items:center; justify-content:center; padding:20px;";
+  o.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:24px; max-width:320px; width:100%; text-align:center;">
+      <div style="font-size:15px; font-weight:700; margin-bottom:4px;">🔒 Área do gerente/RT</div>
+      <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:16px;">Introduz o PIN para veres a gestão de ${currentLoja}.</div>
+      <input id="pinGestaoInput" type="tel" inputmode="numeric" maxlength="4" placeholder="••••" style="width:100%; text-align:center; font-size:24px; letter-spacing:8px; padding:12px; border-radius:10px; border:1.5px solid var(--line); margin-bottom:14px;">
+      <div id="pinGestaoErro" style="color:var(--red,#b0432f); font-size:12px; margin-bottom:10px; display:none;">PIN incorreto.</div>
+      <div style="display:flex; gap:8px;">
+        <button id="pinGestaoCancelar" style="flex:1; background:none; border:1.5px solid var(--line); border-radius:10px; padding:11px; font-weight:700;">Cancelar</button>
+        <button id="pinGestaoEntrar" style="flex:1; background:var(--terracotta,#C1622E); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">Entrar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(o);
+  const input = document.getElementById("pinGestaoInput");
+  input.focus();
+  document.getElementById("pinGestaoCancelar").onclick = ()=>o.remove();
+  function tentar(){
+    if(input.value === PIN_GESTAO){ o.remove(); abrirAreaGestaoLoja(); }
+    else document.getElementById("pinGestaoErro").style.display = "block";
+  }
+  document.getElementById("pinGestaoEntrar").onclick = tentar;
+  input.addEventListener("keydown", (e)=>{ if(e.key==="Enter") tentar(); });
+}
+
+async function abrirAreaGestaoLoja(){
+  const o = document.createElement("div");
+  o.id = "areaGestaoOverlay";
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  o.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:440px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-size:17px; font-weight:800; margin-bottom:2px;">🔒 Gestão — ${currentLoja}</div>
+      <div style="font-size:12px; color:var(--ink-soft); margin-bottom:16px;">Só visível para quem tem o PIN.</div>
+      <div id="gestaoCorpo"><div style="text-align:center; padding:20px 0; color:var(--ink-soft); font-size:13px;">A carregar...</div></div>
+      <button id="fecharGestaoBtn" style="width:100%; margin-top:16px; background:none; border:1.5px solid var(--line); border-radius:10px; padding:11px; font-weight:700;">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(o);
+  document.getElementById("fecharGestaoBtn").onclick = ()=>o.remove();
+  await renderAreaGestaoLoja();
+}
+
+async function renderAreaGestaoLoja(){
+  const corpo = document.getElementById("gestaoCorpo");
+  const lojaQ = encodeURIComponent(currentLoja);
+
+  const [quebras, trocas, formacoes] = await Promise.all([
+    api("GET", `cj_quebras_reportes?select=*&loja=eq.${lojaQ}&order=data.desc&limit=60`),
+    api("GET", `cj_trocas?select=*&loja=eq.${lojaQ}&estado=eq.pendente&order=criado_em.desc`),
+    api("GET", `cj_formacoes?select=*&loja=eq.${lojaQ}&order=criado_em.desc`)
+  ]);
+
+  // ---------- Quebras ----------
+  const quebrasPorJustificar = quebras.filter(q=>!q.numero_registo && !q.justificacao);
+  const quebrasHtml = quebras.length===0 ? `<div style="font-size:12.5px; color:var(--ink-soft);">Sem quebras registadas.</div>` :
+    quebras.slice(0,15).map(q=>`
+      <div style="background:var(--cream,#faf6ef); border-radius:8px; padding:10px 12px; margin-bottom:6px;">
+        <div style="display:flex; justify-content:space-between; font-size:13px;">
+          <b style="color:${Math.abs(q.valor_quebra)>=20 && !q.numero_registo && !q.justificacao ? 'var(--red,#b0432f)':'inherit'};">${Number(q.valor_quebra).toFixed(2)} €</b>
+          <span style="color:var(--ink-soft); font-size:12px;">${new Date(q.data+"T00:00:00").toLocaleDateString('pt-PT')}</span>
+        </div>
+        ${q.numero_registo ? `<div style="font-size:12px; color:var(--green,#2e7d32); margin-top:3px;">Nº registo: ${q.numero_registo}</div>` : ""}
+        ${q.justificacao ? `<div style="font-size:12px; color:var(--ink-soft); margin-top:3px; font-style:italic;">"${q.justificacao}"</div>` : ""}
+        ${(!q.numero_registo && !q.justificacao) ? `<button class="gestaoJustificarBtn" data-id="${q.id}" style="width:100%; margin-top:6px; background:var(--terracotta,#C1622E); color:#fff; border:none; border-radius:6px; padding:7px; font-size:12px; font-weight:700;">Justificar</button>` : ""}
+      </div>
+    `).join("");
+
+  // ---------- Inventário (reaproveita invStatus() ja existente, que usa invRows ja carregado so desta loja) ----------
+  const invHtml = INV_CATS.map(c=>{
+    const st = invStatus(c.key, c.freq);
+    if(st.state==="na" || st.state==="pausado") return "";
+    const cor = st.state==="ok" ? "var(--green,#2e7d32)" : st.state==="late" ? "var(--red,#b0432f)" : "var(--ink-soft)";
+    const txt = st.state==="ok" ? "✔ Feito" : st.state==="late" ? "✕ Atrasado" : "Pendente";
+    return `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line); font-size:13px;"><span>${c.label}</span><b style="color:${cor};">${txt}</b></div>`;
+  }).join("");
+
+  // ---------- Trocas pendentes ----------
+  const trocasHtml = trocas.length===0 ? `<div style="font-size:12.5px; color:var(--ink-soft);">Sem trocas pendentes.</div>` :
+    trocas.map(t=>`<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line); font-size:13px;"><span>${t.criado_por||'—'}</span><span style="color:var(--ink-soft);">${new Date(t.criado_em||t.data).toLocaleDateString('pt-PT')}</span></div>`).join("");
+
+  // ---------- Formações ----------
+  const formacoesHtml = formacoes.length===0 ? `<div style="font-size:12.5px; color:var(--ink-soft);">Sem formações registadas.</div>` :
+    formacoes.slice(0,15).map(f=>`<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line); font-size:13px;"><span>${f.colaborador} — ${f.formacao}</span></div>`).join("");
+
+  // ---------- Vitrine (ultimos 7 dias, reaproveita dailyRows ja carregado desta loja) ----------
+  const dias7 = [];
+  for(let i=6;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); dias7.push(isoDate(d)); }
+  const diasCompletos = dias7.filter(ds=>["manha","almoco","lanche"].every(t=>dailyRows.some(r=>r.tipo==="vitrine" && r.turno===t && r.data===ds))).length;
+  const pctVitrine = Math.round(diasCompletos/7*100);
+
+  corpo.innerHTML = `
+    <div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); font-weight:700; margin:14px 0 6px;">💸 Quebras ${quebrasPorJustificar.length>0?`(${quebrasPorJustificar.length} por justificar)`:''}</div>
+    ${quebrasHtml}
+    <div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); font-weight:700; margin:18px 0 6px;">📦 Inventário</div>
+    ${invHtml}
+    <div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); font-weight:700; margin:18px 0 6px;">🧾 Vitrine — últimos 7 dias</div>
+    <div style="font-size:14px; font-weight:700;">${pctVitrine}% completa (${diasCompletos}/7 dias)</div>
+    <div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); font-weight:700; margin:18px 0 6px;">🔁 Trocas de horário pendentes</div>
+    ${trocasHtml}
+    <div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); font-weight:700; margin:18px 0 6px;">🎓 Formações</div>
+    ${formacoesHtml}
+  `;
+  document.querySelectorAll(".gestaoJustificarBtn").forEach(btn=>{
+    btn.onclick = ()=>abrirJustificarQuebraLoja(Number(btn.dataset.id));
+  });
+}
+
+function abrirJustificarQuebraLoja(id){
+  const o = document.createElement("div");
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:20px;";
+  o.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:340px; width:100%;">
+      <div style="font-size:15px; font-weight:700; margin-bottom:10px;">Justificar quebra</div>
+      <input id="justifNumRegisto" placeholder="Nº de registo (se houver)" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--line); margin-bottom:10px;">
+      <textarea id="justifTexto" placeholder="Justificação" rows="3" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--line); margin-bottom:14px; font-family:inherit;"></textarea>
+      <div style="display:flex; gap:8px;">
+        <button id="justifCancelar" style="flex:1; background:none; border:1.5px solid var(--line); border-radius:10px; padding:11px; font-weight:700;">Cancelar</button>
+        <button id="justifGuardar" style="flex:1; background:var(--terracotta,#C1622E); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">Guardar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(o);
+  document.getElementById("justifCancelar").onclick = ()=>o.remove();
+  document.getElementById("justifGuardar").onclick = protegerClique(document.getElementById("justifGuardar"), async ()=>{
+    const numeroRegisto = document.getElementById("justifNumRegisto").value.trim();
+    const justificacao = document.getElementById("justifTexto").value.trim();
+    if(!numeroRegisto && !justificacao){ toast("Preenche o nº de registo ou a justificação"); return; }
+    await api("PATCH", `cj_quebras_reportes?id=eq.${id}`, {numero_registo: numeroRegisto||null, justificacao: justificacao||null});
+    toast("✔ Guardado");
+    o.remove();
+    await renderAreaGestaoLoja();
+  }, "A guardar...");
+}
+
 function abrirAjuda(){
   const overlay = document.createElement("div");
   overlay.className = "overlay";
@@ -2413,6 +2551,7 @@ window.addEventListener("online", tentarReenviarFila);
 loadAll().then(()=>{
   const estadoGuardado = lerEstadoAberturaGuardado();
   if(estadoGuardado) abrirCapturaAbertura(estadoGuardado);
+  if(params.get("gestao")==="1") abrirAreaGestaoLoja();
 });
 tentarReenviarFila();
 setInterval(loadAll, 30000);
