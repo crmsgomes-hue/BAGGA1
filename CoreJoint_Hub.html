@@ -519,10 +519,11 @@ async function renderPanoramaGeral(){
           }).join("")}
         </div>` : ``}
         <button id="btnAbrirDevolucaoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📥 Devoluções por recolher (${fardDevPg.length})</button>
-        ${botoesAcao([["👕 Abrir Fardamento (admissão de colaborador)","CoreJoint_Fardamento.html"]])}
+        <button id="btnAbrirAdmissaoHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👤 Nova admissão (montar kit)</button>
       `;
       abrirModalTopico("👕 Fardamento", corpo);
       document.getElementById("btnAbrirDevolucaoHub").onclick = abrirDevolucaoFardamentoHub;
+      document.getElementById("btnAbrirAdmissaoHub").onclick = abrirAdmissaoFardamentoHub;
       document.querySelectorAll(".fardAjustarBtn").forEach(btn=>{
         btn.onclick = ()=>ajustarStockFardamentoHub(btn.dataset.polo, btn.dataset.peca, btn.dataset.tamanho, Number(btn.dataset.delta), btn, btn.dataset.span);
       });
@@ -647,6 +648,138 @@ function abrirColarMensagemOverlay(){
       btn.disabled = false; btn.textContent = "Guardar";
     }
   };
+}
+
+async function abrirAdmissaoFardamentoHub(){
+  const [movimentos, stockRows] = await Promise.all([
+    api(`cj_fardamento_movimentos?select=colaborador_destino&colaborador_destino=not.is.null&order=criado_em.desc&limit=200`, "GET"),
+    api(`cj_fardamento_stock?select=*`, "GET")
+  ]);
+  const knownColabs = [...new Set(movimentos.map(m=>m.colaborador_destino).filter(Boolean))].sort();
+  function getQtyHub(polo, peca, tamanho){
+    const r = stockRows.find(s=>s.polo===polo && s.peca===peca && s.tamanho===tamanho);
+    return r ? Number(r.quantidade) : 0;
+  }
+  let admColab = "", admLoja = localStorage.getItem("cj_fard_lastAdmLoja") || "";
+  let admKit = {};
+
+  const overlay = document.createElement("div");
+  overlay.id = "admissaoOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+
+  function chipEl(texto){
+    const c = document.createElement("div");
+    c.textContent = texto;
+    c.style.cssText = "padding:7px 12px; border-radius:99px; background:var(--sf2); font-size:.8rem; font-weight:600; cursor:pointer; border:1.5px solid transparent;";
+    return c;
+  }
+
+  const pecasHtml = Object.keys(PECAS).map(peca=>`
+    <div style="margin-bottom:14px;">
+      <div style="font-size:.78rem; font-weight:700; color:var(--t2); margin-bottom:6px;">${peca}</div>
+      <div id="admTam_${CSS.escape(peca)}" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+      <div id="admPolo_${CSS.escape(peca)}" style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;"></div>
+    </div>
+  `).join("");
+
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:12px;">Nova admissão — monta o kit</div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:.78rem; font-weight:700; color:var(--t2); display:block; margin-bottom:6px;">Colaborador</label>
+        <div id="admColabChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+        <input id="admColabNovo" placeholder="Nome do novo colaborador" style="display:none; margin-top:8px; width:100%; padding:9px; border-radius:8px; border:1px solid var(--br);">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:.78rem; font-weight:700; color:var(--t2); display:block; margin-bottom:6px;">Loja de destino</label>
+        <div id="admLojaChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+      </div>
+      ${pecasHtml}
+      <button id="admConfirmarBtnHub" style="width:100%; margin-top:10px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:12px; font-weight:700;">Confirmar admissão</button>
+      <button id="admFecharBtn" style="width:100%; margin-top:10px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Cancelar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("admFecharBtn").onclick = ()=>overlay.remove();
+
+  const colabRow = document.getElementById("admColabChips");
+  knownColabs.forEach(name=>{
+    const c = chipEl(name);
+    c.onclick = ()=>{ admColab=name; colabRow.querySelectorAll("div").forEach(x=>x.style.border="1.5px solid transparent"); c.style.border="1.5px solid var(--terracotta,#C1622D)"; document.getElementById("admColabNovo").style.display="none"; };
+    colabRow.appendChild(c);
+  });
+  const novoChip = chipEl("+ Novo");
+  novoChip.onclick = ()=>{ admColab="__novo__"; colabRow.querySelectorAll("div").forEach(x=>x.style.border="1.5px solid transparent"); novoChip.style.border="1.5px solid var(--terracotta,#C1622D)"; document.getElementById("admColabNovo").style.display="block"; };
+  colabRow.appendChild(novoChip);
+
+  const lojaRow = document.getElementById("admLojaChips");
+  LOJAS.forEach(l=>{
+    const c = chipEl(l);
+    if(l===admLoja) c.style.border = "1.5px solid var(--terracotta,#C1622D)";
+    c.onclick = ()=>{ admLoja=l; lojaRow.querySelectorAll("div").forEach(x=>x.style.border="1.5px solid transparent"); c.style.border="1.5px solid var(--terracotta,#C1622D)"; };
+    lojaRow.appendChild(c);
+  });
+
+  function renderPolos(peca, tam){
+    const container = document.getElementById(`admPolo_${CSS.escape(peca)}`);
+    container.innerHTML = "";
+    const best = POLOS.reduce((a,b)=> getQtyHub(b,peca,tam) > getQtyHub(a,peca,tam) ? b : a, POLOS[0]);
+    POLOS.forEach(polo=>{
+      const q = getQtyHub(polo, peca, tam);
+      const btn = document.createElement("button");
+      const cor = q===0 ? "#b0432f" : q<5 ? "#c17817" : "#2e7d32";
+      btn.style.cssText = `padding:7px 11px; border-radius:8px; border:none; font-size:.72rem; font-weight:700; color:#fff; background:${cor};`;
+      btn.textContent = `${polo}: ${q}`;
+      const isBest = polo===best && q>0;
+      if(isBest && !admKit[peca].polo) admKit[peca].polo = polo;
+      if(admKit[peca].polo===polo) btn.style.outline = "3px solid var(--ink,#2B2723)";
+      btn.onclick = ()=>{
+        admKit[peca].polo = polo;
+        container.querySelectorAll("button").forEach(b=>b.style.outline="none");
+        btn.style.outline = "3px solid var(--ink,#2B2723)";
+      };
+      container.appendChild(btn);
+    });
+  }
+  Object.keys(PECAS).forEach(peca=>{
+    const tamRow = document.getElementById(`admTam_${CSS.escape(peca)}`);
+    PECAS[peca].forEach(tam=>{
+      const c = chipEl(tam);
+      c.onclick = ()=>{
+        if(admKit[peca]?.tamanho===tam){
+          delete admKit[peca];
+          tamRow.querySelectorAll("div").forEach(x=>x.style.border="1.5px solid transparent");
+          document.getElementById(`admPolo_${CSS.escape(peca)}`).innerHTML = "";
+          return;
+        }
+        admKit[peca] = {tamanho:tam, polo:null};
+        tamRow.querySelectorAll("div").forEach(x=>x.style.border="1.5px solid transparent");
+        c.style.border = "1.5px solid var(--terracotta,#C1622D)";
+        renderPolos(peca, tam);
+      };
+      tamRow.appendChild(c);
+    });
+  });
+
+  document.getElementById("admConfirmarBtnHub").onclick = protegerCliqueHub(document.getElementById("admConfirmarBtnHub"), async ()=>{
+    const colaborador = admColab==="__novo__" ? document.getElementById("admColabNovo").value.trim() : admColab;
+    if(!colaborador){ toast("Escolhe ou escreve o colaborador"); return; }
+    if(!admLoja){ toast("Escolhe a loja de destino"); return; }
+    const items = Object.entries(admKit);
+    if(items.length===0){ toast("Escolhe pelo menos uma peça"); return; }
+    const semStock = items.filter(([peca,info])=>!info.polo || getQtyHub(info.polo,peca,info.tamanho)===0);
+    if(semStock.length>0){ toast("Sem stock para: " + semStock.map(([p])=>p).join(", ")); return; }
+    for(const [peca, info] of items){
+      await api("rpc/increment_fardamento_stock", "POST", {p_polo:info.polo, p_peca:peca, p_tamanho:info.tamanho, p_delta:-1, p_por:NOMES_PERFIS[currentUser]});
+      await api("cj_fardamento_movimentos", "POST", {
+        polo:info.polo, peca, tamanho:info.tamanho, quantidade:1, tipo:"saida", colaborador_destino:colaborador, loja_destino:admLoja,
+        registado_por:NOMES_PERFIS[currentUser], nota:"Admissão", criado_em:new Date().toISOString()
+      });
+    }
+    localStorage.setItem("cj_fard_lastAdmLoja", admLoja);
+    toast(`✔ Admissão de ${colaborador} confirmada — ${items.length} peça(s)`);
+    overlay.remove();
+  }, "A processar...");
 }
 
 async function abrirDevolucaoFardamentoHub(){
