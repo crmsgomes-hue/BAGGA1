@@ -2023,8 +2023,10 @@ async function abrirResumoOntem(){
   overlay.innerHTML = `
     <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:12px;">📅 Resumo de ontem</div>
-      <div id="resumoOntemVendasWrap"></div>
+      <div id="resumoOntemVitrineWrap"></div>
+      <div id="resumoOntemVendasWrap" style="margin-top:18px;"></div>
       <div id="resumoOntemInvWrap" style="margin-top:18px;"></div>
+      <div id="resumoOntemFotosWrap" style="margin-top:18px;"></div>
       <button id="fecharResumoOntemBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
     </div>
   `;
@@ -2035,9 +2037,40 @@ async function abrirResumoOntem(){
   const ontemStr = isoDate(ontem);
   const dataFmt = ontem.toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
 
+  const [dailyOntem, invRows] = await Promise.all([
+    api(`cj_daily_reportes?select=loja,tipo,turno,fotos&data=eq.${ontemStr}`),
+    api(`cj_inventario_reportes?select=loja,categoria,fotos&data=eq.${ontemStr}`)
+  ]);
+
+  // ---------- VITRINE de ontem (manhã/almoço/lanche) ----------
+  const vitWrap = document.getElementById("resumoOntemVitrineWrap");
+  const tituloVit = document.createElement("div");
+  tituloVit.style.cssText = "font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin-bottom:6px;";
+  tituloVit.textContent = "Vitrine";
+  vitWrap.appendChild(tituloVit);
+  const capturaVit = document.createElement("div");
+  vitWrap.appendChild(capturaVit);
+  criarBotoesPartilhaHub(vitWrap, capturaVit, "CoreJoint_vitrine_ontem", "CoreJoint · Vitrine de ontem");
+
+  const TURNOS_R = [["manha","Manhã"],["almoco","Almoço"],["lanche","Lanche"]];
+  const headerVitHtml = TURNOS_R.map(([,label])=>`<th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:3px 2px; border-bottom:2px solid #C1622D;">${label}</th>`).join("");
+  const linhasVitHtml = LOJAS.map(l=>{
+    const cols = TURNOS_R.map(([t])=>{
+      const ok = dailyOntem.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t);
+      const cor = ok ? "#2e7d32" : "#b0432f";
+      return `<td style="text-align:center; color:${cor}; font-weight:800; padding:4px 2px; border-bottom:1px solid #f0ebe3; font-size:12px;">${ok?'✔':'✕'}</td>`;
+    }).join("");
+    return `<tr><td style="font-weight:700; font-size:10.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>${cols}</tr>`;
+  }).join("");
+  capturaVit.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+  capturaVit.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Vitrine</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt}</div>
+    <table style="border-collapse:collapse; width:100%;"><thead><tr><th></th>${headerVitHtml}</tr></thead><tbody>${linhasVitHtml}</tbody></table>
+  `;
+
   // ---------- VENDAS de ontem ----------
-  const vendasRows = await api(`cj_daily_reportes?select=loja&tipo=eq.vendas&turno=eq.unico&data=eq.${ontemStr}`);
-  const lojasComVendas = new Set(vendasRows.map(r=>r.loja));
+  const lojasComVendas = new Set(dailyOntem.filter(r=>r.tipo==="vendas" && r.turno==="unico").map(r=>r.loja));
 
   const vendasWrap = document.getElementById("resumoOntemVendasWrap");
   const tituloVendas = document.createElement("div");
@@ -2061,7 +2094,6 @@ async function abrirResumoOntem(){
   `;
 
   // ---------- INVENTÁRIO de ontem ----------
-  const invRows = await api(`cj_inventario_reportes?select=loja,categoria&data=eq.${ontemStr}`);
   const invWrap = document.getElementById("resumoOntemInvWrap");
   const tituloInv = document.createElement("div");
   tituloInv.style.cssText = "font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin-bottom:6px;";
@@ -2086,6 +2118,48 @@ async function abrirResumoOntem(){
     <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt}</div>
     <table style="border-collapse:collapse; width:100%;"><thead><tr><th></th>${headerInvHtml}</tr></thead><tbody>${linhasInvHtml}</tbody></table>
   `;
+
+  // ---------- FOTOS de ontem (todas as lojas, vitrine + inventário) ----------
+  const fotosWrap = document.getElementById("resumoOntemFotosWrap");
+  const tituloFotos = document.createElement("div");
+  tituloFotos.style.cssText = "font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin-bottom:6px;";
+  tituloFotos.textContent = "Fotos";
+  fotosWrap.appendChild(tituloFotos);
+  const capturaFotos = document.createElement("div");
+  fotosWrap.appendChild(capturaFotos);
+
+  const TITULOS_DAILY_R = {vitrine:"Vitrine", vendas:"Vendas", laranjas_maquina:"Laranjas", expositor_tabaco:"Tabaco"};
+  const todasCatsLabelR = {};
+  [...INV_CATS, ...MARKETING_CATS].forEach(c=>todasCatsLabelR[c.key]=c.label);
+  const itensComFoto = [];
+  dailyOntem.forEach(r=>{ (r.fotos||[]).forEach(f=>itensComFoto.push({loja:r.loja, titulo: r.tipo==="vitrine" ? `Vitrine ${TURNOS_R.find(t=>t[0]===r.turno)?.[1]||r.turno}` : (TITULOS_DAILY_R[r.tipo]||r.tipo), url:f.url})); });
+  invRows.forEach(r=>{ (r.fotos||[]).forEach(f=>itensComFoto.push({loja:r.loja, titulo: todasCatsLabelR[r.categoria]||r.categoria, url:f.url})); });
+
+  capturaFotos.style.cssText = "background:#fff; border-radius:14px; padding:12px 10px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+  if(itensComFoto.length===0){
+    capturaFotos.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Fotos</div>
+      <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt}</div>
+      <div style="font-size:12px; color:var(--t2);">Sem fotos enviadas ontem.</div>
+    `;
+  } else {
+    const fotosHtml = itensComFoto.sort((a,b)=>a.loja.localeCompare(b.loja)).map(item=>`
+      <div style="text-align:center; display:inline-block; margin:0 6px 8px 0; vertical-align:top;">
+        <img src="${item.url}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid #eee; display:block;">
+        <div style="font-size:8px; color:#777; font-weight:700; margin-top:2px; max-width:64px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${abreviarLoja(item.loja)}</div>
+        <div style="font-size:7px; color:#999; max-width:64px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.titulo}</div>
+      </div>
+    `).join("");
+    capturaFotos.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Fotos</div>
+      <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} — ${itensComFoto.length} foto(s)</div>
+      <div>${fotosHtml}</div>
+    `;
+    // espera as imagens carregarem antes de disponibilizar a partilha, para o html2canvas nao capturar em branco
+    const imgs = Array.from(capturaFotos.querySelectorAll("img"));
+    await Promise.all(imgs.map(img=>img.complete ? Promise.resolve() : new Promise(res=>{ img.onload=res; img.onerror=res; })));
+  }
+  criarBotoesPartilhaHub(fotosWrap, capturaFotos, "CoreJoint_fotos_ontem", "CoreJoint · Fotos de ontem");
 }
 
 function abrirLembretesOverlay(){
