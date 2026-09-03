@@ -480,11 +480,12 @@ async function renderPanoramaGeral(){
         ${linhasRh.length===0 ? `<div style="font-size:.8rem; color:var(--t2); margin-bottom:12px;">✔ Sem adendas em curso.</div>` : `<div style="display:flex; flex-direction:column; gap:1px; margin-bottom:12px;">
           ${linhasRh.map(([l,n])=>`<div style="display:flex; justify-content:space-between; padding:7px 2px; border-bottom:1px solid var(--br);"><span style="font-size:.85rem; font-weight:600;">${l}</span><span style="font-size:.85rem; font-weight:800;">${n}</span></div>`).join("")}
         </div>`}
-        <button id="btnNovaAdendaHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">➕ Nova adenda</button>
-        ${botoesAcao([["📋 Abrir RH / Adendas (acompanhar etapas e assinaturas)","CoreJoint_Adendas.html"]])}
+        <button id="btnVerAdendasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👁️ Ver e avançar adendas</button>
+        <button id="btnNovaAdendaHub" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">➕ Nova adenda</button>
       `;
       abrirModalTopico("📋 RH", corpo);
       document.getElementById("btnNovaAdendaHub").onclick = abrirNovaAdendaHub;
+      document.getElementById("btnVerAdendasHub").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirListaAdendasHub(); };
     };
 
     document.querySelector('[data-topico="fardamento"]').onclick = ()=>{
@@ -648,6 +649,373 @@ function abrirColarMensagemOverlay(){
       btn.disabled = false; btn.textContent = "Guardar";
     }
   };
+}
+
+const STAGES = [
+  {key:"impressa", label:"Imprimir", verb:"Marcar como impressa", nextField:"impressa_em", personField:"impressa_por"},
+  {key:"entregue", label:"Entregar", verb:"Marcar como entregue", nextField:"entregue_em", personField:"entregue_por"},
+  {key:"assinada", label:"Assinar", verb:"Marcar como assinada (+ foto)", nextField:"assinada_em", personField:"assinada_por", needsPhoto:true, photoField:"foto_assinada"},
+  {key:"copia_entregue", label:"Entreguei cópia ao colaborador", verb:"Confirmo que entreguei uma cópia", nextField:"copia_entregue_em", personField:"copia_entregue_por"},
+  {key:"recolhida", label:"Recolher da loja", verb:"Marcar como recolhida", nextField:"recolhida_em", personField:"recolhida_por"},
+  {key:"enviada", label:"Entregar ao RH", verb:"Marcar como entregue ao RH", nextField:"enviada_em", personField:"enviada_por"}
+];
+function daysSinceHub(dateStr){ if(!dateStr) return 0; return Math.floor((Date.now()-new Date(dateStr).getTime())/86400000); }
+function currentStageIndexHub(row){
+  for(let i=0;i<STAGES.length;i++){ if(!row[STAGES[i].nextField]) return i; }
+  return STAGES.length;
+}
+let camStreamHub = null, pendingPhotosSignHub = [];
+
+async function abrirListaAdendasHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "adendasListaOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:14px;">📋 Adendas em curso</div>
+      <div id="adendasListaCorpoHub"><div style="text-align:center; padding:20px 0; color:var(--t2); font-size:.85rem;">A carregar...</div></div>
+      <button id="fecharAdendasListaHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("fecharAdendasListaHubBtn").onclick = ()=>overlay.remove();
+  await renderListaAdendasHub();
+}
+
+async function renderListaAdendasHub(){
+  const corpo = document.getElementById("adendasListaCorpoHub");
+  const rows = await api(`cj_adendas?select=*&arquivada=eq.false&order=criado_em.desc`, "GET");
+  if(rows.length===0){ corpo.innerHTML = `<div style="text-align:center; padding:20px 0; color:var(--t2); font-size:.85rem;">✔ Sem adendas em curso.</div>`; return; }
+  corpo.innerHTML = rows.map(r=>{
+    if(r.tipo && r.tipo!=="Alteração de horário") return cardSimplificadaHtml(r);
+    return cardEtapasHtml(r, currentStageIndexHub(r));
+  }).join("");
+  ligarAcoesAdendasHub(rows);
+}
+
+function cardEtapasHtml(r, stageIdx){
+  const stage = STAGES[stageIdx];
+  const d = daysSinceHub(r.updated_at||r.criado_em);
+  const dayLabel = d===0?"hoje":d===1?"há 1 dia":`há ${d} dias`;
+  const corBadge = d>=5?"var(--red)":d>=2?"var(--org,#c17817)":"var(--grn)";
+  let actionsHtml = stage
+    ? `<button class="adnAvancarBtn" data-id="${r.id}" data-stage="${stageIdx}" style="width:100%; margin-top:8px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:8px; padding:10px; font-weight:700; font-size:.8rem;">${stage.verb}</button>`
+    : `<div style="font-size:.78rem; color:var(--t2); margin-top:8px;">✅ Concluída — entregue ao RH em ${new Date(r.enviada_em).toLocaleDateString('pt-PT')} por ${r.enviada_por||''}</div>`;
+  let alertHtml = "";
+  if(stage && d>=3){
+    const txt = stageIdx===2 ? `⚠ Pendente de foto/assinatura há ${d} dias` : `⚠ Parada em "${stage.label}" há ${d} dias`;
+    alertHtml = `<div style="background:var(--red); color:#fff; font-weight:700; font-size:.75rem; padding:7px 10px; border-radius:8px; margin-top:8px;">${txt}</div>`;
+  }
+  const undoHtml = stageIdx>0 ? `<button class="adnUndoBtn" data-id="${r.id}" data-stage="${stageIdx-1}" style="width:100%; margin-top:6px; background:none; border:1px solid var(--br); border-radius:8px; padding:8px; font-size:.72rem; color:var(--t2);">↩ desfazer última etapa</button>` : "";
+  const fotoPrincipal = r.foto_assinada || r.foto_entregue;
+  const fotoHtml = fotoPrincipal ? `<img class="adnFotoBtn" data-src="${fotoPrincipal}" src="${fotoPrincipal}" style="width:44px; height:44px; object-fit:cover; border-radius:8px; cursor:pointer;">` : `<span style="background:${corBadge}; color:#fff; font-size:.68rem; font-weight:700; padding:3px 8px; border-radius:99px;">${dayLabel}</span>`;
+  let assinaturaHtml = "";
+  if(r.assinada_em){
+    if(r.assinatura_digital==="DISPENSADA") assinaturaHtml = `<div style="font-size:.72rem; color:var(--t2); margin-top:6px;">✍️ Assinatura digital dispensada</div>`;
+    else if(r.assinatura_digital) assinaturaHtml = `<div class="adnVerAssinaturaBtn" data-src="${r.assinatura_digital}" style="font-size:.72rem; margin-top:6px; text-decoration:underline; cursor:pointer;">✍️ Ver assinatura digital</div>`;
+    else assinaturaHtml = `<div style="display:flex; gap:8px; margin-top:6px; align-items:center;">
+      <button class="adnAssinarDigitalBtn" data-id="${r.id}" style="flex:1; background:none; border:1px solid var(--br); border-radius:8px; padding:7px; font-size:.72rem;">✍️ Adicionar assinatura digital</button>
+      <span class="adnDispensarBtn" data-id="${r.id}" style="font-size:.7rem; color:var(--t2); text-decoration:underline; cursor:pointer; white-space:nowrap;">Dispensar</span>
+    </div>`;
+  }
+  return `<div style="background:var(--sf2); border-radius:10px; padding:12px; margin-bottom:10px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <div style="font-size:.7rem; color:var(--t2);">${r.loja||''}</div>
+        <div style="font-weight:700; font-size:.9rem;">${r.colaborador}</div>
+        <div style="font-size:.75rem; color:var(--t2);">${r.tipo||'Adenda'}</div>
+      </div>
+      ${fotoHtml}
+    </div>
+    ${alertHtml}
+    ${actionsHtml}
+    ${assinaturaHtml}
+    ${undoHtml}
+  </div>`;
+}
+
+function cardSimplificadaHtml(r){
+  const d = daysSinceHub(r.updated_at||r.criado_em);
+  const dayLabel = d===0?"hoje":d===1?"há 1 dia":`há ${d} dias`;
+  const corBadge = d>=5?"var(--red)":d>=2?"var(--org,#c17817)":"var(--grn)";
+  const docs = (r.documentos&&r.documentos.length) ? r.documentos : (r.documento_upload?[r.documento_upload]:[]);
+  const docsHtml = docs.length>0
+    ? `<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">${docs.map(u=>`<img class="adnFotoBtn" data-src="${u}" src="${u}" style="width:52px; height:52px; object-fit:cover; border-radius:8px; cursor:pointer;">`).join("")}</div>`
+    : `<div style="font-size:.72rem; color:var(--t2); margin-top:6px;">Sem documento anexado</div>`;
+  const ehBaixa = r.tipo==="Baixa";
+  const assinaturasHtml = (!ehBaixa && r.precisa_assinaturas)
+    ? `<label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:.78rem;"><input type="checkbox" class="adnToggleBtn" data-id="${r.id}" data-campo="assinaturas_recolhidas" ${r.assinaturas_recolhidas?'checked':''} style="width:16px; height:16px;"> Assinaturas recolhidas</label>` : ``;
+  const rhHtml = ehBaixa
+    ? `<label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:.78rem;"><input type="checkbox" class="adnToggleBtn" data-id="${r.id}" data-campo="lancada_wfm" ${r.lancada_wfm?'checked':''} style="width:16px; height:16px;"> Lançada em WFM</label>`
+    : `<label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:.78rem;"><input type="checkbox" class="adnToggleBtn" data-id="${r.id}" data-campo="enviada_rh" ${r.enviada_rh?'checked':''} style="width:16px; height:16px;"> Enviada aos RH</label>`;
+  return `<div style="background:var(--sf2); border-radius:10px; padding:12px; margin-bottom:10px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <div style="font-size:.7rem; color:var(--t2);">${r.loja||''}</div>
+        <div style="font-weight:700; font-size:.9rem;">${r.colaborador}</div>
+        <div style="font-size:.75rem; color:var(--t2);">${r.tipo||'Adenda'}</div>
+      </div>
+      <span style="background:${corBadge}; color:#fff; font-size:.68rem; font-weight:700; padding:3px 8px; border-radius:99px;">${dayLabel}</span>
+    </div>
+    ${docsHtml}
+    <label style="display:block; margin-top:8px; background:var(--terracotta,#C1622D); color:#fff; text-align:center; border-radius:8px; padding:8px; font-size:.75rem; font-weight:700; cursor:pointer;">📷 Adicionar foto/documento<input type="file" accept="image/*,application/pdf" class="adnAddFotoInput" data-id="${r.id}" style="display:none;"></label>
+    ${assinaturasHtml}
+    ${rhHtml}
+  </div>`;
+}
+
+function ligarAcoesAdendasHub(rows){
+  document.querySelectorAll(".adnToggleBtn").forEach(inp=>{
+    inp.onchange = ()=>toggleCampoSimplesHub(Number(inp.dataset.id), inp.dataset.campo, inp.checked);
+  });
+  document.querySelectorAll(".adnAddFotoInput").forEach(inp=>{
+    inp.addEventListener("change", (ev)=>adicionarFotoAdendaHub(Number(inp.dataset.id), ev.target.files[0]));
+  });
+  document.querySelectorAll(".adnAvancarBtn").forEach(btn=>{
+    btn.onclick = ()=>avancarAdendaHub(Number(btn.dataset.id), Number(btn.dataset.stage), rows);
+  });
+  document.querySelectorAll(".adnUndoBtn").forEach(btn=>{
+    btn.onclick = async ()=>{
+      if(!confirm("Desfazer a última etapa desta adenda?")) return;
+      const stage = STAGES[Number(btn.dataset.stage)];
+      const patch = {[stage.nextField]:null, [stage.personField]:null, updated_at:new Date().toISOString()};
+      if(Number(btn.dataset.stage)===STAGES.length-1) patch.arquivada = false;
+      await api(`cj_adendas?id=eq.${btn.dataset.id}`, "PATCH", patch);
+      toast("Etapa desfeita");
+      await renderListaAdendasHub();
+    };
+  });
+  document.querySelectorAll(".adnFotoBtn").forEach(img=>{
+    img.onclick = ()=>abrirFotoGrandeHub(img.dataset.src);
+  });
+  document.querySelectorAll(".adnVerAssinaturaBtn").forEach(el=>{
+    el.onclick = ()=>abrirFotoGrandeHub(el.dataset.src);
+  });
+  document.querySelectorAll(".adnAssinarDigitalBtn").forEach(btn=>{
+    btn.onclick = ()=>abrirAssinaturaDigitalHub(Number(btn.dataset.id));
+  });
+  document.querySelectorAll(".adnDispensarBtn").forEach(btn=>{
+    btn.onclick = async ()=>{
+      await api(`cj_adendas?id=eq.${btn.dataset.id}`, "PATCH", {assinatura_digital:"DISPENSADA", updated_at:new Date().toISOString()});
+      toast("Dispensada");
+      await renderListaAdendasHub();
+    };
+  });
+}
+
+function abrirFotoGrandeHub(src){
+  const o = document.createElement("div");
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.9); z-index:999999; display:flex; align-items:center; justify-content:center; padding:20px;";
+  o.innerHTML = `<img src="${src}" style="max-width:100%; max-height:100%; border-radius:8px;">`;
+  o.onclick = ()=>o.remove();
+  document.body.appendChild(o);
+}
+
+async function toggleCampoSimplesHub(id, campo, valor){
+  if(campo==="lancada_wfm"){
+    await api(`cj_adendas?id=eq.${id}`, "PATCH", {lancada_wfm:valor, arquivada:valor, updated_at:new Date().toISOString()});
+    toast(valor ? "✔ Lançada em WFM" : "Desmarcada");
+    await renderListaAdendasHub();
+    return;
+  }
+  const atualRows = await api(`cj_adendas?select=precisa_assinaturas,assinaturas_recolhidas,enviada_rh&id=eq.${id}`, "GET");
+  const atual = atualRows[0]||{};
+  const novoEstado = {
+    precisa_assinaturas: atual.precisa_assinaturas,
+    assinaturas_recolhidas: campo==="assinaturas_recolhidas" ? valor : atual.assinaturas_recolhidas,
+    enviada_rh: campo==="enviada_rh" ? valor : atual.enviada_rh
+  };
+  const checklistCompleto = (!novoEstado.precisa_assinaturas || novoEstado.assinaturas_recolhidas) && novoEstado.enviada_rh;
+  const patch = {[campo]:valor, updated_at:new Date().toISOString()};
+  if(campo==="enviada_rh" && valor){ patch.enviada_em = new Date().toISOString(); patch.enviada_por = NOMES_PERFIS[currentUser]; }
+  patch.arquivada = checklistCompleto;
+  await api(`cj_adendas?id=eq.${id}`, "PATCH", patch);
+  if(!checklistCompleto && novoEstado.enviada_rh && novoEstado.precisa_assinaturas && !novoEstado.assinaturas_recolhidas){
+    toast("Falta recolher as assinaturas antes de concluir");
+  } else {
+    toast("✔ Atualizado");
+  }
+  await renderListaAdendasHub();
+}
+
+async function adicionarFotoAdendaHub(id, file){
+  if(!file) return;
+  const dataUrl = await new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  const atualRows = await api(`cj_adendas?select=documentos,documento_upload&id=eq.${id}`, "GET");
+  const atual = atualRows[0];
+  const docsAtuais = (atual.documentos&&atual.documentos.length) ? atual.documentos : (atual.documento_upload?[atual.documento_upload]:[]);
+  await api(`cj_adendas?id=eq.${id}`, "PATCH", {documentos:[...docsAtuais, dataUrl], updated_at:new Date().toISOString()});
+  toast("✔ Foto adicionada!");
+  await renderListaAdendasHub();
+}
+
+async function avancarAdendaHub(id, stageIdx, rows){
+  const stage = STAGES[stageIdx];
+  const row = rows.find(r=>r.id===id);
+  if(stage.needsPhoto){ abrirCapturaFotoAdendaHub(id, stageIdx); return; }
+  if(stage.key==="copia_entregue"){ abrirConfirmarEntregaHub(id, stageIdx, row); return; }
+  await commitAdvanceHub(id, stageIdx, null);
+}
+
+async function commitAdvanceHub(id, stageIdx, photoDataUrl, confirmadoPeloColaborador){
+  const stage = STAGES[stageIdx];
+  const rows = await api(`cj_adendas?select=colaborador&id=eq.${id}`, "GET");
+  const row = rows[0];
+  const now = new Date().toISOString();
+  const patch = {
+    [stage.nextField]: now,
+    [stage.personField]: confirmadoPeloColaborador ? (row?.colaborador||NOMES_PERFIS[currentUser])+" (confirmado pelo próprio)" : NOMES_PERFIS[currentUser],
+    updated_at: now
+  };
+  if(photoDataUrl){ patch[stage.photoField] = photoDataUrl; }
+  if(stageIdx===STAGES.length-1) patch.arquivada = true;
+  await api(`cj_adendas?id=eq.${id}`, "PATCH", patch);
+  toast("✔ Atualizado");
+  await renderListaAdendasHub();
+}
+
+function abrirConfirmarEntregaHub(id, stageIdx, row){
+  const o = document.createElement("div");
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:999999; display:flex; align-items:center; justify-content:center; padding:20px;";
+  o.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:380px; width:100%;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:16px; margin-bottom:6px;">Confirmação de entrega</div>
+      <div style="font-size:.8rem; color:var(--t2); margin-bottom:14px;">Passa o telemóvel a <b>${row.colaborador}</b> para confirmar.</div>
+      <div style="background:var(--sf2); border-radius:10px; padding:16px; text-align:center; margin-bottom:14px;">
+        <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:16px;">${row.colaborador}</div>
+        <div style="font-size:.78rem; color:var(--t2); margin-top:4px;">Confirmo que recebi em mão a adenda: <b>${row.tipo||'Adenda'}</b></div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button id="adnCancelarConfirmBtn" style="flex:1; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Cancelar</button>
+        <button id="adnConfirmarConfirmBtn" style="flex:1; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Confirmo que recebi</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(o);
+  document.getElementById("adnCancelarConfirmBtn").onclick = ()=>o.remove();
+  document.getElementById("adnConfirmarConfirmBtn").onclick = protegerCliqueHub(document.getElementById("adnConfirmarConfirmBtn"), async ()=>{
+    o.remove();
+    await commitAdvanceHub(id, stageIdx, null, true);
+  }, "A confirmar...");
+}
+
+async function abrirCapturaFotoAdendaHub(id, stageIdx){
+  const stage = STAGES[stageIdx];
+  pendingPhotosSignHub = [];
+  const o = document.createElement("div");
+  o.id = "capturaFotoAdendaOverlayHub";
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:999999; display:flex; align-items:center; justify-content:center; padding:20px;";
+  o.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:380px; width:100%;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:16px; margin-bottom:2px;">Foto — ${stage.label}</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:10px;">A câmara vai abrir — podes tirar várias fotos.</div>
+      <video id="hCamVideo" autoplay playsinline style="width:100%; border-radius:10px; background:#000;"></video>
+      <canvas id="hCamCanvas" style="display:none;"></canvas>
+      <div id="hSignThumbs" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;"></div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button id="hFecharCapturaBtn" style="flex:1; background:none; border:1.5px solid var(--br); border-radius:10px; padding:10px; font-weight:700; color:var(--t2);">Cancelar</button>
+        <button id="hTirarFotoBtn" style="flex:1; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-weight:700;">📷 Tirar foto</button>
+      </div>
+      <label style="display:block; text-align:center; cursor:pointer; margin-top:8px; font-size:.78rem; text-decoration:underline; color:var(--t2);">🖼️ Escolher da galeria<input type="file" accept="image/*" id="hGaleriaInput" style="display:none;"></label>
+      <button id="hSalvarFotoBtn" style="width:100%; margin-top:10px; background:var(--grn); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700; display:none;">Confirmar ${stage.label.toLowerCase()}</button>
+    </div>
+  `;
+  document.body.appendChild(o);
+  function pararCamaraHub(){ if(camStreamHub){ camStreamHub.getTracks().forEach(t=>t.stop()); camStreamHub=null; } }
+  document.getElementById("hFecharCapturaBtn").onclick = ()=>{ pararCamaraHub(); o.remove(); };
+  try{
+    camStreamHub = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false});
+    document.getElementById("hCamVideo").srcObject = camStreamHub;
+  }catch(e){
+    console.error(e);
+    toast("Não consegui aceder à câmara — usa a galeria.");
+  }
+  function processarImagem(dataUrlOuImg, ehCanvasDireto){
+    pendingPhotosSignHub.push(dataUrlOuImg);
+    document.getElementById("hSignThumbs").innerHTML = pendingPhotosSignHub.map(u=>`<img src="${u}" style="width:52px; height:52px; object-fit:cover; border-radius:8px;">`).join("");
+    document.getElementById("hSalvarFotoBtn").style.display = "block";
+  }
+  document.getElementById("hTirarFotoBtn").onclick = ()=>{
+    const video = document.getElementById("hCamVideo");
+    const canvas = document.getElementById("hCamCanvas");
+    if(!video.videoWidth){ toast("A câmara ainda está a arrancar — espera 1 segundo."); return; }
+    const maxDim = 1280;
+    let w=video.videoWidth, h=video.videoHeight;
+    if(w>h && w>maxDim){ h=h*maxDim/w; w=maxDim; } else if(h>maxDim){ w=w*maxDim/h; h=maxDim; }
+    canvas.width=w; canvas.height=h;
+    canvas.getContext("2d").drawImage(video,0,0,w,h);
+    processarImagem(canvas.toDataURL("image/jpeg",0.75));
+  };
+  document.getElementById("hGaleriaInput").addEventListener("change",(ev)=>{
+    const file = ev.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const canvas = document.getElementById("hCamCanvas");
+        const maxDim = 1280;
+        let w=img.width, h=img.height;
+        if(w>h && w>maxDim){ h=h*maxDim/w; w=maxDim; } else if(h>maxDim){ w=w*maxDim/h; h=maxDim; }
+        canvas.width=w; canvas.height=h;
+        canvas.getContext("2d").drawImage(img,0,0,w,h);
+        processarImagem(canvas.toDataURL("image/jpeg",0.75));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  document.getElementById("hSalvarFotoBtn").onclick = protegerCliqueHub(document.getElementById("hSalvarFotoBtn"), async ()=>{
+    pararCamaraHub();
+    o.remove();
+    await commitAdvanceHub(id, stageIdx, pendingPhotosSignHub[0]);
+  }, "A guardar...");
+}
+
+let sigDrawingHub=false, sigLastXHub=0, sigLastYHub=0;
+function abrirAssinaturaDigitalHub(id){
+  const o = document.createElement("div");
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:999999; display:flex; align-items:center; justify-content:center; padding:20px;";
+  o.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:380px; width:100%;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:16px; margin-bottom:4px;">Assinatura digital</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:10px;">Extra ao papel — passa o telemóvel ao colaborador para assinar com o dedo.</div>
+      <canvas id="hSigCanvas" style="width:100%; height:180px; background:#fff; border:1px solid var(--br); border-radius:10px; touch-action:none;"></canvas>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button id="hLimparSigBtn" style="flex:1; background:none; border:1.5px solid var(--br); border-radius:10px; padding:10px; font-weight:700; color:var(--t2);">↺ Limpar</button>
+        <button id="hCancelarSigBtn" style="flex:1; background:none; border:1.5px solid var(--br); border-radius:10px; padding:10px; font-weight:700; color:var(--t2);">Cancelar</button>
+      </div>
+      <button id="hGuardarSigBtn" style="width:100%; margin-top:8px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">Guardar</button>
+    </div>
+  `;
+  document.body.appendChild(o);
+  document.getElementById("hCancelarSigBtn").onclick = ()=>o.remove();
+  const canvas = document.getElementById("hSigCanvas");
+  setTimeout(()=>{
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width*2; canvas.height = rect.height*2;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(2,2); ctx.strokeStyle = "#2B2723"; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+    function pos(e){ const r=canvas.getBoundingClientRect(); const p=e.touches?e.touches[0]:e; return {x:p.clientX-r.left, y:p.clientY-r.top}; }
+    function start(e){ sigDrawingHub=true; const p=pos(e); sigLastXHub=p.x; sigLastYHub=p.y; }
+    function move(e){ if(!sigDrawingHub) return; e.preventDefault(); const p=pos(e); ctx.beginPath(); ctx.moveTo(sigLastXHub,sigLastYHub); ctx.lineTo(p.x,p.y); ctx.stroke(); sigLastXHub=p.x; sigLastYHub=p.y; }
+    function end(){ sigDrawingHub=false; }
+    canvas.addEventListener("mousedown",start); canvas.addEventListener("mousemove",move); canvas.addEventListener("mouseup",end);
+    canvas.addEventListener("touchstart",start); canvas.addEventListener("touchmove",move); canvas.addEventListener("touchend",end);
+  }, 0);
+  document.getElementById("hLimparSigBtn").onclick = ()=>{ const ctx=canvas.getContext("2d"); ctx.clearRect(0,0,canvas.width,canvas.height); };
+  document.getElementById("hGuardarSigBtn").onclick = protegerCliqueHub(document.getElementById("hGuardarSigBtn"), async ()=>{
+    const dataUrl = canvas.toDataURL("image/png");
+    o.remove();
+    await api(`cj_adendas?id=eq.${id}`, "PATCH", {assinatura_digital:dataUrl, updated_at:new Date().toISOString()});
+    toast("✔ Assinatura digital guardada");
+    await renderListaAdendasHub();
+  }, "A guardar...");
 }
 
 async function abrirAdmissaoFardamentoHub(){
