@@ -514,14 +514,24 @@ async function renderPanoramaGeral(){
               <b id="${spanId}" data-qtd="${Number(f.quantidade)}" style="color:var(--red); min-width:22px; text-align:right;">${qtdInicial}</b>
               <button class="fardAjustarBtn" data-polo="${f.polo}" data-peca="${f.peca}" data-tamanho="${f.tamanho}" data-delta="1" data-span="${spanId}" style="background:var(--grn); color:#fff; border:none; border-radius:6px; width:26px; height:26px; font-weight:800; font-size:.9rem;">+</button>
               <button class="fardAjustarBtn" data-polo="${f.polo}" data-peca="${f.peca}" data-tamanho="${f.tamanho}" data-delta="-1" data-span="${spanId}" style="background:var(--sf2); color:var(--t2); border:none; border-radius:6px; width:26px; height:26px; font-weight:800; font-size:.9rem;">−</button>
+              <button class="fardSaidaBtn" data-polo="${f.polo}" data-peca="${f.peca}" data-tamanho="${f.tamanho}" data-span="${spanId}" style="background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:6px; padding:0 8px; height:26px; font-weight:700; font-size:.7rem;">Saída</button>
             </div>`;
           }).join("")}
         </div>` : ``}
-        ${botoesAcao([["👕 Abrir Fardamento (saída, devolução, admissão)","CoreJoint_Fardamento.html"]])}
+        <button id="btnAbrirDevolucaoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📥 Devoluções por recolher (${fardDevPg.length})</button>
+        ${botoesAcao([["👕 Abrir Fardamento (admissão de colaborador)","CoreJoint_Fardamento.html"]])}
       `;
       abrirModalTopico("👕 Fardamento", corpo);
+      document.getElementById("btnAbrirDevolucaoHub").onclick = abrirDevolucaoFardamentoHub;
       document.querySelectorAll(".fardAjustarBtn").forEach(btn=>{
         btn.onclick = ()=>ajustarStockFardamentoHub(btn.dataset.polo, btn.dataset.peca, btn.dataset.tamanho, Number(btn.dataset.delta), btn, btn.dataset.span);
+      });
+      document.querySelectorAll(".fardSaidaBtn").forEach(btn=>{
+        btn.onclick = ()=>{
+          const spanEl = document.getElementById(btn.dataset.span);
+          const disponivel = Number(spanEl.dataset.qtd);
+          abrirSaidaFardamentoHub(btn.dataset.polo, btn.dataset.peca, btn.dataset.tamanho, disponivel);
+        };
       });
     };
 
@@ -637,6 +647,267 @@ function abrirColarMensagemOverlay(){
       btn.disabled = false; btn.textContent = "Guardar";
     }
   };
+}
+
+async function abrirDevolucaoFardamentoHub(){
+  let devKit = {peca:null, tamanho:null}, devLoja = "", devColab = "", devQtd = 1;
+  const [movimentos, devolucoes] = await Promise.all([
+    api(`cj_fardamento_movimentos?select=colaborador_destino&colaborador_destino=not.is.null&order=criado_em.desc&limit=200`, "GET"),
+    api(`cj_fardamento_devolucoes?select=*&recolhido=eq.false&order=criado_em.asc`, "GET")
+  ]);
+  const knownColabs = [...new Set(movimentos.map(m=>m.colaborador_destino).filter(Boolean))].sort();
+
+  const overlay = document.createElement("div");
+  overlay.id = "devolucaoOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+
+  function chipEl(texto){
+    const c = document.createElement("div");
+    c.textContent = texto;
+    c.style.cssText = "padding:7px 12px; border-radius:99px; background:var(--sf2); font-size:.8rem; font-weight:600; cursor:pointer; border:1.5px solid transparent;";
+    return c;
+  }
+
+  const listaHtml = devolucoes.length===0 ? `<div style="text-align:center; color:var(--t2); font-size:.85rem; padding:14px 0;">Sem devoluções por recolher.</div>` :
+    devolucoes.map(d=>{
+      const dias = Math.floor((Date.now()-new Date(d.criado_em).getTime())/86400000);
+      const urgente = dias>=7;
+      return `
+      <div style="border-left:3px solid ${urgente?'var(--red)':'var(--org,#c17817)'}; background:var(--sf2); border-radius:8px; padding:10px 12px; margin-bottom:8px;">
+        <div style="font-size:.82rem; font-weight:700;">${d.peca} · ${d.tamanho} · <span id="devQtdViewHub-${d.id}">${d.quantidade||1}</span> un. ${urgente?`<span style="color:var(--red); font-weight:800;">⚠ há ${dias}d</span>`:''}</div>
+        <div style="font-size:.75rem; color:var(--t2); margin-top:2px;">${d.loja} ← ${d.colaborador||'sem nome'} · ${new Date(d.criado_em).toLocaleDateString('pt-PT')}</div>
+        <div style="display:flex; gap:5px; margin-top:8px; flex-wrap:wrap;">
+          <button class="devAjustarBtn" data-id="${d.id}" data-delta="-1" style="background:#fff; border:1px solid var(--br); border-radius:6px; width:26px; height:26px; font-weight:800;">−</button>
+          <button class="devAjustarBtn" data-id="${d.id}" data-delta="1" style="background:#fff; border:1px solid var(--br); border-radius:6px; width:26px; height:26px; font-weight:800;">+</button>
+          <button class="devRemoverBtn" data-id="${d.id}" style="background:#fff; border:1px solid var(--br); border-radius:6px; padding:0 8px; height:26px; font-size:.72rem;">🗑️ Foi engano</button>
+        </div>
+        <div style="display:flex; gap:5px; margin-top:6px; flex-wrap:wrap;">
+          ${POLOS.map(polo=>`<button class="devRecolherBtn" data-id="${d.id}" data-polo="${polo}" data-peca="${d.peca}" data-tamanho="${d.tamanho}" data-qtd="${d.quantidade||1}" style="background:var(--grn); color:#fff; border:none; border-radius:6px; padding:5px 9px; font-size:.72rem; font-weight:700;">Recolher p/ ${polo}</button>`).join("")}
+          <button class="devDescartarBtn" data-id="${d.id}" style="background:var(--red); color:#fff; border:none; border-radius:6px; padding:5px 9px; font-size:.72rem; font-weight:700;">🚫 Descartar</button>
+        </div>
+      </div>`;
+    }).join("");
+
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:12px;">Devoluções — farda por recolher</div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:.78rem; font-weight:700; color:var(--t2); display:block; margin-bottom:6px;">Loja onde ficou a farda</label>
+        <div id="hdLojaChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:.78rem; font-weight:700; color:var(--t2); display:block; margin-bottom:6px;">Colaborador</label>
+        <div id="hdColabChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+        <input id="hdColabNovo" placeholder="Nome do colaborador" style="display:none; margin-top:8px; width:100%; padding:9px; border-radius:8px; border:1px solid var(--br);">
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:.78rem; font-weight:700; color:var(--t2); display:block; margin-bottom:6px;">Peça</label>
+        <div id="hdPecaChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+        <div id="hdTamRow" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;"></div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:.78rem; font-weight:700; color:var(--t2); display:block; margin-bottom:6px;">Quantidade</label>
+        <div style="display:flex; align-items:center; gap:14px; justify-content:center;">
+          <button id="hdQtyMinus" style="width:36px; height:36px; border-radius:50%; border:1.5px solid var(--br); background:none; font-size:16px; font-weight:800;">−</button>
+          <span id="hdQtyDisplay" style="font-size:18px; font-weight:800; min-width:20px; text-align:center;">1</span>
+          <button id="hdQtyPlus" style="width:36px; height:36px; border-radius:50%; border:1.5px solid var(--br); background:none; font-size:16px; font-weight:800;">+</button>
+        </div>
+      </div>
+      <button id="hdConfirmarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:12px; font-weight:700;">Registar devolução</button>
+      <div style="font-size:.7rem; text-transform:uppercase; letter-spacing:.04em; color:var(--t2); font-weight:700; margin:18px 0 8px;">Por recolher (${devolucoes.length})</div>
+      <div id="hdListaDevolucoes">${listaHtml}</div>
+      <button id="hdFecharBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("hdFecharBtn").onclick = ()=>overlay.remove();
+  document.getElementById("hdQtyMinus").onclick = ()=>{ devQtd=Math.max(1,devQtd-1); document.getElementById("hdQtyDisplay").textContent=devQtd; };
+  document.getElementById("hdQtyPlus").onclick = ()=>{ devQtd=devQtd+1; document.getElementById("hdQtyDisplay").textContent=devQtd; };
+
+  const lojaRow = document.getElementById("hdLojaChips");
+  LOJAS.forEach(l=>{
+    const c = chipEl(l);
+    c.onclick = ()=>{ devLoja=l; lojaRow.querySelectorAll("div").forEach(x=>x.style.border="1.5px solid transparent"); c.style.border="1.5px solid var(--terracotta,#C1622D)"; };
+    lojaRow.appendChild(c);
+  });
+  const colabRow = document.getElementById("hdColabChips");
+  knownColabs.forEach(name=>{
+    const c = chipEl(name);
+    c.onclick = ()=>{ devColab=name; colabRow.querySelectorAll("div").forEach(x=>x.style.border="1.5px solid transparent"); c.style.border="1.5px solid var(--terracotta,#C1622D)"; document.getElementById("hdColabNovo").style.display="none"; };
+    colabRow.appendChild(c);
+  });
+  const novoChip = chipEl("+ Novo");
+  novoChip.onclick = ()=>{ devColab="__novo__"; colabRow.querySelectorAll("div").forEach(x=>x.style.border="1.5px solid transparent"); novoChip.style.border="1.5px solid var(--terracotta,#C1622D)"; document.getElementById("hdColabNovo").style.display="block"; };
+  colabRow.appendChild(novoChip);
+
+  const pecaRow = document.getElementById("hdPecaChips");
+  Object.keys(PECAS).forEach(peca=>{
+    const c = chipEl(peca);
+    c.onclick = ()=>{
+      devKit.peca = peca; devKit.tamanho = null;
+      pecaRow.querySelectorAll("div").forEach(x=>x.style.border="1.5px solid transparent");
+      c.style.border = "1.5px solid var(--terracotta,#C1622D)";
+      const tamRow = document.getElementById("hdTamRow");
+      tamRow.innerHTML = "";
+      PECAS[peca].forEach(tam=>{
+        const tc = chipEl(tam);
+        tc.onclick = ()=>{ devKit.tamanho=tam; tamRow.querySelectorAll("div").forEach(x=>x.style.border="1.5px solid transparent"); tc.style.border="1.5px solid var(--terracotta,#C1622D)"; };
+        tamRow.appendChild(tc);
+      });
+    };
+    pecaRow.appendChild(c);
+  });
+
+  document.getElementById("hdConfirmarBtn").onclick = protegerCliqueHub(document.getElementById("hdConfirmarBtn"), async ()=>{
+    const colaborador = devColab==="__novo__" ? document.getElementById("hdColabNovo").value.trim() : devColab;
+    if(!devLoja){ toast("Escolhe a loja"); return; }
+    if(!colaborador){ toast("Escolhe ou escreve o colaborador"); return; }
+    if(!devKit.peca || !devKit.tamanho){ toast("Escolhe a peça e o tamanho"); return; }
+    await api("cj_fardamento_devolucoes", "POST", {
+      loja:devLoja, peca:devKit.peca, tamanho:devKit.tamanho, colaborador, quantidade:devQtd, registado_por:NOMES_PERFIS[currentUser],
+      criado_em: new Date().toISOString()
+    });
+    toast("✔ Devolução registada!");
+    overlay.remove();
+    abrirDevolucaoFardamentoHub();
+  }, "A confirmar...");
+
+  document.querySelectorAll(".devAjustarBtn").forEach(btn=>{
+    btn.onclick = async ()=>{
+      const id = btn.dataset.id;
+      const d = devolucoes.find(x=>String(x.id)===id);
+      const nova = Math.max(1, (d.quantidade||1)+Number(btn.dataset.delta));
+      await api(`cj_fardamento_devolucoes?id=eq.${id}`, "PATCH", {quantidade:nova});
+      d.quantidade = nova;
+      document.getElementById(`devQtdViewHub-${id}`).textContent = nova;
+    };
+  });
+  document.querySelectorAll(".devRemoverBtn").forEach(btn=>{
+    btn.onclick = async ()=>{
+      if(!confirm("Remover este registo de devolução (foi um engano)?")) return;
+      await api(`cj_fardamento_devolucoes?id=eq.${btn.dataset.id}`, "DELETE");
+      toast("Registo removido");
+      overlay.remove();
+      abrirDevolucaoFardamentoHub();
+    };
+  });
+  document.querySelectorAll(".devDescartarBtn").forEach(btn=>{
+    btn.onclick = async ()=>{
+      if(!confirm("Confirmar que esta peça não é reutilizável e não vai para stock?")) return;
+      await api(`cj_fardamento_devolucoes?id=eq.${btn.dataset.id}`, "PATCH", {recolhido:true, recolhido_para_polo:"DESCARTADA", recolhido_por:NOMES_PERFIS[currentUser], recolhido_em:new Date().toISOString()});
+      toast("Marcado como descartado");
+      overlay.remove();
+      abrirDevolucaoFardamentoHub();
+    };
+  });
+  document.querySelectorAll(".devRecolherBtn").forEach(btn=>{
+    btn.onclick = async ()=>{
+      const {id, polo, peca, tamanho, qtd} = btn.dataset;
+      await api("rpc/increment_fardamento_stock", "POST", {p_polo:polo, p_peca:peca, p_tamanho:tamanho, p_delta:Number(qtd), p_por:NOMES_PERFIS[currentUser]});
+      await api("cj_fardamento_movimentos", "POST", {polo, peca, tamanho, quantidade:Number(qtd), tipo:"entrada", registado_por:NOMES_PERFIS[currentUser], nota:"Devolução recolhida", criado_em:new Date().toISOString()});
+      await api(`cj_fardamento_devolucoes?id=eq.${id}`, "PATCH", {recolhido:true, recolhido_para_polo:polo, recolhido_por:NOMES_PERFIS[currentUser], recolhido_em:new Date().toISOString()});
+      toast(`✔ Recolhido para ${polo}`);
+      overlay.remove();
+      abrirDevolucaoFardamentoHub();
+    };
+  });
+}
+
+async function abrirSaidaFardamentoHub(polo, peca, tamanho, disponivel){
+  const movimentos = await api(`cj_fardamento_movimentos?select=colaborador_destino,loja_destino&colaborador_destino=not.is.null&order=criado_em.desc&limit=200`, "GET");
+  const knownColabs = [...new Set(movimentos.map(m=>m.colaborador_destino).filter(Boolean))].sort();
+  let saidaQtd = 1, saidaLoja = "", saidaColab = "";
+
+  const overlay = document.createElement("div");
+  overlay.id = "saidaOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:2px;">Registar saída</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">${peca} · ${tamanho} · ${polo} — disponível: ${disponivel}</div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:.78rem; font-weight:700; color:var(--t2); display:block; margin-bottom:6px;">Quantidade</label>
+        <div style="display:flex; align-items:center; gap:14px; justify-content:center;">
+          <button id="hsMinus" style="width:40px; height:40px; border-radius:50%; border:1.5px solid var(--br); background:none; font-size:18px; font-weight:800;">−</button>
+          <span id="hsQtyDisplay" style="font-size:20px; font-weight:800; min-width:24px; text-align:center;">1</span>
+          <button id="hsPlus" style="width:40px; height:40px; border-radius:50%; border:1.5px solid var(--br); background:none; font-size:18px; font-weight:800;">+</button>
+        </div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:.78rem; font-weight:700; color:var(--t2); display:block; margin-bottom:6px;">Colaborador (para quem)</label>
+        <div id="hsColabChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+        <input id="hsColabNovo" placeholder="Nome do novo colaborador" style="display:none; margin-top:8px; width:100%; padding:9px; border-radius:8px; border:1px solid var(--br);">
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:.78rem; font-weight:700; color:var(--t2); display:block; margin-bottom:6px;">Loja de destino</label>
+        <div id="hsLojaChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button id="hsCancelarBtn" style="flex:1; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Cancelar</button>
+        <button id="hsConfirmarBtn" style="flex:1; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">Confirmar saída</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("hsCancelarBtn").onclick = ()=>overlay.remove();
+  document.getElementById("hsMinus").onclick = ()=>{ saidaQtd=Math.max(1,saidaQtd-1); document.getElementById("hsQtyDisplay").textContent=saidaQtd; };
+  document.getElementById("hsPlus").onclick = ()=>{ saidaQtd=Math.min(disponivel||999,saidaQtd+1); document.getElementById("hsQtyDisplay").textContent=saidaQtd; };
+
+  function chipEl(texto){
+    const c = document.createElement("div");
+    c.textContent = texto;
+    c.style.cssText = "padding:7px 12px; border-radius:99px; background:var(--sf2); font-size:.8rem; font-weight:600; cursor:pointer; border:1.5px solid transparent;";
+    return c;
+  }
+  const colabRow = document.getElementById("hsColabChips");
+  knownColabs.forEach(name=>{
+    const c = chipEl(name);
+    c.onclick = ()=>{
+      saidaColab = name;
+      colabRow.querySelectorAll("div").forEach(x=>x.style.border="1.5px solid transparent");
+      c.style.border = "1.5px solid var(--terracotta,#C1622D)";
+      document.getElementById("hsColabNovo").style.display = "none";
+      const ultimaLoja = movimentos.find(m=>m.colaborador_destino===name)?.loja_destino;
+      if(ultimaLoja){
+        saidaLoja = ultimaLoja;
+        document.getElementById("hsLojaChips").querySelectorAll("div").forEach(x=>{
+          x.style.border = x.textContent===ultimaLoja ? "1.5px solid var(--terracotta,#C1622D)" : "1.5px solid transparent";
+        });
+      }
+    };
+    colabRow.appendChild(c);
+  });
+  const novoChip = chipEl("+ Novo");
+  novoChip.onclick = ()=>{
+    saidaColab = "__novo__";
+    colabRow.querySelectorAll("div").forEach(x=>x.style.border="1.5px solid transparent");
+    novoChip.style.border = "1.5px solid var(--terracotta,#C1622D)";
+    document.getElementById("hsColabNovo").style.display = "block";
+  };
+  colabRow.appendChild(novoChip);
+  const lojaRow = document.getElementById("hsLojaChips");
+  LOJAS.forEach(l=>{
+    const c = chipEl(l);
+    c.onclick = ()=>{
+      saidaLoja = l;
+      lojaRow.querySelectorAll("div").forEach(x=>x.style.border="1.5px solid transparent");
+      c.style.border = "1.5px solid var(--terracotta,#C1622D)";
+    };
+    lojaRow.appendChild(c);
+  });
+
+  document.getElementById("hsConfirmarBtn").onclick = protegerCliqueHub(document.getElementById("hsConfirmarBtn"), async ()=>{
+    const colaborador = saidaColab==="__novo__" ? document.getElementById("hsColabNovo").value.trim() : saidaColab;
+    if(!colaborador){ toast("Escolhe ou escreve o colaborador"); return; }
+    if(!saidaLoja){ toast("Escolhe a loja de destino"); return; }
+    await api("rpc/increment_fardamento_stock", "POST", {p_polo:polo, p_peca:peca, p_tamanho:tamanho, p_delta:-saidaQtd, p_por:NOMES_PERFIS[currentUser]});
+    await api("cj_fardamento_movimentos", "POST", {
+      polo, peca, tamanho, quantidade:saidaQtd, tipo:"saida", colaborador_destino:colaborador, loja_destino:saidaLoja,
+      registado_por:NOMES_PERFIS[currentUser], criado_em:new Date().toISOString()
+    });
+    toast("✔ Saída registada!");
+    overlay.remove();
+  }, "A gravar...");
 }
 
 async function ajustarStockFardamentoHub(polo, peca, tamanho, delta, btn, spanId){
@@ -1386,6 +1657,17 @@ const JSC_LOJAS = ["Almeirim", "Ponte de Sor"];
 const TABACO_EXCLUIR = ["Caldas da Rainha"];
 const CATEGORY_DOW = { raspadinhas: 1, cafe: 2, laranja: 3, tabaco: 4 };
 const RESET_GRACE_UNTIL = new Date("2026-08-07T08:00:00"); // início real da operação: nada conta como pendente/atrasado antes disto
+
+const POLOS = ["Caldas","Santarém","Torres"];
+const PECAS = {
+  "Polo manga curta": ["S","M","L","XL","XXL","2XXL","3XXL","4XXL"],
+  "Polo manga comprida": ["S","M","L","XL","XXL","2XXL","3XXL","4XXL"],
+  "Camisola": ["S","M","L","XL","XXL"],
+  "Calças": ["32","34","36","38","40","42","44","46","48","50","52","54","56","Especial"],
+  "Calças Grávida": ["32","34","36","38","40","42","44","46","48","50","52","54","56","Especial"],
+  "Avental": ["Único"],
+  "Sapatos": ["36","37","38","39","40","41","42","43","44","45"]
+};
 
 const ABREV_LOJAS = {
   "Caldas da Rainha": "Caldas", "Bombarral": "Bombarral", "Peniche": "Peniche",
