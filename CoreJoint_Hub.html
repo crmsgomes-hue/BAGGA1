@@ -64,6 +64,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div class="hlog">CoreJoint</div>
   <button class="hbtn" id="darkToggle" onclick="toggleDark()" style="display:none;">🌙</button>
 </div>
+<div id="tarefasBannerWrap"></div>
 <div id="MN">
   <div class="pt">Dashboard</div>
   <div class="ps">As tuas ferramentas de gestão, num só sítio.</div>
@@ -159,6 +160,7 @@ function alternarPerfilHub(){
     document.getElementById("perfilLembretesLabel").textContent = `👤 ${NOMES_PERFIS[currentUser]}`;
     renderListaLembretes();
   }
+  verificarBannerTarefas();
   toast(`Espaço trocado para ${NOMES_PERFIS[currentUser]}`);
 }
 function _logErro(app, mensagem, contexto){
@@ -371,6 +373,7 @@ async function renderPanoramaGeral(){
         ${tile("gerenteLoja","🔒","Área gerente", "", 'var(--t2)')}
         ${tile("fotosPontuais","📸","Fotos pontuais", "", 'var(--t2)')}
         ${tile("certOleo","🛢️","Cert. óleo", "", 'var(--t2)')}
+        ${tile("tarefasPessoais","📌","Tarefas", "", 'var(--t2)')}
         ${tile("partilhar","📱","Partilhar", "", 'var(--t2)')}
       </div>
     `;
@@ -420,6 +423,7 @@ async function renderPanoramaGeral(){
 
     document.querySelector('[data-topico="fotosPontuais"]').onclick = abrirFotosPontuaisHub;
     document.querySelector('[data-topico="certOleo"]').onclick = abrirCertificadosOleoHub;
+    document.querySelector('[data-topico="tarefasPessoais"]').onclick = abrirTarefasPessoais;
 
     document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
       const corpo = `
@@ -1978,6 +1982,195 @@ async function abrirFotosPontuaisHub(){
   }
 }
 
+function outroPerfil(){ return currentUser==="CG" ? "JM" : "CG"; }
+
+async function verificarBannerTarefas(){
+  const pendentes = await api(`cj_tarefas_pessoais?select=id&atribuido_a=eq.${currentUser}&vista=eq.false`, "GET");
+  const wrap = document.getElementById("tarefasBannerWrap");
+  if(pendentes.length===0){
+    wrap.innerHTML = "";
+    document.getElementById("HD").style.background = "";
+    return;
+  }
+  document.getElementById("HD").style.background = "#B0432F";
+  wrap.innerHTML = `
+    <div id="tarefasBannerBtn" style="background:#B0432F; color:#fff; text-align:center; padding:10px; font-weight:700; font-size:.85rem; cursor:pointer;">
+      🔴 ${pendentes.length} tarefa(s) nova(s) de ${NOMES_PERFIS[outroPerfil()]} — toca para ver
+    </div>
+  `;
+  document.getElementById("tarefasBannerBtn").onclick = abrirTarefasPessoais;
+}
+
+async function abrirTarefasPessoais(){
+  const overlay = document.createElement("div");
+  overlay.id = "tarefasOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:440px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px;">📌 Tarefas entre nós</div>
+        <span style="font-size:.75rem; color:var(--t2); font-weight:700;">👤 ${NOMES_PERFIS[currentUser]}</span>
+      </div>
+      <div style="font-size:12px; color:var(--t2); margin-bottom:14px;">Tu e ${NOMES_PERFIS[outroPerfil()]}.</div>
+      <button id="btnNovaTarefaHub" style="width:100%; margin-bottom:16px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">➕ Nova tarefa</button>
+      <div id="tarefasCorpoHub"><div style="text-align:center; padding:20px 0; color:var(--t2); font-size:.85rem;">A carregar...</div></div>
+      <button id="fecharTarefasHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("fecharTarefasHubBtn").onclick = async ()=>{ overlay.remove(); await verificarBannerTarefas(); };
+  document.getElementById("btnNovaTarefaHub").onclick = abrirNovaTarefaHub;
+  await renderTarefasPessoais();
+}
+
+async function renderTarefasPessoais(){
+  const todas = await api(`cj_tarefas_pessoais?select=*&order=criado_em.desc&limit=200`, "GET");
+  const paraMim = todas.filter(t=>t.atribuido_a===currentUser && !t.feita);
+  const porMim = todas.filter(t=>t.criado_por===currentUser && t.atribuido_a!==currentUser && !t.feita);
+  const feitas = todas.filter(t=>t.feita).slice(0,10);
+
+  // marca como vistas as que estao "para mim" e ainda nao foram vistas
+  const naoVistas = paraMim.filter(t=>!t.vista).map(t=>t.id);
+  if(naoVistas.length>0){
+    await api(`cj_tarefas_pessoais?id=in.(${naoVistas.join(",")})`, "PATCH", {vista:true});
+  }
+
+  function tarefaHtml(t, mostrarAtribuido){
+    const dataFmt = new Date(t.criado_em).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'});
+    const historicoHtml = (t.historico||[]).map(h=>`
+      <div style="font-size:11px; color:var(--t2); padding:4px 0; border-top:1px solid var(--br);">
+        <b>${NOMES_PERFIS[h.por]||h.por}</b> · ${new Date(h.data).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}<br>${h.texto}
+      </div>
+    `).join("");
+    return `
+    <div style="background:var(--sf2); border-radius:10px; padding:12px; margin-bottom:10px;" data-tarefa-id="${t.id}">
+      <div style="font-weight:700; font-size:.9rem;">${t.titulo}</div>
+      ${t.descricao ? `<div style="font-size:.82rem; color:var(--t2); margin-top:3px;">${t.descricao}</div>` : ``}
+      <div style="font-size:.72rem; color:var(--t2); margin-top:4px;">${mostrarAtribuido ? `Para ${NOMES_PERFIS[t.atribuido_a]} · ` : ``}criada por ${NOMES_PERFIS[t.criado_por]} em ${dataFmt}</div>
+      ${historicoHtml ? `<div style="margin-top:6px;">${historicoHtml}</div>` : ``}
+      <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
+        <button class="tarefaFeitaBtn" data-id="${t.id}" style="background:#2e7d32; color:#fff; border:none; border-radius:6px; padding:6px 10px; font-size:.72rem; font-weight:700;">✔ Feita</button>
+        <button class="tarefaTransferirBtn" data-id="${t.id}" data-atribuido="${t.atribuido_a}" style="background:#fff; border:1px solid var(--br); border-radius:6px; padding:6px 10px; font-size:.72rem; font-weight:700;">🔁 Transferir</button>
+        <button class="tarefaComentarBtn" data-id="${t.id}" style="background:#fff; border:1px solid var(--br); border-radius:6px; padding:6px 10px; font-size:.72rem; font-weight:700;">💬 Adicionar info</button>
+      </div>
+    </div>`;
+  }
+
+  const corpo = document.getElementById("tarefasCorpoHub");
+  corpo.innerHTML = `
+    <div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--t2); font-weight:700; margin-bottom:6px;">Para ti (${paraMim.length})</div>
+    ${paraMim.length===0 ? `<div style="font-size:.8rem; color:var(--t2); margin-bottom:14px;">Nada pendente.</div>` : paraMim.map(t=>tarefaHtml(t,false)).join("")}
+    <div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--t2); font-weight:700; margin:14px 0 6px;">Atribuídas por ti (${porMim.length})</div>
+    ${porMim.length===0 ? `<div style="font-size:.8rem; color:var(--t2); margin-bottom:14px;">Nenhuma.</div>` : porMim.map(t=>tarefaHtml(t,true)).join("")}
+    ${feitas.length>0 ? `<div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--t2); font-weight:700; margin:14px 0 6px;">✔ Concluídas recentemente</div>
+    ${feitas.map(t=>`<div style="font-size:.78rem; color:var(--t2); padding:4px 0; text-decoration:line-through;">${t.titulo}</div>`).join("")}` : ``}
+  `;
+
+  corpo.querySelectorAll(".tarefaFeitaBtn").forEach(btn=>{
+    btn.onclick = protegerCliqueHub(btn, async ()=>{
+      await api(`cj_tarefas_pessoais?id=eq.${btn.dataset.id}`, "PATCH", {feita:true, feita_em:new Date().toISOString()});
+      toast("✔ Marcada como feita");
+      await renderTarefasPessoais();
+    }, "...");
+  });
+  corpo.querySelectorAll(".tarefaTransferirBtn").forEach(btn=>{
+    btn.onclick = protegerCliqueHub(btn, async ()=>{
+      const novoAlvo = btn.dataset.atribuido===currentUser ? outroPerfil() : currentUser;
+      const t = todas.find(x=>String(x.id)===btn.dataset.id);
+      const novoHistorico = [...(t.historico||[]), {texto:`Transferida para ${NOMES_PERFIS[novoAlvo]}`, por:currentUser, data:new Date().toISOString()}];
+      await api(`cj_tarefas_pessoais?id=eq.${btn.dataset.id}`, "PATCH", {atribuido_a:novoAlvo, vista:false, historico:novoHistorico});
+      toast(`✔ Transferida para ${NOMES_PERFIS[novoAlvo]}`);
+      await renderTarefasPessoais();
+    }, "...");
+  });
+  corpo.querySelectorAll(".tarefaComentarBtn").forEach(btn=>{
+    btn.onclick = ()=>abrirComentarTarefaHub(btn.dataset.id, todas);
+  });
+}
+
+function abrirComentarTarefaHub(id, todas){
+  const t = todas.find(x=>String(x.id)===String(id));
+  const o = document.createElement("div");
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:20px;";
+  o.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:360px; width:100%;">
+      <div style="font-size:15px; font-weight:700; margin-bottom:10px;">💬 Adicionar informação</div>
+      <div style="font-size:.8rem; color:var(--t2); margin-bottom:10px;">${t.titulo}</div>
+      <textarea id="comentarTexto" placeholder="Escreve aqui..." rows="4" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); font-family:inherit; margin-bottom:14px;"></textarea>
+      <div style="display:flex; gap:8px;">
+        <button id="comentarCancelar" style="flex:1; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700;">Cancelar</button>
+        <button id="comentarGuardar" style="flex:1; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">Guardar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(o);
+  document.getElementById("comentarCancelar").onclick = ()=>o.remove();
+  document.getElementById("comentarGuardar").onclick = protegerCliqueHub(document.getElementById("comentarGuardar"), async ()=>{
+    const texto = document.getElementById("comentarTexto").value.trim();
+    if(!texto){ toast("Escreve alguma coisa"); return; }
+    const novoHistorico = [...(t.historico||[]), {texto, por:currentUser, data:new Date().toISOString()}];
+    // se a tarefa e do outro, marca vista=false para ele ver que ha novidade
+    const patch = {historico:novoHistorico};
+    if(t.atribuido_a!==currentUser) patch.vista = false;
+    await api(`cj_tarefas_pessoais?id=eq.${id}`, "PATCH", patch);
+    toast("✔ Informação adicionada");
+    o.remove();
+    await renderTarefasPessoais();
+  }, "A guardar...");
+}
+
+function abrirNovaTarefaHub(){
+  const o = document.createElement("div");
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:20px;";
+  o.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:380px; width:100%;">
+      <div style="font-size:15px; font-weight:700; margin-bottom:14px;">➕ Nova tarefa</div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:.78rem; font-weight:700; color:var(--t2); display:block; margin-bottom:4px;">Título</label>
+        <input id="novaTarefaTitulo" placeholder="Ex: Verificar contrato do fornecedor X" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br);">
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:.78rem; font-weight:700; color:var(--t2); display:block; margin-bottom:4px;">Descrição (opcional)</label>
+        <textarea id="novaTarefaDesc" rows="3" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); font-family:inherit;"></textarea>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:.78rem; font-weight:700; color:var(--t2); display:block; margin-bottom:6px;">Para quem</label>
+        <div style="display:flex; gap:8px;">
+          <button class="novaTarefaAlvoBtn" data-alvo="${outroPerfil()}" style="flex:1; padding:9px; border-radius:8px; border:1.5px solid var(--terracotta,#C1622D); background:var(--terracotta,#C1622D); color:#fff; font-weight:700; font-size:13px;">${NOMES_PERFIS[outroPerfil()]}</button>
+          <button class="novaTarefaAlvoBtn" data-alvo="${currentUser}" style="flex:1; padding:9px; border-radius:8px; border:1.5px solid var(--terracotta,#C1622D); background:none; color:var(--terracotta,#C1622D); font-weight:700; font-size:13px;">Eu mesmo</button>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button id="novaTarefaCancelar" style="flex:1; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700;">Cancelar</button>
+        <button id="novaTarefaCriar" style="flex:1; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">Criar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(o);
+  let alvoSel = outroPerfil();
+  o.querySelectorAll(".novaTarefaAlvoBtn").forEach(btn=>{
+    btn.onclick = ()=>{
+      alvoSel = btn.dataset.alvo;
+      o.querySelectorAll(".novaTarefaAlvoBtn").forEach(b=>{ b.style.background="none"; b.style.color="var(--terracotta,#C1622D)"; });
+      btn.style.background = "var(--terracotta,#C1622D)"; btn.style.color = "#fff";
+    };
+  });
+  document.getElementById("novaTarefaCancelar").onclick = ()=>o.remove();
+  document.getElementById("novaTarefaCriar").onclick = protegerCliqueHub(document.getElementById("novaTarefaCriar"), async ()=>{
+    const titulo = document.getElementById("novaTarefaTitulo").value.trim();
+    if(!titulo){ toast("Escreve o título"); return; }
+    const descricao = document.getElementById("novaTarefaDesc").value.trim();
+    await api("cj_tarefas_pessoais", "POST", {
+      titulo, descricao: descricao||null, atribuido_a: alvoSel, criado_por: currentUser,
+      vista: alvoSel===currentUser, // se for para mim mesmo, ja fica "vista"
+      historico: [{texto:"Tarefa criada", por:currentUser, data:new Date().toISOString()}]
+    });
+    toast("✔ Tarefa criada!");
+    o.remove();
+    await renderTarefasPessoais();
+  }, "A criar...");
+}
+
 async function abrirRegistosQuebrasHub(){
   const rows = await api(`cj_quebras_reportes?select=*&order=data.desc&limit=500`, "GET");
   const trintaDiasAtras = isoDate(new Date(Date.now()-30*86400000));
@@ -2723,6 +2916,7 @@ function semanaKey(d){
 (async ()=>{
   renderPanoramaGeral();
   renderSemaforoLojas();
+  verificarBannerTarefas();
   const attn = [];
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
