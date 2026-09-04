@@ -4275,25 +4275,42 @@ function openImportarTrocas(){
 }
 
 let trocasParaImportar = [];
+// Sinonimos especificos para nomes de loja que aparecem no export de Trocas (formato "XXXXX - BOM BOCADO - NOME")
+// e que nao batem certo com o nome canonico (falta "de", ou tem sufixos diferentes das outras importacoes)
+const SINONIMOS_LOJA_TROCAS = {
+  "PONTE SOR": "Ponte de Sor",
+  "TORRES NOVAS": "Torres MH",
+  "TORRES NOVAS (MCH)": "Torres MCH"
+};
+function encontrarLojaTrocas(nomeExtraido){
+  const norm = normalizarNomeLoja(nomeExtraido);
+  for(const chave of Object.keys(SINONIMOS_LOJA_TROCAS)){
+    if(normalizarNomeLoja(chave)===norm) return SINONIMOS_LOJA_TROCAS[chave];
+  }
+  return encontrarLojaCorrespondente(nomeExtraido);
+}
+function ehFormatoTrocasExport(headers){
+  return headers.includes("Unidade organizacional") && headers.includes("Nome colaborador") && headers.includes("Data horário previsto");
+}
+function converterFormatoTrocasExport(rows){
+  return rows.filter(r=>String(r["Estado"]||"").trim().toLowerCase()==="pendente").map(r=>{
+    const unidade = String(r["Unidade organizacional"]||"");
+    const partes = unidade.split(" - ");
+    const lojaOriginal = partes[partes.length-1].trim();
+    const loja = encontrarLojaTrocas(lojaOriginal);
+    const operador = String(r["Nome colaborador"]||"").trim();
+    const dataStr = parseDataExcel(r["Data horário previsto"]);
+    return {lojaOriginal, loja, operador, data: dataStr, descricao: ""};
+  }).filter(r=>r.operador && r.data);
+}
+
 function handleTrocasFile(ev){
   const file = ev.target.files[0];
   if(!file) return;
   lerFicheiroTabular(file, (rows)=>{
       const headers = Object.keys(rows[0]);
-      abrirMapeamentoColunas("Trocas de horário", headers, [
-        {key:"loja", label:"Loja", sinonimos:["loja"], obrigatorio:true},
-        {key:"operador", label:"Operador / Colaborador", sinonimos:["operador","colaborador","nome"], obrigatorio:true},
-        {key:"data", label:"Data", sinonimos:["data"], obrigatorio:true},
-        {key:"descricao", label:"Descrição / Motivo", sinonimos:["descricao","motivo","notas"], obrigatorio:false},
-      ], rows, (mapa)=>{
-        const todasLinhas = rows.map(row=>{
-          const lojaOriginal = String(row[mapa.loja]||"").trim();
-          const loja = encontrarLojaCorrespondente(lojaOriginal);
-          const operador = String(row[mapa.operador]||"").trim();
-          const dataStr = parseDataExcel(row[mapa.data]);
-          const descricao = mapa.descricao ? String(row[mapa.descricao]||"").trim() : "";
-          return {lojaOriginal, loja, operador, data: dataStr, descricao};
-        }).filter(r=>r.operador && r.data);
+
+      function finalizarImportacao(todasLinhas){
         trocasParaImportar = todasLinhas.filter(r=>r.loja);
         const semLoja = todasLinhas.filter(r=>!r.loja);
         trocasForaDop = semLoja.filter(r=>ehLojaConhecidaForaDop(r.lojaOriginal));
@@ -4312,6 +4329,29 @@ function handleTrocasFile(ev){
         card.innerHTML = `<div id="trocasPreview"></div>`;
         main.appendChild(card);
         renderTrocasPreview();
+      }
+
+      if(ehFormatoTrocasExport(headers)){
+        // formato reconhecido automaticamente - so entram as "Pendente", loja extraida de "Unidade organizacional"
+        finalizarImportacao(converterFormatoTrocasExport(rows));
+        return;
+      }
+
+      abrirMapeamentoColunas("Trocas de horário", headers, [
+        {key:"loja", label:"Loja", sinonimos:["loja"], obrigatorio:true},
+        {key:"operador", label:"Operador / Colaborador", sinonimos:["operador","colaborador","nome"], obrigatorio:true},
+        {key:"data", label:"Data", sinonimos:["data"], obrigatorio:true},
+        {key:"descricao", label:"Descrição / Motivo", sinonimos:["descricao","motivo","notas"], obrigatorio:false},
+      ], rows, (mapa)=>{
+        const todasLinhas = rows.map(row=>{
+          const lojaOriginal = String(row[mapa.loja]||"").trim();
+          const loja = encontrarLojaCorrespondente(lojaOriginal);
+          const operador = String(row[mapa.operador]||"").trim();
+          const dataStr = parseDataExcel(row[mapa.data]);
+          const descricao = mapa.descricao ? String(row[mapa.descricao]||"").trim() : "";
+          return {lojaOriginal, loja, operador, data: dataStr, descricao};
+        }).filter(r=>r.operador && r.data);
+        finalizarImportacao(todasLinhas);
       });
   });
 }
