@@ -4684,11 +4684,61 @@ function openImportarStockNegativo(){
 }
 
 let stockNegParaImportar = [], stockNegForaDop = [], stockNegComErro = [];
+// Deteta o formato de exportacao "Armazem / Cod. Artigo / Artigo / Qnt. Teorica / Qnt. Real / Dif." -
+// so a Qnt. Teorica negativa interessa (esse ficheiro nao tem coluna de data, usa-se a data de hoje)
+function ehFormatoStockNegativoArmazem(headers){
+  return headers.some(h=>normalizarTexto(h).includes("armazem")) && headers.some(h=>normalizarTexto(h).includes("teorica"));
+}
+function converterFormatoStockNegativoArmazem(rows){
+  const hoje = todayStr();
+  const colArmazem = Object.keys(rows[0]).find(h=>normalizarTexto(h).includes("armazem"));
+  const colArtigo = Object.keys(rows[0]).find(h=>normalizarTexto(h)==="artigo") || Object.keys(rows[0]).find(h=>normalizarTexto(h).includes("artigo") && !normalizarTexto(h).includes("cod"));
+  const colCod = Object.keys(rows[0]).find(h=>normalizarTexto(h).includes("cod") && normalizarTexto(h).includes("artigo"));
+  const colTeorica = Object.keys(rows[0]).find(h=>normalizarTexto(h).includes("teorica"));
+  return rows.map(r=>{
+    const lojaOriginal = String(r[colArmazem]||"").trim();
+    const lojaCanonica = encontrarLojaCorrespondente(lojaOriginal);
+    const stock = Number(r[colTeorica]);
+    const codigo = colCod ? String(r[colCod]||"").trim() : "";
+    const artigo = colArtigo ? String(r[colArtigo]||"").trim() : "";
+    const produto = codigo ? `${codigo} — ${artigo}` : artigo;
+    return {lojaOriginal, loja:lojaCanonica, data:hoje, operador:"", produto, valor_stock:stock};
+  }).filter(r=>r.lojaOriginal && !isNaN(r.valor_stock) && r.valor_stock<0);
+}
+
 function handleStockNegFile(ev){
   const file = ev.target.files[0];
   if(!file) return;
   lerFicheiroTabular(file, (rows)=>{
       const headers = Object.keys(rows[0]);
+
+      function finalizarImportacao(todasLinhas){
+        stockNegParaImportar = todasLinhas.filter(r=>r.loja);
+        const semLoja = todasLinhas.filter(r=>!r.loja);
+        stockNegForaDop = semLoja.filter(r=>ehLojaConhecidaForaDop(r.lojaOriginal));
+        stockNegComErro = semLoja.filter(r=>!ehLojaConhecidaForaDop(r.lojaOriginal));
+        window._formEmEdicao = true;
+        const main = document.getElementById("main");
+        main.innerHTML = "";
+        const back = document.createElement("button");
+        back.className = "cambtn secondary";
+        back.style.marginBottom = "14px";
+        back.textContent = "← Voltar ao painel";
+        back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+        main.appendChild(back);
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `<div id="stockNegPreview"></div>`;
+        main.appendChild(card);
+        renderStockNegPreview(todasLinhas.length);
+      }
+
+      if(ehFormatoStockNegativoArmazem(headers)){
+        // formato reconhecido automaticamente - so entram as Qnt. Teorica negativas, sem precisar de mapear colunas
+        finalizarImportacao(converterFormatoStockNegativoArmazem(rows));
+        return;
+      }
+
       abrirMapeamentoColunas("Stock negativo", headers, [
         {key:"loja", label:"Loja", sinonimos:["loja","cód. loja","cod. loja"], obrigatorio:true},
         {key:"data", label:"Data", sinonimos:["data"], obrigatorio:true},
@@ -4706,26 +4756,7 @@ function handleStockNegFile(ev){
           const stock = parseFloat(stockRaw);
           return {lojaOriginal, loja:lojaCanonica, data:dataStr, operador, produto, valor_stock:stock};
         }).filter(r=>r.lojaOriginal && r.data && !isNaN(r.valor_stock) && r.valor_stock<0);
-
-        stockNegParaImportar = todasLinhas.filter(r=>r.loja);
-        const semLoja = todasLinhas.filter(r=>!r.loja);
-        stockNegForaDop = semLoja.filter(r=>ehLojaConhecidaForaDop(r.lojaOriginal));
-        stockNegComErro = semLoja.filter(r=>!ehLojaConhecidaForaDop(r.lojaOriginal));
-        window._stockNegDebug = {linhasFicheiro: rows.length, linhasComLojaEData: rows.filter(r=>String(r[mapa.loja]||"").trim() && parseDataExcel(r[mapa.data])).length, linhasValidas: todasLinhas.length};
-        window._formEmEdicao = true;
-        const main = document.getElementById("main");
-        main.innerHTML = "";
-        const back = document.createElement("button");
-        back.className = "cambtn secondary";
-        back.style.marginBottom = "14px";
-        back.textContent = "← Voltar ao painel";
-        back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
-        main.appendChild(back);
-        const card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML = `<div id="stockNegPreview"></div>`;
-        main.appendChild(card);
-        renderStockNegPreview(todasLinhas.length);
+        finalizarImportacao(todasLinhas);
       });
   });
 }
