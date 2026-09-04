@@ -370,6 +370,7 @@ async function renderPanoramaGeral(){
         ${tile("trocas","🔁","Trocas", `${trocasPendentesPg.length}`, trocasPendentesPg.length>0?'var(--org,#c17817)':'var(--grn)')}
         ${tile("gerenteLoja","🔒","Área gerente", "", 'var(--t2)')}
         ${tile("fotosPontuais","📸","Fotos pontuais", "", 'var(--t2)')}
+        ${tile("certOleo","🛢️","Cert. óleo", "", 'var(--t2)')}
         ${tile("partilhar","📱","Partilhar", "", 'var(--t2)')}
       </div>
     `;
@@ -418,6 +419,7 @@ async function renderPanoramaGeral(){
     };
 
     document.querySelector('[data-topico="fotosPontuais"]').onclick = abrirFotosPontuaisHub;
+    document.querySelector('[data-topico="certOleo"]').onclick = abrirCertificadosOleoHub;
 
     document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
       const corpo = `
@@ -1837,6 +1839,74 @@ async function abrirDiagnosticoHub(){
       </div>
     `).join("");
   };
+}
+
+async function abrirCertificadosOleoHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "certOleoOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:440px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:2px;">🛢️ Certificados do óleo</div>
+      <div style="font-size:12px; color:var(--t2); margin-bottom:14px;">Validade por loja — alerta automático 1 mês antes.</div>
+      <div id="certOleoCapturaWrapHub"></div>
+      <div id="certOleoPartilhaBtnsHub"></div>
+      <button id="fecharCertOleoHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("fecharCertOleoHubBtn").onclick = ()=>overlay.remove();
+
+  const certs = await api(`cj_certificados_oleo?select=*`, "GET");
+  const capturaWrap = document.getElementById("certOleoCapturaWrapHub");
+  const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+  const hoje = new Date();
+
+  function statusDe(loja){
+    const c = certs.find(x=>x.loja===loja);
+    if(!c) return {simbolo:"✕", cor:"#b0432f", txt:"Sem certificado"};
+    const dias = Math.floor((new Date(c.data_validade+"T00:00:00")-hoje)/86400000);
+    if(dias<0) return {simbolo:"✕", cor:"#b0432f", txt:`Expirado há ${Math.abs(dias)}d`, cert:c};
+    if(dias<=30) return {simbolo:"⚠", cor:"#c17817", txt:`Expira em ${dias}d`, cert:c};
+    return {simbolo:"✔", cor:"#2e7d32", txt:new Date(c.data_validade+"T00:00:00").toLocaleDateString('pt-PT'), cert:c};
+  }
+
+  const linhasHtml = LOJAS.map(l=>{
+    const st = statusDe(l);
+    return `<tr>
+      <td style="font-weight:700; font-size:10.5px; padding:5px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>
+      <td style="text-align:center; font-size:11px; font-weight:800; color:${st.cor}; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${st.simbolo}</td>
+      <td style="font-size:10px; color:${st.cor}; padding:5px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${st.txt}</td>
+    </tr>`;
+  }).join("");
+
+  const comFoto = LOJAS.map(l=>({loja:l, ...statusDe(l)})).filter(x=>x.cert?.foto);
+  const fotosHtml = comFoto.map(x=>`
+    <div style="text-align:center; display:inline-block; margin:0 6px 8px 0; vertical-align:top;">
+      <img src="${x.cert.foto}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:2px solid ${x.cor};">
+      <div style="font-size:8.5px; color:#777; font-weight:700; margin-top:2px; max-width:64px;">${abreviarLoja(x.loja)}</div>
+    </div>
+  `).join("");
+
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 10px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+  capturaWrap.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Certificados do óleo</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt}</div>
+    <table style="border-collapse:collapse; width:100%; margin-bottom:${comFoto.length>0?'10px':'0'};">
+      <thead><tr>
+        <th></th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px;"></th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:left;">Validade</th>
+      </tr></thead>
+      <tbody>${linhasHtml}</tbody>
+    </table>
+    ${comFoto.length>0 ? `<div>${fotosHtml}</div>` : ``}
+  `;
+  if(comFoto.length>0){
+    const imgs = Array.from(capturaWrap.querySelectorAll("img"));
+    await Promise.all(imgs.map(img=>img.complete ? Promise.resolve() : new Promise(res=>{ img.onload=res; img.onerror=res; })));
+  }
+  criarBotoesPartilhaHub(document.getElementById("certOleoPartilhaBtnsHub"), capturaWrap, `CoreJoint_certificados_oleo`, "CoreJoint · Certificados do óleo");
 }
 
 async function abrirFotosPontuaisHub(){
