@@ -1912,9 +1912,9 @@ async function abrirRegistosQuebrasHub(){
   const rows = await api(`cj_quebras_reportes?select=*&order=data.desc&limit=500`, "GET");
   const trintaDiasAtras = isoDate(new Date(Date.now()-30*86400000));
   const comLoja = rows.filter(r=>r.data>=trintaDiasAtras && r.loja && Math.abs(Number(r.valor_quebra))>=20);
-  // so entram quebras com numero de registo OU justificacao - as "por preencher" sao ruido
-  const comInfo = comLoja.filter(r=>r.numero_registo || r.justificacao);
-  const ordenadas = [...comInfo].sort((a,b)=> new Date(b.data)-new Date(a.data));
+  const ordenadas = [...comLoja].sort((a,b)=> new Date(b.data)-new Date(a.data));
+  const justificadas = ordenadas.filter(r=>r.numero_registo || r.justificacao);
+  const porJustificar = ordenadas.filter(r=>!r.numero_registo && !r.justificacao);
 
   const overlay = document.createElement("div");
   overlay.id = "registosQuebrasOverlayHub";
@@ -1922,7 +1922,7 @@ async function abrirRegistosQuebrasHub(){
   overlay.innerHTML = `
     <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">🔎 Registos e justificações</div>
-      <div style="font-size:.78rem; color:var(--t2); margin-bottom:12px;">Últimos 30 dias, ≥20€, só com registo ou justificação preenchidos.</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:12px;">Últimos 30 dias, ≥20€ — ${justificadas.length} justificada(s), ${porJustificar.length} por justificar.</div>
       <div id="registosQuebrasCapturaWrapHub"></div>
       <div id="registosQuebrasPartilhaBtnsHub"></div>
       <input id="registosQuebrasFiltroHub" placeholder="Procurar (loja, data, nº registo...)" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--br); margin:14px 0 12px; font-size:.85rem;">
@@ -1936,34 +1936,38 @@ async function abrirRegistosQuebrasHub(){
 
   const capturaWrap = document.getElementById("registosQuebrasCapturaWrapHub");
   const dataFmtHoje = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
-  const linhasCapturaHtml = ordenadas.map(r=>{
-    const info = r.numero_registo ? `Nº ${r.numero_registo}` : (r.justificacao||"").slice(0,28);
+  function linhaCaptura(r){
+    const ok = !!(r.numero_registo || r.justificacao);
+    const info = r.numero_registo ? `Nº ${r.numero_registo}` : (r.justificacao||'').slice(0,26) || '—';
     return `<tr>
       <td style="font-weight:700; font-size:10px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(r.loja)}</td>
       <td style="font-size:9.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}</td>
       <td style="text-align:right; font-size:10px; font-weight:800; color:#b0432f; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${Number(r.valor_quebra).toFixed(2)}€</td>
-      <td style="font-size:9.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${info}</td>
+      <td style="text-align:center; font-size:10px; font-weight:800; color:${ok?'#2e7d32':'#b0432f'}; padding:4px 2px; border-bottom:1px solid #f0ebe3;">${ok?'✔':'✕'}</td>
+      <td style="font-size:9px; padding:4px 3px; border-bottom:1px solid #f0ebe3; max-width:95px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:${ok?'inherit':'#999'};">${info}</td>
     </tr>`;
-  }).join("");
-  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
-  capturaWrap.innerHTML = ordenadas.length===0 ? `
-    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D;">CoreJoint · Quebras (≥20€, com registo/justificação)</div>
-    <div style="font-size:12px; color:var(--t2); margin-top:8px;">Nenhuma nos últimos 30 dias.</div>
-  ` : `
-    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Quebras (≥20€)</div>
-    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmtHoje} — últimos 30 dias, com registo/justificação</div>
-    <table style="border-collapse:collapse; width:100%;">
-      <thead><tr>
+  }
+  const cabecalhoHtml = `<thead><tr>
         <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; border-bottom:2px solid #C1622D; text-align:left;">Loja</th>
         <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; border-bottom:2px solid #C1622D; text-align:left;">Data</th>
         <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; border-bottom:2px solid #C1622D; text-align:right;">Valor</th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 2px; border-bottom:2px solid #C1622D;"></th>
         <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; border-bottom:2px solid #C1622D; text-align:left;">Registo/Justif.</th>
-      </tr></thead>
-      <tbody>${linhasCapturaHtml}</tbody>
-    </table>
+      </tr></thead>`;
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+  capturaWrap.innerHTML = ordenadas.length===0 ? `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D;">CoreJoint · Quebras (≥20€)</div>
+    <div style="font-size:12px; color:var(--t2); margin-top:8px;">Nenhuma nos últimos 30 dias.</div>
+  ` : `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Quebras (≥20€)</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmtHoje} — ${justificadas.length} justificada(s), ${porJustificar.length} por justificar</div>
+    ${porJustificar.length>0 ? `<div style="font-size:9px; font-weight:700; color:#b0432f; text-transform:uppercase; margin:6px 0 3px;">⚠ Por justificar</div>
+    <table style="border-collapse:collapse; width:100%; margin-bottom:8px;">${cabecalhoHtml}<tbody>${porJustificar.map(linhaCaptura).join("")}</tbody></table>` : ``}
+    ${justificadas.length>0 ? `<div style="font-size:9px; font-weight:700; color:#2e7d32; text-transform:uppercase; margin:6px 0 3px;">✔ Justificadas</div>
+    <table style="border-collapse:collapse; width:100%;">${cabecalhoHtml}<tbody>${justificadas.map(linhaCaptura).join("")}</tbody></table>` : ``}
   `;
   if(ordenadas.length>0){
-    criarBotoesPartilhaHub(document.getElementById("registosQuebrasPartilhaBtnsHub"), capturaWrap, `CoreJoint_quebras_registos_${todayStrHub()}`, "CoreJoint · Quebras (≥20€, com registo/justificação)");
+    criarBotoesPartilhaHub(document.getElementById("registosQuebrasPartilhaBtnsHub"), capturaWrap, `CoreJoint_quebras_registos_${todayStrHub()}`, "CoreJoint · Quebras (≥20€)");
   }
 
   let ultimaListaFiltrada = ordenadas;
@@ -1982,27 +1986,32 @@ async function abrirRegistosQuebrasHub(){
       lista.innerHTML = `<div style="font-size:.8rem; color:var(--t2); text-align:center; padding:14px 0;">Nada encontrado.</div>`;
       return;
     }
-    lista.innerHTML = filtradas.map(r=>`
+    lista.innerHTML = filtradas.map(r=>{
+      const ok = !!(r.numero_registo || r.justificacao);
+      return `
       <div style="padding:10px 0; border-bottom:1px solid var(--br); font-size:13px;">
         <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">
-          <span style="font-weight:700;">${r.loja}</span>
+          <span style="font-weight:700;">${ok?'✔':'⚠'} ${r.loja}</span>
           <span style="color:var(--t2); font-size:12px; white-space:nowrap;">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</span>
         </div>
         <div style="color:var(--t2); font-size:12px; margin-top:1px;"><b style="color:#b0432f;">${Number(r.valor_quebra).toFixed(2)} €</b></div>
         ${r.numero_registo ? `<div style="font-size:12.5px; font-weight:700; color:#2e7d32; margin-top:5px;">Nº registo: ${r.numero_registo}</div>` : ``}
         ${r.justificacao ? `<div style="font-size:12.5px; color:var(--t2); margin-top:3px; font-style:italic;">"${r.justificacao}"</div>` : ``}
-      </div>`).join("");
+        ${!ok ? `<div style="font-size:12px; color:#b0432f; font-weight:700; margin-top:4px;">Por justificar</div>` : ``}
+      </div>`;
+    }).join("");
   }
   render("");
   document.getElementById("registosQuebrasFiltroHub").addEventListener("input", (ev)=>render(ev.target.value));
   document.getElementById("registosCopiarBtnHub").onclick = ()=>{
-    const cabecalho = "Loja\tData\tValor (€)\tNº Registo\tJustificação";
+    const cabecalho = "Loja\tData\tValor (€)\tEstado\tNº Registo\tJustificação";
     const linhas = ultimaListaFiltrada.map(r=>{
       const dataFmt = new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT');
       const valor = Number(r.valor_quebra).toFixed(2).replace(".", ",");
+      const ok = !!(r.numero_registo || r.justificacao);
       const registo = r.numero_registo || "";
       const justif = (r.justificacao || "").replace(/\t|\n/g, " ");
-      return `${r.loja}\t${dataFmt}\t${valor}\t${registo}\t${justif}`;
+      return `${r.loja}\t${dataFmt}\t${valor}\t${ok?'Justificada':'Por justificar'}\t${registo}\t${justif}`;
     });
     const texto = [cabecalho, ...linhas].join("\n");
     const btn = document.getElementById("registosCopiarBtnHub");
