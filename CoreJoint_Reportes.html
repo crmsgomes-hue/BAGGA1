@@ -4845,10 +4845,101 @@ function openImportarFormacoes(){
 }
 
 let formacoesParaImportar = [], formacoesForaDop = [], formacoesComErro = [];
+// Normaliza um nome para comparacao (maiusculas, sem acentos) e devolve o conjunto de palavras,
+// para conseguir comparar "APELIDO, NOME PROPRIO" (como vem no export de Formacoes) com "NOME PROPRIO APELIDO"
+// (como vem nos outros imports - Horarios/Trocas), que tem a ordem trocada.
+function normalizarNomePessoa(s){
+  let n = String(s||"").trim().toUpperCase().replace(",", " ");
+  n = n.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return n.replace(/\s+/g, " ").trim();
+}
+function palavrasNome(s){ return new Set(normalizarNomePessoa(s).split(" ").filter(Boolean)); }
+
+let _mapaColaboradorLojaCache = null;
+async function construirMapaColaboradorLoja(){
+  if(_mapaColaboradorLojaCache) return _mapaColaboradorLojaCache;
+  const [horarios, trocas] = await Promise.all([
+    api("GET", "cj_horarios?select=colaborador,loja&loja=not.is.null"),
+    api("GET", "cj_trocas?select=criado_por,loja&loja=not.is.null")
+  ]);
+  const pares = [
+    ...horarios.map(r=>({nome:r.colaborador, loja:r.loja})),
+    ...trocas.map(r=>({nome:r.criado_por, loja:r.loja}))
+  ];
+  // guarda tanto o nome normalizado completo como o conjunto de palavras, para o 2o caso conseguir
+  // encontrar por comparacao de palavras (ordem trocada)
+  _mapaColaboradorLojaCache = pares.map(p=>({nomeNorm: normalizarNomePessoa(p.nome), palavras: palavrasNome(p.nome), loja: p.loja}));
+  return _mapaColaboradorLojaCache;
+}
+function encontrarLojaPorNome(nomePessoa, mapa){
+  const norm = normalizarNomePessoa(nomePessoa);
+  const exato = mapa.find(p=>p.nomeNorm===norm);
+  if(exato) return exato.loja;
+  const palavrasAlvo = palavrasNome(nomePessoa);
+  const porPalavras = mapa.find(p=>p.palavras.size===palavrasAlvo.size && [...p.palavras].every(w=>palavrasAlvo.has(w)));
+  return porPalavras ? porPalavras.loja : null;
+}
+// Deteta o export real de Formacoes: tem duas secoes na mesma folha (resumo + tabela detalhada),
+// com o cabecalho da tabela detalhada ("ID DE UTILIZADOR"/"UTILIZADOR"/"TÍTULO"/"ESTADO") numa linha
+// mais abaixo, nao na linha 1 - por isso le-se a folha em bruto (array de arrays) em vez de usar
+// a leitura normal por colunas.
+async function tentarFormatoFormacoesExport(file){
+  if(!/\.xlsx?$/i.test(file.name)) return null;
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(new Uint8Array(buffer), {type:"array"});
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const linhas = XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
+  const idxHeader = linhas.findIndex(l=>String(l[0]||"").trim().toUpperCase()==="ID DE UTILIZADOR");
+  if(idxHeader===-1) return null;
+  const cabecalho = linhas[idxHeader].map(h=>String(h||"").trim());
+  const idxNome = cabecalho.findIndex(h=>h.toUpperCase()==="UTILIZADOR");
+  const idxTitulo = cabecalho.findIndex(h=>h.toUpperCase()==="TÍTULO");
+  const idxEstado = cabecalho.findIndex(h=>h.toUpperCase()==="ESTADO");
+  const mapaColabLoja = await construirMapaColaboradorLoja();
+  const linhasDados = linhas.slice(idxHeader+1).filter(l=>l[idxNome]);
+  return linhasDados.map(l=>{
+    const utilizador = String(l[idxNome]||"").trim();
+    const partes = utilizador.split(",");
+    const colaborador = partes.length===2 ? `${partes[1].trim()} ${partes[0].trim()}` : utilizador;
+    const estado = String(l[idxEstado]||"").trim();
+    const loja = encontrarLojaPorNome(utilizador, mapaColabLoja);
+    return {lojaOriginal: utilizador, loja, colaborador, formacao: String(l[idxTitulo]||"").trim(), estado, data:null};
+    // so interessam as que nao estao concluidas (nem finalizadas, nem iniciadas - a pedido dela)
+  }).filter(r=>r.colaborador && r.formacao && r.estado.toLowerCase()!=="concluído" && r.estado.toLowerCase()!=="concluido");
+}
+
 function handleFormacoesFile(ev){
   const file = ev.target.files[0];
   if(!file) return;
-  lerFicheiroTabular(file, (rows)=>{
+
+  function finalizarImportacaoFormacoes(todasLinhas){
+    formacoesParaImportar = todasLinhas.filter(r=>r.loja);
+    const semLoja = todasLinhas.filter(r=>!r.loja);
+    formacoesForaDop = semLoja.filter(r=>ehLojaConhecidaForaDop(r.lojaOriginal));
+    formacoesComErro = semLoja.filter(r=>!ehLojaConhecidaForaDop(r.lojaOriginal));
+    window._formEmEdicao = true;
+    const main = document.getElementById("main");
+    main.innerHTML = "";
+    const back = document.createElement("button");
+    back.className = "cambtn secondary";
+    back.style.marginBottom = "14px";
+    back.textContent = "← Voltar ao painel";
+    back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+    main.appendChild(back);
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `<div id="formacoesPreview"></div>`;
+    main.appendChild(card);
+    renderFormacoesPreview(todasLinhas.length);
+  }
+
+  tentarFormatoFormacoesExport(file).then(resultado=>{
+    if(resultado){
+      // formato reconhecido automaticamente - loja encontrada pelo nome (cruzando com Horarios/Trocas ja importados)
+      finalizarImportacaoFormacoes(resultado);
+      return;
+    }
+    lerFicheiroTabular(file, (rows)=>{
       const headers = Object.keys(rows[0]);
       abrirMapeamentoColunas("Formações", headers, [
         {key:"loja", label:"Loja", sinonimos:["loja","cód. loja","cod. loja"], obrigatorio:true},
@@ -4866,26 +4957,9 @@ function handleFormacoesFile(ev){
           const estado = mapa.estado ? String(r[mapa.estado]||"").trim() : "";
           return {lojaOriginal, loja:lojaCanonica, data:dataStr||null, colaborador, formacao, estado};
         }).filter(r=>r.lojaOriginal && r.colaborador && r.formacao);
-
-        formacoesParaImportar = todasLinhas.filter(r=>r.loja);
-        const semLoja = todasLinhas.filter(r=>!r.loja);
-        formacoesForaDop = semLoja.filter(r=>ehLojaConhecidaForaDop(r.lojaOriginal));
-        formacoesComErro = semLoja.filter(r=>!ehLojaConhecidaForaDop(r.lojaOriginal));
-        window._formEmEdicao = true;
-        const main = document.getElementById("main");
-        main.innerHTML = "";
-        const back = document.createElement("button");
-        back.className = "cambtn secondary";
-        back.style.marginBottom = "14px";
-        back.textContent = "← Voltar ao painel";
-        back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
-        main.appendChild(back);
-        const card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML = `<div id="formacoesPreview"></div>`;
-        main.appendChild(card);
-        renderFormacoesPreview(todasLinhas.length);
+        finalizarImportacaoFormacoes(todasLinhas);
       });
+    });
   });
 }
 function renderFormacoesPreview(totalLinhas){
