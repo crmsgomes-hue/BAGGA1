@@ -1967,21 +1967,18 @@ async function renderCertificadoOleoCard(main){
 }
 
 function abrirCapturaCertificadoOleo(){
-  let fotoDataUrl = null, camStream = null;
+  let fotoDataUrl = null;
   const o = document.createElement("div");
   o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:999999; display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto;";
   o.innerHTML = `
     <div style="background:#fff; border-radius:14px; padding:20px; max-width:380px; width:100%;">
       <div style="font-size:15px; font-weight:700; margin-bottom:4px;">🛢️ Certificado do óleo</div>
       <div style="font-size:12px; color:var(--ink-soft); margin-bottom:10px;">Tira foto do certificado e indica a validade.</div>
-      <video id="certCamVideo" autoplay playsinline style="width:100%; border-radius:10px; background:#000; display:block;"></video>
-      <canvas id="certCamCanvas" style="display:none;"></canvas>
-      <img id="certFotoPreview" style="width:100%; border-radius:10px; display:none;">
-      <div style="display:flex; gap:8px; margin-top:10px;">
-        <button id="certTirarFotoBtn" style="flex:1; background:var(--terracotta); color:#fff; border:none; border-radius:10px; padding:10px; font-weight:700; font-size:13px;">📷 Tirar foto</button>
-        <button id="certRefazerBtn" style="flex:1; display:none; background:none; border:1.5px solid var(--line); border-radius:10px; padding:10px; font-weight:700; font-size:13px;">↺ Refazer</button>
+      <img id="certFotoPreview" style="width:100%; border-radius:10px; display:none; margin-bottom:10px;">
+      <div style="display:flex; gap:8px;">
+        <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" id="certCamInput" style="display:none;"></label>
+        <label class="filebtn" style="flex:1; text-align:center;">🖼️ Galeria<input type="file" accept="image/*" id="certGaleriaInput" style="display:none;"></label>
       </div>
-      <label style="display:block; text-align:center; cursor:pointer; margin-top:8px; font-size:12.5px; text-decoration:underline; color:var(--ink-soft);">🖼️ Escolher da galeria<input type="file" accept="image/*" id="certGaleriaInput" style="display:none;"></label>
       <div style="margin-top:14px;">
         <label style="font-size:12px; font-weight:700; color:var(--ink-soft); display:block; margin-bottom:4px;">Validade do certificado</label>
         <input type="date" id="certDataValidade" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--line);" value="${certificadoOleoAtual?.data_validade||''}">
@@ -1993,63 +1990,32 @@ function abrirCapturaCertificadoOleo(){
     </div>
   `;
   document.body.appendChild(o);
-  function pararCamara(){ if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; } }
-  document.getElementById("certCancelarBtn").onclick = ()=>{ pararCamara(); o.remove(); };
-  navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false}).then(stream=>{
-    camStream = stream;
-    document.getElementById("certCamVideo").srcObject = stream;
-  }).catch(e=>{ console.error(e); toast("Não consegui aceder à câmara — usa a galeria."); });
+  document.getElementById("certCancelarBtn").onclick = ()=>o.remove();
 
-  function mostrarPreview(dataUrl){
-    fotoDataUrl = dataUrl;
-    document.getElementById("certCamVideo").style.display = "none";
-    document.getElementById("certFotoPreview").style.display = "block";
-    document.getElementById("certFotoPreview").src = dataUrl;
-    document.getElementById("certTirarFotoBtn").style.display = "none";
-    document.getElementById("certRefazerBtn").style.display = "block";
-    pararCamara();
-  }
-  document.getElementById("certTirarFotoBtn").onclick = ()=>{
-    const video = document.getElementById("certCamVideo");
-    const canvas = document.getElementById("certCamCanvas");
-    if(!video.videoWidth){ toast("A câmara ainda está a arrancar — espera 1 segundo."); return; }
-    const maxDim = 1280;
-    let w=video.videoWidth, h=video.videoHeight;
-    if(w>h && w>maxDim){ h=h*maxDim/w; w=maxDim; } else if(h>maxDim){ w=w*maxDim/h; h=maxDim; }
-    canvas.width=w; canvas.height=h;
-    canvas.getContext("2d").drawImage(video,0,0,w,h);
-    mostrarPreview(canvas.toDataURL("image/jpeg",0.8));
-  };
-  document.getElementById("certRefazerBtn").onclick = ()=>{
-    fotoDataUrl = null;
-    document.getElementById("certCamVideo").style.display = "block";
-    document.getElementById("certFotoPreview").style.display = "none";
-    document.getElementById("certTirarFotoBtn").style.display = "block";
-    document.getElementById("certRefazerBtn").style.display = "none";
-    navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false}).then(stream=>{
-      camStream = stream;
-      document.getElementById("certCamVideo").srcObject = stream;
-    }).catch(()=>{});
-  };
-  document.getElementById("certGaleriaInput").addEventListener("change",(ev)=>{
-    const file = ev.target.files[0];
+  function processarFicheiro(file){
     if(!file) return;
     const reader = new FileReader();
     reader.onload = (e)=>{
       const img = new Image();
       img.onload = ()=>{
-        const canvas = document.getElementById("certCamCanvas");
+        const canvas = document.createElement("canvas");
         const maxDim = 1280;
         let w=img.width, h=img.height;
         if(w>h && w>maxDim){ h=h*maxDim/w; w=maxDim; } else if(h>maxDim){ w=w*maxDim/h; h=maxDim; }
         canvas.width=w; canvas.height=h;
         canvas.getContext("2d").drawImage(img,0,0,w,h);
-        mostrarPreview(canvas.toDataURL("image/jpeg",0.8));
+        fotoDataUrl = canvas.toDataURL("image/jpeg",0.8);
+        const preview = document.getElementById("certFotoPreview");
+        preview.src = fotoDataUrl;
+        preview.style.display = "block";
       };
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
-  });
+  }
+  document.getElementById("certCamInput").addEventListener("change",(ev)=>processarFicheiro(ev.target.files[0]));
+  document.getElementById("certGaleriaInput").addEventListener("change",(ev)=>processarFicheiro(ev.target.files[0]));
+
   document.getElementById("certGuardarBtn").onclick = protegerClique(document.getElementById("certGuardarBtn"), async ()=>{
     const dataValidade = document.getElementById("certDataValidade").value;
     if(!dataValidade){ toast("Escolhe a data de validade"); return; }
@@ -2064,7 +2030,6 @@ function abrirCapturaCertificadoOleo(){
       await api("POST", "cj_certificados_oleo", {loja:currentLoja, foto:fotoUrl, data_validade:dataValidade, criado_por:currentLoja, alerta_enviado:false});
     }
     toast("✔ Certificado guardado!");
-    pararCamara();
     o.remove();
     await render();
   }, "A guardar...");
