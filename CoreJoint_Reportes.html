@@ -4938,6 +4938,38 @@ function extrairIntervaloHoras(texto){
   });
   return {inicio: minInicio.texto, fim: maxFim.texto};
 }
+const DIAS_SEMANA_PT = ["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"];
+// Deteta o formato "largo" (1 linha = 1 colaborador numa semana, 1 coluna por dia da semana) e converte
+// para o formato longo (1 linha por dia) que o resto do codigo ja sabe processar - sem precisar de mapear colunas.
+function ehFormatoSemanalLargo(headers){
+  return headers.includes("Nome") && headers.includes("Semana") && DIAS_SEMANA_PT.every(d=>headers.includes(d));
+}
+function parseSemanaInicio(semanaTexto){
+  // "Semana de 31/08/2026 a 06/09/2026" - a segunda-feira e sempre a primeira data
+  const m = String(semanaTexto||"").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(!m) return null;
+  return new Date(Number(m[3]), Number(m[2])-1, Number(m[1]));
+}
+function converterFormatoSemanalLargo(rows, loja){
+  const linhas = [];
+  rows.forEach(r=>{
+    const colaborador = String(r["Nome"]||"").trim();
+    const segundaData = parseSemanaInicio(r["Semana"]);
+    if(!colaborador || !segundaData) return;
+    DIAS_SEMANA_PT.forEach((diaLabel, idx)=>{
+      const dataDoDia = new Date(segundaData);
+      dataDoDia.setDate(dataDoDia.getDate()+idx);
+      const intervalo = extrairIntervaloHoras(r[diaLabel]);
+      if(!intervalo) return; // FOLGA/Ausencia/vazio - nao e um turno real
+      linhas.push({
+        loja, loja_original:loja, colaborador, data:isoDate(dataDoDia),
+        turno:null, hora_inicio:intervalo.inicio, hora_fim:intervalo.fim
+      });
+    });
+  });
+  return linhas;
+}
+
 function handleHorariosFile(ev){
   const loja = document.getElementById("horariosLojaSel").value;
   if(!loja){ toast("Escolhe a loja primeiro"); ev.target.value = ""; return; }
@@ -4945,6 +4977,27 @@ function handleHorariosFile(ev){
   if(!file) return;
   lerFicheiroTabular(file, (rows)=>{
       const headers = Object.keys(rows[0]);
+
+      if(ehFormatoSemanalLargo(headers)){
+        // formato reconhecido automaticamente - nao precisa de mapear colunas
+        horariosParaImportar = converterFormatoSemanalLargo(rows, loja);
+        window._formEmEdicao = true;
+        const main = document.getElementById("main");
+        main.innerHTML = "";
+        const back = document.createElement("button");
+        back.className = "cambtn secondary";
+        back.style.marginBottom = "14px";
+        back.textContent = "← Voltar ao painel";
+        back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+        main.appendChild(back);
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `<div id="horariosPreview"></div>`;
+        main.appendChild(card);
+        renderHorariosPreview(loja, horariosParaImportar.length);
+        return;
+      }
+
       abrirMapeamentoColunas(`Horário — ${loja}`, headers, [
         {key:"colaborador", label:"Colaborador", sinonimos:["colaborador","nome","operador"], obrigatorio:true},
         {key:"data", label:"Data", sinonimos:["data","data da escala"], obrigatorio:true},
