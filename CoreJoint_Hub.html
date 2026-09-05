@@ -1287,23 +1287,24 @@ async function abrirStockCompletoFardamentoHub(){
   empilharEcraHub(overlay);
   document.getElementById("fecharFardStockHubBtn").onclick = ()=>fecharEcraHub();
 
-  const porPecaTudo = {};
-  rows.forEach(r=>{ (porPecaTudo[r.peca] ||= []).push(r); });
   const capturaWrap = document.getElementById("fardStockCapturaWrapHub");
   const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
-  const linhasResumoHtml = Object.entries(porPecaTudo).sort((a,b)=>a[0].localeCompare(b[0])).map(([peca,items])=>{
-    const total = items.reduce((s,i)=>s+Number(i.quantidade),0);
-    return `<tr><td style="font-weight:700; font-size:11px; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${peca}</td>
-    <td style="text-align:right; font-size:11px; font-weight:800; color:#C1622D; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${total}</td></tr>`;
+  const linhasDetalheHtml = [...rows].sort((a,b)=>a.peca.localeCompare(b.peca) || String(a.tamanho).localeCompare(String(b.tamanho))).map(r=>{
+    const qtd = Number(r.quantidade);
+    const cor = qtd===0 ? '#b0432f' : qtd<5 ? '#c17817' : '#2e7d32';
+    return `<tr><td style="font-size:10.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3;">${r.peca}</td>
+    <td style="font-size:10.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; text-align:center;">${r.tamanho}</td>
+    <td style="text-align:right; font-size:10.5px; font-weight:800; color:${cor}; padding:4px 3px; border-bottom:1px solid #f0ebe3;">${qtd===0?'ESGOTADO':qtd}</td></tr>`;
   }).join("");
   capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 10px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
   capturaWrap.innerHTML = `
     <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Fardamento — Stock completo</div>
-    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} — Santarém — ${totalGeral} peças</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} — Santarém — ${totalGeral} peças em ${rows.length} referências</div>
     <table style="border-collapse:collapse; width:100%;"><thead><tr>
       <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:left;">Peça</th>
-      <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:right;">Total</th>
-    </tr></thead><tbody>${linhasResumoHtml}</tbody></table>
+      <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:center;">Tam.</th>
+      <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:right;">Qtd</th>
+    </tr></thead><tbody>${linhasDetalheHtml}</tbody></table>
   `;
   criarBotoesPartilhaHub(document.getElementById("fardStockPartilhaBtnsHub"), capturaWrap, `CoreJoint_fardamento_stock`, "CoreJoint · Fardamento — Stock completo");
 
