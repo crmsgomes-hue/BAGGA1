@@ -580,6 +580,7 @@ async function render(){
 
   await renderPendenciasCard(main);
   await renderCertificadoOleoCard(main);
+  await renderCalibracaoMedidorOleoCard(main);
 
 
   sondagensPendentes.forEach(s=>{
@@ -2131,6 +2132,43 @@ async function renderCertificadoOleoCard(main){
   if(verFoto) verFoto.onclick = ()=>abrirFotoZoom(certificadoOleoAtual.foto);
 }
 
+let calibracaoMedidorAtual = null;
+async function renderCalibracaoMedidorOleoCard(main){
+  try{
+    const rows = await api("GET", `cj_calibracao_medidor_oleo?select=*&loja=eq.${encodeURIComponent(currentLoja)}`);
+    calibracaoMedidorAtual = rows[0] || null;
+  }catch(e){ console.error(e); calibracaoMedidorAtual = null; }
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.style.padding = "12px 14px";
+  if(!calibracaoMedidorAtual){
+    card.innerHTML = `<div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">📏 Calibração do medidor de óleo — ainda não foi enviada.</div>
+      <button id="btnCalibMedidor" style="width:100%; background:var(--terracotta); color:#fff; border:none; border-radius:8px; padding:10px; font-weight:700; font-size:13px;">📷 Enviar calibração</button>`;
+  } else {
+    const dias = Math.floor((new Date(calibracaoMedidorAtual.data_validade+"T00:00:00") - new Date())/86400000);
+    const validadeFmt = new Date(calibracaoMedidorAtual.data_validade+"T00:00:00").toLocaleDateString('pt-PT');
+    let statusTxt, statusCor;
+    if(dias<0){ statusTxt = `⚠ Expirada há ${Math.abs(dias)} dia(s)`; statusCor = "var(--red,#B0432F)"; }
+    else if(dias<=30){ statusTxt = `⚠ Expira em ${dias} dia(s)`; statusCor = "var(--terracotta)"; }
+    else { statusTxt = `✔ Válida até ${validadeFmt}`; statusCor = "#2e7d32"; }
+    card.innerHTML = `
+      <div style="display:flex; gap:12px; align-items:center;">
+        ${calibracaoMedidorAtual.foto ? `<img src="${calibracaoMedidorAtual.foto}" style="width:52px; height:52px; object-fit:cover; border-radius:8px; cursor:pointer;" id="verFotoCalibMedidor">` : ``}
+        <div style="flex:1;">
+          <div style="font-size:12px; color:var(--ink-soft);">📏 Calibração do medidor de óleo</div>
+          <div style="font-size:13px; font-weight:700; color:${statusCor};">${statusTxt}</div>
+        </div>
+      </div>
+      <button id="btnCalibMedidor" style="width:100%; margin-top:10px; background:none; border:1.5px solid var(--line); border-radius:8px; padding:9px; font-weight:700; font-size:12.5px;">📷 Atualizar calibração</button>
+    `;
+  }
+  main.appendChild(card);
+  document.getElementById("btnCalibMedidor").onclick = abrirCapturaCalibracaoMedidorOleo;
+  const verFoto = document.getElementById("verFotoCalibMedidor");
+  if(verFoto) verFoto.onclick = ()=>abrirFotoZoom(calibracaoMedidorAtual.foto);
+}
+
 function abrirFotoZoom(src){
   const o = document.createElement("div");
   o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.92); z-index:999999; overflow:hidden; touch-action:none;";
@@ -2267,6 +2305,75 @@ function abrirCapturaCertificadoOleo(){
       await api("POST", "cj_certificados_oleo", {loja:currentLoja, foto:fotoUrl, data_validade:dataValidade, criado_por:currentLoja, alerta_enviado:false});
     }
     toast("✔ Certificado guardado!");
+    o.remove();
+    await render();
+  }, "A guardar...");
+}
+
+function abrirCapturaCalibracaoMedidorOleo(){
+  let fotoDataUrl = null;
+  const o = document.createElement("div");
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:999999; display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto;";
+  o.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:380px; width:100%;">
+      <div style="font-size:15px; font-weight:700; margin-bottom:4px;">📏 Calibração do medidor de óleo</div>
+      <div style="font-size:12px; color:var(--ink-soft); margin-bottom:10px;">Tira foto da calibração e indica a validade.</div>
+      <img id="calibFotoPreview" style="width:100%; border-radius:10px; display:none; margin-bottom:10px;">
+      <div style="display:flex; gap:8px;">
+        <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" id="calibCamInput" style="display:none;"></label>
+        <label class="filebtn" style="flex:1; text-align:center;">🖼️ Galeria<input type="file" accept="image/*" id="calibGaleriaInput" style="display:none;"></label>
+      </div>
+      <div style="margin-top:14px;">
+        <label style="font-size:12px; font-weight:700; color:var(--ink-soft); display:block; margin-bottom:4px;">Validade da calibração</label>
+        <input type="date" id="calibDataValidade" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--line);" value="${calibracaoMedidorAtual?.data_validade||''}">
+      </div>
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <button id="calibCancelarBtn" style="flex:1; background:none; border:1.5px solid var(--line); border-radius:10px; padding:11px; font-weight:700;">Cancelar</button>
+        <button id="calibGuardarBtn" style="flex:1; background:var(--terracotta); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">Guardar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(o);
+  document.getElementById("calibCancelarBtn").onclick = ()=>o.remove();
+
+  function processarFicheiro(file){
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const canvas = document.createElement("canvas");
+        const maxDim = 1280;
+        let w=img.width, h=img.height;
+        if(w>h && w>maxDim){ h=h*maxDim/w; w=maxDim; } else if(h>maxDim){ w=w*maxDim/h; h=maxDim; }
+        canvas.width=w; canvas.height=h;
+        canvas.getContext("2d").drawImage(img,0,0,w,h);
+        fotoDataUrl = canvas.toDataURL("image/jpeg",0.8);
+        const preview = document.getElementById("calibFotoPreview");
+        preview.src = fotoDataUrl;
+        preview.style.display = "block";
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  document.getElementById("calibCamInput").addEventListener("change",(ev)=>processarFicheiro(ev.target.files[0]));
+  document.getElementById("calibGaleriaInput").addEventListener("change",(ev)=>processarFicheiro(ev.target.files[0]));
+
+  document.getElementById("calibGuardarBtn").onclick = protegerClique(document.getElementById("calibGuardarBtn"), async ()=>{
+    const dataValidade = document.getElementById("calibDataValidade").value;
+    if(!dataValidade){ toast("Escolhe a data de validade"); return; }
+    if(!fotoDataUrl && !calibracaoMedidorAtual?.foto){ toast("Tira uma foto da calibração"); return; }
+    let fotoUrl = calibracaoMedidorAtual?.foto || null;
+    if(fotoDataUrl){
+      fotoUrl = await uploadPhoto(fotoDataUrl, `calibracao_medidor_oleo/${currentLoja}_${Date.now()}.jpg`);
+    }
+    if(calibracaoMedidorAtual){
+      await api("PATCH", `cj_calibracao_medidor_oleo?loja=eq.${encodeURIComponent(currentLoja)}`, {foto:fotoUrl, data_validade:dataValidade, criado_por:currentLoja, alerta_enviado:false});
+    } else {
+      await api("POST", "cj_calibracao_medidor_oleo", {loja:currentLoja, foto:fotoUrl, data_validade:dataValidade, criado_por:currentLoja, alerta_enviado:false});
+    }
+    toast("✔ Calibração guardada!");
     o.remove();
     await render();
   }, "A guardar...");
