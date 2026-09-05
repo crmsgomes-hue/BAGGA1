@@ -578,6 +578,7 @@ async function render(){
     main.appendChild(link);
   });
 
+  await renderPendenciasCard(main);
   await renderCertificadoOleoCard(main);
 
 
@@ -1980,7 +1981,7 @@ function abrirConfirmarStockNegLoja(id){
     await api("PATCH", `cj_stock_negativo?id=eq.${id}`, {confirmado:true, confirmado_por:currentLoja, confirmado_em:new Date().toISOString(), foto_confirmacao:fotoUrl});
     toast("✔ Confirmado!");
     o.remove();
-    await renderAreaGestaoLoja();
+    if(document.getElementById("gestaoCorpo")){ await renderAreaGestaoLoja(); } else { await render(); }
   }, "A guardar...");
 }
 
@@ -2012,6 +2013,88 @@ function abrirJustificarQuebraLoja(id){
 }
 
 let certificadoOleoAtual = null;
+async function renderPendenciasCard(main){
+  const lojaQ = encodeURIComponent(currentLoja);
+  const [trocas, formacoes, stockNeg] = await Promise.all([
+    api("GET", `cj_trocas?select=*&loja=eq.${lojaQ}&estado=eq.pendente&order=data.asc`),
+    api("GET", `cj_formacoes?select=*&loja=eq.${lojaQ}&order=colaborador.asc`),
+    api("GET", `cj_stock_negativo?select=*&loja=eq.${lojaQ}&confirmado=eq.false&order=valor_stock.asc`)
+  ]);
+  if(trocas.length===0 && formacoes.length===0 && stockNeg.length===0) return;
+
+  function linha(id, emoji, label, n){
+    return `<button id="${id}" style="display:flex; align-items:center; gap:10px; width:100%; background:none; border:none; padding:9px 0; text-align:left; cursor:pointer; border-top:1px solid var(--line);">
+      <span style="font-size:16px; width:20px; text-align:center;">${emoji}</span>
+      <span style="flex:1; font-size:13.5px; color:var(--ink);">${label}</span>
+      <span style="background:var(--terracotta,#C1622D); color:#fff; font-size:11px; font-weight:700; border-radius:99px; padding:2px 8px;">${n}</span>
+      <span style="color:var(--ink-soft); font-size:14px;">›</span>
+    </button>`;
+  }
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.style.padding = "12px 14px";
+  card.innerHTML = `
+    <div style="font-size:13px; font-weight:700; color:var(--ink);">Por tratar</div>
+    ${trocas.length>0 ? linha("pendTrocasBtn","🔁","Trocas de horário pendentes",trocas.length) : ""}
+    ${formacoes.length>0 ? linha("pendFormacoesBtn","🎓","Formações por concluir",formacoes.length) : ""}
+    ${stockNeg.length>0 ? linha("pendStockNegBtn","📉","Stock negativo por confirmar",stockNeg.length) : ""}
+  `;
+  main.appendChild(card);
+  if(trocas.length>0) document.getElementById("pendTrocasBtn").onclick = ()=>abrirListaPendenciaFoto("🔁 Trocas de horário pendentes", trocas.map(t=>`
+    <div style="padding:8px 0; border-bottom:1px solid var(--line); font-size:13px;">
+      <b>${t.criado_por||'—'}</b>
+      <div style="color:var(--ink-soft); font-size:12px;">${new Date(t.data+"T00:00:00").toLocaleDateString('pt-PT')}</div>
+    </div>`).join(""));
+  if(formacoes.length>0) document.getElementById("pendFormacoesBtn").onclick = ()=>abrirListaPendenciaFoto("🎓 Formações por concluir", formacoes.map(f=>`
+    <div style="padding:8px 0; border-bottom:1px solid var(--line); font-size:13px;">
+      <b>${f.colaborador}</b>
+      <div style="color:var(--ink-soft); font-size:12px;">${f.formacao}</div>
+    </div>`).join(""));
+  if(stockNeg.length>0) document.getElementById("pendStockNegBtn").onclick = ()=>abrirListaStockNegFoto(stockNeg);
+}
+
+function abrirListaPendenciaFoto(titulo, corpoHtml){
+  const o = document.createElement("div");
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:9999999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  o.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:380px; width:100%; margin-top:30px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:16px; margin-bottom:10px;">${titulo}</div>
+      ${corpoHtml}
+      <button id="fecharPendFotoBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--line); border-radius:10px; padding:11px; font-weight:700; color:var(--ink-soft);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(o);
+  document.getElementById("fecharPendFotoBtn").onclick = ()=>o.remove();
+}
+
+function abrirListaStockNegFoto(stockNeg){
+  const o = document.createElement("div");
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:9999999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  o.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:380px; width:100%; margin-top:30px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:16px; margin-bottom:10px;">📉 Stock negativo por confirmar</div>
+      <div id="pendStockNegLista"></div>
+      <button id="fecharPendStockNegBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--line); border-radius:10px; padding:11px; font-weight:700; color:var(--ink-soft);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(o);
+  document.getElementById("fecharPendStockNegBtn").onclick = ()=>o.remove();
+  function render(){
+    document.getElementById("pendStockNegLista").innerHTML = stockNeg.map(s=>`
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); font-size:13px;">
+        <span style="flex:1;">${s.produto||'—'}</span>
+        <b style="color:var(--red,#b0432f);">${Number(s.valor_stock).toFixed(2)}</b>
+        <button class="pendStockNegConfirmarBtn" data-id="${s.id}" style="background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:6px; padding:6px 10px; font-size:11.5px; font-weight:700;">Confirmar</button>
+      </div>
+    `).join("");
+    document.querySelectorAll(".pendStockNegConfirmarBtn").forEach(btn=>{
+      btn.onclick = ()=>{ o.remove(); abrirConfirmarStockNegLoja(Number(btn.dataset.id)); };
+    });
+  }
+  render();
+}
+
 async function renderCertificadoOleoCard(main){
   try{
     const rows = await api("GET", `cj_certificados_oleo?select=*&loja=eq.${encodeURIComponent(currentLoja)}`);
