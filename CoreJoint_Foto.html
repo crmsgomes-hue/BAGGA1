@@ -2140,7 +2140,7 @@ async function renderCertificadoOleoCard(main){
 let calibracaoMedidorAtual = null;
 async function renderCalibracaoMedidorOleoCard(main){
   try{
-    const rows = await api("GET", `cj_calibracao_medidor_oleo?select=*&loja=eq.${encodeURIComponent(currentLoja)}`);
+    const rows = await api("GET", `cj_calibracoes_oleo?select=*&loja=eq.${encodeURIComponent(currentLoja)}`);
     calibracaoMedidorAtual = rows[0] || null;
   }catch(e){ console.error(e); calibracaoMedidorAtual = null; }
 
@@ -2374,9 +2374,9 @@ function abrirCapturaCalibracaoMedidorOleo(){
       fotoUrl = await uploadPhoto(fotoDataUrl, `calibracao_medidor_oleo/${currentLoja}_${Date.now()}.jpg`);
     }
     if(calibracaoMedidorAtual){
-      await api("PATCH", `cj_calibracao_medidor_oleo?loja=eq.${encodeURIComponent(currentLoja)}`, {foto:fotoUrl, data_validade:dataValidade, criado_por:currentLoja, alerta_enviado:false});
+      await api("PATCH", `cj_calibracoes_oleo?loja=eq.${encodeURIComponent(currentLoja)}`, {foto:fotoUrl, data_validade:dataValidade, criado_por:currentLoja, alerta_enviado:false});
     } else {
-      await api("POST", "cj_calibracao_medidor_oleo", {loja:currentLoja, foto:fotoUrl, data_validade:dataValidade, criado_por:currentLoja, alerta_enviado:false});
+      await api("POST", "cj_calibracoes_oleo", {loja:currentLoja, foto:fotoUrl, data_validade:dataValidade, criado_por:currentLoja, alerta_enviado:false});
     }
     toast("✔ Calibração guardada!");
     o.remove();
