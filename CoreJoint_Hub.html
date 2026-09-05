@@ -289,7 +289,7 @@ async function renderPanoramaGeral(){
     const inicioSemana = isoDate(weekWindow(today).start);
 
     const inicioMesAtual = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg] = await Promise.all([
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
       api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`),
@@ -301,8 +301,10 @@ async function renderPanoramaGeral(){
       api(`cj_stock_negativo?select=loja&justificacao=is.null&loja=not.is.null`),
       api(`cj_formacoes?select=loja&justificacao=is.null&loja=not.is.null`),
       api(`cj_horarios?select=loja,data,colaborador,hora_inicio,hora_fim&data=gte.${inicioMesAtual}&data=lte.${todayStr}`),
-      api(`cj_trocas?select=loja&estado=eq.pendente`)
+      api(`cj_trocas?select=loja&estado=eq.pendente`),
+      api(`cj_fardamento_rececoes?select=id&recolhido=eq.false`)
     ]);
+    const fardRececoesPendentesPg = fardRececoesPg.length;
 
     // Conta dias/lojas sem cobertura de abertura (antes das 07:15) ou fecho (ate as 21:00), so onde ha horas importadas
     const porDiaLojaSet = {}, porDiaLojaHor = {};
@@ -546,12 +548,14 @@ async function renderPanoramaGeral(){
         </div>` : ``}
         <button id="btnAbrirDevolucaoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📥 Devoluções por recolher (${fardDevPg.length})</button>
         <button id="btnAbrirAdmissaoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👤 Nova admissão (montar kit)</button>
-        <button id="btnVerStockCompletoHub" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📋 Ver stock completo (todos os pólos)</button>
+        <button id="btnVerStockCompletoHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📋 Ver stock completo (todos os pólos)</button>
+        <button id="btnVerRececoesFardHub" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📄 Documentos de receção${fardRececoesPendentesPg>0?` (${fardRececoesPendentesPg})`:''}</button>
       `;
       abrirModalTopico("👕 Fardamento", corpo);
       document.getElementById("btnAbrirDevolucaoHub").onclick = abrirDevolucaoFardamentoHub;
       document.getElementById("btnAbrirAdmissaoHub").onclick = abrirAdmissaoFardamentoHub;
       document.getElementById("btnVerStockCompletoHub").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirStockCompletoFardamentoHub(); };
+      document.getElementById("btnVerRececoesFardHub").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirRececoesFardamentoHub(); };
       document.querySelectorAll(".fardAjustarBtn").forEach(btn=>{
         btn.onclick = ()=>ajustarStockFardamentoHub(btn.dataset.polo, btn.dataset.peca, btn.dataset.tamanho, Number(btn.dataset.delta), btn, btn.dataset.span);
       });
@@ -1317,6 +1321,60 @@ async function abrirStockCompletoFardamentoHub(){
   }
   render("");
   document.getElementById("fardStockFiltro").addEventListener("input",(ev)=>render(ev.target.value));
+}
+
+async function abrirRececoesFardamentoHub(){
+  const rows = await api("cj_fardamento_rececoes?select=*&order=recolhido.asc,data_rececao.desc", "GET");
+  const overlay = document.createElement("div");
+  overlay.id = "fardRececoesOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  const pendentes = rows.filter(r=>!r.recolhido);
+  const recolhidas = rows.filter(r=>r.recolhido);
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:440px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:2px;">📄 Documentos de receção — Fardamento</div>
+      <div style="font-size:12px; color:var(--t2); margin-bottom:14px;">${pendentes.length} por recolher, ${recolhidas.length} já recolhido(s).</div>
+      <div id="fardRececoesListaHub"></div>
+      <button id="fecharFardRececoesHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("fecharFardRececoesHubBtn").onclick = ()=>overlay.remove();
+
+  function cartao(r){
+    const dataFmt = new Date(r.data_rececao+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'});
+    return `
+      <div style="background:var(--sf2); border-radius:10px; padding:12px; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; font-size:.85rem; font-weight:700; margin-bottom:6px;">
+          <span>📅 ${dataFmt}</span>
+          <span style="color:var(--t2); font-weight:400; font-size:.75rem;">${r.enviado_por||'—'}</span>
+        </div>
+        <img class="fardRececaoFotoVer" data-src="${r.foto}" src="${r.foto}" style="width:100%; border-radius:8px; cursor:pointer;">
+        ${r.observacoes ? `<div style="font-size:.78rem; color:var(--t2); margin-top:6px; font-style:italic;">"${r.observacoes}"</div>` : ''}
+        ${r.recolhido
+          ? `<div style="font-size:.75rem; color:#2e7d32; margin-top:8px;">✔ Recolhido por ${r.recolhido_por} — ${new Date(r.recolhido_em).toLocaleDateString('pt-PT')}</div>`
+          : `<button class="fardRececaoRecolherBtn" data-id="${r.id}" style="width:100%; margin-top:8px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:8px; padding:8px; font-size:.78rem; font-weight:700;">✔ Já fui buscar o documento</button>`
+        }
+      </div>
+    `;
+  }
+
+  const lista = document.getElementById("fardRececoesListaHub");
+  lista.innerHTML = `
+    ${pendentes.length>0 ? `<div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--t2); font-weight:700; margin-bottom:6px;">Por recolher</div>${pendentes.map(cartao).join("")}` : `<div style="font-size:.8rem; color:var(--t2); margin-bottom:14px;">Nada por recolher.</div>`}
+    ${recolhidas.length>0 ? `<div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--t2); font-weight:700; margin:14px 0 6px;">Já recolhidos</div>${recolhidas.slice(0,10).map(cartao).join("")}` : ``}
+  `;
+  lista.querySelectorAll(".fardRececaoFotoVer").forEach(img=>{
+    img.onclick = ()=>abrirFotoGrandeHub(img.dataset.src);
+  });
+  lista.querySelectorAll(".fardRececaoRecolherBtn").forEach(btn=>{
+    btn.onclick = protegerCliqueHub(btn, async ()=>{
+      await api(`cj_fardamento_rececoes?id=eq.${btn.dataset.id}`, "PATCH", {recolhido:true, recolhido_por:NOMES_PERFIS[currentUser], recolhido_em:new Date().toISOString()});
+      toast("✔ Marcado como recolhido");
+      overlay.remove();
+      await abrirRececoesFardamentoHub();
+    }, "...");
+  });
 }
 
 async function abrirDevolucaoFardamentoHub(){

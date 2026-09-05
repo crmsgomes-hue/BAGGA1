@@ -143,11 +143,12 @@
       </div>
     </div>
     <button id="trocarUserBtn" onclick="trocarUtilizadorFard()" style="width:100%; background:var(--terracotta,#C1622E); border:none; color:#fff; border-radius:14px; padding:14px; font-size:18px; font-weight:800; cursor:pointer; margin:8px 0; box-shadow:0 3px 8px rgba(0,0,0,.2);">🔄 Trocar utilizador</button>
-    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr; gap:6px; margin-top:10px;">
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr; gap:6px; margin-top:10px;">
       <button class="bell" id="admBtn" onclick="openAdmissao()" style="width:100%; height:44px; font-size:15px;" title="Nova Admissão">👤+</button>
       <button class="bell" id="devBtn" onclick="openDevolucao()" style="width:100%; height:44px; font-size:18px;" title="Devoluções">↩</button>
       <button class="bell" id="dispoBtn" onclick="openDisponibilidade()" style="width:100%; height:44px; font-size:18px;" title="Disponibilidade">🔍</button>
       <button class="bell" id="histBtn" onclick="openHistorico()" style="width:100%; height:44px; font-size:18px;" title="Histórico">📜</button>
+      <button class="bell" id="rececaoBtn" onclick="openRececaoFardamento()" style="width:100%; height:44px; font-size:16px;" title="Documento de receção">📄</button>
       <button class="bell" id="bellBtn" onclick="openAlertas()" style="width:100%; height:44px; font-size:18px;" title="Alertas">🔔<span class="dot"></span></button>
     </div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
@@ -260,6 +261,85 @@ async function api(method, path, body){
   });
   if(!res.ok){ const t = await res.text(); throw new Error(t); }
   return res.status === 204 ? null : res.json();
+}
+
+async function uploadPhoto(dataUrl, path){
+  const blob = await (await fetch(dataUrl)).blob();
+  const res = await fetch(`${SUPA_URL}/storage/v1/object/cj_reportes_fotos/${path}`, {
+    method: "POST",
+    headers: { "apikey": SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY, "Content-Type": "image/jpeg" },
+    body: blob
+  });
+  if(!res.ok){ const t = await res.text(); throw new Error(t); }
+  return `${SUPA_URL}/storage/v1/object/public/cj_reportes_fotos/${path}`;
+}
+
+function openRececaoFardamento(){
+  let fotoDataUrl = null;
+  const o = document.createElement("div");
+  o.className = "overlay";
+  o.innerHTML = `
+    <div class="modal">
+      <h2>📄 Documento de receção</h2>
+      <div class="sub">Tira foto do documento de receção do fardamento. A gestão vai ver e tratar antes de ir recolher o papel.</div>
+      <img id="rececaoFotoPreview" style="width:100%; border-radius:10px; display:none; margin:10px 0;">
+      <div style="display:flex; gap:8px;">
+        <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" id="rececaoCamInput" style="display:none;"></label>
+        <label class="filebtn" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);">🖼️ Galeria<input type="file" accept="image/*" id="rececaoGaleriaInput" style="display:none;"></label>
+      </div>
+      <div class="field" style="margin-top:14px;">
+        <label>Data da receção</label>
+        <input id="rececaoData" type="date" value="${new Date().toISOString().slice(0,10)}">
+      </div>
+      <div class="field">
+        <label>Observações (opcional)</label>
+        <textarea id="rececaoObs" rows="2" placeholder="Ex: falta 1 caixa, embalagem danificada..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="rececaoCancelarBtn">Cancelar</button>
+        <button class="btn-save" id="rececaoGuardarBtn">Guardar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(o);
+  document.getElementById("rececaoCancelarBtn").onclick = ()=>o.remove();
+
+  function processarFicheiro(file){
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const canvas = document.createElement("canvas");
+        const maxDim = 1280;
+        let w=img.width, h=img.height;
+        if(w>h && w>maxDim){ h=h*maxDim/w; w=maxDim; } else if(h>maxDim){ w=w*maxDim/h; h=maxDim; }
+        canvas.width=w; canvas.height=h;
+        canvas.getContext("2d").drawImage(img,0,0,w,h);
+        fotoDataUrl = canvas.toDataURL("image/jpeg",0.8);
+        const preview = document.getElementById("rececaoFotoPreview");
+        preview.src = fotoDataUrl;
+        preview.style.display = "block";
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  document.getElementById("rececaoCamInput").addEventListener("change",(ev)=>processarFicheiro(ev.target.files[0]));
+  document.getElementById("rececaoGaleriaInput").addEventListener("change",(ev)=>processarFicheiro(ev.target.files[0]));
+
+  document.getElementById("rececaoGuardarBtn").onclick = protegerClique(document.getElementById("rececaoGuardarBtn"), async ()=>{
+    if(!fotoDataUrl){ toast("Tira ou escolhe a foto do documento"); return; }
+    const dataRececao = document.getElementById("rececaoData").value;
+    if(!dataRececao){ toast("Escolhe a data"); return; }
+    const observacoes = document.getElementById("rececaoObs").value.trim();
+    const fotoUrl = await uploadPhoto(fotoDataUrl, `fardamento_rececoes/${currentPolo}_${Date.now()}.jpg`);
+    await api("POST", "cj_fardamento_rececoes", {
+      foto: fotoUrl, data_rececao: dataRececao, observacoes: observacoes||null, enviado_por: currentUser
+    });
+    toast("✔ Documento guardado!");
+    o.remove();
+  }, "A guardar...");
 }
 
 function trocarUtilizadorFard(){
