@@ -3046,7 +3046,7 @@ function openHistoricoAnual(){
       </div>`;
       semanais.forEach(cat=>{
         const cells = weeks.map(w=>{
-          const has = invRows.some(r=>r.loja===l && r.categoria===cat.key && inRange(r.data, w.start, w.end));
+          const has = invRows.some(r=>r.loja===l && r.categoria===cat.key && inRange(r.data, w.start, w.end) && (r.fotos||[]).length>0);
           return `<div style="height:16px; border-radius:3px; background:${has?'var(--green)':'var(--line)'};"></div>`;
         }).join("");
         html += `<div style="display:grid; grid-template-columns:70px repeat(12,1fr); gap:2px; margin-bottom:2px; align-items:center;">

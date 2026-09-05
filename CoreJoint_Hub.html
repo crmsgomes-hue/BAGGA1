@@ -2050,7 +2050,7 @@ async function abrirDiagnosticoHub(){
   const naoAplic = await api(`cj_categoria_nao_aplicavel?select=*`, "GET");
   function statusCatLojaDiag(loja, cat){
     const w = windowFor(cat.freq, today);
-    const rows = todosInv.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end));
+    const rows = todosInv.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end) && (r.fotos||[]).length>0);
     const dow = CATEGORY_DOW[cat.key];
     if(dow){
       // ja enviado esta semana conta como feito, a tempo ou atrasado (rows ja esta filtrado a semana toda)
@@ -2058,7 +2058,7 @@ async function abrirDiagnosticoHub(){
     }
     if(rows.length>0) return {feito:true};
     if(cat.freq==="mensal_inicio" || cat.freq==="mensal_dia20"){
-      const rowsMes = todosInv.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, monthWindow(today).start, monthWindow(today).end));
+      const rowsMes = todosInv.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, monthWindow(today).start, monthWindow(today).end) && (r.fotos||[]).length>0);
       if(rowsMes.length>0) return {feito:true};
     }
     return {feito:false};
@@ -3555,13 +3555,13 @@ function semanaKey(d){
           const diaConfirmacao = new Date(target); diaConfirmacao.setDate(diaConfirmacao.getDate()+1);
           deadline = new Date(diaConfirmacao); deadline.setHours(21,0,0,0);
           // ja enviado esta semana conta como feito, a tempo ou atrasado
-          enviouNoPrazo = invRows.some(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end));
+          enviouNoPrazo = invRows.some(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end) && (r.fotos||[]).length>0);
         } else {
-          const rowsCat = invRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end));
+          const rowsCat = invRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end) && (r.fotos||[]).length>0);
           enviouNoPrazo = rowsCat.length>0;
           if(!enviouNoPrazo && (cat.freq==="mensal_inicio" || cat.freq==="mensal_dia20")){
             const mesInteiro = monthWindow(today);
-            enviouNoPrazo = invRows.some(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, mesInteiro.start, mesInteiro.end));
+            enviouNoPrazo = invRows.some(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, mesInteiro.start, mesInteiro.end) && (r.fotos||[]).length>0);
           }
           deadline = w.end;
         }
@@ -3698,7 +3698,7 @@ function semanaKey(d){
       let atrasadosLoja = 0;
       [...categoriasParaLoja(l), ...MARKETING_CATS].filter(cat=>!naoAplicaveisPainel.some(n=>n.loja===l && n.categoria===cat.key)).forEach(cat=>{
         const w = windowFor(cat.freq, today);
-        const rowsCat = invForPainel.filter(r=>r.loja===l && r.categoria===cat.key && inRange(r.data, w.start, w.end));
+        const rowsCat = invForPainel.filter(r=>r.loja===l && r.categoria===cat.key && inRange(r.data, w.start, w.end) && (r.fotos||[]).length>0);
         if(rowsCat.length>0) return;
         const dow = CATEGORY_DOW[cat.key];
         let deadline;
@@ -3924,7 +3924,7 @@ function semanaKey(d){
     const naoAplicaveisCat = await api("cj_categoria_nao_aplicavel?select=loja,categoria");
     function statusCatLoja(loja, cat){
       const w = windowFor(cat.freq, today);
-      const rows = invCatRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end));
+      const rows = invCatRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end) && (r.fotos||[]).length>0);
       const dow = CATEGORY_DOW[cat.key];
       if(dow){
         // ja enviado esta semana conta como feito, a tempo ou atrasado (rows ja esta filtrado a semana toda)
@@ -3934,7 +3934,7 @@ function semanaKey(d){
       if(rows.length>0) return {feito:true, diaErrado:false, latest: rows[0]};
       if(cat.freq==="mensal_inicio" || cat.freq==="mensal_dia20"){
         const mesInteiro = monthWindow(today);
-        const rowsMes = invCatRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, mesInteiro.start, mesInteiro.end));
+        const rowsMes = invCatRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, mesInteiro.start, mesInteiro.end) && (r.fotos||[]).length>0);
         if(rowsMes.length>0) return {feito:true, diaErrado:false, latest: rowsMes[0]};
       }
       return {feito:false, diaErrado:false, latest:null};

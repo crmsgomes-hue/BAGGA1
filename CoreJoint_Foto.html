@@ -344,7 +344,7 @@ function isSemanaDoGlobal(d){
 function invStatus(catKey, freq){
   const today = new Date();
   const w = windowFor(freq, today);
-  const rows = invRows.filter(r=>r.categoria===catKey && inRange(r.data, w.start, w.end));
+  const rows = invRows.filter(r=>r.categoria===catKey && inRange(r.data, w.start, w.end) && (r.fotos||[]).length>0);
   const dow = CATEGORY_DOW[catKey];
   if(dow){
     const dataCerta = findWeekdayInRange(w.start, w.end, dow);
@@ -355,6 +355,8 @@ function invStatus(catKey, freq){
     // se ja HA envio, nao se foi a tempo. O "a tempo"/"atrasado" fica so para efeitos de relatorio,
     // nunca para decidir se o botao de enviar continua visivel (era esse o bug: um envio feito depois
     // do prazo nunca fazia desaparecer o botao, porque so contava envios dentro da janela do prazo certo)
+    // NOTA (05/09): rows ja exige fotos reais (nao so a linha existir) - se ela apagar as fotos, volta a
+    // contar como "por fazer", mesmo que a linha continue na BD (bug real reportado por ela)
     if(rows.length>0){
       const enviouNoPrazo = rows.some(r=>{
         if(r.criado_em){
@@ -378,7 +380,7 @@ function invStatus(catKey, freq){
   }
   if(freq==="mensal_inicio" || freq==="mensal_dia20"){
     const mesInteiro = monthWindow(today);
-    const rowsMes = invRows.filter(r=>r.categoria===catKey && inRange(r.data, mesInteiro.start, mesInteiro.end));
+    const rowsMes = invRows.filter(r=>r.categoria===catKey && inRange(r.data, mesInteiro.start, mesInteiro.end) && (r.fotos||[]).length>0);
     if(rowsMes.length>0){
       return {state:"ok", latest: rowsMes[0], window:w, diaErrado:false, dowLabel:null};
     }
@@ -516,13 +518,16 @@ async function loadAll(){
     });
     const todosPedidosFotos = await api("GET", "cj_pedidos_fotos?select=*&ativo=eq.true");
     const minhasRespostasPedidos = await api("GET", `cj_pedidos_fotos_respostas?select=*${f}`);
+    // so conta como "respondido" se a resposta tiver mesmo fotos - se ela apagar todas as fotos de uma
+    // resposta (bug real reportado por ela), a linha continua a existir mas fica vazia; nesse caso o
+    // pedido tem de voltar a aparecer como pendente
     pedidosFotosPendentes = todosPedidosFotos.filter(p=>
       (!p.lojas || p.lojas.includes(currentLoja)) &&
-      !minhasRespostasPedidos.some(r=>r.pedido_id===p.id)
+      !minhasRespostasPedidos.some(r=>r.pedido_id===p.id && (r.fotos||[]).length>0)
     );
     pedidosFotosRespondidos = todosPedidosFotos.filter(p=>
       (!p.lojas || p.lojas.includes(currentLoja)) &&
-      minhasRespostasPedidos.some(r=>r.pedido_id===p.id)
+      minhasRespostasPedidos.some(r=>r.pedido_id===p.id && (r.fotos||[]).length>0)
     ).map(p=>({pedido:p, resposta: minhasRespostasPedidos.find(r=>r.pedido_id===p.id)}));
     render();
   }catch(e){ console.error(e); toast("Erro a carregar"); }
