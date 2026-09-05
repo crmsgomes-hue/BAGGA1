@@ -351,15 +351,19 @@ function invStatus(catKey, freq){
     dataCerta.setHours(0,0,0,0);
     const diaConfirmacao = new Date(dataCerta); diaConfirmacao.setDate(diaConfirmacao.getDate()+1);
     const prazoConfirmacao = new Date(diaConfirmacao); prazoConfirmacao.setHours(21,0,0,0);
-    const enviouNoPrazo = rows.some(r=>{
-      if(r.criado_em){
-        const t = new Date(r.criado_em);
-        return t >= dataCerta && t <= prazoConfirmacao;
-      }
-      return r.data===isoDate(dataCerta) || r.data===isoDate(diaConfirmacao);
-    });
-    if(enviouNoPrazo){
-      return {state:"ok", latest: rows[0], window:w, diaErrado:false, dowLabel: DOW_LABELS[dow-1]};
+    // ja foi enviado esta semana (dentro da janela), seja a horas ou atrasado - o que importa aqui e
+    // se ja HA envio, nao se foi a tempo. O "a tempo"/"atrasado" fica so para efeitos de relatorio,
+    // nunca para decidir se o botao de enviar continua visivel (era esse o bug: um envio feito depois
+    // do prazo nunca fazia desaparecer o botao, porque so contava envios dentro da janela do prazo certo)
+    if(rows.length>0){
+      const enviouNoPrazo = rows.some(r=>{
+        if(r.criado_em){
+          const t = new Date(r.criado_em);
+          return t >= dataCerta && t <= prazoConfirmacao;
+        }
+        return r.data===isoDate(dataCerta) || r.data===isoDate(diaConfirmacao);
+      });
+      return {state:"ok", latest: rows[0], window:w, diaErrado:false, dowLabel: DOW_LABELS[dow-1], foiAtrasado: !enviouNoPrazo};
     }
     const globalStartCheck = new Date(today.getFullYear(), today.getMonth(), 15);
     const globalEndCheck = new Date(today.getFullYear(), today.getMonth(), 21);
