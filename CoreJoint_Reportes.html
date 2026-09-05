@@ -960,15 +960,17 @@ function invStatus(loja, catKey, freq){
     dataCerta.setHours(0,0,0,0);
     const diaConfirmacao = new Date(dataCerta); diaConfirmacao.setDate(diaConfirmacao.getDate()+1);
     const prazoConfirmacao = new Date(diaConfirmacao); prazoConfirmacao.setHours(21,0,0,0);
-    const enviouNoPrazo = rows.some(r=>{
-      if(r.criado_em){
-        const t = new Date(r.criado_em);
-        return t >= dataCerta && t <= prazoConfirmacao;
-      }
-      return r.data===isoDate(dataCerta) || r.data===isoDate(diaConfirmacao);
-    });
-    if(enviouNoPrazo){
-      return {state:"ok", latest: rows[0], window:w, diaErrado:false, dowLabel: DOW_LABELS[dow-1]};
+    // ja foi enviado esta semana (dentro da janela), a tempo ou atrasado - o que importa e se ja HA
+    // envio, nao se foi a tempo (o "a tempo"/"atrasado" fica so para relatorio, nunca bloqueia o estado ok)
+    if(rows.length>0){
+      const enviouNoPrazo = rows.some(r=>{
+        if(r.criado_em){
+          const t = new Date(r.criado_em);
+          return t >= dataCerta && t <= prazoConfirmacao;
+        }
+        return r.data===isoDate(dataCerta) || r.data===isoDate(diaConfirmacao);
+      });
+      return {state:"ok", latest: rows[0], window:w, diaErrado:false, dowLabel: DOW_LABELS[dow-1], foiAtrasado: !enviouNoPrazo};
     }
     const globalStartCheck = new Date(today.getFullYear(), today.getMonth(), 15);
     const globalEndCheck = new Date(today.getFullYear(), today.getMonth(), 21);

@@ -1833,10 +1833,8 @@ async function abrirDiagnosticoHub(){
     const rows = todosInv.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end));
     const dow = CATEGORY_DOW[cat.key];
     if(dow){
-      const dataCerta = findWeekdayInRange(w.start, w.end, dow);
-      const diaConfirmacao = new Date(dataCerta); diaConfirmacao.setDate(diaConfirmacao.getDate()+1);
-      const rowCerta = rows.find(r=>r.data===isoDate(dataCerta) || r.data===isoDate(diaConfirmacao));
-      return {feito: !!rowCerta};
+      // ja enviado esta semana conta como feito, a tempo ou atrasado (rows ja esta filtrado a semana toda)
+      return {feito: rows.length>0};
     }
     if(rows.length>0) return {feito:true};
     if(cat.freq==="mensal_inicio" || cat.freq==="mensal_dia20"){
@@ -3336,7 +3334,8 @@ function semanaKey(d){
           const target = findWeekdayInRange(w.start,w.end,dow);
           const diaConfirmacao = new Date(target); diaConfirmacao.setDate(diaConfirmacao.getDate()+1);
           deadline = new Date(diaConfirmacao); deadline.setHours(21,0,0,0);
-          enviouNoPrazo = invRows.some(r=>r.loja===loja && r.categoria===cat.key && (r.data===isoDate(target) || r.data===isoDate(diaConfirmacao)));
+          // ja enviado esta semana conta como feito, a tempo ou atrasado
+          enviouNoPrazo = invRows.some(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end));
         } else {
           const rowsCat = invRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end));
           enviouNoPrazo = rowsCat.length>0;
@@ -3708,11 +3707,9 @@ function semanaKey(d){
       const rows = invCatRows.filter(r=>r.loja===loja && r.categoria===cat.key && inRange(r.data, w.start, w.end));
       const dow = CATEGORY_DOW[cat.key];
       if(dow){
-        const dataCerta = findWeekdayInRange(w.start, w.end, dow);
-        const diaConfirmacao = new Date(dataCerta); diaConfirmacao.setDate(diaConfirmacao.getDate()+1);
-        const rowCerta = rows.find(r=>r.data===isoDate(dataCerta) || r.data===isoDate(diaConfirmacao));
-        if(rowCerta) return {feito:true, diaErrado:false, latest: rowCerta};
-        return {feito:false, diaErrado:false, latest: rows[0]||null};
+        // ja enviado esta semana conta como feito, a tempo ou atrasado (rows ja esta filtrado a semana toda)
+        if(rows.length>0) return {feito:true, diaErrado:false, latest: rows[0]};
+        return {feito:false, diaErrado:false, latest: null};
       }
       if(rows.length>0) return {feito:true, diaErrado:false, latest: rows[0]};
       if(cat.freq==="mensal_inicio" || cat.freq==="mensal_dia20"){
