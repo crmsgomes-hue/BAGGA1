@@ -519,66 +519,56 @@ async function renderPanoramaGeral(){
     document.querySelector('[data-topico="fardamento"]').onclick = ()=>{
       const fardStockOrdenado = [...fardStockLowPg].sort((a,b)=>Number(a.quantidade)-Number(b.quantidade));
       const numEsgotados = fardStockOrdenado.filter(f=>Number(f.quantidade)===0).length;
+      const numBaixo = fardStockLowPg.length-numEsgotados;
       const ultimaRececao = ultimaRececaoPg[0];
       let rececaoInfoHtml;
       if(!ultimaRececao){
-        rececaoInfoHtml = `<div style="font-size:.78rem; color:var(--t2);">📄 Ainda sem nenhuma receção registada</div>`;
+        rececaoInfoHtml = `Ainda sem nenhuma receção registada`;
       } else {
         const dias = Math.floor((Date.now() - new Date(ultimaRececao.data_rececao+"T00:00:00")) / 86400000);
         const dataFmt = new Date(ultimaRececao.data_rececao+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'});
         const corDias = dias>45 ? 'var(--red)' : dias>25 ? 'var(--org,#c17817)' : 'var(--t2)';
-        rececaoInfoHtml = `<div style="font-size:.78rem; color:${corDias};">📄 Última receção: ${dataFmt} <span style="color:var(--t2);">(há ${dias} dia${dias===1?'':'s'})</span></div>`;
+        rececaoInfoHtml = `Última receção <b style="color:${corDias};">${dataFmt}</b> <span style="color:var(--t2);">— há ${dias} dia${dias===1?'':'s'}</span>`;
       }
+
+      function linhaMenu(id, emoji, label, badge, corBadge){
+        return `<button id="${id}" class="fardMenuLinha" style="display:flex; align-items:center; gap:12px; width:100%; background:none; border:none; border-bottom:1px solid var(--br); padding:13px 2px; text-align:left; cursor:pointer;">
+          <span style="font-size:19px; width:24px; text-align:center;">${emoji}</span>
+          <span style="flex:1; font-size:.88rem; font-weight:600; color:var(--tx);">${label}</span>
+          ${badge>0 ? `<span style="background:${corBadge}; color:#fff; font-size:.7rem; font-weight:800; border-radius:99px; padding:2px 8px;">${badge}</span>` : ''}
+          <span style="color:var(--t2); font-size:1rem;">›</span>
+        </button>`;
+      }
+
       const corpo = `
-        <div style="display:flex; gap:10px; margin-bottom:10px;">
-          <div style="flex:1; text-align:center; background:var(--sf2); border-radius:10px; padding:10px;">
-            <div style="font-size:1.2rem; font-weight:800; color:${numEsgotados>0?'var(--red)':'var(--grn)'};">${numEsgotados}</div>
-            <div style="font-size:.68rem; color:var(--t2);">esgotados</div>
+        <div style="background:var(--sf2); border-radius:12px; padding:14px; margin-bottom:16px;">
+          <div style="display:flex; gap:16px; margin-bottom:10px;">
+            <div><b style="font-size:1.15rem; color:${numEsgotados>0?'var(--red)':'var(--grn)'};">${numEsgotados}</b> <span style="font-size:.72rem; color:var(--t2);">esgotados</span></div>
+            <div><b style="font-size:1.15rem; color:${numBaixo>0?'var(--org,#c17817)':'var(--grn)'};">${numBaixo}</b> <span style="font-size:.72rem; color:var(--t2);">baixos</span></div>
+            <div><b style="font-size:1.15rem; color:${fardDevPg.length>0?'var(--red)':'var(--grn)'};">${fardDevPg.length}</b> <span style="font-size:.72rem; color:var(--t2);">devoluções</span></div>
           </div>
-          <div style="flex:1; text-align:center; background:var(--sf2); border-radius:10px; padding:10px;">
-            <div style="font-size:1.2rem; font-weight:800; color:${fardStockLowPg.length>numEsgotados?'var(--org,#c17817)':'var(--grn)'};">${fardStockLowPg.length-numEsgotados}</div>
-            <div style="font-size:.68rem; color:var(--t2);">stock baixo</div>
-          </div>
-          <div style="flex:1; text-align:center; background:var(--sf2); border-radius:10px; padding:10px;">
-            <div style="font-size:1.2rem; font-weight:800; color:${fardDevPg.length>0?'var(--red)':'var(--grn)'};">${fardDevPg.length}</div>
-            <div style="font-size:.68rem; color:var(--t2);">devoluções</div>
-          </div>
+          <div style="font-size:.78rem; padding-top:10px; border-top:1px solid var(--br);">📄 ${rececaoInfoHtml}</div>
         </div>
-        <div style="margin-bottom:14px;">${rececaoInfoHtml}</div>
+
         ${fardStockOrdenado.length>0 ? `
-        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--t2); font-weight:700; margin-bottom:6px;">A precisar de atenção</div>
-        <div style="display:flex; flex-direction:column; gap:1px; margin-bottom:16px;">
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--t2); font-weight:700; margin-bottom:4px;">A precisar de atenção — toca para ajustar</div>
+        <div style="margin-bottom:18px;">
           ${fardStockOrdenado.slice(0,10).map((f,i)=>{
-            const spanId = `fardQtd_${i}`;
             const qtdInicial = Number(f.quantidade)===0 ? "ESGOTADO" : f.quantidade;
-            return `<div style="display:flex; justify-content:space-between; align-items:center; padding:7px 2px; border-bottom:1px solid var(--br); font-size:.82rem; gap:6px;">
-              <span style="flex:1;">${f.peca} ${f.tamanho}</span>
-              <b id="${spanId}" data-qtd="${Number(f.quantidade)}" style="color:var(--red); min-width:22px; text-align:right;">${qtdInicial}</b>
-              <button class="fardAjustarBtn" data-polo="${f.polo}" data-peca="${f.peca}" data-tamanho="${f.tamanho}" data-delta="1" data-span="${spanId}" style="background:var(--grn); color:#fff; border:none; border-radius:6px; width:26px; height:26px; font-weight:800; font-size:.9rem;">+</button>
-              <button class="fardAjustarBtn" data-polo="${f.polo}" data-peca="${f.peca}" data-tamanho="${f.tamanho}" data-delta="-1" data-span="${spanId}" style="background:var(--sf2); color:var(--t2); border:none; border-radius:6px; width:26px; height:26px; font-weight:800; font-size:.9rem;">−</button>
-              <button class="fardSaidaBtn" data-polo="${f.polo}" data-peca="${f.peca}" data-tamanho="${f.tamanho}" data-span="${spanId}" style="background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:6px; padding:0 8px; height:26px; font-weight:700; font-size:.7rem;">Saída</button>
-            </div>`;
+            const cor = Number(f.quantidade)===0 ? 'var(--red)' : 'var(--org,#c17817)';
+            return `<button class="fardItemAtencaoBtn" data-polo="${f.polo}" data-peca="${f.peca}" data-tamanho="${f.tamanho}" data-qtd="${Number(f.quantidade)}" style="display:flex; justify-content:space-between; align-items:center; width:100%; background:none; border:none; border-bottom:1px solid #f3f0ea; padding:9px 2px; text-align:left; cursor:pointer;">
+              <span style="font-size:.84rem; color:var(--tx);">${f.peca} ${f.tamanho}</span>
+              <b style="color:${cor}; font-size:.86rem;">${qtdInicial}</b>
+            </button>`;
           }).join("")}
-        </div>` : `<div style="font-size:.8rem; color:var(--grn); margin-bottom:16px;">✔ Sem alertas de stock.</div>`}
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-          <button id="btnAbrirAdmissaoHub" class="fardAcaoBtn" style="position:relative; background:var(--sf2); border:none; border-radius:12px; padding:14px 8px; text-align:center; cursor:pointer;">
-            <div style="font-size:22px;">👤</div>
-            <div style="font-size:.75rem; font-weight:700; margin-top:4px; color:var(--tx);">Nova admissão</div>
-          </button>
-          <button id="btnAbrirDevolucaoHub" class="fardAcaoBtn" style="position:relative; background:var(--sf2); border:none; border-radius:12px; padding:14px 8px; text-align:center; cursor:pointer;">
-            <div style="font-size:22px;">📥</div>
-            <div style="font-size:.75rem; font-weight:700; margin-top:4px; color:var(--tx);">Devoluções</div>
-            ${fardDevPg.length>0 ? `<span style="position:absolute; top:6px; right:6px; background:var(--red); color:#fff; font-size:.65rem; font-weight:800; border-radius:99px; padding:1px 6px;">${fardDevPg.length}</span>` : ''}
-          </button>
-          <button id="btnVerRececoesFardHub" class="fardAcaoBtn" style="position:relative; background:var(--sf2); border:none; border-radius:12px; padding:14px 8px; text-align:center; cursor:pointer;">
-            <div style="font-size:22px;">📄</div>
-            <div style="font-size:.75rem; font-weight:700; margin-top:4px; color:var(--tx);">Receções</div>
-            ${fardRececoesPendentesPg>0 ? `<span style="position:absolute; top:6px; right:6px; background:var(--terracotta,#C1622D); color:#fff; font-size:.65rem; font-weight:800; border-radius:99px; padding:1px 6px;">${fardRececoesPendentesPg}</span>` : ''}
-          </button>
-          <button id="btnVerStockCompletoHub" class="fardAcaoBtn" style="background:var(--sf2); border:none; border-radius:12px; padding:14px 8px; text-align:center; cursor:pointer;">
-            <div style="font-size:22px;">📋</div>
-            <div style="font-size:.75rem; font-weight:700; margin-top:4px; color:var(--tx);">Stock completo</div>
-          </button>
+        </div>` : `<div style="font-size:.82rem; color:var(--grn); margin-bottom:18px;">✔ Sem alertas de stock.</div>`}
+
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--t2); font-weight:700; margin-bottom:4px;">Ações</div>
+        <div style="margin-bottom:4px;">
+          ${linhaMenu("btnAbrirAdmissaoHub","👤","Nova admissão (montar kit)",0)}
+          ${linhaMenu("btnAbrirDevolucaoHub","📥","Devoluções por recolher",fardDevPg.length,"var(--red)")}
+          ${linhaMenu("btnVerRececoesFardHub","📄","Documentos de receção",fardRececoesPendentesPg,"var(--terracotta,#C1622D)")}
+          ${linhaMenu("btnVerStockCompletoHub","📋","Ver stock completo",0)}
         </div>
       `;
       abrirModalTopico("👕 Fardamento", corpo);
@@ -586,15 +576,8 @@ async function renderPanoramaGeral(){
       document.getElementById("btnAbrirAdmissaoHub").onclick = abrirAdmissaoFardamentoHub;
       document.getElementById("btnVerStockCompletoHub").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirStockCompletoFardamentoHub(); };
       document.getElementById("btnVerRececoesFardHub").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirRececoesFardamentoHub(); };
-      document.querySelectorAll(".fardAjustarBtn").forEach(btn=>{
-        btn.onclick = ()=>ajustarStockFardamentoHub(btn.dataset.polo, btn.dataset.peca, btn.dataset.tamanho, Number(btn.dataset.delta), btn, btn.dataset.span);
-      });
-      document.querySelectorAll(".fardSaidaBtn").forEach(btn=>{
-        btn.onclick = ()=>{
-          const spanEl = document.getElementById(btn.dataset.span);
-          const disponivel = Number(spanEl.dataset.qtd);
-          abrirSaidaFardamentoHub(btn.dataset.polo, btn.dataset.peca, btn.dataset.tamanho, disponivel);
-        };
+      document.querySelectorAll(".fardItemAtencaoBtn").forEach(btn=>{
+        btn.onclick = ()=>abrirAjusteRapidoFardamentoHub(btn.dataset.polo, btn.dataset.peca, btn.dataset.tamanho, Number(btn.dataset.qtd));
       });
     };
 
@@ -1667,6 +1650,59 @@ async function abrirSaidaFardamentoHub(polo, peca, tamanho, disponivel){
     toast("✔ Saída registada!");
     overlay.remove();
   }, "A gravar...");
+}
+
+async function abrirAjusteRapidoFardamentoHub(polo, peca, tamanho, qtdAtual){
+  const overlay = document.createElement("div");
+  overlay.id = "fardAjusteRapidoOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:999999; display:flex; align-items:center; justify-content:center; padding:20px;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:340px; width:100%;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:16px;">${peca} · ${tamanho}</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:16px;">Stock atual: <b id="fardAjusteRapidoQtd" style="color:var(--tx);">${qtdAtual}</b></div>
+      <div style="display:flex; align-items:center; gap:16px; justify-content:center; margin-bottom:18px;">
+        <button id="fardAjusteMenos" style="width:44px; height:44px; border-radius:50%; border:1.5px solid var(--br); background:none; font-size:20px; font-weight:800;">−</button>
+        <span style="font-size:.78rem; color:var(--t2); width:90px; text-align:center;">contagem/ajuste</span>
+        <button id="fardAjusteMais" style="width:44px; height:44px; border-radius:50%; background:var(--grn); color:#fff; border:none; font-size:20px; font-weight:800;">+</button>
+      </div>
+      <button id="fardAjusteSaidaBtn" style="width:100%; margin-bottom:8px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:11px; font-weight:700;">Registar saída (entregar a alguém)</button>
+      <button id="fardAjusteFecharBtn" style="width:100%; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  let mudou = false;
+  document.getElementById("fardAjusteFecharBtn").onclick = async ()=>{
+    overlay.remove();
+    if(mudou){ document.getElementById("modalTopicoOverlay")?.remove(); await renderPanoramaGeral(); document.querySelector('[data-topico="fardamento"]')?.click(); }
+  };
+  document.getElementById("fardAjusteSaidaBtn").onclick = ()=>{
+    overlay.remove();
+    document.getElementById("modalTopicoOverlay")?.remove();
+    abrirSaidaFardamentoHub(polo, peca, tamanho, qtdAtual);
+  };
+  async function ajustar(delta){
+    const btn = delta>0 ? document.getElementById("fardAjusteMais") : document.getElementById("fardAjusteMenos");
+    btn.disabled = true;
+    try{
+      await api("rpc/increment_fardamento_stock", "POST", {p_polo:polo, p_peca:peca, p_tamanho:tamanho, p_delta:delta, p_por:NOMES_PERFIS[currentUser]});
+      await api("cj_fardamento_movimentos", "POST", {
+        polo, peca, tamanho, quantidade:Math.abs(delta), tipo: delta>0 ? "entrada":"ajuste",
+        registado_por: NOMES_PERFIS[currentUser], nota: delta>0 ? "Reposição/contagem (Hub)" : "Ajuste/contagem (Hub)",
+        criado_em: new Date().toISOString()
+      });
+      qtdAtual = Math.max(0, qtdAtual+delta);
+      document.getElementById("fardAjusteRapidoQtd").textContent = qtdAtual;
+      mudou = true;
+      toast(delta>0 ? "✔ Stock reposto" : "✔ Stock ajustado");
+    }catch(e){
+      console.error(e);
+      toast("Erro ao gravar: " + (e.message||e).slice(0,100));
+    }finally{
+      btn.disabled = false;
+    }
+  }
+  document.getElementById("fardAjusteMais").onclick = ()=>ajustar(1);
+  document.getElementById("fardAjusteMenos").onclick = ()=>ajustar(-1);
 }
 
 async function ajustarStockFardamentoHub(polo, peca, tamanho, delta, btn, spanId){
