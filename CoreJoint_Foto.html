@@ -2649,17 +2649,35 @@ async function enviarItem(item){
   }
 }
 
+function chaveFilaEnvio(){ return `cj_fila_envio_${slug(currentLoja)}`; }
+// migracao unica: a fila era antes global (partilhada por todas as lojas no mesmo telemovel/browser),
+// o que causava fotos de uma loja a serem reenviadas/confirmadas por engano na sessao de outra loja
+// (ex: Torres MH e Torres MCH). Move cada item pendente para a fila da SUA PROPRIA loja (ja gravada
+// no item), nao a do ecra atual, e limpa a fila antiga - assim nenhum envio pendente se perde.
+(function migrarFilaEnvioAntiga(){
+  try{
+    const antiga = JSON.parse(localStorage.getItem("cj_fila_envio") || "[]");
+    if(antiga.length===0) return;
+    antiga.forEach(item=>{
+      const chave = `cj_fila_envio_${slug(item.loja||currentLoja)}`;
+      const filaLoja = JSON.parse(localStorage.getItem(chave) || "[]");
+      filaLoja.push(item);
+      localStorage.setItem(chave, JSON.stringify(filaLoja));
+    });
+    localStorage.removeItem("cj_fila_envio");
+  }catch(e){ console.error(e); }
+})();
 function guardarNaFila(item){
   try{
-    const fila = JSON.parse(localStorage.getItem("cj_fila_envio") || "[]");
+    const fila = JSON.parse(localStorage.getItem(chaveFilaEnvio()) || "[]");
     fila.push(item);
-    localStorage.setItem("cj_fila_envio", JSON.stringify(fila));
+    localStorage.setItem(chaveFilaEnvio(), JSON.stringify(fila));
   }catch(e){ console.error(e); }
 }
 
 async function tentarReenviarFila(){
   let fila = [];
-  try{ fila = JSON.parse(localStorage.getItem("cj_fila_envio") || "[]"); }catch(e){ return; }
+  try{ fila = JSON.parse(localStorage.getItem(chaveFilaEnvio()) || "[]"); }catch(e){ return; }
   if(fila.length===0) return;
   const restantes = [];
   for(const item of fila){
@@ -2669,7 +2687,7 @@ async function tentarReenviarFila(){
       restantes.push(item);
     }
   }
-  localStorage.setItem("cj_fila_envio", JSON.stringify(restantes));
+  localStorage.setItem(chaveFilaEnvio(), JSON.stringify(restantes));
   if(restantes.length < fila.length){
     toast(`${fila.length - restantes.length} envio(s) pendente(s) foram enviados agora`);
     await loadAll();
