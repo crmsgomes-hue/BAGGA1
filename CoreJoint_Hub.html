@@ -2220,7 +2220,7 @@ async function abrirDetalheStockNegHub(){
       <div id="stockNegDetalheCapturaWrapHub"></div>
       <div id="stockNegDetalhePartilhaBtnsHub"></div>
       <input id="stockNegDetalheFiltro" placeholder="Procurar (loja, código, artigo...)" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--br); margin:14px 0 12px; font-size:.85rem;">
-      <button id="stockNegDetalheCopiarBtn" style="width:100%; margin-bottom:12px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:11px; font-weight:700;">📋 Copiar para Excel</button>
+      <button id="stockNegDetalheCopiarBtn" style="width:100%; margin-bottom:14px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:11px; font-weight:700;">📋 Copiar tudo para Excel</button>
       <div id="stockNegDetalheListaHub"></div>
       <button id="fecharStockNegDetalheHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
     </div>
@@ -2228,12 +2228,12 @@ async function abrirDetalheStockNegHub(){
   document.body.appendChild(overlay);
   document.getElementById("fecharStockNegDetalheHubBtn").onclick = ()=>overlay.remove();
 
-  // resumo por loja (contagem), pronto a partilhar - a lista completa (ate 1000 artigos) vai so no Excel/lista pesquisavel
-  const porLoja = {};
-  rows.forEach(r=>{ const l = r.loja||"Sem loja"; (porLoja[l] ||= []).push(r); });
+  const porLojaTudo = {};
+  rows.forEach(r=>{ const l = r.loja||"Sem loja / a rever"; (porLojaTudo[l] ||= []).push(r); });
+
   const capturaWrap = document.getElementById("stockNegDetalheCapturaWrapHub");
   const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
-  const linhasResumoHtml = Object.entries(porLoja).sort((a,b)=>b[1].length-a[1].length).map(([l,items])=>`
+  const linhasResumoHtml = Object.entries(porLojaTudo).sort((a,b)=>b[1].length-a[1].length).map(([l,items])=>`
     <tr><td style="font-weight:700; font-size:11px; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${abreviarLoja(l)}</td>
     <td style="text-align:right; font-size:11px; font-weight:800; color:#b0432f; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${items.length}</td></tr>
   `).join("");
@@ -2255,17 +2255,36 @@ async function abrirDetalheStockNegHub(){
       (r.loja||"").toLowerCase().includes(f) || (r.produto||"").toLowerCase().includes(f)
     );
     ultimaListaFiltrada = filtradas;
+    const porLoja = {};
+    filtradas.forEach(r=>{ const l = r.loja||"Sem loja / a rever"; (porLoja[l] ||= []).push(r); });
+    const lojasOrdenadas = Object.keys(porLoja).sort((a,b)=>porLoja[b].length-porLoja[a].length);
     const lista = document.getElementById("stockNegDetalheListaHub");
-    if(filtradas.length===0){ lista.innerHTML = `<div style="font-size:.8rem; color:var(--t2); text-align:center; padding:14px 0;">Nada encontrado.</div>`; return; }
-    lista.innerHTML = filtradas.slice(0,300).map(r=>`
-      <div style="padding:8px 0; border-bottom:1px solid var(--br); font-size:13px; display:flex; justify-content:space-between; gap:8px;">
-        <div>
-          <div style="font-weight:700; font-size:.8rem;">${r.loja||'—'}</div>
-          <div style="font-size:.78rem; color:var(--t2);">${r.produto||'—'}</div>
+    if(lojasOrdenadas.length===0){ lista.innerHTML = `<div style="font-size:.8rem; color:var(--t2); text-align:center; padding:14px 0;">Nada encontrado.</div>`; return; }
+    const abrirTudo = !!f; // ao pesquisar, abre logo as seccoes para os resultados aparecerem
+    lista.innerHTML = lojasOrdenadas.map(l=>{
+      const itens = porLoja[l].sort((a,b)=>Number(a.valor_stock)-Number(b.valor_stock));
+      const linhasItens = itens.map(r=>`
+        <div style="display:flex; justify-content:space-between; gap:10px; padding:8px 4px; border-bottom:1px solid #f3f0ea;">
+          <span style="font-size:.8rem; line-height:1.3;">${r.produto||'—'}</span>
+          <b style="color:#b0432f; font-size:.82rem; white-space:nowrap; flex-shrink:0;">${Number(r.valor_stock).toFixed(2)}</b>
         </div>
-        <b style="color:#b0432f; white-space:nowrap;">${Number(r.valor_stock).toFixed(2)}</b>
-      </div>
-    `).join("") + (filtradas.length>300 ? `<div style="font-size:.75rem; color:var(--t2); text-align:center; padding:8px 0;">... e mais ${filtradas.length-300}. Usa a pesquisa para encontrar mais depressa.</div>` : "");
+      `).join("");
+      return `
+        <details ${abrirTudo?'open':''} style="background:var(--sf2); border-radius:10px; margin-bottom:8px; overflow:hidden;">
+          <summary style="cursor:pointer; padding:10px 12px; font-weight:700; font-size:.85rem; display:flex; justify-content:space-between; list-style:none;">
+            <span>${l}</span>
+            <span style="color:#b0432f;">${itens.length}</span>
+          </summary>
+          <div style="padding:0 12px 6px;">${linhasItens}</div>
+          <div style="padding:0 12px 10px;">
+            <button class="stockNegPartilharLojaBtn" data-loja="${l}" style="width:100%; background:none; border:1px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:8px; padding:8px; font-size:.75rem; font-weight:700;">📱 Partilhar só ${abreviarLoja(l)}</button>
+          </div>
+        </details>
+      `;
+    }).join("");
+    lista.querySelectorAll(".stockNegPartilharLojaBtn").forEach(btn=>{
+      btn.onclick = ()=>partilharStockNegPorLoja(btn.dataset.loja, porLoja[btn.dataset.loja]);
+    });
   }
   render("");
   document.getElementById("stockNegDetalheFiltro").addEventListener("input",(ev)=>render(ev.target.value));
@@ -2281,6 +2300,32 @@ async function abrirDetalheStockNegHub(){
   };
 }
 
+function partilharStockNegPorLoja(loja, itens){
+  const o = document.createElement("div");
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:20px;";
+  const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+  const linhasHtml = itens.sort((a,b)=>Number(a.valor_stock)-Number(b.valor_stock)).map(r=>`
+    <div style="display:flex; justify-content:space-between; gap:10px; padding:5px 2px; border-bottom:1px solid #f3f0ea;">
+      <span style="font-size:.75rem;">${r.produto||'—'}</span>
+      <b style="color:#b0432f; font-size:.78rem; white-space:nowrap; flex-shrink:0;">${Number(r.valor_stock).toFixed(2)}</b>
+    </div>
+  `).join("");
+  o.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:380px; width:100%; max-height:85vh; overflow-y:auto;">
+      <div id="stockNegLojaCaptura" style="background:#fff; border-radius:14px; padding:12px 10px; border:1px solid var(--br);">
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D;">CoreJoint · Stock Negativo — ${loja}</div>
+        <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} — ${itens.length} artigo(s)</div>
+        ${linhasHtml}
+      </div>
+      <div id="stockNegLojaPartilhaBtns"></div>
+      <button id="stockNegLojaFechar" style="width:100%; margin-top:12px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(o);
+  document.getElementById("stockNegLojaFechar").onclick = ()=>o.remove();
+  criarBotoesPartilhaHub(document.getElementById("stockNegLojaPartilhaBtns"), document.getElementById("stockNegLojaCaptura"), `CoreJoint_stockneg_${abreviarLoja(loja).replace(/\s+/g,"_")}`, `CoreJoint · Stock Negativo — ${loja}`);
+}
+
 async function abrirDetalheFormacoesHub(){
   const rows = await api("cj_formacoes?select=*&order=loja.asc,colaborador.asc&limit=1000", "GET");
   const overlay = document.createElement("div");
@@ -2293,7 +2338,7 @@ async function abrirDetalheFormacoesHub(){
       <div id="formacoesDetalheCapturaWrapHub"></div>
       <div id="formacoesDetalhePartilhaBtnsHub"></div>
       <input id="formacoesDetalheFiltro" placeholder="Procurar (loja, colaborador, formação...)" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--br); margin:14px 0 12px; font-size:.85rem;">
-      <button id="formacoesDetalheCopiarBtn" style="width:100%; margin-bottom:12px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:11px; font-weight:700;">📋 Copiar para Excel</button>
+      <button id="formacoesDetalheCopiarBtn" style="width:100%; margin-bottom:14px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:11px; font-weight:700;">📋 Copiar tudo para Excel</button>
       <div id="formacoesDetalheListaHub"></div>
       <button id="fecharFormacoesDetalheHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
     </div>
@@ -2301,12 +2346,12 @@ async function abrirDetalheFormacoesHub(){
   document.body.appendChild(overlay);
   document.getElementById("fecharFormacoesDetalheHubBtn").onclick = ()=>overlay.remove();
 
-  // resumo por loja (contagem de formacoes em falta), pronto a partilhar
-  const porLoja = {};
-  rows.forEach(r=>{ const l = r.loja||"Sem loja"; (porLoja[l] ||= []).push(r); });
+  const porLojaTudo = {};
+  rows.forEach(r=>{ const l = r.loja||"Sem loja / a rever"; (porLojaTudo[l] ||= []).push(r); });
+
   const capturaWrap = document.getElementById("formacoesDetalheCapturaWrapHub");
   const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
-  const linhasResumoHtml = Object.entries(porLoja).sort((a,b)=>b[1].length-a[1].length).map(([l,items])=>`
+  const linhasResumoHtml = Object.entries(porLojaTudo).sort((a,b)=>b[1].length-a[1].length).map(([l,items])=>`
     <tr><td style="font-weight:700; font-size:11px; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${abreviarLoja(l)}</td>
     <td style="text-align:right; font-size:11px; font-weight:800; color:#c17817; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${items.length}</td></tr>
   `).join("");
@@ -2321,7 +2366,6 @@ async function abrirDetalheFormacoesHub(){
   `;
   criarBotoesPartilhaHub(document.getElementById("formacoesDetalhePartilhaBtnsHub"), capturaWrap, `CoreJoint_formacoes`, "CoreJoint · Formações por concluir");
 
-  // agrupa por colaborador para mostrar "quantas e quais" por pessoa, dentro de cada loja
   let ultimaListaFiltrada = rows;
   function render(filtro){
     const f = (filtro||"").toLowerCase().trim();
@@ -2329,23 +2373,38 @@ async function abrirDetalheFormacoesHub(){
       (r.loja||"").toLowerCase().includes(f) || (r.colaborador||"").toLowerCase().includes(f) || (r.formacao||"").toLowerCase().includes(f)
     );
     ultimaListaFiltrada = filtradas;
-    const porColab = {};
-    filtradas.forEach(r=>{
-      const chave = `${r.loja||'Sem loja'}|||${r.colaborador}`;
-      (porColab[chave] ||= {loja:r.loja, colaborador:r.colaborador, formacoes:[]}).formacoes.push(r.formacao);
-    });
-    const grupos = Object.values(porColab).sort((a,b)=>(a.loja||'').localeCompare(b.loja||''));
+    const porLoja = {};
+    filtradas.forEach(r=>{ const l = r.loja||"Sem loja / a rever"; (porLoja[l] ||= []).push(r); });
+    const lojasOrdenadas = Object.keys(porLoja).sort((a,b)=>porLoja[b].length-porLoja[a].length);
     const lista = document.getElementById("formacoesDetalheListaHub");
-    if(grupos.length===0){ lista.innerHTML = `<div style="font-size:.8rem; color:var(--t2); text-align:center; padding:14px 0;">Nada encontrado.</div>`; return; }
-    lista.innerHTML = grupos.map(g=>`
-      <div style="padding:9px 0; border-bottom:1px solid var(--br); font-size:13px;">
-        <div style="display:flex; justify-content:space-between;">
-          <span style="font-weight:700; font-size:.85rem;">${g.colaborador}</span>
-          <span style="font-size:.75rem; color:var(--t2); white-space:nowrap;">${g.loja||'sem loja'} · ${g.formacoes.length}</span>
+    if(lojasOrdenadas.length===0){ lista.innerHTML = `<div style="font-size:.8rem; color:var(--t2); text-align:center; padding:14px 0;">Nada encontrado.</div>`; return; }
+    const abrirTudo = !!f;
+    lista.innerHTML = lojasOrdenadas.map((l,li)=>{
+      const porColab = {};
+      porLoja[l].forEach(r=>{ (porColab[r.colaborador] ||= []).push(r.formacao); });
+      const colabsHtml = Object.entries(porColab).map(([colab, formacoes])=>`
+        <div style="padding:8px 4px; border-bottom:1px solid #f3f0ea;">
+          <div style="font-weight:700; font-size:.8rem;">${colab} <span style="font-weight:400; color:#777; font-size:.72rem;">(${formacoes.length})</span></div>
+          ${formacoes.map(fc=>`<div style="font-size:.75rem; color:var(--t2); padding-left:8px; margin-top:2px;">· ${fc}</div>`).join("")}
         </div>
-        <div style="font-size:.75rem; color:var(--t2); margin-top:3px;">${g.formacoes.join(" · ")}</div>
-      </div>
-    `).join("");
+      `).join("");
+      const slugLoja = `formLoja_${li}`;
+      return `
+        <details ${abrirTudo?'open':''} style="background:var(--sf2); border-radius:10px; margin-bottom:8px; overflow:hidden;">
+          <summary style="cursor:pointer; padding:10px 12px; font-weight:700; font-size:.85rem; display:flex; justify-content:space-between; list-style:none;">
+            <span>${l}</span>
+            <span style="color:#c17817;">${porLoja[l].length}</span>
+          </summary>
+          <div style="padding:0 12px 6px;">${colabsHtml}</div>
+          <div style="padding:0 12px 10px;">
+            <button class="formacaoPartilharLojaBtn" data-loja="${l}" style="width:100%; background:none; border:1px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:8px; padding:8px; font-size:.75rem; font-weight:700;">📱 Partilhar só ${abreviarLoja(l)}</button>
+          </div>
+        </details>
+      `;
+    }).join("");
+    lista.querySelectorAll(".formacaoPartilharLojaBtn").forEach(btn=>{
+      btn.onclick = ()=>partilharFormacoesPorLoja(btn.dataset.loja, porLoja[btn.dataset.loja]);
+    });
   }
   render("");
   document.getElementById("formacoesDetalheFiltro").addEventListener("input",(ev)=>render(ev.target.value));
@@ -2359,6 +2418,34 @@ async function abrirDetalheFormacoesHub(){
       setTimeout(()=>{ btn.textContent = original; }, 1800);
     });
   };
+}
+
+function partilharFormacoesPorLoja(loja, itens){
+  const o = document.createElement("div");
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:20px;";
+  const porColab = {};
+  itens.forEach(r=>{ (porColab[r.colaborador] ||= []).push(r.formacao); });
+  const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+  const corpoHtml = Object.entries(porColab).map(([colab, formacoes])=>`
+    <div style="margin-bottom:8px;">
+      <div style="font-weight:700; font-size:.8rem;">${colab}</div>
+      ${formacoes.map(fc=>`<div style="font-size:.75rem; color:#555; padding-left:8px;">· ${fc}</div>`).join("")}
+    </div>
+  `).join("");
+  o.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:380px; width:100%; max-height:85vh; overflow-y:auto;">
+      <div id="formLojaCaptura" style="background:#fff; border-radius:14px; padding:12px 10px; border:1px solid var(--br);">
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D;">CoreJoint · Formações — ${loja}</div>
+        <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} — ${itens.length} em falta</div>
+        ${corpoHtml}
+      </div>
+      <div id="formLojaPartilhaBtns"></div>
+      <button id="formLojaFechar" style="width:100%; margin-top:12px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(o);
+  document.getElementById("formLojaFechar").onclick = ()=>o.remove();
+  criarBotoesPartilhaHub(document.getElementById("formLojaPartilhaBtns"), document.getElementById("formLojaCaptura"), `CoreJoint_formacoes_${abreviarLoja(loja).replace(/\s+/g,"_")}`, `CoreJoint · Formações — ${loja}`);
 }
 
 async function abrirRegistosQuebrasHub(){
