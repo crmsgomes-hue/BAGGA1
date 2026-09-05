@@ -545,11 +545,13 @@ async function renderPanoramaGeral(){
           }).join("")}
         </div>` : ``}
         <button id="btnAbrirDevolucaoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📥 Devoluções por recolher (${fardDevPg.length})</button>
-        <button id="btnAbrirAdmissaoHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👤 Nova admissão (montar kit)</button>
+        <button id="btnAbrirAdmissaoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👤 Nova admissão (montar kit)</button>
+        <button id="btnVerStockCompletoHub" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📋 Ver stock completo (todos os pólos)</button>
       `;
       abrirModalTopico("👕 Fardamento", corpo);
       document.getElementById("btnAbrirDevolucaoHub").onclick = abrirDevolucaoFardamentoHub;
       document.getElementById("btnAbrirAdmissaoHub").onclick = abrirAdmissaoFardamentoHub;
+      document.getElementById("btnVerStockCompletoHub").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirStockCompletoFardamentoHub(); };
       document.querySelectorAll(".fardAjustarBtn").forEach(btn=>{
         btn.onclick = ()=>ajustarStockFardamentoHub(btn.dataset.polo, btn.dataset.peca, btn.dataset.tamanho, Number(btn.dataset.delta), btn, btn.dataset.span);
       });
@@ -1238,6 +1240,83 @@ async function abrirAdmissaoFardamentoHub(){
     toast(`✔ Admissão de ${colaborador} confirmada — ${items.length} peça(s)`);
     overlay.remove();
   }, "A processar...");
+}
+
+async function abrirStockCompletoFardamentoHub(){
+  const rows = await api("cj_fardamento_stock?select=*&order=polo.asc,peca.asc,tamanho.asc", "GET");
+  const overlay = document.createElement("div");
+  overlay.id = "fardStockCompletoOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:440px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:2px;">📋 Fardamento — stock completo</div>
+      <div style="font-size:12px; color:var(--t2); margin-bottom:12px;">${rows.length} artigo(s) em ${new Set(rows.map(r=>r.polo)).size} pólo(s).</div>
+      <div id="fardStockCapturaWrapHub"></div>
+      <div id="fardStockPartilhaBtnsHub"></div>
+      <input id="fardStockFiltro" placeholder="Procurar (pólo, peça, tamanho...)" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--br); margin:14px 0 12px; font-size:.85rem;">
+      <div id="fardStockListaHub"></div>
+      <button id="fecharFardStockHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("fecharFardStockHubBtn").onclick = ()=>overlay.remove();
+
+  const porPoloTudo = {};
+  rows.forEach(r=>{ (porPoloTudo[r.polo] ||= []).push(r); });
+  const capturaWrap = document.getElementById("fardStockCapturaWrapHub");
+  const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+  const linhasResumoHtml = Object.entries(porPoloTudo).sort((a,b)=>a[0].localeCompare(b[0])).map(([p,items])=>{
+    const total = items.reduce((s,i)=>s+Number(i.quantidade),0);
+    return `<tr><td style="font-weight:700; font-size:11px; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${p}</td>
+    <td style="text-align:right; font-size:11px; font-weight:800; color:#C1622D; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${total} un. (${items.length} refs)</td></tr>`;
+  }).join("");
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 10px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+  capturaWrap.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Fardamento — Stock completo</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} — ${rows.length} artigos</div>
+    <table style="border-collapse:collapse; width:100%;"><thead><tr>
+      <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:left;">Pólo</th>
+      <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:right;">Total</th>
+    </tr></thead><tbody>${linhasResumoHtml}</tbody></table>
+  `;
+  criarBotoesPartilhaHub(document.getElementById("fardStockPartilhaBtnsHub"), capturaWrap, `CoreJoint_fardamento_stock`, "CoreJoint · Fardamento — Stock completo");
+
+  function render(filtro){
+    const f = (filtro||"").toLowerCase().trim();
+    const filtradas = !f ? rows : rows.filter(r=>
+      (r.polo||"").toLowerCase().includes(f) || (r.peca||"").toLowerCase().includes(f) || String(r.tamanho||"").toLowerCase().includes(f)
+    );
+    const porPolo = {};
+    filtradas.forEach(r=>{ (porPolo[r.polo] ||= []).push(r); });
+    const polosOrdenados = Object.keys(porPolo).sort((a,b)=>a.localeCompare(b));
+    const lista = document.getElementById("fardStockListaHub");
+    if(polosOrdenados.length===0){ lista.innerHTML = `<div style="font-size:.8rem; color:var(--t2); text-align:center; padding:14px 0;">Nada encontrado.</div>`; return; }
+    const abrirTudo = !!f;
+    lista.innerHTML = polosOrdenados.map(p=>{
+      const itens = porPolo[p].sort((a,b)=>(a.peca+a.tamanho).localeCompare(b.peca+b.tamanho));
+      const linhasItens = itens.map(r=>{
+        const qtd = Number(r.quantidade);
+        const cor = qtd===0 ? '#b0432f' : qtd<5 ? '#c17817' : '#2e7d32';
+        return `
+        <div style="display:flex; justify-content:space-between; gap:10px; padding:6px 4px; border-bottom:1px solid #f3f0ea;">
+          <span style="font-size:.8rem;">${r.peca} ${r.tamanho}</span>
+          <b style="color:${cor}; font-size:.82rem;">${qtd===0?'ESGOTADO':qtd}</b>
+        </div>`;
+      }).join("");
+      const totalPolo = itens.reduce((s,i)=>s+Number(i.quantidade),0);
+      return `
+        <details ${abrirTudo?'open':''} style="background:var(--sf2); border-radius:10px; margin-bottom:8px; overflow:hidden;">
+          <summary style="cursor:pointer; padding:10px 12px; font-weight:700; font-size:.85rem; display:flex; justify-content:space-between; list-style:none;">
+            <span>${p}</span>
+            <span style="color:#C1622D;">${totalPolo} un.</span>
+          </summary>
+          <div style="padding:0 12px 6px;">${linhasItens}</div>
+        </details>
+      `;
+    }).join("");
+  }
+  render("");
+  document.getElementById("fardStockFiltro").addEventListener("input",(ev)=>render(ev.target.value));
 }
 
 async function abrirDevolucaoFardamentoHub(){
