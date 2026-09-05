@@ -2016,7 +2016,9 @@ async function abrirTarefasPessoais(){
         <span style="font-size:.75rem; color:var(--t2); font-weight:700;">👤 ${NOMES_PERFIS[currentUser]}</span>
       </div>
       <div style="font-size:12px; color:var(--t2); margin-bottom:14px;">Tu e ${NOMES_PERFIS[outroPerfil()]}.</div>
-      <button id="btnNovaTarefaHub" style="width:100%; margin-bottom:16px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">➕ Nova tarefa</button>
+      <div id="tarefasCapturaWrapHub"></div>
+      <div id="tarefasPartilhaBtnsHub"></div>
+      <button id="btnNovaTarefaHub" style="width:100%; margin:14px 0 16px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">➕ Nova tarefa</button>
       <div id="tarefasCorpoHub"><div style="text-align:center; padding:20px 0; color:var(--t2); font-size:.85rem;">A carregar...</div></div>
       <button id="fecharTarefasHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
     </div>
@@ -2069,6 +2071,37 @@ async function renderTarefasPessoais(){
     ${feitas.length>0 ? `<div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--t2); font-weight:700; margin:14px 0 6px;">✔ Concluídas recentemente</div>
     ${feitas.map(t=>`<div style="font-size:.78rem; color:var(--t2); padding:4px 0; text-decoration:line-through;">${t.titulo}</div>`).join("")}` : ``}
   `;
+
+  // tabela compacta partilhavel - todas as tarefas em aberto (ambos os perfis), pronta para o WhatsApp
+  const capturaWrap = document.getElementById("tarefasCapturaWrapHub");
+  const abertas = todas.filter(t=>!t.feita);
+  const dataFmtHoje = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+  const linhasCapturaHtml = abertas.map(t=>`
+    <tr>
+      <td style="font-weight:700; font-size:10.5px; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${NOMES_PERFIS[t.atribuido_a]||t.atribuido_a}</td>
+      <td style="font-size:10.5px; padding:5px 3px; border-bottom:1px solid #f0ebe3; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t.titulo}</td>
+      <td style="font-size:9px; color:#777; padding:5px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${new Date(t.criado_em).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}</td>
+    </tr>
+  `).join("");
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 10px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+  capturaWrap.innerHTML = abertas.length===0 ? `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D;">CoreJoint · Tarefas entre nós</div>
+    <div style="font-size:12px; color:var(--t2); margin-top:8px;">✔ Sem tarefas em aberto.</div>
+  ` : `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Tarefas entre nós</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmtHoje} — ${abertas.length} em aberto</div>
+    <table style="border-collapse:collapse; width:100%;">
+      <thead><tr>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; border-bottom:2px solid #C1622D; text-align:left;">Para</th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; border-bottom:2px solid #C1622D; text-align:left;">Tarefa</th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; border-bottom:2px solid #C1622D; text-align:left;">Criada</th>
+      </tr></thead>
+      <tbody>${linhasCapturaHtml}</tbody>
+    </table>
+  `;
+  const tarefasPartilhaBtnsEl = document.getElementById("tarefasPartilhaBtnsHub");
+  tarefasPartilhaBtnsEl.innerHTML = "";
+  criarBotoesPartilhaHub(tarefasPartilhaBtnsEl, capturaWrap, `CoreJoint_tarefas`, "CoreJoint · Tarefas entre nós");
 
   corpo.querySelectorAll(".tarefaFeitaBtn").forEach(btn=>{
     btn.onclick = protegerCliqueHub(btn, async ()=>{
