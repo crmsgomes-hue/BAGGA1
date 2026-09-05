@@ -2208,6 +2208,12 @@ function abrirNovaTarefaHub(){
   }, "A criar...");
 }
 
+function nomeLimpoLojaExterna(lojaOriginal){
+  if(!lojaOriginal) return "Sem identificação";
+  let n = String(lojaOriginal).replace(/^BAGGA\s+/i, "").replace(/^CZ CNT\s+/i, "").trim();
+  return n.split(" ").map(p=>p.length<=2 ? p.toUpperCase() : p.charAt(0).toUpperCase()+p.slice(1).toLowerCase()).join(" ");
+}
+
 async function abrirDetalheStockNegHub(){
   const rows = await api("cj_stock_negativo?select=*&order=valor_stock.asc&limit=1000", "GET");
   const overlay = document.createElement("div");
@@ -2229,7 +2235,7 @@ async function abrirDetalheStockNegHub(){
   document.getElementById("fecharStockNegDetalheHubBtn").onclick = ()=>overlay.remove();
 
   const porLojaTudo = {};
-  rows.forEach(r=>{ const l = r.loja||"Sem loja / a rever"; (porLojaTudo[l] ||= []).push(r); });
+  rows.forEach(r=>{ const l = r.loja||nomeLimpoLojaExterna(r.loja_original); (porLojaTudo[l] ||= []).push(r); });
 
   const capturaWrap = document.getElementById("stockNegDetalheCapturaWrapHub");
   const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
@@ -2256,7 +2262,7 @@ async function abrirDetalheStockNegHub(){
     );
     ultimaListaFiltrada = filtradas;
     const porLoja = {};
-    filtradas.forEach(r=>{ const l = r.loja||"Sem loja / a rever"; (porLoja[l] ||= []).push(r); });
+    filtradas.forEach(r=>{ const l = r.loja||nomeLimpoLojaExterna(r.loja_original); (porLoja[l] ||= []).push(r); });
     const lojasOrdenadas = Object.keys(porLoja).sort((a,b)=>porLoja[b].length-porLoja[a].length);
     const lista = document.getElementById("stockNegDetalheListaHub");
     if(lojasOrdenadas.length===0){ lista.innerHTML = `<div style="font-size:.8rem; color:var(--t2); text-align:center; padding:14px 0;">Nada encontrado.</div>`; return; }

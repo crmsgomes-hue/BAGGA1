@@ -3353,6 +3353,11 @@ const ABREV_LOJAS = {
 function abreviarLoja(loja){
   return ABREV_LOJAS[loja] || loja;
 }
+function nomeLimpoLojaExterna(lojaOriginal){
+  if(!lojaOriginal) return "Sem identificação";
+  let n = String(lojaOriginal).replace(/^BAGGA\s+/i, "").replace(/^CZ CNT\s+/i, "").trim();
+  return n.split(" ").map(p=>p.length<=2 ? p.toUpperCase() : p.charAt(0).toUpperCase()+p.slice(1).toLowerCase()).join(" ");
+}
 function criarBotoesPartilha(main, capturaWrap, nomeFicheiro, tituloPartilha){
   const actionsRow = document.createElement("div");
   actionsRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px;";
@@ -4652,7 +4657,7 @@ async function abrirPivotTrocas(){
   main.appendChild(avisoAuto);
 
   async function renderPivot(){
-    const trocas = await api("GET", "cj_trocas?select=loja,criado_por&estado=eq.pendente");
+    const trocas = await api("GET", "cj_trocas?select=loja,loja_original,criado_por&estado=eq.pendente");
     const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
     tableWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--line); width:100%; box-sizing:border-box;";
     if(trocas.length===0){
@@ -4666,7 +4671,8 @@ async function abrirPivotTrocas(){
     }
     const grupos = {};
     trocas.forEach(t=>{
-      const chave = `${t.loja}|||${t.criado_por||"—"}`;
+      const lojaMostrar = t.loja || nomeLimpoLojaExterna(t.loja_original);
+      const chave = `${lojaMostrar}|||${t.criado_por||"—"}`;
       grupos[chave] = (grupos[chave]||0) + 1;
     });
     const linhas = Object.entries(grupos).map(([chave, qtd])=>{
