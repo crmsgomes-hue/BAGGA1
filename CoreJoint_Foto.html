@@ -1838,7 +1838,7 @@ async function renderAreaGestaoLoja(){
 
   const [quebras, trocas, formacoes] = await Promise.all([
     api("GET", `cj_quebras_reportes?select=*&loja=eq.${lojaQ}&order=data.desc&limit=60`),
-    api("GET", `cj_trocas?select=*&loja=eq.${lojaQ}&estado=eq.pendente&order=criado_em.desc`),
+    api("GET", `cj_trocas?select=*&loja=eq.${lojaQ}&estado=eq.pendente&order=created_at.desc`),
     api("GET", `cj_formacoes?select=*&loja=eq.${lojaQ}&order=criado_em.desc`)
   ]);
 
