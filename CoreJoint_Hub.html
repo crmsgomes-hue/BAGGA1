@@ -830,10 +830,75 @@ function ligarAcoesAdendasHub(rows){
 
 function abrirFotoGrandeHub(src){
   const o = document.createElement("div");
-  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.9); z-index:999999; display:flex; align-items:center; justify-content:center; padding:20px;";
-  o.innerHTML = `<img src="${src}" style="max-width:100%; max-height:100%; border-radius:8px;">`;
-  o.onclick = ()=>o.remove();
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.92); z-index:999999; overflow:hidden; touch-action:none;";
+  o.innerHTML = `
+    <button id="fotoZoomFecharHub" style="position:absolute; top:14px; right:14px; z-index:2; background:rgba(255,255,255,.15); color:#fff; border:none; width:38px; height:38px; border-radius:50%; font-size:18px;">✕</button>
+    <div id="fotoZoomHintHub" style="position:absolute; bottom:14px; left:0; right:0; text-align:center; color:rgba(255,255,255,.6); font-size:11px; z-index:2;">Faz pinça ou duplo toque para ampliar</div>
+    <img id="fotoZoomImgHub" src="${src}" style="position:absolute; top:50%; left:50%; max-width:none; max-height:none; width:100%; transform-origin:0 0; will-change:transform;">
+  `;
   document.body.appendChild(o);
+  document.getElementById("fotoZoomFecharHub").onclick = (e)=>{ e.stopPropagation(); o.remove(); };
+
+  const img = document.getElementById("fotoZoomImgHub");
+  let scale = 1, panX = 0, panY = 0, imgW = 0, imgH = 0;
+  img.onload = ()=>{ imgW = img.clientWidth; imgH = img.clientHeight; aplicar(); };
+
+  function aplicar(){
+    img.style.transform = `translate(${-imgW/2 + panX}px, ${-imgH/2 + panY}px) scale(${scale})`;
+  }
+  function limitarPan(){
+    const max = Math.max(0, (imgW*scale - o.clientWidth)/2/scale);
+    const maxY = Math.max(0, (imgH*scale - o.clientHeight)/2/scale);
+    panX = Math.max(-max, Math.min(max, panX));
+    panY = Math.max(-maxY, Math.min(maxY, panY));
+  }
+
+  let pontosAtivos = {};
+  let distanciaInicial = 0, escalaInicial = 1;
+  let ultimoPan = null;
+  let ultimoToqueTempo = 0;
+
+  o.addEventListener("pointerdown", (e)=>{
+    pontosAtivos[e.pointerId] = {x:e.clientX, y:e.clientY};
+    const ids = Object.keys(pontosAtivos);
+    if(ids.length===1){
+      ultimoPan = {x:e.clientX, y:e.clientY};
+      const agora = Date.now();
+      if(agora - ultimoToqueTempo < 300){
+        // duplo toque - alterna zoom
+        scale = scale>1.3 ? 1 : 2.5;
+        if(scale===1){ panX=0; panY=0; }
+        limitarPan();
+        aplicar();
+      }
+      ultimoToqueTempo = agora;
+    } else if(ids.length===2){
+      const p1 = pontosAtivos[ids[0]], p2 = pontosAtivos[ids[1]];
+      distanciaInicial = Math.hypot(p2.x-p1.x, p2.y-p1.y);
+      escalaInicial = scale;
+    }
+  });
+  o.addEventListener("pointermove", (e)=>{
+    if(!(e.pointerId in pontosAtivos)) return;
+    pontosAtivos[e.pointerId] = {x:e.clientX, y:e.clientY};
+    const ids = Object.keys(pontosAtivos);
+    if(ids.length===2){
+      const p1 = pontosAtivos[ids[0]], p2 = pontosAtivos[ids[1]];
+      const distancia = Math.hypot(p2.x-p1.x, p2.y-p1.y);
+      scale = Math.max(1, Math.min(5, escalaInicial * (distancia/distanciaInicial)));
+      limitarPan();
+      aplicar();
+    } else if(ids.length===1 && scale>1 && ultimoPan){
+      panX += (e.clientX - ultimoPan.x)/scale;
+      panY += (e.clientY - ultimoPan.y)/scale;
+      ultimoPan = {x:e.clientX, y:e.clientY};
+      limitarPan();
+      aplicar();
+    }
+  });
+  function soltar(e){ delete pontosAtivos[e.pointerId]; if(Object.keys(pontosAtivos).length===0) ultimoPan=null; }
+  o.addEventListener("pointerup", soltar);
+  o.addEventListener("pointercancel", soltar);
 }
 
 async function toggleCampoSimplesHub(id, campo, valor){
@@ -2214,15 +2279,18 @@ function nomeLimpoLojaExterna(lojaOriginal){
   return n.split(" ").map(p=>p.length<=2 ? p.toUpperCase() : p.charAt(0).toUpperCase()+p.slice(1).toLowerCase()).join(" ");
 }
 
+let stockNegAutoAtualizaTimer = null;
 async function abrirDetalheStockNegHub(){
-  const rows = await api("cj_stock_negativo?select=*&order=valor_stock.asc&limit=1000", "GET");
   const overlay = document.createElement("div");
   overlay.id = "stockNegDetalheOverlayHub";
   overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
   overlay.innerHTML = `
     <div style="background:#fff; border-radius:14px; padding:20px; max-width:440px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
-      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:2px;">📉 Stock negativo — artigos</div>
-      <div style="font-size:12px; color:var(--t2); margin-bottom:12px;">${rows.length} artigo(s) com quantidade negativa.</div>
+      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:2px;">📉 Stock negativo — artigos</div>
+        <span style="font-size:10px; color:var(--green,#2e7d32);">🔄 atualiza-se sozinho</span>
+      </div>
+      <div id="stockNegDetalheResumoLinha" style="font-size:12px; color:var(--t2); margin-bottom:12px;"></div>
       <div id="stockNegDetalheCapturaWrapHub"></div>
       <div id="stockNegDetalhePartilhaBtnsHub"></div>
       <input id="stockNegDetalheFiltro" placeholder="Procurar (loja, código, artigo...)" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--br); margin:14px 0 12px; font-size:.85rem;">
@@ -2232,31 +2300,51 @@ async function abrirDetalheStockNegHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharStockNegDetalheHubBtn").onclick = ()=>overlay.remove();
+  document.getElementById("fecharStockNegDetalheHubBtn").onclick = ()=>{
+    clearInterval(stockNegAutoAtualizaTimer);
+    overlay.remove();
+  };
 
-  const porLojaTudo = {};
-  rows.forEach(r=>{ const l = r.loja||nomeLimpoLojaExterna(r.loja_original); (porLojaTudo[l] ||= []).push(r); });
+  let rows = [];
+  let ultimoFiltro = "";
+  let ultimaListaFiltrada = [];
 
-  const capturaWrap = document.getElementById("stockNegDetalheCapturaWrapHub");
-  const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
-  const linhasResumoHtml = Object.entries(porLojaTudo).sort((a,b)=>b[1].length-a[1].length).map(([l,items])=>`
-    <tr><td style="font-weight:700; font-size:11px; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${abreviarLoja(l)}</td>
-    <td style="text-align:right; font-size:11px; font-weight:800; color:#b0432f; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${items.length}</td></tr>
-  `).join("");
-  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 10px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
-  capturaWrap.innerHTML = `
-    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Stock Negativo</div>
-    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} — ${rows.length} artigos</div>
-    <table style="border-collapse:collapse; width:100%;"><thead><tr>
-      <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:left;">Loja</th>
-      <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:right;">Nº artigos</th>
-    </tr></thead><tbody>${linhasResumoHtml}</tbody></table>
-  `;
-  criarBotoesPartilhaHub(document.getElementById("stockNegDetalhePartilhaBtnsHub"), capturaWrap, `CoreJoint_stock_negativo`, "CoreJoint · Stock Negativo");
+  async function carregarERenderizar(){
+    rows = await api("cj_stock_negativo?select=*&order=confirmado.asc,valor_stock.asc&limit=1000", "GET");
+    const confirmados = rows.filter(r=>r.confirmado).length;
+    document.getElementById("stockNegDetalheResumoLinha").textContent = `${rows.length} artigo(s) — ✔ ${confirmados} confirmado(s), ⚠ ${rows.length-confirmados} por confirmar.`;
+    renderResumoPartilhavel();
+    render(ultimoFiltro);
+  }
 
-  let ultimaListaFiltrada = rows;
+  function renderResumoPartilhavel(){
+    const porLojaTudo = {};
+    rows.forEach(r=>{ const l = r.loja||nomeLimpoLojaExterna(r.loja_original); (porLojaTudo[l] ||= []).push(r); });
+    const capturaWrap = document.getElementById("stockNegDetalheCapturaWrapHub");
+    const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+    const linhasResumoHtml = Object.entries(porLojaTudo).sort((a,b)=>b[1].length-a[1].length).map(([l,items])=>{
+      const confirmadosLoja = items.filter(i=>i.confirmado).length;
+      return `<tr><td style="font-weight:700; font-size:11px; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${abreviarLoja(l)}</td>
+      <td style="text-align:center; font-size:10px; padding:5px 3px; border-bottom:1px solid #f0ebe3; color:#2e7d32;">${confirmadosLoja}/${items.length} ✔</td>
+      <td style="text-align:right; font-size:11px; font-weight:800; color:#b0432f; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${items.length}</td></tr>`;
+    }).join("");
+    capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 10px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Stock Negativo</div>
+      <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} — ${rows.length} artigos</div>
+      <table style="border-collapse:collapse; width:100%;"><thead><tr>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:left;">Loja</th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px;">Confirmados</th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:right;">Nº artigos</th>
+      </tr></thead><tbody>${linhasResumoHtml}</tbody></table>
+    `;
+    document.getElementById("stockNegDetalhePartilhaBtnsHub").innerHTML = "";
+    criarBotoesPartilhaHub(document.getElementById("stockNegDetalhePartilhaBtnsHub"), capturaWrap, `CoreJoint_stock_negativo`, "CoreJoint · Stock Negativo");
+  }
+
   function render(filtro){
-    const f = (filtro||"").toLowerCase().trim();
+    ultimoFiltro = filtro||"";
+    const f = ultimoFiltro.toLowerCase().trim();
     const filtradas = !f ? rows : rows.filter(r=>
       (r.loja||"").toLowerCase().includes(f) || (r.produto||"").toLowerCase().includes(f)
     );
@@ -2266,20 +2354,25 @@ async function abrirDetalheStockNegHub(){
     const lojasOrdenadas = Object.keys(porLoja).sort((a,b)=>porLoja[b].length-porLoja[a].length);
     const lista = document.getElementById("stockNegDetalheListaHub");
     if(lojasOrdenadas.length===0){ lista.innerHTML = `<div style="font-size:.8rem; color:var(--t2); text-align:center; padding:14px 0;">Nada encontrado.</div>`; return; }
-    const abrirTudo = !!f; // ao pesquisar, abre logo as seccoes para os resultados aparecerem
+    const abrirTudo = !!f;
     lista.innerHTML = lojasOrdenadas.map(l=>{
       const itens = porLoja[l].sort((a,b)=>Number(a.valor_stock)-Number(b.valor_stock));
+      const confirmadosLoja = itens.filter(i=>i.confirmado).length;
       const linhasItens = itens.map(r=>`
-        <div style="display:flex; justify-content:space-between; gap:10px; padding:8px 4px; border-bottom:1px solid #f3f0ea;">
-          <span style="font-size:.8rem; line-height:1.3;">${r.produto||'—'}</span>
-          <b style="color:#b0432f; font-size:.82rem; white-space:nowrap; flex-shrink:0;">${Number(r.valor_stock).toFixed(2)}</b>
+        <div style="padding:8px 4px; border-bottom:1px solid #f3f0ea;">
+          <div style="display:flex; justify-content:space-between; gap:10px;">
+            <span style="font-size:.8rem; line-height:1.3;">${r.confirmado?'✔':'⚠'} ${r.produto||'—'}</span>
+            <b style="color:#b0432f; font-size:.82rem; white-space:nowrap; flex-shrink:0;">${Number(r.valor_stock).toFixed(2)}</b>
+          </div>
+          ${r.confirmado ? `<div style="font-size:.7rem; color:#2e7d32; margin-top:2px;">Confirmado por ${r.confirmado_por} — ${new Date(r.confirmado_em).toLocaleDateString('pt-PT')}${r.foto_confirmacao ? '' : ' (sem foto)'}</div>
+          ${r.foto_confirmacao ? `<img class="stockNegFotoVerHub" data-src="${r.foto_confirmacao}" src="${r.foto_confirmacao}" style="width:44px; height:44px; object-fit:cover; border-radius:6px; margin-top:4px; cursor:pointer;">` : ''}` : ''}
         </div>
       `).join("");
       return `
         <details ${abrirTudo?'open':''} style="background:var(--sf2); border-radius:10px; margin-bottom:8px; overflow:hidden;">
           <summary style="cursor:pointer; padding:10px 12px; font-weight:700; font-size:.85rem; display:flex; justify-content:space-between; list-style:none;">
             <span>${l}</span>
-            <span style="color:#b0432f;">${itens.length}</span>
+            <span style="color:#b0432f;">${confirmadosLoja}/${itens.length} ✔</span>
           </summary>
           <div style="padding:0 12px 6px;">${linhasItens}</div>
           <div style="padding:0 12px 10px;">
@@ -2291,12 +2384,16 @@ async function abrirDetalheStockNegHub(){
     lista.querySelectorAll(".stockNegPartilharLojaBtn").forEach(btn=>{
       btn.onclick = ()=>partilharStockNegPorLoja(btn.dataset.loja, porLoja[btn.dataset.loja]);
     });
+    lista.querySelectorAll(".stockNegFotoVerHub").forEach(img=>{
+      img.onclick = ()=>abrirFotoGrandeHub(img.dataset.src);
+    });
   }
-  render("");
+
+  await carregarERenderizar();
   document.getElementById("stockNegDetalheFiltro").addEventListener("input",(ev)=>render(ev.target.value));
   document.getElementById("stockNegDetalheCopiarBtn").onclick = ()=>{
-    const cabecalho = "Loja\tArtigo\tQuantidade negativa";
-    const linhas = ultimaListaFiltrada.map(r=>`${r.loja||''}\t${(r.produto||'').replace(/\t/g," ")}\t${Number(r.valor_stock).toFixed(2).replace(".",",")}`);
+    const cabecalho = "Loja\tArtigo\tQuantidade negativa\tEstado\tConfirmado por";
+    const linhas = ultimaListaFiltrada.map(r=>`${r.loja||nomeLimpoLojaExterna(r.loja_original)}\t${(r.produto||'').replace(/\t/g," ")}\t${Number(r.valor_stock).toFixed(2).replace(".",",")}\t${r.confirmado?'Confirmado':'Por confirmar'}\t${r.confirmado_por||''}`);
     navigator.clipboard.writeText([cabecalho, ...linhas].join("\n")).then(()=>{
       const btn = document.getElementById("stockNegDetalheCopiarBtn");
       const original = btn.textContent;
@@ -2304,6 +2401,12 @@ async function abrirDetalheStockNegHub(){
       setTimeout(()=>{ btn.textContent = original; }, 1800);
     });
   };
+
+  clearInterval(stockNegAutoAtualizaTimer);
+  stockNegAutoAtualizaTimer = setInterval(()=>{
+    if(document.hidden || !document.getElementById("stockNegDetalheOverlayHub")){ clearInterval(stockNegAutoAtualizaTimer); return; }
+    carregarERenderizar();
+  }, 20000);
 }
 
 function partilharStockNegPorLoja(loja, itens){
