@@ -190,6 +190,32 @@ async function api(path, method, body){
 function setBadge(id, n){
   if(n>0) document.getElementById(id).innerHTML = `<span class="bk">${n}</span>`;
 }
+// Pilha de ecrãs para permitir "voltar atrás" (botão Fechar ou o botão físico/do browser)
+// em vez de fechar tudo de repente e sair da app - a pedido dela.
+// popstate é a UNICA fonte da verdade: os botoes "Fechar" so chamam history.back(),
+// nunca mexem no DOM diretamente - assim o botao fisico e o botao Fechar fazem sempre o mesmo.
+let pilhaEcraisHub = [];
+function empilharEcraHub(overlay, aoFechar){
+  if(pilhaEcraisHub.length>0){
+    pilhaEcraisHub[pilhaEcraisHub.length-1].overlay.style.display = "none";
+  }
+  pilhaEcraisHub.push({overlay, aoFechar});
+  history.pushState({corejointEcra: pilhaEcraisHub.length}, "");
+}
+function fecharEcraHub(){
+  if(pilhaEcraisHub.length===0) return;
+  history.back();
+}
+window.addEventListener("popstate", ()=>{
+  if(pilhaEcraisHub.length===0) return;
+  const atual = pilhaEcraisHub.pop();
+  if(atual.aoFechar) atual.aoFechar();
+  atual.overlay.remove();
+  if(pilhaEcraisHub.length>0){
+    pilhaEcraisHub[pilhaEcraisHub.length-1].overlay.style.display = "";
+  }
+});
+
 function abrirModalTopico(titulo, corpoHtml){
   const overlay = document.createElement("div");
   overlay.id = "modalTopicoOverlay";
@@ -198,10 +224,11 @@ function abrirModalTopico(titulo, corpoHtml){
     <div style="background:#fff; border-radius:14px; padding:20px; max-width:480px; width:100%; margin-top:30px; max-height:88vh; overflow-y:auto;">
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:16px; margin-bottom:12px;">${titulo}</div>
       ${corpoHtml}
-      <button onclick="document.getElementById('modalTopicoOverlay').remove()" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+      <button onclick="fecharEcraHub()" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
     </div>
   `;
   document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
 }
 function linhasValoresTopico(linhas, linkBase, corPositiva){
   if(linhas.length===0 || linhas.every(([,v])=>v===0)){
@@ -389,7 +416,7 @@ async function renderPanoramaGeral(){
         ${botoesAcao([["📤 Importar Excel","CoreJoint_Reportes.html?abrir=importarStockNeg"]])}
       `;
       abrirModalTopico("📉 Stock Negativo", corpo);
-      document.getElementById("btnVerStockNegHub").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirDetalheStockNegHub(); };
+      document.getElementById("btnVerStockNegHub").onclick = ()=>{ abrirDetalheStockNegHub(); };
     };
 
     document.querySelector('[data-topico="formacoes"]').onclick = ()=>{
@@ -399,7 +426,7 @@ async function renderPanoramaGeral(){
         ${botoesAcao([["📤 Importar Excel","CoreJoint_Reportes.html?abrir=importarFormacoes"]])}
       `;
       abrirModalTopico("🎓 Formações", corpo);
-      document.getElementById("btnVerFormacoesHub").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirDetalheFormacoesHub(); };
+      document.getElementById("btnVerFormacoesHub").onclick = ()=>{ abrirDetalheFormacoesHub(); };
     };
 
     document.querySelector('[data-topico="horarios"]').onclick = ()=>{
@@ -464,7 +491,7 @@ async function renderPanoramaGeral(){
         <button id="btnAbrirSemanalHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🖨️ Relatório semanal</button>
       `;
       abrirModalTopico("🧾 Vendas", corpo);
-      document.getElementById("btnAbrirResumoOntemModal").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirResumoOntem(); };
+      document.getElementById("btnAbrirResumoOntemModal").onclick = ()=>{ abrirResumoOntem(); };
       document.getElementById("btnAbrirDiarioVisualHub").onclick = abrirDiarioVisualHub;
       document.getElementById("btnAbrirSemanalHub").onclick = abrirRelatorioSemanalHub;
     };
@@ -494,7 +521,7 @@ async function renderPanoramaGeral(){
       `;
       abrirModalTopico("📦 Inventário", corpo);
       document.getElementById("btnVerCategoriaHub").onclick = ()=>{
-        document.getElementById("modalTopicoOverlay").remove();
+        fecharEcraHub();
         document.getElementById("categoriaLojasSection").scrollIntoView({behavior:"smooth"});
       };
       document.getElementById("btnAbrirMensalHub").onclick = abrirRelatorioMensalHub;
@@ -513,7 +540,7 @@ async function renderPanoramaGeral(){
       `;
       abrirModalTopico("📋 RH", corpo);
       document.getElementById("btnNovaAdendaHub").onclick = abrirNovaAdendaHub;
-      document.getElementById("btnVerAdendasHub").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirListaAdendasHub(); };
+      document.getElementById("btnVerAdendasHub").onclick = ()=>{ abrirListaAdendasHub(); };
     };
 
     document.querySelector('[data-topico="fardamento"]').onclick = ()=>{
@@ -570,8 +597,8 @@ async function renderPanoramaGeral(){
       abrirModalTopico("👕 Fardamento", corpo);
       document.getElementById("btnAbrirDevolucaoHub").onclick = abrirDevolucaoFardamentoHub;
       document.getElementById("btnAbrirAdmissaoHub").onclick = abrirAdmissaoFardamentoHub;
-      document.getElementById("btnVerStockCompletoHub").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirStockCompletoFardamentoHub(); };
-      document.getElementById("btnVerRececoesFardHub").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirRececoesFardamentoHub(); };
+      document.getElementById("btnVerStockCompletoHub").onclick = ()=>{ abrirStockCompletoFardamentoHub(); };
+      document.getElementById("btnVerRececoesFardHub").onclick = ()=>{ abrirRececoesFardamentoHub(); };
       document.querySelectorAll(".fardItemAtencaoBtn").forEach(btn=>{
         btn.onclick = ()=>abrirAjusteRapidoFardamentoHub(btn.dataset.polo, btn.dataset.peca, btn.dataset.tamanho, Number(btn.dataset.qtd));
       });
@@ -718,7 +745,8 @@ async function abrirListaAdendasHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharAdendasListaHubBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("fecharAdendasListaHubBtn").onclick = ()=>fecharEcraHub();
   await renderListaAdendasHub();
 }
 
@@ -1155,7 +1183,8 @@ async function abrirAdmissaoFardamentoHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("admFecharBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("admFecharBtn").onclick = ()=>fecharEcraHub();
 
   const colabRow = document.getElementById("admColabChips");
   knownColabs.forEach(name=>{
@@ -1255,7 +1284,8 @@ async function abrirStockCompletoFardamentoHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharFardStockHubBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("fecharFardStockHubBtn").onclick = ()=>fecharEcraHub();
 
   const porPecaTudo = {};
   rows.forEach(r=>{ (porPecaTudo[r.peca] ||= []).push(r); });
@@ -1331,7 +1361,8 @@ async function abrirRececoesFardamentoHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharFardRececoesHubBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("fecharFardRececoesHubBtn").onclick = ()=>fecharEcraHub();
 
   function cartao(r){
     const dataFmt = new Date(r.data_rececao+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -1440,7 +1471,8 @@ async function abrirDevolucaoFardamentoHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("hdFecharBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("hdFecharBtn").onclick = ()=>fecharEcraHub();
   document.getElementById("hdQtyMinus").onclick = ()=>{ devQtd=Math.max(1,devQtd-1); document.getElementById("hdQtyDisplay").textContent=devQtd; };
   document.getElementById("hdQtyPlus").onclick = ()=>{ devQtd=devQtd+1; document.getElementById("hdQtyDisplay").textContent=devQtd; };
 
@@ -1569,7 +1601,8 @@ async function abrirSaidaFardamentoHub(polo, peca, tamanho, disponivel){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("hsCancelarBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("hsCancelarBtn").onclick = ()=>fecharEcraHub();
   document.getElementById("hsMinus").onclick = ()=>{ saidaQtd=Math.max(1,saidaQtd-1); document.getElementById("hsQtyDisplay").textContent=saidaQtd; };
   document.getElementById("hsPlus").onclick = ()=>{ saidaQtd=Math.min(disponivel||999,saidaQtd+1); document.getElementById("hsQtyDisplay").textContent=saidaQtd; };
 
@@ -1649,13 +1682,17 @@ async function abrirAjusteRapidoFardamentoHub(polo, peca, tamanho, qtdAtual){
   `;
   document.body.appendChild(overlay);
   let mudou = false;
-  document.getElementById("fardAjusteFecharBtn").onclick = async ()=>{
-    overlay.remove();
-    if(mudou){ document.getElementById("modalTopicoOverlay")?.remove(); await renderPanoramaGeral(); document.querySelector('[data-topico="fardamento"]')?.click(); }
-  };
+  empilharEcraHub(overlay, ()=>{
+    if(!mudou) return;
+    const linha = document.querySelector(`.fardItemAtencaoBtn[data-peca="${CSS.escape(peca)}"][data-tamanho="${CSS.escape(tamanho)}"]`);
+    if(linha){
+      linha.dataset.qtd = qtdAtual;
+      const bEl = linha.querySelector("b");
+      if(bEl) bEl.textContent = qtdAtual===0 ? "ESGOTADO" : qtdAtual;
+    }
+  });
+  document.getElementById("fardAjusteFecharBtn").onclick = ()=>fecharEcraHub();
   document.getElementById("fardAjusteSaidaBtn").onclick = ()=>{
-    overlay.remove();
-    document.getElementById("modalTopicoOverlay")?.remove();
     abrirSaidaFardamentoHub(polo, peca, tamanho, qtdAtual);
   };
   async function ajustar(delta){
@@ -2480,10 +2517,8 @@ async function abrirDetalheStockNegHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharStockNegDetalheHubBtn").onclick = ()=>{
-    clearInterval(stockNegAutoAtualizaTimer);
-    overlay.remove();
-  };
+  empilharEcraHub(overlay, ()=>clearInterval(stockNegAutoAtualizaTimer));
+  document.getElementById("fecharStockNegDetalheHubBtn").onclick = ()=>fecharEcraHub();
 
   let rows = [];
   let ultimoFiltro = "";
@@ -2633,7 +2668,8 @@ async function abrirDetalheFormacoesHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharFormacoesDetalheHubBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("fecharFormacoesDetalheHubBtn").onclick = ()=>fecharEcraHub();
 
   const porLojaTudo = {};
   rows.forEach(r=>{ const l = r.loja||"Sem loja / a rever"; (porLojaTudo[l] ||= []).push(r); });
@@ -2869,7 +2905,8 @@ async function abrirResumoOntem(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharResumoOntemBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("fecharResumoOntemBtn").onclick = ()=>fecharEcraHub();
 
   const ontem = new Date(); ontem.setDate(ontem.getDate()-1);
   const ontemStr = isoDate(ontem);
