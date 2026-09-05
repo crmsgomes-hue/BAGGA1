@@ -289,7 +289,7 @@ async function renderPanoramaGeral(){
     const inicioSemana = isoDate(weekWindow(today).start);
 
     const inicioMesAtual = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg] = await Promise.all([
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
       api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`),
@@ -302,7 +302,8 @@ async function renderPanoramaGeral(){
       api(`cj_formacoes?select=loja&justificacao=is.null&loja=not.is.null`),
       api(`cj_horarios?select=loja,data,colaborador,hora_inicio,hora_fim&data=gte.${inicioMesAtual}&data=lte.${todayStr}`),
       api(`cj_trocas?select=loja&estado=eq.pendente`),
-      api(`cj_fardamento_rececoes?select=id&recolhido=eq.false`)
+      api(`cj_fardamento_rececoes?select=id&recolhido=eq.false`),
+      api(`cj_fardamento_rececoes?select=data_rececao&order=data_rececao.desc&limit=1`)
     ]);
     const fardRececoesPendentesPg = fardRececoesPg.length;
 
@@ -366,7 +367,7 @@ async function renderPanoramaGeral(){
         ${tile("quebras","💸","Quebras", `${valorQuebrasTotal.toFixed(0)}€`, valorQuebrasTotal>0?'var(--red)':'var(--grn)')}
         ${tile("inventario","📦","Inventário", `${valorInvTotal.toFixed(0)}€`)}
         ${tile("rh","📋","RH", `${adendasAtivasPg.length}`, adendasAtivasPg.length>0?'var(--org,#c17817)':'var(--grn)')}
-        ${tile("fardamento","👕","Fardamento", `${fardStockLowPg.length+fardDevPg.length}`, (fardStockLowPg.length+fardDevPg.length)>0?'var(--org,#c17817)':'var(--grn)')}
+        ${tile("fardamento","👕","Fardamento", `${fardStockLowPg.length+fardDevPg.length+fardRececoesPendentesPg}`, (fardStockLowPg.length+fardDevPg.length+fardRececoesPendentesPg)>0?'var(--org,#c17817)':'var(--grn)')}
         ${tile("diagnostico","🩺","Diagnóstico", errosPg.length>0?`${errosPg.length}`:'✔', errosPg.length>0?'var(--red)':'var(--grn)')}
         ${tile("stockneg","📉","Stock Neg.", `${stockNegPendentesPg.length}`, stockNegPendentesPg.length>0?'var(--red)':'var(--grn)')}
         ${tile("formacoes","🎓","Formações", `${formacoesPendentesPg.length}`, formacoesPendentesPg.length>0?'var(--org,#c17817)':'var(--grn)')}
@@ -518,8 +519,18 @@ async function renderPanoramaGeral(){
     document.querySelector('[data-topico="fardamento"]').onclick = ()=>{
       const fardStockOrdenado = [...fardStockLowPg].sort((a,b)=>Number(a.quantidade)-Number(b.quantidade));
       const numEsgotados = fardStockOrdenado.filter(f=>Number(f.quantidade)===0).length;
+      const ultimaRececao = ultimaRececaoPg[0];
+      let rececaoInfoHtml;
+      if(!ultimaRececao){
+        rececaoInfoHtml = `<div style="font-size:.78rem; color:var(--t2);">📄 Ainda sem nenhuma receção registada</div>`;
+      } else {
+        const dias = Math.floor((Date.now() - new Date(ultimaRececao.data_rececao+"T00:00:00")) / 86400000);
+        const dataFmt = new Date(ultimaRececao.data_rececao+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'});
+        const corDias = dias>45 ? 'var(--red)' : dias>25 ? 'var(--org,#c17817)' : 'var(--t2)';
+        rececaoInfoHtml = `<div style="font-size:.78rem; color:${corDias};">📄 Última receção: ${dataFmt} <span style="color:var(--t2);">(há ${dias} dia${dias===1?'':'s'})</span></div>`;
+      }
       const corpo = `
-        <div style="display:flex; gap:10px; margin-bottom:12px;">
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
           <div style="flex:1; text-align:center; background:var(--sf2); border-radius:10px; padding:10px;">
             <div style="font-size:1.2rem; font-weight:800; color:${numEsgotados>0?'var(--red)':'var(--grn)'};">${numEsgotados}</div>
             <div style="font-size:.68rem; color:var(--t2);">esgotados</div>
@@ -533,23 +544,42 @@ async function renderPanoramaGeral(){
             <div style="font-size:.68rem; color:var(--t2);">devoluções</div>
           </div>
         </div>
-        ${fardStockOrdenado.length>0 ? `<div style="display:flex; flex-direction:column; gap:1px; margin-bottom:12px;">
+        <div style="margin-bottom:14px;">${rececaoInfoHtml}</div>
+        ${fardStockOrdenado.length>0 ? `
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--t2); font-weight:700; margin-bottom:6px;">A precisar de atenção</div>
+        <div style="display:flex; flex-direction:column; gap:1px; margin-bottom:16px;">
           ${fardStockOrdenado.slice(0,10).map((f,i)=>{
             const spanId = `fardQtd_${i}`;
             const qtdInicial = Number(f.quantidade)===0 ? "ESGOTADO" : f.quantidade;
             return `<div style="display:flex; justify-content:space-between; align-items:center; padding:7px 2px; border-bottom:1px solid var(--br); font-size:.82rem; gap:6px;">
-              <span style="flex:1;">${f.polo} · ${f.peca} ${f.tamanho}</span>
+              <span style="flex:1;">${f.peca} ${f.tamanho}</span>
               <b id="${spanId}" data-qtd="${Number(f.quantidade)}" style="color:var(--red); min-width:22px; text-align:right;">${qtdInicial}</b>
               <button class="fardAjustarBtn" data-polo="${f.polo}" data-peca="${f.peca}" data-tamanho="${f.tamanho}" data-delta="1" data-span="${spanId}" style="background:var(--grn); color:#fff; border:none; border-radius:6px; width:26px; height:26px; font-weight:800; font-size:.9rem;">+</button>
               <button class="fardAjustarBtn" data-polo="${f.polo}" data-peca="${f.peca}" data-tamanho="${f.tamanho}" data-delta="-1" data-span="${spanId}" style="background:var(--sf2); color:var(--t2); border:none; border-radius:6px; width:26px; height:26px; font-weight:800; font-size:.9rem;">−</button>
               <button class="fardSaidaBtn" data-polo="${f.polo}" data-peca="${f.peca}" data-tamanho="${f.tamanho}" data-span="${spanId}" style="background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:6px; padding:0 8px; height:26px; font-weight:700; font-size:.7rem;">Saída</button>
             </div>`;
           }).join("")}
-        </div>` : ``}
-        <button id="btnAbrirDevolucaoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📥 Devoluções por recolher (${fardDevPg.length})</button>
-        <button id="btnAbrirAdmissaoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👤 Nova admissão (montar kit)</button>
-        <button id="btnVerStockCompletoHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📋 Ver stock completo (todos os pólos)</button>
-        <button id="btnVerRececoesFardHub" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📄 Documentos de receção${fardRececoesPendentesPg>0?` (${fardRececoesPendentesPg})`:''}</button>
+        </div>` : `<div style="font-size:.8rem; color:var(--grn); margin-bottom:16px;">✔ Sem alertas de stock.</div>`}
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <button id="btnAbrirAdmissaoHub" class="fardAcaoBtn" style="position:relative; background:var(--sf2); border:none; border-radius:12px; padding:14px 8px; text-align:center; cursor:pointer;">
+            <div style="font-size:22px;">👤</div>
+            <div style="font-size:.75rem; font-weight:700; margin-top:4px; color:var(--tx);">Nova admissão</div>
+          </button>
+          <button id="btnAbrirDevolucaoHub" class="fardAcaoBtn" style="position:relative; background:var(--sf2); border:none; border-radius:12px; padding:14px 8px; text-align:center; cursor:pointer;">
+            <div style="font-size:22px;">📥</div>
+            <div style="font-size:.75rem; font-weight:700; margin-top:4px; color:var(--tx);">Devoluções</div>
+            ${fardDevPg.length>0 ? `<span style="position:absolute; top:6px; right:6px; background:var(--red); color:#fff; font-size:.65rem; font-weight:800; border-radius:99px; padding:1px 6px;">${fardDevPg.length}</span>` : ''}
+          </button>
+          <button id="btnVerRececoesFardHub" class="fardAcaoBtn" style="position:relative; background:var(--sf2); border:none; border-radius:12px; padding:14px 8px; text-align:center; cursor:pointer;">
+            <div style="font-size:22px;">📄</div>
+            <div style="font-size:.75rem; font-weight:700; margin-top:4px; color:var(--tx);">Receções</div>
+            ${fardRececoesPendentesPg>0 ? `<span style="position:absolute; top:6px; right:6px; background:var(--terracotta,#C1622D); color:#fff; font-size:.65rem; font-weight:800; border-radius:99px; padding:1px 6px;">${fardRececoesPendentesPg}</span>` : ''}
+          </button>
+          <button id="btnVerStockCompletoHub" class="fardAcaoBtn" style="background:var(--sf2); border:none; border-radius:12px; padding:14px 8px; text-align:center; cursor:pointer;">
+            <div style="font-size:22px;">📋</div>
+            <div style="font-size:.75rem; font-weight:700; margin-top:4px; color:var(--tx);">Stock completo</div>
+          </button>
+        </div>
       `;
       abrirModalTopico("👕 Fardamento", corpo);
       document.getElementById("btnAbrirDevolucaoHub").onclick = abrirDevolucaoFardamentoHub;
@@ -1251,13 +1281,14 @@ async function abrirStockCompletoFardamentoHub(){
   const overlay = document.createElement("div");
   overlay.id = "fardStockCompletoOverlayHub";
   overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  const totalGeral = rows.reduce((s,r)=>s+Number(r.quantidade),0);
   overlay.innerHTML = `
     <div style="background:#fff; border-radius:14px; padding:20px; max-width:440px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:2px;">📋 Fardamento — stock completo</div>
-      <div style="font-size:12px; color:var(--t2); margin-bottom:12px;">${rows.length} artigo(s) em ${new Set(rows.map(r=>r.polo)).size} pólo(s).</div>
+      <div style="font-size:12px; color:var(--t2); margin-bottom:12px;">${totalGeral} peça(s) em ${rows.length} referência(s).</div>
       <div id="fardStockCapturaWrapHub"></div>
       <div id="fardStockPartilhaBtnsHub"></div>
-      <input id="fardStockFiltro" placeholder="Procurar (pólo, peça, tamanho...)" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--br); margin:14px 0 12px; font-size:.85rem;">
+      <input id="fardStockFiltro" placeholder="Procurar (peça, tamanho...)" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--br); margin:14px 0 12px; font-size:.85rem;">
       <div id="fardStockListaHub"></div>
       <button id="fecharFardStockHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
     </div>
@@ -1265,21 +1296,21 @@ async function abrirStockCompletoFardamentoHub(){
   document.body.appendChild(overlay);
   document.getElementById("fecharFardStockHubBtn").onclick = ()=>overlay.remove();
 
-  const porPoloTudo = {};
-  rows.forEach(r=>{ (porPoloTudo[r.polo] ||= []).push(r); });
+  const porPecaTudo = {};
+  rows.forEach(r=>{ (porPecaTudo[r.peca] ||= []).push(r); });
   const capturaWrap = document.getElementById("fardStockCapturaWrapHub");
   const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
-  const linhasResumoHtml = Object.entries(porPoloTudo).sort((a,b)=>a[0].localeCompare(b[0])).map(([p,items])=>{
+  const linhasResumoHtml = Object.entries(porPecaTudo).sort((a,b)=>a[0].localeCompare(b[0])).map(([peca,items])=>{
     const total = items.reduce((s,i)=>s+Number(i.quantidade),0);
-    return `<tr><td style="font-weight:700; font-size:11px; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${p}</td>
-    <td style="text-align:right; font-size:11px; font-weight:800; color:#C1622D; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${total} un. (${items.length} refs)</td></tr>`;
+    return `<tr><td style="font-weight:700; font-size:11px; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${peca}</td>
+    <td style="text-align:right; font-size:11px; font-weight:800; color:#C1622D; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${total}</td></tr>`;
   }).join("");
   capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 10px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
   capturaWrap.innerHTML = `
     <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Fardamento — Stock completo</div>
-    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} — ${rows.length} artigos</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} — Santarém — ${totalGeral} peças</div>
     <table style="border-collapse:collapse; width:100%;"><thead><tr>
-      <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:left;">Pólo</th>
+      <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:left;">Peça</th>
       <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:right;">Total</th>
     </tr></thead><tbody>${linhasResumoHtml}</tbody></table>
   `;
@@ -1288,31 +1319,31 @@ async function abrirStockCompletoFardamentoHub(){
   function render(filtro){
     const f = (filtro||"").toLowerCase().trim();
     const filtradas = !f ? rows : rows.filter(r=>
-      (r.polo||"").toLowerCase().includes(f) || (r.peca||"").toLowerCase().includes(f) || String(r.tamanho||"").toLowerCase().includes(f)
+      (r.peca||"").toLowerCase().includes(f) || String(r.tamanho||"").toLowerCase().includes(f)
     );
-    const porPolo = {};
-    filtradas.forEach(r=>{ (porPolo[r.polo] ||= []).push(r); });
-    const polosOrdenados = Object.keys(porPolo).sort((a,b)=>a.localeCompare(b));
+    const porPeca = {};
+    filtradas.forEach(r=>{ (porPeca[r.peca] ||= []).push(r); });
+    const pecasOrdenadas = Object.keys(porPeca).sort((a,b)=>a.localeCompare(b));
     const lista = document.getElementById("fardStockListaHub");
-    if(polosOrdenados.length===0){ lista.innerHTML = `<div style="font-size:.8rem; color:var(--t2); text-align:center; padding:14px 0;">Nada encontrado.</div>`; return; }
+    if(pecasOrdenadas.length===0){ lista.innerHTML = `<div style="font-size:.8rem; color:var(--t2); text-align:center; padding:14px 0;">Nada encontrado.</div>`; return; }
     const abrirTudo = !!f;
-    lista.innerHTML = polosOrdenados.map(p=>{
-      const itens = porPolo[p].sort((a,b)=>(a.peca+a.tamanho).localeCompare(b.peca+b.tamanho));
+    lista.innerHTML = pecasOrdenadas.map(peca=>{
+      const itens = porPeca[peca].sort((a,b)=>String(a.tamanho).localeCompare(String(b.tamanho)));
       const linhasItens = itens.map(r=>{
         const qtd = Number(r.quantidade);
         const cor = qtd===0 ? '#b0432f' : qtd<5 ? '#c17817' : '#2e7d32';
         return `
         <div style="display:flex; justify-content:space-between; gap:10px; padding:6px 4px; border-bottom:1px solid #f3f0ea;">
-          <span style="font-size:.8rem;">${r.peca} ${r.tamanho}</span>
+          <span style="font-size:.8rem;">Tamanho ${r.tamanho}</span>
           <b style="color:${cor}; font-size:.82rem;">${qtd===0?'ESGOTADO':qtd}</b>
         </div>`;
       }).join("");
-      const totalPolo = itens.reduce((s,i)=>s+Number(i.quantidade),0);
+      const totalPeca = itens.reduce((s,i)=>s+Number(i.quantidade),0);
       return `
         <details ${abrirTudo?'open':''} style="background:var(--sf2); border-radius:10px; margin-bottom:8px; overflow:hidden;">
           <summary style="cursor:pointer; padding:10px 12px; font-weight:700; font-size:.85rem; display:flex; justify-content:space-between; list-style:none;">
-            <span>${p}</span>
-            <span style="color:#C1622D;">${totalPolo} un.</span>
+            <span>${peca}</span>
+            <span style="color:#C1622D;">${totalPeca}</span>
           </summary>
           <div style="padding:0 12px 6px;">${linhasItens}</div>
         </details>
