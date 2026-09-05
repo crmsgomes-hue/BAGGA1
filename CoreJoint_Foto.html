@@ -574,6 +574,8 @@ async function render(){
     main.appendChild(link);
   });
 
+  await renderCertificadoOleoCard(main);
+
 
   sondagensPendentes.forEach(s=>{
     const card = document.createElement("div");
@@ -936,7 +938,6 @@ async function render(){
       const mudarT = document.getElementById("mudarAgendamentoTabaco");
       if(mudarT) mudarT.onclick = ()=>{ agendamentosTabaco = agendamentosTabaco.filter(a=>a.periodo!==periodo); render(); };
     }
-    renderCertificadoOleoCard(main);
   }
 
   const dueMkt = MARKETING_CATS.filter(c=>!naoAplicaveis.includes(c.key)).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>c.st.state!=="ok");
