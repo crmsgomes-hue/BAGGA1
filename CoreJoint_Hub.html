@@ -382,17 +382,21 @@ async function renderPanoramaGeral(){
     document.querySelector('[data-topico="stockneg"]').onclick = ()=>{
       const corpo = `
         <div class="sub" style="margin-bottom:10px;">${stockNegPendentesPg.length} registo(s) de stock negativo por justificar.</div>
-        ${botoesAcao([["📉 Ver relatório","CoreJoint_Reportes.html?abrir=visualStockNeg"],["📤 Importar Excel","CoreJoint_Reportes.html?abrir=importarStockNeg"]])}
+        <button id="btnVerStockNegHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📉 Ver artigos (código, quantidade)</button>
+        ${botoesAcao([["📤 Importar Excel","CoreJoint_Reportes.html?abrir=importarStockNeg"]])}
       `;
       abrirModalTopico("📉 Stock Negativo", corpo);
+      document.getElementById("btnVerStockNegHub").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirDetalheStockNegHub(); };
     };
 
     document.querySelector('[data-topico="formacoes"]').onclick = ()=>{
       const corpo = `
         <div class="sub" style="margin-bottom:10px;">${formacoesPendentesPg.length} formação(ões) pendente(s).</div>
-        ${botoesAcao([["🎓 Ver relatório","CoreJoint_Reportes.html?abrir=visualFormacoes"],["📤 Importar Excel","CoreJoint_Reportes.html?abrir=importarFormacoes"]])}
+        <button id="btnVerFormacoesHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">🎓 Ver colaborador, loja e formação</button>
+        ${botoesAcao([["📤 Importar Excel","CoreJoint_Reportes.html?abrir=importarFormacoes"]])}
       `;
       abrirModalTopico("🎓 Formações", corpo);
+      document.getElementById("btnVerFormacoesHub").onclick = ()=>{ document.getElementById("modalTopicoOverlay").remove(); abrirDetalheFormacoesHub(); };
     };
 
     document.querySelector('[data-topico="horarios"]').onclick = ()=>{
@@ -2169,6 +2173,159 @@ function abrirNovaTarefaHub(){
     o.remove();
     await renderTarefasPessoais();
   }, "A criar...");
+}
+
+async function abrirDetalheStockNegHub(){
+  const rows = await api("cj_stock_negativo?select=*&order=valor_stock.asc&limit=1000", "GET");
+  const overlay = document.createElement("div");
+  overlay.id = "stockNegDetalheOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:440px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:2px;">📉 Stock negativo — artigos</div>
+      <div style="font-size:12px; color:var(--t2); margin-bottom:12px;">${rows.length} artigo(s) com quantidade negativa.</div>
+      <div id="stockNegDetalheCapturaWrapHub"></div>
+      <div id="stockNegDetalhePartilhaBtnsHub"></div>
+      <input id="stockNegDetalheFiltro" placeholder="Procurar (loja, código, artigo...)" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--br); margin:14px 0 12px; font-size:.85rem;">
+      <button id="stockNegDetalheCopiarBtn" style="width:100%; margin-bottom:12px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:11px; font-weight:700;">📋 Copiar para Excel</button>
+      <div id="stockNegDetalheListaHub"></div>
+      <button id="fecharStockNegDetalheHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("fecharStockNegDetalheHubBtn").onclick = ()=>overlay.remove();
+
+  // resumo por loja (contagem), pronto a partilhar - a lista completa (ate 1000 artigos) vai so no Excel/lista pesquisavel
+  const porLoja = {};
+  rows.forEach(r=>{ const l = r.loja||"Sem loja"; (porLoja[l] ||= []).push(r); });
+  const capturaWrap = document.getElementById("stockNegDetalheCapturaWrapHub");
+  const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+  const linhasResumoHtml = Object.entries(porLoja).sort((a,b)=>b[1].length-a[1].length).map(([l,items])=>`
+    <tr><td style="font-weight:700; font-size:11px; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${abreviarLoja(l)}</td>
+    <td style="text-align:right; font-size:11px; font-weight:800; color:#b0432f; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${items.length}</td></tr>
+  `).join("");
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 10px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+  capturaWrap.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Stock Negativo</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} — ${rows.length} artigos</div>
+    <table style="border-collapse:collapse; width:100%;"><thead><tr>
+      <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:left;">Loja</th>
+      <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:right;">Nº artigos</th>
+    </tr></thead><tbody>${linhasResumoHtml}</tbody></table>
+  `;
+  criarBotoesPartilhaHub(document.getElementById("stockNegDetalhePartilhaBtnsHub"), capturaWrap, `CoreJoint_stock_negativo`, "CoreJoint · Stock Negativo");
+
+  let ultimaListaFiltrada = rows;
+  function render(filtro){
+    const f = (filtro||"").toLowerCase().trim();
+    const filtradas = !f ? rows : rows.filter(r=>
+      (r.loja||"").toLowerCase().includes(f) || (r.produto||"").toLowerCase().includes(f)
+    );
+    ultimaListaFiltrada = filtradas;
+    const lista = document.getElementById("stockNegDetalheListaHub");
+    if(filtradas.length===0){ lista.innerHTML = `<div style="font-size:.8rem; color:var(--t2); text-align:center; padding:14px 0;">Nada encontrado.</div>`; return; }
+    lista.innerHTML = filtradas.slice(0,300).map(r=>`
+      <div style="padding:8px 0; border-bottom:1px solid var(--br); font-size:13px; display:flex; justify-content:space-between; gap:8px;">
+        <div>
+          <div style="font-weight:700; font-size:.8rem;">${r.loja||'—'}</div>
+          <div style="font-size:.78rem; color:var(--t2);">${r.produto||'—'}</div>
+        </div>
+        <b style="color:#b0432f; white-space:nowrap;">${Number(r.valor_stock).toFixed(2)}</b>
+      </div>
+    `).join("") + (filtradas.length>300 ? `<div style="font-size:.75rem; color:var(--t2); text-align:center; padding:8px 0;">... e mais ${filtradas.length-300}. Usa a pesquisa para encontrar mais depressa.</div>` : "");
+  }
+  render("");
+  document.getElementById("stockNegDetalheFiltro").addEventListener("input",(ev)=>render(ev.target.value));
+  document.getElementById("stockNegDetalheCopiarBtn").onclick = ()=>{
+    const cabecalho = "Loja\tArtigo\tQuantidade negativa";
+    const linhas = ultimaListaFiltrada.map(r=>`${r.loja||''}\t${(r.produto||'').replace(/\t/g," ")}\t${Number(r.valor_stock).toFixed(2).replace(".",",")}`);
+    navigator.clipboard.writeText([cabecalho, ...linhas].join("\n")).then(()=>{
+      const btn = document.getElementById("stockNegDetalheCopiarBtn");
+      const original = btn.textContent;
+      btn.textContent = "✔ Copiado! Cola no Excel";
+      setTimeout(()=>{ btn.textContent = original; }, 1800);
+    });
+  };
+}
+
+async function abrirDetalheFormacoesHub(){
+  const rows = await api("cj_formacoes?select=*&order=loja.asc,colaborador.asc&limit=1000", "GET");
+  const overlay = document.createElement("div");
+  overlay.id = "formacoesDetalheOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:440px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:2px;">🎓 Formações por concluir</div>
+      <div style="font-size:12px; color:var(--t2); margin-bottom:12px;">${rows.length} formação(ões) em falta.</div>
+      <div id="formacoesDetalheCapturaWrapHub"></div>
+      <div id="formacoesDetalhePartilhaBtnsHub"></div>
+      <input id="formacoesDetalheFiltro" placeholder="Procurar (loja, colaborador, formação...)" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--br); margin:14px 0 12px; font-size:.85rem;">
+      <button id="formacoesDetalheCopiarBtn" style="width:100%; margin-bottom:12px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:11px; font-weight:700;">📋 Copiar para Excel</button>
+      <div id="formacoesDetalheListaHub"></div>
+      <button id="fecharFormacoesDetalheHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("fecharFormacoesDetalheHubBtn").onclick = ()=>overlay.remove();
+
+  // resumo por loja (contagem de formacoes em falta), pronto a partilhar
+  const porLoja = {};
+  rows.forEach(r=>{ const l = r.loja||"Sem loja"; (porLoja[l] ||= []).push(r); });
+  const capturaWrap = document.getElementById("formacoesDetalheCapturaWrapHub");
+  const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+  const linhasResumoHtml = Object.entries(porLoja).sort((a,b)=>b[1].length-a[1].length).map(([l,items])=>`
+    <tr><td style="font-weight:700; font-size:11px; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${abreviarLoja(l)}</td>
+    <td style="text-align:right; font-size:11px; font-weight:800; color:#c17817; padding:5px 3px; border-bottom:1px solid #f0ebe3;">${items.length}</td></tr>
+  `).join("");
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 10px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+  capturaWrap.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Formações por concluir</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} — ${rows.length} formações</div>
+    <table style="border-collapse:collapse; width:100%;"><thead><tr>
+      <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:left;">Loja</th>
+      <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 3px; text-align:right;">Em falta</th>
+    </tr></thead><tbody>${linhasResumoHtml}</tbody></table>
+  `;
+  criarBotoesPartilhaHub(document.getElementById("formacoesDetalhePartilhaBtnsHub"), capturaWrap, `CoreJoint_formacoes`, "CoreJoint · Formações por concluir");
+
+  // agrupa por colaborador para mostrar "quantas e quais" por pessoa, dentro de cada loja
+  let ultimaListaFiltrada = rows;
+  function render(filtro){
+    const f = (filtro||"").toLowerCase().trim();
+    const filtradas = !f ? rows : rows.filter(r=>
+      (r.loja||"").toLowerCase().includes(f) || (r.colaborador||"").toLowerCase().includes(f) || (r.formacao||"").toLowerCase().includes(f)
+    );
+    ultimaListaFiltrada = filtradas;
+    const porColab = {};
+    filtradas.forEach(r=>{
+      const chave = `${r.loja||'Sem loja'}|||${r.colaborador}`;
+      (porColab[chave] ||= {loja:r.loja, colaborador:r.colaborador, formacoes:[]}).formacoes.push(r.formacao);
+    });
+    const grupos = Object.values(porColab).sort((a,b)=>(a.loja||'').localeCompare(b.loja||''));
+    const lista = document.getElementById("formacoesDetalheListaHub");
+    if(grupos.length===0){ lista.innerHTML = `<div style="font-size:.8rem; color:var(--t2); text-align:center; padding:14px 0;">Nada encontrado.</div>`; return; }
+    lista.innerHTML = grupos.map(g=>`
+      <div style="padding:9px 0; border-bottom:1px solid var(--br); font-size:13px;">
+        <div style="display:flex; justify-content:space-between;">
+          <span style="font-weight:700; font-size:.85rem;">${g.colaborador}</span>
+          <span style="font-size:.75rem; color:var(--t2); white-space:nowrap;">${g.loja||'sem loja'} · ${g.formacoes.length}</span>
+        </div>
+        <div style="font-size:.75rem; color:var(--t2); margin-top:3px;">${g.formacoes.join(" · ")}</div>
+      </div>
+    `).join("");
+  }
+  render("");
+  document.getElementById("formacoesDetalheFiltro").addEventListener("input",(ev)=>render(ev.target.value));
+  document.getElementById("formacoesDetalheCopiarBtn").onclick = ()=>{
+    const cabecalho = "Loja\tColaborador\tFormação";
+    const linhas = ultimaListaFiltrada.map(r=>`${r.loja||''}\t${r.colaborador||''}\t${(r.formacao||'').replace(/\t/g," ")}`);
+    navigator.clipboard.writeText([cabecalho, ...linhas].join("\n")).then(()=>{
+      const btn = document.getElementById("formacoesDetalheCopiarBtn");
+      const original = btn.textContent;
+      btn.textContent = "✔ Copiado! Cola no Excel";
+      setTimeout(()=>{ btn.textContent = original; }, 1800);
+    });
+  };
 }
 
 async function abrirRegistosQuebrasHub(){
