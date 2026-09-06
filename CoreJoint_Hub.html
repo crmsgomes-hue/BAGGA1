@@ -193,15 +193,18 @@ function setBadge(id, n){
 let CATEGORIA_CORTE = {};
 async function carregarCategoriaCorte(){
   try{
-    const rows = await api("cj_categoria_corte?select=categoria,data_corte", "GET");
+    const rows = await api("cj_categoria_corte?select=categoria,loja,data_corte", "GET");
     CATEGORIA_CORTE = {};
-    (rows||[]).forEach(r=>{ CATEGORIA_CORTE[r.categoria] = r.data_corte; });
+    (rows||[]).forEach(r=>{ CATEGORIA_CORTE[r.categoria+"|"+r.loja] = r.data_corte; });
   }catch(e){ CATEGORIA_CORTE = {}; }
 }
 async function aplicarCorteCategoria(rows){
   await carregarCategoriaCorte();
   if(Object.keys(CATEGORIA_CORTE).length===0) return rows;
-  return rows.filter(r=>!CATEGORIA_CORTE[r.categoria] || r.data >= CATEGORIA_CORTE[r.categoria]);
+  return rows.filter(r=>{
+    const corte = CATEGORIA_CORTE[r.categoria+"|"+r.loja] || CATEGORIA_CORTE[r.categoria+"|*"];
+    return !corte || r.data >= corte;
+  });
 }
 // Pilha de ecrãs para permitir "voltar atrás" (botão Fechar ou o botão físico/do browser)
 // em vez de fechar tudo de repente e sair da app - a pedido dela.
@@ -476,8 +479,12 @@ async function renderPanoramaGeral(){
 
     document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
       const corpo = `
-        <button id="btnAbrirPinsLojasHub" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+        <button id="btnAbrirPinsLojasHub" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
           <span><span style="font-size:18px;">🔑</span> <b style="font-size:.85rem;">PINs das lojas</b><br><span style="font-size:.72rem; color:var(--t2); margin-left:24px;">ver, copiar mensagem, repor</span></span>
+          <span style="font-size:1.1rem; color:var(--t2);">›</span>
+        </button>
+        <button id="btnAbrirResetCategoriaHub" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span><span style="font-size:18px;">🔄</span> <b style="font-size:.85rem;">Reset de categoria</b><br><span style="font-size:.72rem; color:var(--t2); margin-left:24px;">obrigar a novo envio (Cavalete, Global...)</span></span>
           <span style="font-size:1.1rem; color:var(--t2);">›</span>
         </button>
         <div class="sub" style="margin-bottom:10px;">Relatórios prontos a partilhar no grupo, num toque.</div>
@@ -498,6 +505,7 @@ async function renderPanoramaGeral(){
       `;
       abrirModalTopico("📱 Partilhar", corpo);
       document.getElementById("btnAbrirPinsLojasHub").onclick = abrirPinsLojasHub;
+      document.getElementById("btnAbrirResetCategoriaHub").onclick = abrirResetCategoriaHub;
     };
 
     document.querySelector('[data-topico="vendas"]').onclick = ()=>{
@@ -2157,6 +2165,91 @@ async function abrirDiagnosticoHub(){
 
 function linkLojaGerente(loja){
   return `https://crmsgomes-hue.github.io/BAGGA1/CoreJoint_Foto.html?loja=${encodeURIComponent(loja)}`;
+}
+
+async function abrirResetCategoriaHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "resetCatOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  const todasCats = [...INV_CATS, ...MARKETING_CATS];
+  const amanha = isoDate(new Date(Date.now()+86400000));
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">🔄 Reset de categoria</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Os envios feitos antes da data escolhida deixam de contar como "feito" — a loja tem de enviar de novo. Nada é apagado.</div>
+
+      <div style="font-size:.76rem; font-weight:700; margin-bottom:6px;">Categoria</div>
+      <select id="resetCatSelect" style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--br); margin-bottom:14px; font-size:.85rem;">
+        ${todasCats.map(c=>`<option value="${c.key}">${c.label}</option>`).join("")}
+      </select>
+
+      <div style="font-size:.76rem; font-weight:700; margin-bottom:6px;">Lojas</div>
+      <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:.82rem; font-weight:700;">
+        <input type="checkbox" id="resetCatTodasLojas" checked style="width:17px; height:17px;"> Todas as lojas
+      </label>
+      <div id="resetCatListaLojas" style="display:none; margin-bottom:8px; padding-left:4px;">
+        ${LOJAS.map(l=>`<label style="display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:.8rem;"><input type="checkbox" class="resetCatLojaChk" value="${l}" style="width:16px; height:16px;"> ${l}</label>`).join("")}
+      </div>
+
+      <div style="font-size:.76rem; font-weight:700; margin-bottom:6px; margin-top:6px;">A partir de</div>
+      <input type="date" id="resetCatData" value="${amanha}" style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--br); margin-bottom:14px; font-size:.85rem;">
+
+      <button id="resetCatAplicarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:12px; font-weight:700; font-size:.85rem;">Aplicar reset</button>
+
+      <div style="font-size:.72rem; font-weight:700; color:var(--t2); text-transform:uppercase; letter-spacing:.04em; margin:18px 0 8px;">Resets ativos</div>
+      <div id="resetCatAtivos"><div style="text-align:center; padding:10px 0; color:var(--t2); font-size:.8rem;">A carregar...</div></div>
+
+      <button id="fecharResetCatHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("fecharResetCatHubBtn").onclick = ()=>overlay.remove();
+
+  document.getElementById("resetCatTodasLojas").onchange = (e)=>{
+    document.getElementById("resetCatListaLojas").style.display = e.target.checked ? "none" : "block";
+  };
+
+  async function renderAtivos(){
+    const ativos = document.getElementById("resetCatAtivos");
+    ativos.innerHTML = `<div style="text-align:center; padding:10px 0; color:var(--t2); font-size:.8rem;">A carregar...</div>`;
+    const cortes = await api("rpc/admin_listar_cortes_categoria", "POST", {});
+    if(!cortes || cortes.length===0){ ativos.innerHTML = `<div style="text-align:center; padding:10px 0; color:var(--t2); font-size:.8rem;">Nenhum reset ativo.</div>`; return; }
+    ativos.innerHTML = cortes.map(c=>{
+      const catLabel = (todasCats.find(t=>t.key===c.categoria)||{}).label || c.categoria;
+      const lojaLabel = c.loja==="*" ? "Todas as lojas" : c.loja;
+      return `
+      <div style="background:var(--sf2); border-radius:10px; padding:9px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:.78rem;"><b>${catLabel}</b> — ${lojaLabel}<br><span style="color:var(--t2); font-size:.7rem;">a partir de ${new Date(c.data_corte+"T00:00:00").toLocaleDateString('pt-PT')}</span></div>
+        <button class="resetCatRemoverBtn" data-cat="${c.categoria}" data-loja="${c.loja}" style="background:none; border:none; color:var(--red,#b0432f); font-size:.72rem; font-weight:700;">Remover</button>
+      </div>`;
+    }).join("");
+    ativos.querySelectorAll(".resetCatRemoverBtn").forEach(btn=>{
+      btn.onclick = async ()=>{
+        await api("rpc/admin_remover_corte_categoria", "POST", {p_categoria:btn.dataset.cat, p_loja:btn.dataset.loja});
+        renderAtivos();
+      };
+    });
+  }
+  renderAtivos();
+
+  document.getElementById("resetCatAplicarBtn").onclick = async ()=>{
+    const btn = document.getElementById("resetCatAplicarBtn");
+    const categoria = document.getElementById("resetCatSelect").value;
+    const data = document.getElementById("resetCatData").value;
+    if(!data) return;
+    const todas = document.getElementById("resetCatTodasLojas").checked;
+    const lojasEscolhidas = todas ? ["*"] : Array.from(document.querySelectorAll(".resetCatLojaChk:checked")).map(c=>c.value);
+    if(lojasEscolhidas.length===0){ toast("Escolhe pelo menos uma loja"); return; }
+    const catLabel = (todasCats.find(t=>t.key===categoria)||{}).label || categoria;
+    if(!confirm(`Aplicar reset de "${catLabel}" para ${todas?'todas as lojas':lojasEscolhidas.join(', ')}, a partir de ${new Date(data+"T00:00:00").toLocaleDateString('pt-PT')}?`)) return;
+    btn.disabled = true; btn.textContent = "A aplicar...";
+    for(const loja of lojasEscolhidas){
+      await api("rpc/admin_definir_corte_categoria", "POST", {p_categoria:categoria, p_loja:loja, p_data_corte:data});
+    }
+    btn.disabled = false; btn.textContent = "Aplicar reset";
+    toast(`✔ Reset de ${catLabel} aplicado`);
+    renderAtivos();
+  };
 }
 
 async function abrirPinsLojasHub(){
