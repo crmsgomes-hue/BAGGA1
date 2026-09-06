@@ -789,15 +789,18 @@ async function api(method, path, body){
 let CATEGORIA_CORTE = {};
 async function carregarCategoriaCorte(){
   try{
-    const rows = await api("GET", "cj_categoria_corte?select=categoria,data_corte");
+    const rows = await api("GET", "cj_categoria_corte?select=categoria,loja,data_corte");
     CATEGORIA_CORTE = {};
-    (rows||[]).forEach(r=>{ CATEGORIA_CORTE[r.categoria] = r.data_corte; });
+    (rows||[]).forEach(r=>{ CATEGORIA_CORTE[r.categoria+"|"+r.loja] = r.data_corte; });
   }catch(e){ CATEGORIA_CORTE = {}; }
 }
 async function aplicarCorteCategoria(rows){
   await carregarCategoriaCorte();
   if(Object.keys(CATEGORIA_CORTE).length===0) return rows;
-  return rows.filter(r=>!CATEGORIA_CORTE[r.categoria] || r.data >= CATEGORIA_CORTE[r.categoria]);
+  return rows.filter(r=>{
+    const corte = CATEGORIA_CORTE[r.categoria+"|"+r.loja] || CATEGORIA_CORTE[r.categoria+"|*"];
+    return !corte || r.data >= corte;
+  });
 }
 
 async function uploadPhoto(dataUrl, path){
