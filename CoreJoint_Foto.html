@@ -1798,7 +1798,6 @@ async function adicionarFotoEnvio(r, file){
   }
 }
 
-const PIN_GESTAO = "1234";
 function pedirPinGestao(){
   const o = document.createElement("div");
   o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:999999; display:flex; align-items:center; justify-content:center; padding:20px;";
@@ -1818,9 +1817,23 @@ function pedirPinGestao(){
   const input = document.getElementById("pinGestaoInput");
   input.focus();
   document.getElementById("pinGestaoCancelar").onclick = ()=>o.remove();
-  function tentar(){
-    if(input.value === PIN_GESTAO){ o.remove(); abrirAreaGestaoLoja(); }
-    else document.getElementById("pinGestaoErro").style.display = "block";
+  async function tentar(){
+    const btn = document.getElementById("pinGestaoEntrar");
+    btn.disabled = true;
+    try{
+      // verificacao acontece no servidor (funcao verificar_pin_loja) - o PIN certo nunca e devolvido
+      // nem visivel no codigo da pagina, so um sim/nao para a tentativa introduzida
+      const resultado = await api("POST", "rpc/verificar_pin_loja", { p_loja: currentLoja, p_pin: input.value });
+      const ok = resultado === true || (Array.isArray(resultado) && resultado[0] === true) || (resultado && resultado.verificar_pin_loja === true);
+      if(ok){ o.remove(); abrirAreaGestaoLoja(); }
+      else document.getElementById("pinGestaoErro").style.display = "block";
+    }catch(e){
+      console.error(e);
+      document.getElementById("pinGestaoErro").textContent = "Erro a verificar — tenta outra vez.";
+      document.getElementById("pinGestaoErro").style.display = "block";
+    }finally{
+      btn.disabled = false;
+    }
   }
   document.getElementById("pinGestaoEntrar").onclick = tentar;
   input.addEventListener("keydown", (e)=>{ if(e.key==="Enter") tentar(); });
@@ -3047,7 +3060,7 @@ window.addEventListener("online", tentarReenviarFila);
 loadAll().then(()=>{
   const estadoGuardado = lerEstadoAberturaGuardado();
   if(estadoGuardado) abrirCapturaAbertura(estadoGuardado);
-  if(params.get("gestao")==="1") abrirAreaGestaoLoja();
+  // ATENCAO: nunca voltar a adicionar aqui um atalho tipo ?gestao=1 que salte o PIN - foi um buraco de seguranca real, corrigido a pedido dela (06/09)
 });
 tentarReenviarFila();
 setInterval(loadAll, 30000);
