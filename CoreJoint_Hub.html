@@ -504,6 +504,7 @@ async function renderPanoramaGeral(){
         <div style="font-size:1.4rem; font-weight:800; color:${valorQuebrasTotal>0?'var(--red)':'var(--grn)'}; margin-bottom:10px;">${valorQuebrasTotal.toFixed(2)} €</div>
         ${linhasValoresTopico(quebrasLinhas, "CoreJoint_Reportes.html?abrir=relatorioQuebras", "var(--red)")}
         <button id="btnAbrirRegistosQuebrasHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">🔎 Registos e justificações</button>
+        <button id="btnAbrirExportQuebrasEmpresaHub" style="width:100%; margin-bottom:6px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📋 Preencher Excel da empresa</button>
         ${botoesAcao([
           ["📤 Importar Excel de quebras","CoreJoint_Reportes.html?abrir=importarQuebras"],
           ["🖨️ Relatório semanal","CoreJoint_Reportes.html?abrir=quebrasSemanal"]
@@ -511,6 +512,7 @@ async function renderPanoramaGeral(){
       `;
       abrirModalTopico("💸 Quebras", corpo);
       document.getElementById("btnAbrirRegistosQuebrasHub").onclick = abrirRegistosQuebrasHub;
+      document.getElementById("btnAbrirExportQuebrasEmpresaHub").onclick = abrirExportQuebrasEmpresaHub;
     };
 
     document.querySelector('[data-topico="inventario"]').onclick = ()=>{
@@ -2843,6 +2845,101 @@ function partilharFormacoesPorLoja(loja, itens){
   document.body.appendChild(o);
   document.getElementById("formLojaFechar").onclick = ()=>o.remove();
   criarBotoesPartilhaHub(document.getElementById("formLojaPartilhaBtns"), document.getElementById("formLojaCaptura"), `CoreJoint_formacoes_${abreviarLoja(loja).replace(/\s+/g,"_")}`, `CoreJoint · Formações — ${loja}`);
+}
+
+const NOME_EXCEL_EMPRESA = {
+  "Almeirim":"BAGGA ALMEIRIM", "Bombarral":"BAGGA BOMBARRAL", "Caldas da Rainha":"BAGGA CALDAS RAINHA",
+  "Carregado":"BAGGA CARREGADO", "Peniche":"BAGGA PENICHE", "Ponte de Sor":"BAGGA PONTE DE SOR",
+  "Rio Maior":"BAGGA RIO MAIOR", "Santarém":"BAGGA SANTARÉM", "Torres MCH":"BAGGA TORRES MCH", "Torres MH":"BAGGA TORRES MH"
+};
+function nomeExcelEmpresa(loja, lojaOriginal){
+  if(loja && NOME_EXCEL_EMPRESA[loja]) return NOME_EXCEL_EMPRESA[loja];
+  const limpo = nomeLimpoLojaExterna(lojaOriginal||loja||"");
+  return "BAGGA " + limpo.toUpperCase();
+}
+
+async function abrirExportQuebrasEmpresaHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "exportQuebrasEmpresaOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  const hoje = new Date();
+  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:480px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:2px;">📋 Preencher Excel da empresa</div>
+      <div style="font-size:12px; color:var(--t2); margin-bottom:12px;">Gera a tabela "Sum of Diferença" (Loja × Dia) igual ao ficheiro da empresa, com as justificações que já temos, prontas a copiar.</div>
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <div style="flex:1;"><label style="font-size:.7rem; color:var(--t2);">De</label><input type="date" id="expQuebrasDe" value="${isoDate(inicioMes)}" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--br);"></div>
+        <div style="flex:1;"><label style="font-size:.7rem; color:var(--t2);">Até</label><input type="date" id="expQuebrasAte" value="${isoDate(hoje)}" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--br);"></div>
+      </div>
+      <button id="expQuebrasGerarBtn" style="width:100%; margin-bottom:14px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-weight:700;">Gerar</button>
+      <div id="expQuebrasResultado"></div>
+      <button id="fecharExportQuebrasHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharExportQuebrasHubBtn").onclick = ()=>fecharEcraHub();
+
+  document.getElementById("expQuebrasGerarBtn").onclick = protegerCliqueHub(document.getElementById("expQuebrasGerarBtn"), async ()=>{
+    const de = document.getElementById("expQuebrasDe").value;
+    const ate = document.getElementById("expQuebrasAte").value;
+    const rows = await api(`cj_quebras_reportes?select=*&data=gte.${de}&data=lte.${ate}&order=data.asc`, "GET");
+
+    const dias = [];
+    for(let d=new Date(de+"T00:00:00"); d<=new Date(ate+"T00:00:00"); d.setDate(d.getDate()+1)) dias.push(isoDate(new Date(d)));
+
+    const porLoja = {};
+    rows.forEach(r=>{
+      const nome = nomeExcelEmpresa(r.loja, r.loja_original);
+      (porLoja[nome] ||= {}).total ||= {};
+      const dia = r.data;
+      porLoja[nome][dia] = (porLoja[nome][dia]||0) + Number(r.valor_quebra);
+    });
+    const lojasOrdenadas = Object.keys(porLoja).sort();
+
+    // tabela dinamica identica ao ficheiro da empresa
+    let tabela = "Sum of Diferença\n";
+    tabela += "Loja\t" + dias.map(d=>new Date(d+"T00:00:00").toLocaleDateString('pt-PT')).join("\t") + "\tGrand Total\n";
+    lojasOrdenadas.forEach(nome=>{
+      let totalLinha = 0;
+      const valores = dias.map(d=>{
+        const v = porLoja[nome][d];
+        if(v===undefined) return "";
+        totalLinha += v;
+        return v.toFixed(2).replace(".",",");
+      });
+      tabela += nome + "\t" + valores.join("\t") + "\t" + totalLinha.toFixed(2).replace(".",",") + "\n";
+    });
+
+    // justificacoes/registos ja existentes, prontas a copiar (so quebras significativas, |valor|>=20)
+    const significativas = rows.filter(r=>Math.abs(Number(r.valor_quebra))>=20);
+    let listaJustif = "Loja\tData\tValor\tNº Registo\tJustificação\n";
+    significativas.forEach(r=>{
+      const nome = nomeExcelEmpresa(r.loja, r.loja_original);
+      listaJustif += `${nome}\t${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}\t${Number(r.valor_quebra).toFixed(2).replace(".",",")}\t${r.numero_registo||"—"}\t${r.justificacao||"— por preencher —"}\n`;
+    });
+
+    document.getElementById("expQuebrasResultado").innerHTML = `
+      <div style="font-size:11px; text-transform:uppercase; color:var(--t2); font-weight:700; margin-bottom:6px;">Tabela para o Excel da empresa</div>
+      <div style="overflow-x:auto; max-height:220px; border:1px solid var(--br); border-radius:8px; margin-bottom:10px;">
+        <pre id="expQuebrasTabelaPre" style="font-size:10px; padding:8px; margin:0; white-space:pre;">${tabela.replace(/</g,"&lt;")}</pre>
+      </div>
+      <button id="expQuebrasCopiarTabelaBtn" style="width:100%; margin-bottom:16px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:8px; padding:9px; font-weight:700; font-size:.8rem;">📋 Copiar tabela (colar direto no Excel)</button>
+
+      <div style="font-size:11px; text-transform:uppercase; color:var(--t2); font-weight:700; margin-bottom:6px;">Justificações já registadas (≥20€) — ${significativas.length}</div>
+      <div style="overflow-x:auto; max-height:220px; border:1px solid var(--br); border-radius:8px; margin-bottom:10px;">
+        <pre id="expQuebrasJustifPre" style="font-size:10px; padding:8px; margin:0; white-space:pre;">${listaJustif.replace(/</g,"&lt;")}</pre>
+      </div>
+      <button id="expQuebrasCopiarJustifBtn" style="width:100%; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:8px; padding:9px; font-weight:700; font-size:.8rem;">📋 Copiar justificações</button>
+    `;
+    document.getElementById("expQuebrasCopiarTabelaBtn").onclick = ()=>{
+      navigator.clipboard.writeText(tabela).then(()=>toast("✔ Tabela copiada — cola no Excel"));
+    };
+    document.getElementById("expQuebrasCopiarJustifBtn").onclick = ()=>{
+      navigator.clipboard.writeText(listaJustif).then(()=>toast("✔ Justificações copiadas"));
+    };
+  }, "A gerar...");
 }
 
 async function abrirRegistosQuebrasHub(){
