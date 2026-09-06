@@ -786,6 +786,19 @@ async function api(method, path, body){
   if(!res.ok){ throw new Error(await res.text()); }
   return res.status === 204 ? null : res.json();
 }
+let CATEGORIA_CORTE = {};
+async function carregarCategoriaCorte(){
+  try{
+    const rows = await api("GET", "cj_categoria_corte?select=categoria,data_corte");
+    CATEGORIA_CORTE = {};
+    (rows||[]).forEach(r=>{ CATEGORIA_CORTE[r.categoria] = r.data_corte; });
+  }catch(e){ CATEGORIA_CORTE = {}; }
+}
+async function aplicarCorteCategoria(rows){
+  await carregarCategoriaCorte();
+  if(Object.keys(CATEGORIA_CORTE).length===0) return rows;
+  return rows.filter(r=>!CATEGORIA_CORTE[r.categoria] || r.data >= CATEGORIA_CORTE[r.categoria]);
+}
 
 async function uploadPhoto(dataUrl, path){
   const blob = await (await fetch(dataUrl)).blob();
@@ -856,6 +869,7 @@ async function loadAll(){
     const lojaFilter = mode==="loja" ? `&loja=eq.${encodeURIComponent(currentLoja)}` : "";
     dailyRows = await api("GET", `cj_daily_reportes?select=*${lojaFilter}&order=data.desc`);
     invRows = await api("GET", `cj_inventario_reportes?select=*${lojaFilter}&order=data.desc&limit=5000`);
+    invRows = await aplicarCorteCategoria(invRows);
     agendamentos = await api("GET", `cj_global_agendamento?select=*${lojaFilter}`);
     naoAplicaveis = await api("GET", "cj_categoria_nao_aplicavel?select=*");
     if(!window._formEmEdicao) currentView();
@@ -3463,7 +3477,7 @@ async function abrirRelatorioVisualInventario(){
       api("GET", "cj_inventario_reportes?select=*&order=data.desc&limit=5000"),
       api("GET", "cj_categoria_nao_aplicavel?select=*")
     ]);
-    invRows = invRowsFresh;
+    invRows = await aplicarCorteCategoria(invRowsFresh);
     naoAplicaveis = naoAplicaveisFresh;
     const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
 
