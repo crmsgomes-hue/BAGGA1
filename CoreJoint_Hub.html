@@ -463,6 +463,10 @@ async function renderPanoramaGeral(){
 
     document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
       const corpo = `
+        <button id="btnAbrirPinsLojasHub" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span><span style="font-size:18px;">🔑</span> <b style="font-size:.85rem;">PINs das lojas</b><br><span style="font-size:.72rem; color:var(--t2); margin-left:24px;">ver, copiar mensagem, repor</span></span>
+          <span style="font-size:1.1rem; color:var(--t2);">›</span>
+        </button>
         <div class="sub" style="margin-bottom:10px;">Relatórios prontos a partilhar no grupo, num toque.</div>
         ${botoesAcao([
           ["🧾 Vendas / Vitrine / Inventário","CoreJoint_Reportes.html?abrir=diarioVisual"],
@@ -480,6 +484,7 @@ async function renderPanoramaGeral(){
         ])}
       `;
       abrirModalTopico("📱 Partilhar", corpo);
+      document.getElementById("btnAbrirPinsLojasHub").onclick = abrirPinsLojasHub;
     };
 
     document.querySelector('[data-topico="vendas"]').onclick = ()=>{
@@ -2099,10 +2104,6 @@ async function abrirDiagnosticoHub(){
       <span><span style="font-size:18px;">📋</span> <b style="font-size:.85rem;">Exceções por loja</b><br><span style="font-size:.72rem; color:var(--t2); margin-left:24px;">informativo</span></span>
       <span style="font-weight:800; font-size:1.1rem; color:var(--t2);">${naoAplic.length}</span>
     </button>
-    <button id="diagVerPinsBtn" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-      <span><span style="font-size:18px;">🔑</span> <b style="font-size:.85rem;">PINs das lojas</b><br><span style="font-size:.72rem; color:var(--t2); margin-left:24px;">ver, enviar, repor</span></span>
-      <span style="font-weight:800; font-size:1.1rem; color:var(--t2);">${LOJAS.length}</span>
-    </button>
     <div id="diagnosticoSubvistaHub"></div>
   `;
 
@@ -2139,16 +2140,29 @@ async function abrirDiagnosticoHub(){
       </div>
     `).join("");
   };
-  document.getElementById("diagVerPinsBtn").onclick = async ()=>{
-    const sub = document.getElementById("diagnosticoSubvistaHub");
-    sub.innerHTML = `<div style="text-align:center; padding:14px 0; color:var(--t2); font-size:.85rem;">A carregar...</div>`;
-    const pins = await api("rpc/admin_listar_pins_lojas", "POST", {});
-    renderPinsLojasHub(sub, pins||[]);
-  };
 }
 
 function linkLojaGerente(loja){
   return `https://crmsgomes-hue.github.io/BAGGA1/CoreJoint_Foto.html?loja=${encodeURIComponent(loja)}`;
+}
+
+async function abrirPinsLojasHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "pinsLojasOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">🔑 PINs das lojas</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Acesso à Área do gerente/RT de cada loja.</div>
+      <div id="pinsLojasConteudoHub"><div style="text-align:center; padding:20px 0; color:var(--t2); font-size:.85rem;">A carregar...</div></div>
+      <button id="fecharPinsLojasHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById("fecharPinsLojasHubBtn").onclick = ()=>overlay.remove();
+
+  const pins = await api("rpc/admin_listar_pins_lojas", "POST", {});
+  renderPinsLojasHub(document.getElementById("pinsLojasConteudoHub"), pins||[]);
 }
 
 function renderPinsLojasHub(sub, pins){
