@@ -2453,17 +2453,32 @@ function bigPhoto(src, lista, indice){
 
   const lb = document.createElement('div');
   lb.id = '_lb';
-  lb.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.95);z-index:2147483647;display:flex;align-items:center;justify-content:center;touch-action:pinch-zoom;-webkit-tap-highlight-color:transparent;';
+  lb.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.95);z-index:2147483647;overflow:hidden;touch-action:none;-webkit-tap-highlight-color:transparent;';
 
   const img = document.createElement('img');
-  img.style.cssText = 'max-width:96vw;max-height:90vh;object-fit:contain;border-radius:6px;display:block;';
+  img.style.cssText = 'position:absolute;top:50%;left:50%;max-width:none;max-height:none;width:96vw;transform-origin:0 0;will-change:transform;border-radius:6px;';
 
   const contador = document.createElement('div');
-  contador.style.cssText = 'position:absolute;top:16px;left:50%;transform:translateX(-50%);color:#fff;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.15);padding:4px 12px;border-radius:99px;';
+  contador.style.cssText = 'position:absolute;top:16px;left:50%;transform:translateX(-50%);color:#fff;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.15);padding:4px 12px;border-radius:99px;z-index:2;';
+
+  const dica = document.createElement('div');
+  dica.style.cssText = 'position:absolute;bottom:14px;left:0;right:0;text-align:center;color:rgba(255,255,255,.6);font-size:11px;z-index:2;';
+  dica.textContent = 'Faz pinça ou duplo toque para ampliar';
+
+  let scale=1, panX=0, panY=0, imgW=0, imgH=0;
+  function aplicarZoom(){ img.style.transform = `translate(${-imgW/2+panX}px, ${-imgH/2+panY}px) scale(${scale})`; }
+  function limitarPan(){
+    const maxX = Math.max(0, (imgW*scale - lb.clientWidth)/2/scale);
+    const maxY = Math.max(0, (imgH*scale - lb.clientHeight)/2/scale);
+    panX = Math.max(-maxX, Math.min(maxX, panX));
+    panY = Math.max(-maxY, Math.min(maxY, panY));
+  }
+  function resetZoom(){ scale=1; panX=0; panY=0; aplicarZoom(); }
 
   function atualizar(){
     img.src = urls[idx];
     contador.textContent = urls.length>1 ? `${idx+1} / ${urls.length}` : '';
+    img.onload = ()=>{ imgW = img.clientWidth; imgH = img.clientHeight; resetZoom(); };
   }
   atualizar();
 
@@ -2472,7 +2487,7 @@ function bigPhoto(src, lista, indice){
   x.textContent = '×';
   x.onclick = (e)=>{ e.stopPropagation(); document.body.removeChild(lb); };
 
-  lb.appendChild(img); lb.appendChild(x); lb.appendChild(contador);
+  lb.appendChild(img); lb.appendChild(x); lb.appendChild(contador); lb.appendChild(dica);
 
   if(urls.length>1){
     const prev = document.createElement('div');
@@ -2486,7 +2501,50 @@ function bigPhoto(src, lista, indice){
     lb.appendChild(prev); lb.appendChild(next);
   }
 
-  lb.onclick = ()=>document.body.removeChild(lb);
+  let pontosAtivos = {};
+  let distanciaInicial = 0, escalaInicial = 1;
+  let ultimoToqueTempo = 0;
+
+  img.addEventListener("pointerdown", (e)=>{
+    e.stopPropagation();
+    pontosAtivos[e.pointerId] = {x:e.clientX, y:e.clientY};
+    const ids = Object.keys(pontosAtivos);
+    if(ids.length===1){
+      const agora = Date.now();
+      if(agora - ultimoToqueTempo < 300){
+        scale = scale>1.3 ? 1 : 2.5;
+        if(scale===1){ panX=0; panY=0; }
+        limitarPan(); aplicarZoom();
+      }
+      ultimoToqueTempo = agora;
+    } else if(ids.length===2){
+      const p1 = pontosAtivos[ids[0]], p2 = pontosAtivos[ids[1]];
+      distanciaInicial = Math.hypot(p2.x-p1.x, p2.y-p1.y);
+      escalaInicial = scale;
+    }
+  });
+  img.addEventListener("pointermove", (e)=>{
+    if(!(e.pointerId in pontosAtivos)) return;
+    const anterior = pontosAtivos[e.pointerId];
+    pontosAtivos[e.pointerId] = {x:e.clientX, y:e.clientY};
+    const ids = Object.keys(pontosAtivos);
+    if(ids.length===2){
+      const p1 = pontosAtivos[ids[0]], p2 = pontosAtivos[ids[1]];
+      const distancia = Math.hypot(p2.x-p1.x, p2.y-p1.y);
+      scale = Math.max(1, Math.min(5, escalaInicial * (distancia/distanciaInicial)));
+      limitarPan(); aplicarZoom();
+    } else if(ids.length===1 && scale>1){
+      panX += (e.clientX - anterior.x)/scale;
+      panY += (e.clientY - anterior.y)/scale;
+      limitarPan(); aplicarZoom();
+    }
+  });
+  function soltarPonteiro(e){ delete pontosAtivos[e.pointerId]; }
+  img.addEventListener("pointerup", soltarPonteiro);
+  img.addEventListener("pointercancel", soltarPonteiro);
+  img.addEventListener("click", (e)=>e.stopPropagation());
+
+  lb.onclick = (e)=>{ if(e.target===lb) document.body.removeChild(lb); };
   document.body.appendChild(lb);
 }
 function handleCapFile(e){
