@@ -1808,7 +1808,8 @@ function abrirNovaAdendaHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("hCancelarAdendaBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("hCancelarAdendaBtn").onclick = ()=>fecharEcraHub();
   document.getElementById("hCriarAdendaBtn").onclick = protegerCliqueHub(document.getElementById("hCriarAdendaBtn"), async ()=>{
     const colaborador = document.getElementById("hColabNovo").value.trim();
     const tipo = document.getElementById("hTipo").value;
@@ -1834,7 +1835,7 @@ function abrirNovaAdendaHub(){
     }
     await api("cj_adendas", "POST", payload);
     toast("✔ Adenda criada!");
-    overlay.remove();
+    fecharEcraHub();
   }, "A criar...");
 }
 // versao simples de protegerClique para uso no Hub (sem depender de nenhuma outra funcao)
@@ -2966,7 +2967,8 @@ async function abrirRegistosQuebrasHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharRegistosQuebrasHubBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("fecharRegistosQuebrasHubBtn").onclick = ()=>fecharEcraHub();
 
   const capturaWrap = document.getElementById("registosQuebrasCapturaWrapHub");
   const dataFmtHoje = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
