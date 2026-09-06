@@ -190,6 +190,19 @@ async function api(path, method, body){
 function setBadge(id, n){
   if(n>0) document.getElementById(id).innerHTML = `<span class="bk">${n}</span>`;
 }
+let CATEGORIA_CORTE = {};
+async function carregarCategoriaCorte(){
+  try{
+    const rows = await api("cj_categoria_corte?select=categoria,data_corte", "GET");
+    CATEGORIA_CORTE = {};
+    (rows||[]).forEach(r=>{ CATEGORIA_CORTE[r.categoria] = r.data_corte; });
+  }catch(e){ CATEGORIA_CORTE = {}; }
+}
+async function aplicarCorteCategoria(rows){
+  await carregarCategoriaCorte();
+  if(Object.keys(CATEGORIA_CORTE).length===0) return rows;
+  return rows.filter(r=>!CATEGORIA_CORTE[r.categoria] || r.data >= CATEGORIA_CORTE[r.categoria]);
+}
 // Pilha de ecrãs para permitir "voltar atrás" (botão Fechar ou o botão físico/do browser)
 // em vez de fechar tudo de repente e sair da app - a pedido dela.
 // popstate é a UNICA fonte da verdade: os botoes "Fechar" so chamam history.back(),
@@ -2056,7 +2069,7 @@ async function abrirDiagnosticoHub(){
   const erros = await api(`cj_error_log?select=*&criado_em=gte.${desdeErros.toISOString()}&order=criado_em.desc&limit=200`, "GET");
 
   const desdeVerifStr = isoDate(new Date(Date.now()-60*86400000));
-  const todosInv = await api(`cj_inventario_reportes?select=loja,categoria,data&data=gte.${desdeVerifStr}`, "GET");
+  const todosInv = await aplicarCorteCategoria(await api(`cj_inventario_reportes?select=loja,categoria,data&data=gte.${desdeVerifStr}`, "GET"));
   const naoAplic = await api(`cj_categoria_nao_aplicavel?select=*`, "GET");
   function statusCatLojaDiag(loja, cat){
     const w = windowFor(cat.freq, today);
@@ -3780,7 +3793,7 @@ function semanaKey(d){
     statReportes = reportesPend;
     if(semVendas.length) addAttn(attn, "CoreJoint_Reportes.html", `🧾 ${semVendas.length} loja(s) sem vendas hoje`, semVendas.slice(0,4).join(", ") + (semVendas.length>4?" e mais...":""), true);
 
-    const invRows = await api("cj_inventario_reportes?select=loja,categoria,data");
+    const invRows = await aplicarCorteCategoria(await api("cj_inventario_reportes?select=loja,categoria,data"));
     const naoAplicaveisRows = await api("cj_categoria_nao_aplicavel?select=loja,categoria");
     let atrasadosN = 0;
     const hojeAvisoStr = todayStr;
@@ -4161,7 +4174,7 @@ function semanaKey(d){
 
   try{
     function fotoUrlCat(f){ return typeof f === "string" ? f : (f && f.url) || ""; }
-    const invCatRows = await api("cj_inventario_reportes?select=loja,categoria,data,valor_inventario,valor_cnvs,fotos,foto_path,criado_em");
+    const invCatRows = await aplicarCorteCategoria(await api("cj_inventario_reportes?select=loja,categoria,data,valor_inventario,valor_cnvs,fotos,foto_path,criado_em"));
     const naoAplicaveisCat = await api("cj_categoria_nao_aplicavel?select=loja,categoria");
     function statusCatLoja(loja, cat){
       const w = windowFor(cat.freq, today);
