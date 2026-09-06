@@ -2099,6 +2099,10 @@ async function abrirDiagnosticoHub(){
       <span><span style="font-size:18px;">📋</span> <b style="font-size:.85rem;">Exceções por loja</b><br><span style="font-size:.72rem; color:var(--t2); margin-left:24px;">informativo</span></span>
       <span style="font-weight:800; font-size:1.1rem; color:var(--t2);">${naoAplic.length}</span>
     </button>
+    <button id="diagVerPinsBtn" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+      <span><span style="font-size:18px;">🔑</span> <b style="font-size:.85rem;">PINs das lojas</b><br><span style="font-size:.72rem; color:var(--t2); margin-left:24px;">ver, enviar, repor</span></span>
+      <span style="font-weight:800; font-size:1.1rem; color:var(--t2);">${LOJAS.length}</span>
+    </button>
     <div id="diagnosticoSubvistaHub"></div>
   `;
 
@@ -2135,6 +2139,57 @@ async function abrirDiagnosticoHub(){
       </div>
     `).join("");
   };
+  document.getElementById("diagVerPinsBtn").onclick = async ()=>{
+    const sub = document.getElementById("diagnosticoSubvistaHub");
+    sub.innerHTML = `<div style="text-align:center; padding:14px 0; color:var(--t2); font-size:.85rem;">A carregar...</div>`;
+    const pins = await api("rpc/admin_listar_pins_lojas", "POST", {});
+    renderPinsLojasHub(sub, pins||[]);
+  };
+}
+
+function linkLojaGerente(loja){
+  return `https://crmsgomes-hue.github.io/BAGGA1/CoreJoint_Foto.html?loja=${encodeURIComponent(loja)}`;
+}
+
+function renderPinsLojasHub(sub, pins){
+  const porLoja = {};
+  pins.forEach(p=>{ porLoja[p.loja] = p.pin; });
+  sub.innerHTML = LOJAS.map(loja=>{
+    const pin = porLoja[loja] || "----";
+    return `
+    <div style="background:var(--sf2); border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <b style="font-size:.82rem;">${loja}</b>
+        <span style="font-family:monospace; font-weight:800; font-size:1rem; letter-spacing:2px;">${pin}</span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="pinCopiarBtn" data-loja="${loja}" style="flex:1; background:var(--terracotta,#C1622E); color:#fff; border:none; border-radius:8px; padding:8px; font-size:.74rem; font-weight:700;">📋 Copiar mensagem</button>
+        <button class="pinReporBtn" data-loja="${loja}" style="flex:1; background:none; border:1.5px solid var(--br); border-radius:8px; padding:8px; font-size:.74rem; font-weight:700; color:var(--t2);">🔄 Novo PIN</button>
+      </div>
+    </div>
+  `;
+  }).join("");
+
+  sub.querySelectorAll(".pinCopiarBtn").forEach(btn=>{
+    btn.onclick = ()=>{
+      const loja = btn.dataset.loja;
+      const pin = porLoja[loja] || "----";
+      const texto = `Olá! Aqui está o teu acesso à Área do gerente/RT da loja ${loja}:\n${linkLojaGerente(loja)}\nPIN: ${pin}\n\nToca em "🔒 Área do gerente/RT" no fim da página e introduz o PIN.`;
+      navigator.clipboard.writeText(texto).then(()=>toast(`✔ Mensagem de ${loja} copiada`));
+    };
+  });
+  sub.querySelectorAll(".pinReporBtn").forEach(btn=>{
+    btn.onclick = async ()=>{
+      const loja = btn.dataset.loja;
+      if(!confirm(`Gerar um novo PIN para ${loja}? O código atual deixa de funcionar.`)) return;
+      const novoPin = String(Math.floor(1000+Math.random()*9000));
+      await api("rpc/admin_repor_pin_loja", "POST", {p_loja:loja, p_novo_pin:novoPin});
+      porLoja[loja] = novoPin;
+      const pins2 = LOJAS.map(l=>({loja:l, pin:porLoja[l]}));
+      renderPinsLojasHub(sub, pins2);
+      toast(`✔ Novo PIN gerado para ${loja}`);
+    };
+  });
 }
 
 async function abrirCertificadosOleoHub(){
