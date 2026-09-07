@@ -303,7 +303,7 @@ async function renderPanoramaGeral(){
     const inicioSemana = isoDate(weekWindow(today).start);
 
     const inicioMesAtual = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg] = await Promise.all([
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg, dailyNaoValidadosPg, invNaoValidadosPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
       api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`),
@@ -319,13 +319,16 @@ async function renderPanoramaGeral(){
       api(`cj_fardamento_rececoes?select=id&recolhido=eq.false`),
       api(`cj_fardamento_rececoes?select=data_rececao&order=data_rececao.desc&limit=1`),
       api(`cj_certificados_oleo?select=loja,data_validade`),
-      api(`cj_calibracoes_oleo?select=loja,data_validade`)
+      api(`cj_calibracoes_oleo?select=loja,data_validade`),
+      api(`cj_daily_reportes?select=id&validado_por=is.null`),
+      api(`cj_inventario_reportes?select=id&validado_por=is.null`)
     ]);
     const fardRececoesPendentesPg = fardRececoesPg.length;
     const em30diasPg = isoDate(new Date(Date.now()+30*24*3600*1000));
     const certOleoExpirandoPg = (certOleoPg||[]).filter(c=>c.data_validade && c.data_validade<=em30diasPg).length;
     const calibOleoExpirandoPg = (calibOleoPg||[]).filter(c=>c.data_validade && c.data_validade<=em30diasPg).length;
     const maisAlertasPg = certOleoExpirandoPg + calibOleoExpirandoPg;
+    const porValidarPg = (dailyNaoValidadosPg||[]).length + (invNaoValidadosPg||[]).length;
 
     // Conta dias/lojas sem cobertura de abertura (antes das 07:15) ou fecho (ate as 21:00), so onde ha horas importadas
     const porDiaLojaSet = {}, porDiaLojaHor = {};
@@ -391,6 +394,7 @@ async function renderPanoramaGeral(){
     if(maisAlertasPg>0) listaAtencao.push({topico:"mais", texto:`🔧 ${maisAlertasPg} certificado/calibração do óleo a expirar em 30 dias`, urgente:true});
     if(fardStockLowPg.length+fardDevPg.length+fardRececoesPendentesPg>0) listaAtencao.push({topico:"fardamento", texto:`👕 ${fardStockLowPg.length+fardDevPg.length+fardRececoesPendentesPg} pendência(s) de fardamento`, urgente:false});
     if(adendasAtivasPg.length>0) listaAtencao.push({topico:"rh", texto:`📋 ${adendasAtivasPg.length} adenda(s) em curso`, urgente:false});
+    if(porValidarPg>0) listaAtencao.push({href:"CoreJoint_Reportes.html?abrir=porValidar", texto:`✅ ${porValidarPg} envio(s) por validar`, urgente:false});
     listaAtencao.sort((a,b)=>(b.urgente?1:0)-(a.urgente?1:0));
 
     el.innerHTML = `
@@ -399,7 +403,7 @@ async function renderPanoramaGeral(){
           ? `<div style="text-align:center; padding:14px; background:var(--sf2); border-radius:12px; font-size:.85rem; font-weight:700; color:var(--grn);">✔ Tudo em dia — nada precisa da tua atenção agora.</div>`
           : `<div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin-bottom:6px;">Precisa da tua atenção</div>
              <div style="display:flex; flex-direction:column; gap:1px; border-radius:12px; overflow:hidden; border:1px solid var(--br);">
-               ${listaAtencao.map(a=>`<button data-atencao="${a.topico}" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; justify-content:space-between; align-items:center; padding:11px 12px; background:${a.urgente?'#fdf1ee':'var(--sf2)'};">
+               ${listaAtencao.map((a,i)=>`<button data-atencao-idx="${i}" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; justify-content:space-between; align-items:center; padding:11px 12px; background:${a.urgente?'#fdf1ee':'var(--sf2)'};">
                  <span style="font-size:.82rem; font-weight:700; color:${a.urgente?'var(--red)':'var(--tx)'};">${a.texto}</span>
                  <span style="color:var(--t2);">›</span>
                </button>`).join("")}
@@ -688,9 +692,11 @@ async function renderPanoramaGeral(){
       document.getElementById("btnAbrirDiagnosticoHub").onclick = abrirDiagnosticoHub;
     };
 
-    document.querySelectorAll("[data-atencao]").forEach(btn=>{
+    document.querySelectorAll("[data-atencao-idx]").forEach(btn=>{
+      const item = listaAtencao[Number(btn.dataset.atencaoIdx)];
       btn.onclick = ()=>{
-        const alvo = document.querySelector(`[data-topico="${btn.dataset.atencao}"]`);
+        if(item.href){ location.href = item.href; return; }
+        const alvo = document.querySelector(`[data-topico="${item.topico}"]`);
         if(alvo) alvo.click();
       };
     });
@@ -4960,12 +4966,6 @@ function semanaKey(d){
       <div class="slb">📊 Sondagens/Forms <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Resultados e relatórios</div>
     </button>
-
-    <div class="sec-divider" style="grid-column:1/-1; margin-top:6px; font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--t3); font-weight:700;">🖨️ Relatórios</div>
-    <a href="CoreJoint_Reportes.html?abrir=mensal" class="sc" style="text-decoration:none; display:flex; align-items:center; gap:8px; color:var(--tx); font-size:.82rem; font-weight:600;"><span style="font-size:17px;">🗓️</span> Relatório mensal</a>
-    <a href="CoreJoint_Reportes.html?abrir=integridade" class="sc" style="text-decoration:none; display:flex; align-items:center; gap:8px; color:var(--tx); font-size:.82rem; font-weight:600;"><span style="font-size:17px;">🕵️</span> Integridade</a>
-    <a href="CoreJoint_Reportes.html?abrir=historico12m" class="sc" style="text-decoration:none; display:flex; align-items:center; gap:8px; color:var(--tx); font-size:.82rem; font-weight:600;"><span style="font-size:17px;">📅</span> Histórico 12m</a>
-    <a href="CoreJoint_Reportes.html?abrir=galeria" class="sc" style="text-decoration:none; display:flex; align-items:center; gap:8px; color:var(--tx); font-size:.82rem; font-weight:600;"><span style="font-size:17px;">🖼️</span> Galeria de fotos</a>
   `;
 
   // Abas removidas — página agora corre contínua, na ordem: dashboard/calendário, fotos, inventário, quebras, formulários, relatórios, RH, fardamento
