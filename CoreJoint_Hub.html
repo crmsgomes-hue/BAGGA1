@@ -748,7 +748,8 @@ function abrirColarMensagemOverlay(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("colarCancelarBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("colarCancelarBtn").onclick = ()=>fecharEcraHub();
   const textoEl = document.getElementById("colarTexto");
   const deteccaoWrap = document.getElementById("colarDeteccao");
   const lojaSelect = document.getElementById("colarLoja");
@@ -1922,7 +1923,8 @@ async function abrirRelatorioMensalHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharMensalHubBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("fecharMensalHubBtn").onclick = ()=>fecharEcraHub();
 
   const capturaWrap = document.getElementById("mensalCapturaWrapHub");
   const hoje = new Date();
@@ -1977,7 +1979,8 @@ async function abrirRelatorioSemanalHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharSemanalHubBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("fecharSemanalHubBtn").onclick = ()=>fecharEcraHub();
 
   const capturaWrap = document.getElementById("semanalCapturaWrapHub");
   const days = [];
@@ -2028,7 +2031,8 @@ async function abrirDiarioVisualHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharDiarioVisualHubBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("fecharDiarioVisualHubBtn").onclick = ()=>fecharEcraHub();
 
   const capturaWrap = document.getElementById("diarioVisualCapturaWrapHub");
   let botoesJaCriados = false;
@@ -2102,7 +2106,8 @@ async function abrirDiagnosticoHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharDiagnosticoHubBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("fecharDiagnosticoHubBtn").onclick = ()=>fecharEcraHub();
 
   const today = new Date();
   const desdeErros = new Date(); desdeErros.setDate(desdeErros.getDate()-7);
@@ -2235,7 +2240,8 @@ async function abrirResetCategoriaHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharResetCatHubBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("fecharResetCatHubBtn").onclick = ()=>fecharEcraHub();
 
   document.getElementById("resetCatTodasLojas").onchange = (e)=>{
     document.getElementById("resetCatListaLojas").style.display = e.target.checked ? "none" : "block";
@@ -2297,7 +2303,8 @@ async function abrirPinsLojasHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharPinsLojasHubBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("fecharPinsLojasHubBtn").onclick = ()=>fecharEcraHub();
 
   const pins = await api("rpc/admin_listar_pins_lojas", "POST", {});
   renderPinsLojasHub(document.getElementById("pinsLojasConteudoHub"), pins||[]);
@@ -3582,7 +3589,8 @@ function abrirLembretesOverlay(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharLembretesBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("fecharLembretesBtn").onclick = ()=>fecharEcraHub();
   renderListaLembretes();
   document.getElementById("abrirColarMensagemBtn").onclick = abrirColarMensagemOverlay;
 
@@ -3890,11 +3898,12 @@ function abrirEscolherCriar(){
   const btnCancelar = document.createElement("button");
   btnCancelar.textContent = "Cancelar";
   btnCancelar.style.cssText = "display:block; width:100%; background:none; border:1px solid var(--br); border-radius:10px; padding:12px; font-weight:700; font-size:14px;";
-  btnCancelar.onclick = ()=>overlay.remove();
+  btnCancelar.onclick = ()=>fecharEcraHub();
   box.appendChild(btnCancelar);
 
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
 }
 
 function abrirAvisarTodos(){
@@ -3930,11 +3939,12 @@ function abrirAvisarTodos(){
   const btnCancelar = document.createElement("button");
   btnCancelar.textContent = "Cancelar";
   btnCancelar.style.cssText = "display:block; width:100%; background:none; border:1px solid var(--br); border-radius:10px; padding:13px; font-weight:700; font-size:15px;";
-  btnCancelar.onclick = ()=>overlay.remove();
+  btnCancelar.onclick = ()=>fecharEcraHub();
   box.appendChild(btnCancelar);
 
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
   btnEnviar.onclick = enviarAvisoTodos;
 }
 
@@ -3971,7 +3981,7 @@ async function enviarAvisoTodos(){
       console.error(`Registo guardado mas notificação push falhou para ${loja}`, e);
     }
   }
-  document.getElementById("avisoTodosOverlay").remove();
+  document.getElementById("avisoTodosOverlay") && fecharEcraHub();
   if(falharam.length===0){
     alert("Aviso enviado a todas as lojas!");
   } else {
