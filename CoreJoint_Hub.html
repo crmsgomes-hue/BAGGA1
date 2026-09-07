@@ -332,7 +332,7 @@ async function renderPanoramaGeral(){
     const inicioSemana = isoDate(weekWindow(today).start);
 
     const inicioMesAtual = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg] = await Promise.all([
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
       api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`),
@@ -346,9 +346,15 @@ async function renderPanoramaGeral(){
       api(`cj_horarios?select=loja,data,colaborador,hora_inicio,hora_fim&data=gte.${inicioMesAtual}&data=lte.${todayStr}`),
       api(`cj_trocas?select=loja&estado=eq.pendente`),
       api(`cj_fardamento_rececoes?select=id&recolhido=eq.false`),
-      api(`cj_fardamento_rececoes?select=data_rececao&order=data_rececao.desc&limit=1`)
+      api(`cj_fardamento_rececoes?select=data_rececao&order=data_rececao.desc&limit=1`),
+      api(`cj_certificados_oleo?select=loja,data_validade`),
+      api(`cj_calibracoes_oleo?select=loja,data_validade`)
     ]);
     const fardRececoesPendentesPg = fardRececoesPg.length;
+    const em30diasPg = isoDate(new Date(Date.now()+30*24*3600*1000));
+    const certOleoExpirandoPg = (certOleoPg||[]).filter(c=>c.data_validade && c.data_validade<=em30diasPg).length;
+    const calibOleoExpirandoPg = (calibOleoPg||[]).filter(c=>c.data_validade && c.data_validade<=em30diasPg).length;
+    const maisAlertasPg = certOleoExpirandoPg + calibOleoExpirandoPg;
 
     // Conta dias/lojas sem cobertura de abertura (antes das 07:15) ou fecho (ate as 21:00), so onde ha horas importadas
     const porDiaLojaSet = {}, porDiaLojaHor = {};
@@ -416,11 +422,7 @@ async function renderPanoramaGeral(){
         ${tile("formacoes","🎓","Formações", `${formacoesPendentesPg.length}`, formacoesPendentesPg.length>0?'var(--org,#c17817)':'var(--grn)')}
         ${tile("horarios","👥","Horários", horariosAlertas>0?`${horariosAlertas}`:'✔', horariosAlertas>0?'var(--red)':'var(--grn)')}
         ${tile("trocas","🔁","Trocas", `${trocasPendentesPg.length}`, trocasPendentesPg.length>0?'var(--org,#c17817)':'var(--grn)')}
-        ${tile("gerenteLoja","🔒","Área gerente", "", 'var(--t2)')}
-        ${tile("fotosPontuais","📸","Fotos pontuais", "", 'var(--t2)')}
-        ${tile("certOleo","🛢️","Cert. óleo", "", 'var(--t2)')}
-        ${tile("calibOleo","📏","Calib. medidor", "", 'var(--t2)')}
-        ${tile("tarefasPessoais","📌","Tarefas", "", 'var(--t2)')}
+        ${tile("mais","🔧","Mais", maisAlertasPg>0?`${maisAlertasPg}`:'', maisAlertasPg>0?'var(--red)':'var(--t2)')}
         ${tile("partilhar","📊","Relatórios", "", 'var(--t2)')}
       </div>
     `;
@@ -462,20 +464,33 @@ async function renderPanoramaGeral(){
       abrirModalTopico("🔁 Trocas de horário", corpo);
     };
 
-    document.querySelector('[data-topico="gerenteLoja"]').onclick = ()=>{
+    document.querySelector('[data-topico="mais"]').onclick = ()=>{
       const corpo = `
-        <div class="sub" style="margin-bottom:10px;">Escolhe a loja para entrar direto na área do gerente/RT (sem PIN, já estás na gestão).</div>
-        <div style="display:flex; flex-wrap:wrap; gap:6px;">
-          ${LOJAS.map(l=>`<a href="CoreJoint_Foto.html?loja=${encodeURIComponent(l)}&gestao=1" style="text-decoration:none; background:var(--sf2); color:var(--tx); border-radius:99px; padding:7px 12px; font-size:.78rem; font-weight:700;">${l}</a>`).join("")}
-        </div>
+        <button id="btnMaisGerenteLoja" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; margin-bottom:8px; font-size:.85rem; font-weight:700; cursor:pointer;">🔒 Área do gerente</button>
+        <button id="btnMaisFotosPontuais" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; margin-bottom:8px; font-size:.85rem; font-weight:700; cursor:pointer;">📸 Fotos pontuais</button>
+        <button id="btnMaisCertOleo" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; margin-bottom:8px; font-size:.85rem; font-weight:700; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+          <span>🛢️ Certificado do óleo</span>${certOleoExpirandoPg>0?`<span style="background:var(--red); color:#fff; border-radius:99px; padding:2px 9px; font-size:.72rem;">${certOleoExpirandoPg}</span>`:''}
+        </button>
+        <button id="btnMaisCalibOleo" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; margin-bottom:8px; font-size:.85rem; font-weight:700; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+          <span>📏 Calibração do medidor</span>${calibOleoExpirandoPg>0?`<span style="background:var(--red); color:#fff; border-radius:99px; padding:2px 9px; font-size:.72rem;">${calibOleoExpirandoPg}</span>`:''}
+        </button>
+        <button id="btnMaisTarefas" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; font-size:.85rem; font-weight:700; cursor:pointer;">📌 Tarefas entre nós</button>
       `;
-      abrirModalTopico("🔒 Área do gerente", corpo);
+      abrirModalTopico("🔧 Mais", corpo);
+      document.getElementById("btnMaisGerenteLoja").onclick = ()=>{
+        const corpo2 = `
+          <div class="sub" style="margin-bottom:10px;">Escolhe a loja para entrar direto na área do gerente/RT (sem PIN, já estás na gestão).</div>
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            ${LOJAS.map(l=>`<a href="CoreJoint_Foto.html?loja=${encodeURIComponent(l)}&gestao=1" style="text-decoration:none; background:var(--sf2); color:var(--tx); border-radius:99px; padding:7px 12px; font-size:.78rem; font-weight:700;">${l}</a>`).join("")}
+          </div>
+        `;
+        abrirModalTopico("🔒 Área do gerente", corpo2);
+      };
+      document.getElementById("btnMaisFotosPontuais").onclick = abrirFotosPontuaisHub;
+      document.getElementById("btnMaisCertOleo").onclick = abrirCertificadosOleoHub;
+      document.getElementById("btnMaisCalibOleo").onclick = abrirCalibracoesOleoHub;
+      document.getElementById("btnMaisTarefas").onclick = abrirTarefasPessoais;
     };
-
-    document.querySelector('[data-topico="fotosPontuais"]').onclick = abrirFotosPontuaisHub;
-    document.querySelector('[data-topico="certOleo"]').onclick = abrirCertificadosOleoHub;
-    document.querySelector('[data-topico="calibOleo"]').onclick = abrirCalibracoesOleoHub;
-    document.querySelector('[data-topico="tarefasPessoais"]').onclick = abrirTarefasPessoais;
 
     document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
       const secao = (titulo)=>`<div style="font-size:11px; text-transform:uppercase; color:var(--t2); font-weight:700; margin:18px 0 8px;">${titulo}</div>`;
@@ -2334,7 +2349,8 @@ async function abrirCertificadosOleoHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharCertOleoHubBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("fecharCertOleoHubBtn").onclick = ()=>fecharEcraHub();
 
   const certs = await api(`cj_certificados_oleo?select=*`, "GET");
   const capturaWrap = document.getElementById("certOleoCapturaWrapHub");
@@ -2470,7 +2486,8 @@ async function abrirFotosPontuaisHub(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharFotosPontuaisHubBtn").onclick = ()=>overlay.remove();
+  empilharEcraHub(overlay);
+  document.getElementById("fecharFotosPontuaisHubBtn").onclick = ()=>fecharEcraHub();
 
   const pedidos = await api(`cj_pedidos_fotos?select=*&ativo=eq.true&order=criado_em.desc`, "GET");
   const corpo = document.getElementById("fotosPontuaisCorpoHub");
@@ -2566,7 +2583,8 @@ async function abrirTarefasPessoais(){
     </div>
   `;
   document.body.appendChild(overlay);
-  document.getElementById("fecharTarefasHubBtn").onclick = async ()=>{ overlay.remove(); await verificarBannerTarefas(); };
+  empilharEcraHub(overlay, async ()=>{ await verificarBannerTarefas(); });
+  document.getElementById("fecharTarefasHubBtn").onclick = ()=>fecharEcraHub();
   document.getElementById("btnNovaTarefaHub").onclick = abrirNovaTarefaHub;
   await renderTarefasPessoais();
 }
