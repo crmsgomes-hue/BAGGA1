@@ -561,6 +561,22 @@ async function render(){
     return;
   }
 
+  function criarSecao(titulo, cor){
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "margin-bottom:22px;";
+    const head = document.createElement("div");
+    head.style.cssText = `font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:${cor||'var(--ink-soft)'}; font-weight:700; margin-bottom:8px;`;
+    head.textContent = titulo;
+    const body = document.createElement("div");
+    body.style.cssText = "display:flex; flex-direction:column; gap:12px;";
+    wrap.appendChild(head); wrap.appendChild(body);
+    main.appendChild(wrap);
+    return {wrap, body};
+  }
+  const secPorFazer = criarSecao("🔴 Por fazer agora", "var(--red,#b0432f)");
+  const secInventario = criarSecao("📦 Inventário deste mês");
+  const secInfo = criarSecao("ℹ️ Informação");
+
   pedidosFotosPendentes.forEach(p=>{
     const card = document.createElement("div");
     card.className = "card";
@@ -584,7 +600,7 @@ async function render(){
         <button id="pedidoEnviar_${p.id}" style="width:100%; margin-top:10px; background:var(--terracotta); color:#fff; border:none; border-radius:10px; padding:12px; font-weight:700; font-size:14px; opacity:.5;" disabled>✔ Enviar fotos</button>
       </div>
     `;
-    main.appendChild(card);
+    secPorFazer.body.appendChild(card);
     pendingPhotosPedidos[p.id] = pendingPhotosPedidos[p.id] || [];
     const handler = (ev)=>handlePedidoFile(p.id, ev.target.files[0]);
     document.getElementById(`pedidoCam_${p.id}`).addEventListener("change", handler);
@@ -592,17 +608,9 @@ async function render(){
     document.getElementById(`pedidoEnviar_${p.id}`).onclick = ()=>enviarPedidoFotos(p.id);
   });
 
-  pedidosFotosRespondidos.forEach(({pedido, resposta})=>{
-    const link = document.createElement("div");
-    link.style.cssText = "text-align:center; margin-bottom:10px;";
-    link.innerHTML = `<span style="font-size:12.5px; text-decoration:underline; color:var(--ink-soft); cursor:pointer;">✏️ Já enviaste fotos para "${pedido.titulo}" — editar</span>`;
-    link.onclick = ()=>abrirEditarPedidoFotos(pedido, resposta);
-    main.appendChild(link);
-  });
-
-  await renderPendenciasCard(main);
-  await renderCertificadoOleoCard(main);
-  await renderCalibracaoMedidorOleoCard(main);
+  await renderPendenciasCard(secPorFazer.body);
+  await renderCertificadoOleoCard(secInfo.body);
+  await renderCalibracaoMedidorOleoCard(secInfo.body);
 
 
   sondagensPendentes.forEach(s=>{
@@ -626,7 +634,7 @@ async function render(){
     card.querySelectorAll("[data-op]").forEach(btn=>{
       btn.onclick = protegerClique(btn, ()=>responderSondagem(s.id, btn.getAttribute("data-op")));
     });
-    main.appendChild(card);
+    secPorFazer.body.appendChild(card);
   });
 
   formulariosPendentes.forEach(fm=>{
@@ -646,15 +654,15 @@ async function render(){
       </div>
     `;
     card.querySelector("button").onclick = ()=>abrirFormularioResposta(fm);
-    main.appendChild(card);
+    secPorFazer.body.appendChild(card);
   });
 
   if(sondagensRespondidas.length>0 || formulariosRespondidos.length>0){
     const linkRespondidas = document.createElement("div");
-    linkRespondidas.style.cssText = "text-align:center; margin-bottom:14px;";
+    linkRespondidas.style.cssText = "text-align:center;";
     linkRespondidas.innerHTML = `<span style="font-size:12.5px; color:var(--ink-soft); text-decoration:underline; cursor:pointer;">✏️ Já respondi a ${sondagensRespondidas.length + formulariosRespondidos.length} sondagem(ns)/formulário(s) — editar</span>`;
     linkRespondidas.onclick = abrirRespondidasLista;
-    main.appendChild(linkRespondidas);
+    secInfo.body.appendChild(linkRespondidas);
   }
 
   const quebrasPorDia = {};
@@ -689,7 +697,7 @@ async function render(){
       `;
     });
     card.innerHTML = html;
-    main.appendChild(card);
+    secPorFazer.body.appendChild(card);
     qs.forEach(q=>{
       const btnQ = card.querySelector(`[data-enviar-quebra="${q.id}"]`);
       btnQ.onclick = protegerClique(btnQ, ()=>enviarJustificacaoQuebra(q.id), "A enviar...");
@@ -716,7 +724,7 @@ async function render(){
         </div>
       </div>
     `;
-    main.appendChild(card);
+    secInfo.body.appendChild(card);
   }
 
   const today = todayStr();
@@ -738,38 +746,33 @@ async function render(){
       const diff = Math.round((d1-d0)/86400000);
       return diff>=0 && diff%7===0;
     });
-    if(eventosHojeLoja.length>0){
-      const tituloCal = document.createElement("div");
-      tituloCal.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:14px 0 8px;";
-      tituloCal.textContent = "📅 Tarefas de hoje";
-      main.appendChild(tituloCal);
-      eventosHojeLoja.forEach(ev=>{
-        const jaFeito = checksCalHoje.some(c=>c.evento_id===ev.id && c.loja===currentLoja);
-        const card = document.createElement("div");
-        card.className = "card";
-        card.style.cssText = `border-left:4px solid ${jaFeito?'var(--green)':'var(--terracotta)'}; padding:14px 16px;`;
-        card.innerHTML = `
-          <div style="font-weight:700; font-size:14.5px; color:var(--ink);">${ev.titulo}</div>
-          ${ev.descricao ? `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:3px;">${ev.descricao}</div>` : ``}
-          <div style="margin-top:8px;">
-            ${jaFeito ? `<span style="font-size:12.5px; color:var(--green); font-weight:600;">✔ Já marcaste como feito</span>` : `<button data-cal-feito="${ev.id}" style="background:var(--green); color:#fff; border:none; border-radius:10px; padding:8px 16px; font-size:13px; font-weight:700;">✔ Marcar como feito</button>`}
-          </div>
-        `;
-        main.appendChild(card);
-        if(!jaFeito){
-          card.querySelector("[data-cal-feito]").onclick = async ()=>{
-            try{
-              await api("POST", "cj_calendario_dop_checks", {evento_id: ev.id, data: today, loja: currentLoja, feito_por: currentLoja});
-              mostrarSucesso("Tarefa marcada como feita!");
-              await loadAll();
-            }catch(e){
-              console.error(e);
-              toast("Erro: " + (e.message||e).slice(0,100));
-            }
-          };
-        }
-      });
-    }
+    eventosHojeLoja.forEach(ev=>{
+      const jaFeito = checksCalHoje.some(c=>c.evento_id===ev.id && c.loja===currentLoja);
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.cssText = `border-left:4px solid ${jaFeito?'var(--green)':'var(--terracotta)'}; padding:14px 16px;`;
+      card.innerHTML = `
+        <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--terracotta); font-weight:700; margin-bottom:2px;">Tarefa de hoje</div>
+        <div style="font-weight:700; font-size:14.5px; color:var(--ink);">${ev.titulo}</div>
+        ${ev.descricao ? `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:3px;">${ev.descricao}</div>` : ``}
+        <div style="margin-top:8px;">
+          ${jaFeito ? `<span style="font-size:12.5px; color:var(--green); font-weight:600;">✔ Já marcaste como feito</span>` : `<button data-cal-feito="${ev.id}" style="background:var(--green); color:#fff; border:none; border-radius:10px; padding:8px 16px; font-size:13px; font-weight:700;">✔ Marcar como feito</button>`}
+        </div>
+      `;
+      secPorFazer.body.appendChild(card);
+      if(!jaFeito){
+        card.querySelector("[data-cal-feito]").onclick = async ()=>{
+          try{
+            await api("POST", "cj_calendario_dop_checks", {evento_id: ev.id, data: today, loja: currentLoja, feito_por: currentLoja});
+            mostrarSucesso("Tarefa marcada como feita!");
+            await loadAll();
+          }catch(e){
+            console.error(e);
+            toast("Erro: " + (e.message||e).slice(0,100));
+          }
+        };
+      }
+    });
   }catch(e){ console.error("Erro no calendário:", e); }
 
   const VITRINE_TURNOS = [
@@ -799,8 +802,14 @@ async function render(){
       : ()=>openCapture("daily","vendas","Vendas — Final do dia","unico")
     });
   }
+  const hojeWrap = document.createElement("div");
+  hojeWrap.style.cssText = "margin-bottom:22px;";
+  const hojeHead = document.createElement("div");
+  hojeHead.style.cssText = "font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-weight:700; margin-bottom:8px;";
+  hojeHead.textContent = "🧾 Hoje";
+  hojeWrap.appendChild(hojeHead);
   const hojeGrid = document.createElement("div");
-  hojeGrid.style.cssText = "display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:16px;";
+  hojeGrid.style.cssText = "display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;";
   hojeSquares.forEach(s=>{
     const tile = document.createElement("button");
     const corFundo = s.done ? '#eef3ea' : (s.bloqueado ? '#f2f2f2' : 'var(--card)');
@@ -812,7 +821,8 @@ async function render(){
     tile.onclick = s.done ? (s.ehAbertura ? ()=>abrirCapturaAbertura() : ()=>verEditarFotosSubmissao(s.rec, s.label)) : s.onclick;
     hojeGrid.appendChild(tile);
   });
-  main.appendChild(hojeGrid);
+  hojeWrap.appendChild(hojeGrid);
+  main.insertBefore(hojeWrap, secPorFazer.wrap);
 
   const dueInv = categoriasParaLoja(currentLoja).filter(c=>!naoAplicaveis.includes(c.key)).map(c=>({...c, st:invStatus(c.key, c.freq, c.semFoto)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado).filter(c=>{
     if(c.key==="global"){
@@ -842,7 +852,7 @@ async function render(){
     const warn = document.createElement("div");
     warn.className = "warn-card";
     warn.textContent = "⚠ Estamos nos últimos dias do mês — evita fazer contagens de inventário agora, para não desalinhar com o fecho.";
-    main.appendChild(warn);
+    secInventario.body.appendChild(warn);
   }
 
   const diaErradoItems = dueInv.filter(c=>c.st.diaErrado);
@@ -850,24 +860,20 @@ async function render(){
     const w = document.createElement("div");
     w.className = "warn-card";
     w.innerHTML = `<b>${c.label}</b>: enviado fora do dia (${c.st.dowLabel}-feira) — chefia avisada.`;
-    main.appendChild(w);
+    secInventario.body.appendChild(w);
   });
 
   const linkCorrigir = document.createElement("div");
-  linkCorrigir.style.cssText = "text-align:center; margin-bottom:14px;";
+  linkCorrigir.style.cssText = "text-align:center;";
   linkCorrigir.innerHTML = `<span style="font-size:12.5px; color:var(--ink-soft); text-decoration:underline; cursor:pointer;" id="verEnviosRecentesLink">✏️ Ver/corrigir envios recentes de inventário</span>`;
-  main.appendChild(linkCorrigir);
+  secInventario.body.appendChild(linkCorrigir);
   document.getElementById("verEnviosRecentesLink").onclick = abrirEnviosRecentesInventario;
 
   const invParaGrid = dueInv.filter(c=>!c.st.diaErrado);
   if(invParaGrid.length>0){
-    const invTitle = document.createElement("div");
-    invTitle.style.cssText = "font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:4px 0 8px;";
-    invTitle.textContent = "Inventário";
-    main.appendChild(invTitle);
     const invGrid = document.createElement("div");
-    invGrid.style.cssText = "display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:16px;";
-    main.appendChild(invGrid);
+    invGrid.style.cssText = "display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;";
+    secInventario.body.appendChild(invGrid);
     let globalAgRow = null;
     let tabacoAgRow = null;
     invParaGrid.forEach(c=>{
@@ -938,7 +944,7 @@ async function render(){
       }
     });
     if(globalAgRow){
-      main.appendChild(globalAgRow);
+      secInventario.body.appendChild(globalAgRow);
       const hojeRef = new Date();
       const mesAtualKey = mesKey(hojeRef);
       const proxMesRef = new Date(hojeRef.getFullYear(), hojeRef.getMonth()+1, 1);
@@ -954,7 +960,7 @@ async function render(){
       });
     }
     if(tabacoAgRow){
-      main.appendChild(tabacoAgRow);
+      secInventario.body.appendChild(tabacoAgRow);
       const periodo = periodoQuinzenal(new Date());
       const agT = agendamentosTabaco.find(a=>a.periodo===periodo);
       if(!agT){
@@ -971,14 +977,14 @@ async function render(){
   const dueMkt = MARKETING_CATS.filter(c=>!naoAplicaveis.includes(c.key)).map(c=>({...c, st:invStatus(c.key, c.freq, c.semFoto)})).filter(c=>c.st.state!=="ok");
   if(dueMkt.length>0){
     const folderBtn = document.createElement("button");
-    folderBtn.style.cssText = "width:100%; display:flex; align-items:center; gap:10px; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,.06); margin-bottom:14px;";
+    folderBtn.style.cssText = "width:100%; display:flex; align-items:center; gap:10px; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,.06);";
     const temAtrasado = dueMkt.some(c=>c.st.state==="late");
     folderBtn.innerHTML = `<span style="font-size:22px;">📋</span><span style="flex:1; text-align:left; font-weight:700; font-size:15px;">Outras tarefas</span><span style="background:${temAtrasado?'var(--red)':'var(--terracotta)'}; color:#fff; font-weight:700; font-size:13px; border-radius:99px; padding:3px 10px;">${dueMkt.length}</span><span id="pendChevron" style="font-size:14px; color:var(--ink-soft);">▾</span>`;
-    main.appendChild(folderBtn);
+    secInventario.body.appendChild(folderBtn);
 
     const gridWrap = document.createElement("div");
     gridWrap.style.cssText = "display:none;";
-    main.appendChild(gridWrap);
+    secInventario.body.appendChild(gridWrap);
 
     let aberto = temAtrasado;
     function atualizarAberto(){
@@ -1008,10 +1014,12 @@ async function render(){
     const ok = document.createElement("div");
     ok.className = "card";
     ok.style.cssText = "text-align:center; padding:28px 14px; color:var(--green);";
-    ok.innerHTML = `<div style="font-size:32px; margin-bottom:6px;">✅</div><div style="font-weight:700; font-size:15px;">Tudo feito por hoje!</div>`;
-    main.appendChild(ok);
+    ok.innerHTML = `<div style="font-size:32px; margin-bottom:6px;">✅</div><div style="font-weight:700; font-size:15px;">Tudo feito este mês!</div>`;
+    secInventario.body.appendChild(ok);
   }
 
+  if(secPorFazer.body.children.length===0) secPorFazer.wrap.style.display = "none";
+  if(secInfo.body.children.length===0) secInfo.wrap.style.display = "none";
 }
 
 function openCapture(kind, key, label, turno, estaAtrasado){
