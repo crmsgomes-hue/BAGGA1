@@ -80,8 +80,6 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   </div>
 
   <div id="toggleTilesGrid" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px;"></div>
-  <div id="painelLojasSection" style="display:none;"></div>
-  <div id="resumoOntemSection" style="display:none;"></div>
   <div id="quebrasPanoramaSection" style="display:none;"></div>
   <div id="valoresInventarioSection" style="display:none;"></div>
   <div id="categoriaLojasSection"></div>
@@ -91,7 +89,6 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
   <div id="avisosDadosSection" style="display:none;"></div>
   <div id="fardamentoPanoramaSection" style="display:none;"></div>
   <div id="rhPanoramaSection" style="display:none;"></div>
-  <div id="porValidarSection" style="display:none;"></div>
   <div id="sondagensFormsSection" style="display:none;"></div>
 
   <div id="attnSection"><div class="spin-wrap"><div class="spin"></div><div class="spin-msg">A verificar pendências…</div></div></div>
@@ -303,7 +300,7 @@ async function renderPanoramaGeral(){
     const inicioSemana = isoDate(weekWindow(today).start);
 
     const inicioMesAtual = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg, dailyNaoValidadosPg, invNaoValidadosPg] = await Promise.all([
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
       api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`),
@@ -319,16 +316,13 @@ async function renderPanoramaGeral(){
       api(`cj_fardamento_rececoes?select=id&recolhido=eq.false`),
       api(`cj_fardamento_rececoes?select=data_rececao&order=data_rececao.desc&limit=1`),
       api(`cj_certificados_oleo?select=loja,data_validade`),
-      api(`cj_calibracoes_oleo?select=loja,data_validade`),
-      api(`cj_daily_reportes?select=id&validado_por=is.null`),
-      api(`cj_inventario_reportes?select=id&validado_por=is.null`)
+      api(`cj_calibracoes_oleo?select=loja,data_validade`)
     ]);
     const fardRececoesPendentesPg = fardRececoesPg.length;
     const em30diasPg = isoDate(new Date(Date.now()+30*24*3600*1000));
     const certOleoExpirandoPg = (certOleoPg||[]).filter(c=>c.data_validade && c.data_validade<=em30diasPg).length;
     const calibOleoExpirandoPg = (calibOleoPg||[]).filter(c=>c.data_validade && c.data_validade<=em30diasPg).length;
     const maisAlertasPg = certOleoExpirandoPg + calibOleoExpirandoPg;
-    const porValidarPg = (dailyNaoValidadosPg||[]).length + (invNaoValidadosPg||[]).length;
 
     // Conta dias/lojas sem cobertura de abertura (antes das 07:15) ou fecho (ate as 21:00), so onde ha horas importadas
     const porDiaLojaSet = {}, porDiaLojaHor = {};
@@ -394,7 +388,6 @@ async function renderPanoramaGeral(){
     if(maisAlertasPg>0) listaAtencao.push({topico:"mais", texto:`🔧 ${maisAlertasPg} certificado/calibração do óleo a expirar em 30 dias`, urgente:true});
     if(fardStockLowPg.length+fardDevPg.length+fardRececoesPendentesPg>0) listaAtencao.push({topico:"fardamento", texto:`👕 ${fardStockLowPg.length+fardDevPg.length+fardRececoesPendentesPg} pendência(s) de fardamento`, urgente:false});
     if(adendasAtivasPg.length>0) listaAtencao.push({topico:"rh", texto:`📋 ${adendasAtivasPg.length} adenda(s) em curso`, urgente:false});
-    if(porValidarPg>0) listaAtencao.push({href:"CoreJoint_Reportes.html?abrir=porValidar", texto:`✅ ${porValidarPg} envio(s) por validar`, urgente:false});
     listaAtencao.sort((a,b)=>(b.urgente?1:0)-(a.urgente?1:0));
 
     el.innerHTML = `
@@ -4301,146 +4294,6 @@ function semanaKey(d){
   }catch(e){ console.error(e); }
 
   try{
-    const dailyForPainel = await api(`cj_daily_reportes?select=loja,tipo,turno&data=eq.${todayStr}`);
-    const invForPainel = await api("cj_inventario_reportes?select=loja,categoria,data");
-    const naoAplicaveisPainel = await api("cj_categoria_nao_aplicavel?select=loja,categoria");
-    const mesAtualPainel = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
-    const agendamentosPainel = await api(`cj_global_agendamento?select=loja,mes&mes=eq.${mesAtualPainel}`);
-
-    const dadosPorLoja = LOJAS.map(l=>{
-      const vitOk = ["manha","almoco","lanche"].filter(t=>dailyForPainel.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t)).length;
-      const vendasOk = dailyForPainel.some(r=>r.loja===l && r.tipo==="vendas" && r.turno==="unico");
-      let atrasadosLoja = 0;
-      [...categoriasParaLoja(l), ...MARKETING_CATS].filter(cat=>!naoAplicaveisPainel.some(n=>n.loja===l && n.categoria===cat.key)).forEach(cat=>{
-        const w = windowFor(cat.freq, today);
-        const rowsCat = invForPainel.filter(r=>r.loja===l && r.categoria===cat.key && inRange(r.data, w.start, w.end) && (cat.semFoto || (r.fotos||[]).length>0));
-        if(rowsCat.length>0) return;
-        const dow = CATEGORY_DOW[cat.key];
-        let deadline;
-        if(dow){ const target = findWeekdayInRange(w.start,w.end,dow); deadline = new Date(target); deadline.setDate(deadline.getDate()+1); deadline.setHours(14,0,0,0); }
-        else deadline = w.end;
-        if(deadline < RESET_GRACE_UNTIL) return;
-        if(today > deadline) atrasadosLoja++;
-      });
-      let globalNaoMarcado = false;
-      if(today.getDate()>5) globalNaoMarcado = !agendamentosPainel.some(a=>a.loja===l);
-      const pendencias = [];
-      if(!aindaNaoComecou){
-        if(!vendasOk && today.getHours()>=21) pendencias.push("Vendas por fazer");
-        if(globalNaoMarcado) pendencias.push("Global não marcado");
-      }
-      return {loja:l, pendencias, urgente: pendencias.length};
-    });
-
-    const comPendencia = dadosPorLoja.filter(d=>d.pendencias.length>0);
-    const semPendencia = dadosPorLoja.filter(d=>d.pendencias.length===0);
-
-    let html = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
-      <span>Painel de gestão</span>
-      <a href="CoreJoint_Reportes.html?abrir=integridade" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Ver detalhe →</a>
-    </div>`;
-    if(comPendencia.length===0){
-      html += `<div class="all-clear" style="margin-bottom:14px;">✔ Todas as lojas em dia agora.</div>`;
-    } else {
-      html += `<a href="CoreJoint_Reportes.html?abrir=integridade" class="card" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit;">
-        <span style="font-weight:700; font-size:.9rem;">${comPendencia.length} loja(s) com pendências</span>
-        <span style="font-size:.78rem; color:var(--t2);">${semPendencia.length} em dia ›</span>
-      </a>`;
-    }
-    document.getElementById("painelLojasSection").innerHTML = html;
-  }catch(e){ console.error(e); }
-
-  try{
-    const ontem = new Date(today); ontem.setDate(ontem.getDate()-1);
-    const ontemStr = `${ontem.getFullYear()}-${String(ontem.getMonth()+1).padStart(2,'0')}-${String(ontem.getDate()).padStart(2,'0')}`;
-    const dailyOntem = await api(`cj_daily_reportes?select=loja,tipo,turno,fotos&data=eq.${ontemStr}`);
-    const invOntem = await api(`cj_inventario_reportes?select=loja,categoria,valor_inventario&data=eq.${ontemStr}`);
-    const avisosOntem = await api(`cj_avisos?select=loja,tipo,criado_em&criado_em=gte.${ontemStr}T00:00:00&criado_em=lt.${todayStr}T00:00:00`);
-    const todasCatsLabelResumo = {};
-    [...INV_CATS, ...MARKETING_CATS].forEach(c=>todasCatsLabelResumo[c.key]=c.label);
-
-    let htmlResumo = `<div class="sec-label">Resumo de ontem por loja</div>
-      <select id="resumoOntemSelect" style="width:100%; padding:12px; border-radius:12px; border:1px solid var(--br); background:var(--sf); font-size:.9rem; margin-bottom:10px;">
-        <option value="">Escolhe uma loja...</option>
-        ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
-      </select>
-      <div id="resumoOntemConteudo"></div>`;
-    document.getElementById("resumoOntemSection").innerHTML = htmlResumo;
-
-    document.getElementById("resumoOntemSelect").onchange = (ev)=>{
-      const l = ev.target.value;
-      const conteudo = document.getElementById("resumoOntemConteudo");
-      if(!l){ conteudo.innerHTML = ""; return; }
-      const turnosFeitos = ["manha","almoco","lanche"].filter(t=>dailyOntem.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t));
-      const vendasFeita = dailyOntem.some(r=>r.loja===l && r.tipo==="vendas" && r.turno==="unico");
-      const invLoja = invOntem.filter(r=>r.loja===l);
-      const avisosLoja = avisosOntem.filter(r=>r.loja===l);
-      const TURNO_ICONS = {manha:"🌅", almoco:"☀️", lanche:"🌇"};
-      const TURNO_LABELS_R = {manha:"Manhã", almoco:"Almoço", lanche:"Lanche"};
-
-      let html = `<div class="card" style="flex-direction:column; align-items:stretch;">
-        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; margin-bottom:12px;">${l} · ${ontem.toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit'})}</div>
-        <div style="display:flex; gap:6px; margin-bottom:10px;">
-          ${["manha","almoco","lanche"].map(t=>{
-            const feito = turnosFeitos.includes(t);
-            return `<div data-ontem-turno="${t}" style="flex:1; text-align:center; background:${feito?'#eef3ea':'var(--sf)'}; border:1px solid var(--br); border-radius:10px; padding:8px 4px; cursor:${feito?'pointer':'default'};">
-              <div style="font-size:16px;">${TURNO_ICONS[t]}</div>
-              <div style="font-size:.62rem; color:var(--t2); margin-top:2px;">${TURNO_LABELS_R[t]}</div>
-              <div style="font-size:.7rem; font-weight:700; color:${feito?'var(--grn)':'var(--red)'};">${feito?'✔':'✕'}</div>
-            </div>`;
-          }).join("")}
-          <div data-ontem-vendas="1" style="flex:1; text-align:center; background:${vendasFeita?'#eef3ea':'var(--sf)'}; border:1px solid var(--br); border-radius:10px; padding:8px 4px; cursor:${vendasFeita?'pointer':'default'};">
-            <div style="font-size:16px;">🧾</div>
-            <div style="font-size:.62rem; color:var(--t2); margin-top:2px;">Vendas</div>
-            <div style="font-size:.7rem; font-weight:700; color:${vendasFeita?'var(--grn)':'var(--red)'};">${vendasFeita?'✔':'✕'}</div>
-          </div>
-        </div>`;
-
-      if(invLoja.length>0){
-        html += `<div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin-bottom:6px;">Inventário enviado</div>`;
-        invLoja.forEach(r=>{
-          html += `<div style="display:flex; justify-content:space-between; font-size:.82rem; padding:4px 0; border-bottom:1px solid var(--br);">
-            <span>${todasCatsLabelResumo[r.categoria]||r.categoria}</span>
-            ${r.valor_inventario!=null ? `<b>${r.valor_inventario} €</b>` : `<span style="color:var(--grn);">✔</span>`}
-          </div>`;
-        });
-      } else {
-        html += `<div style="font-size:.78rem; color:var(--t3); margin-bottom:6px;">Sem inventário enviado ontem.</div>`;
-      }
-
-      if(avisosLoja.length>0){
-        html += `<div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin-top:10px; margin-bottom:4px;">Avisos</div>
-          <div style="font-size:.78rem; color:var(--t2);">${avisosLoja.length} aviso(s) trocado(s)</div>`;
-      }
-
-      html += `</div>`;
-      conteudo.innerHTML = html;
-
-      conteudo.querySelectorAll("[data-ontem-turno]").forEach(box=>{
-        const t = box.dataset.ontemTurno;
-        const reg = dailyOntem.find(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t);
-        if(!reg) return;
-        const fotos = (reg.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
-        box.onclick = ()=>{
-          if(fotos.length){ bigPhoto(fotos, 0); }
-          else alert(`${l} — ${TURNO_LABELS_R[t]} enviado (sem foto anexada)`);
-        };
-      });
-      const vendasBox = conteudo.querySelector("[data-ontem-vendas]");
-      if(vendasBox){
-        const regV = dailyOntem.find(r=>r.loja===l && r.tipo==="vendas" && r.turno==="unico");
-        if(regV){
-          const fotosV = (regV.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
-          vendasBox.onclick = ()=>{
-            if(fotosV.length){ bigPhoto(fotosV, 0); }
-            else alert(`${l} — Vendas enviadas (sem foto anexada)`);
-          };
-        }
-      }
-    };
-  }catch(e){ console.error(e); }
-
-  try{
     const quebras = await api("cj_quebras_reportes?select=*&order=data.desc&limit=300");
     const trintaDiasAtrasQb = new Date(Date.now()-30*86400000).toISOString().slice(0,10);
     const recentesQb = quebras.filter(r=>r.data>=trintaDiasAtrasQb);
@@ -4899,25 +4752,6 @@ function semanaKey(d){
   }catch(e){ console.error(e); }
 
   try{
-    const dailyNaoValidados = await api("cj_daily_reportes?select=id&validado_por=is.null");
-    const invNaoValidados = await api("cj_inventario_reportes?select=id&validado_por=is.null");
-    const totalPorValidar = dailyNaoValidados.length + invNaoValidados.length;
-    let htmlPv = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
-      <span>Por validar</span>
-      <a href="CoreJoint_Reportes.html?abrir=porValidar" style="font-size:.75rem; color:var(--tc); text-decoration:none; font-weight:700;">Ver e validar →</a>
-    </div>`;
-    if(totalPorValidar===0){
-      htmlPv += `<div class="all-clear" style="margin-bottom:14px;">✔ Tudo validado.</div>`;
-    } else {
-      htmlPv += `<a href="CoreJoint_Reportes.html?abrir=porValidar" class="card" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit;">
-        <span style="font-weight:700; font-size:.9rem;">${totalPorValidar} envio(s) por validar</span>
-        <span style="font-size:.78rem; color:var(--terracotta,#C1622E); font-weight:700;">Rever ›</span>
-      </a>`;
-    }
-    document.getElementById("porValidarSection").innerHTML = htmlPv;
-  }catch(e){ console.error(e); }
-
-  try{
     const sondagensAtivas = await api("cj_sondagens?select=*&ativa=eq.true&order=criado_em.desc");
     const formsAtivos = await api("cj_formularios?select=*&ativa=eq.true&order=criado_em.desc");
     let htmlSf = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
@@ -4966,6 +4800,12 @@ function semanaKey(d){
       <div class="slb">📊 Sondagens/Forms <span class="chev-toggle" style="float:right;">▾</span></div>
       <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Resultados e relatórios</div>
     </button>
+
+    <div class="sec-divider" style="grid-column:1/-1; margin-top:6px; font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--t3); font-weight:700;">📢 Avisos</div>
+    <button data-toggle-secao="avisosDadosSection" class="sc" style="grid-column:1/-1; text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:block;">
+      <div class="slb">📢 Avisos enviados <span class="chev-toggle" style="float:right;">▾</span></div>
+      <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">Por tema, últimos 7 dias</div>
+    </button>
   `;
 
   // Abas removidas — página agora corre contínua, na ordem: dashboard/calendário, fotos, inventário, quebras, formulários, relatórios, RH, fardamento
@@ -4978,20 +4818,6 @@ function semanaKey(d){
       btn.insertAdjacentElement("afterend", secao);
     }
   });
-
-  // Grupo pequeno "Gestão" (Painel/Resumo/Avisos/Por validar): sítio discreto, logo abaixo da linha de links do topo
-  const topLinksRow = document.getElementById("topLinksRow");
-  if(topLinksRow){
-    let ancora = topLinksRow;
-    ["painelLojasSection","resumoOntemSection","avisosDadosSection","porValidarSection"].forEach(id=>{
-      const secao = document.getElementById(id);
-      if(secao){
-        secao.style.gridColumn = "1 / -1";
-        ancora.insertAdjacentElement("afterend", secao);
-        ancora = secao;
-      }
-    });
-  }
 
   document.querySelectorAll("[data-toggle-secao]").forEach(btn=>{
     btn.onclick = ()=>{
