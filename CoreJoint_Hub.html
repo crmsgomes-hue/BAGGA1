@@ -547,6 +547,7 @@ async function renderPanoramaGeral(){
         <div style="font-size:1.4rem; font-weight:800; margin-bottom:10px;">${valorInvTotal.toFixed(2)} €</div>
         ${linhasValoresTopico(invLinhas, "CoreJoint_Reportes.html?abrir=porCategoria")}
         <button id="btnVerCategoriaHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📦 Ver por categoria</button>
+        <button id="btnAbrirExportInvEmpresaHub" style="width:100%; margin-bottom:6px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📋 Preencher Excel da empresa</button>
         <button id="btnAbrirMensalHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🗓️ Relatório mensal</button>
       `;
       abrirModalTopico("📦 Inventário", corpo);
@@ -554,6 +555,7 @@ async function renderPanoramaGeral(){
         fecharEcraHub();
         document.getElementById("categoriaLojasSection").scrollIntoView({behavior:"smooth"});
       };
+      document.getElementById("btnAbrirExportInvEmpresaHub").onclick = abrirExportInventarioEmpresaHub;
       document.getElementById("btnAbrirMensalHub").onclick = abrirRelatorioMensalHub;
     };
 
@@ -3116,6 +3118,104 @@ async function abrirExportQuebrasEmpresaHub(){
     };
     document.getElementById("expQuebrasCopiarJustifBtn").onclick = ()=>{
       navigator.clipboard.writeText(listaJustif).then(()=>toast("✔ Justificações copiadas"));
+    };
+  }, "A gerar...");
+}
+
+const MESES_PT = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+function fmtDiaMesPt(dataStr){
+  const d = new Date(dataStr+"T00:00:00");
+  return String(d.getDate()).padStart(2,"0") + "/" + MESES_PT[d.getMonth()];
+}
+function isoWeekInfo(dataStr){
+  const d = new Date(dataStr+"T00:00:00");
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(),0,1));
+  const week = Math.ceil((((date - yearStart) / 86400000) + 1)/7);
+  return {ano:date.getUTCFullYear(), semana:week, chave: date.getUTCFullYear()+"-S"+week};
+}
+
+const CATEGORIAS_EXCEL_EMPRESA = [
+  {key:"raspadinhas", label:"P.JSC"},
+  {key:"laranja", label:"P.Laranjas"},
+  {key:"cafe", label:"P.café"},
+  {key:"tabaco", label:"P.Tabaco"}
+];
+
+async function abrirExportInventarioEmpresaHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "exportInvEmpresaOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  const hoje = new Date();
+  const dozeSemanasAtras = new Date(Date.now() - 12*7*86400000);
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:480px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:2px;">📋 Preencher Excel da empresa</div>
+      <div style="font-size:12px; color:var(--t2); margin-bottom:12px;">Gera a tabela Loja × Semana (data do envio nessa semana) igual ao ficheiro de Inventários. "GLOBAL"/"fim mês" não são preenchidos automaticamente — ajusta essas células à mão.</div>
+      <div style="font-size:.7rem; color:var(--t2); margin-bottom:6px;">Categoria (folha)</div>
+      <select id="expInvCategoria" style="width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--br); margin-bottom:12px; font-size:.85rem;">
+        ${CATEGORIAS_EXCEL_EMPRESA.map(c=>`<option value="${c.key}">${c.label}</option>`).join("")}
+      </select>
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <div style="flex:1;"><label style="font-size:.7rem; color:var(--t2);">De</label><input type="date" id="expInvDe" value="${isoDate(dozeSemanasAtras)}" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--br);"></div>
+        <div style="flex:1;"><label style="font-size:.7rem; color:var(--t2);">Até</label><input type="date" id="expInvAte" value="${isoDate(hoje)}" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--br);"></div>
+      </div>
+      <button id="expInvGerarBtn" style="width:100%; margin-bottom:14px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-weight:700;">Gerar</button>
+      <div id="expInvResultado"></div>
+      <button id="fecharExportInvHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharExportInvHubBtn").onclick = ()=>fecharEcraHub();
+
+  document.getElementById("expInvGerarBtn").onclick = protegerCliqueHub(document.getElementById("expInvGerarBtn"), async ()=>{
+    const categoria = document.getElementById("expInvCategoria").value;
+    const catLabel = (CATEGORIAS_EXCEL_EMPRESA.find(c=>c.key===categoria)||{}).label || categoria;
+    const de = document.getElementById("expInvDe").value;
+    const ate = document.getElementById("expInvAte").value;
+    let rows = await api(`cj_inventario_reportes?select=loja,categoria,data&categoria=eq.${categoria}&data=gte.${de}&data=lte.${ate}&order=data.asc`, "GET");
+    rows = await aplicarCorteCategoria(rows);
+
+    // semanas presentes no intervalo, em ordem cronologica
+    const semanasMap = {};
+    for(let d=new Date(de+"T00:00:00"); d<=new Date(ate+"T00:00:00"); d.setDate(d.getDate()+1)){
+      const info = isoWeekInfo(isoDate(new Date(d)));
+      if(!semanasMap[info.chave]) semanasMap[info.chave] = info;
+    }
+    const semanas = Object.values(semanasMap).sort((a,b)=> a.ano-b.ano || a.semana-b.semana);
+
+    // primeira data de envio por loja+semana
+    const porLoja = {};
+    rows.forEach(r=>{
+      const nome = nomeExcelEmpresa(r.loja);
+      const info = isoWeekInfo(r.data);
+      porLoja[nome] ||= {};
+      if(!porLoja[nome][info.chave] || r.data < porLoja[nome][info.chave]) porLoja[nome][info.chave] = r.data;
+    });
+    const lojasOrdenadas = Object.keys(porLoja).sort();
+
+    let tabela = `GOP\tN. Loja\tLoja\t` + semanas.map(s=>"S"+s.semana).join("\t") + "\n";
+    lojasOrdenadas.forEach(nome=>{
+      const valores = semanas.map(s=>{
+        const d = porLoja[nome][s.chave];
+        return d ? fmtDiaMesPt(d) : "";
+      });
+      tabela += `JOÃO MARTINHO\t\t${nome}\t` + valores.join("\t") + "\n";
+    });
+
+    document.getElementById("expInvResultado").innerHTML = `
+      <div style="font-size:11px; text-transform:uppercase; color:var(--t2); font-weight:700; margin-bottom:6px;">${catLabel} — Loja × Semana</div>
+      <div style="overflow-x:auto; max-height:280px; border:1px solid var(--br); border-radius:8px; margin-bottom:10px;">
+        <pre id="expInvTabelaPre" style="font-size:10px; padding:8px; margin:0; white-space:pre;">${tabela.replace(/</g,"&lt;")}</pre>
+      </div>
+      <button id="expInvCopiarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:8px; padding:9px; font-weight:700; font-size:.8rem;">📋 Copiar tabela (colar direto no Excel)</button>
+      <div style="font-size:.7rem; color:var(--t2); margin-top:8px;">Coluna "N. Loja" fica em branco — não temos os números internos da empresa guardados na app.</div>
+    `;
+    document.getElementById("expInvCopiarBtn").onclick = ()=>{
+      navigator.clipboard.writeText(tabela).then(()=>toast(`✔ Tabela de ${catLabel} copiada — cola no Excel`));
     };
   }, "A gerar...");
 }
