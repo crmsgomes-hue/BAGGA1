@@ -486,7 +486,7 @@ async function renderPanoramaGeral(){
         </div>
 
         ${secao("Diário")}
-        <button id="btnAbrirDiarioVisualHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📸 Vendas/Vitrine/Inventário (imagem p/ WhatsApp)</button>
+        <button id="btnAbrirDiarioVisualHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📸 Vitrine, Vendas, Laranjas e Tabaco (imagem p/ WhatsApp)</button>
         <button id="btnAbrirResumoOntemModal" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📅 Resumo de ontem</button>
         <button id="btnAbrirSemanalHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🖨️ Relatório semanal de vendas</button>
 
@@ -1997,7 +1997,7 @@ async function abrirDiarioVisualHub(){
   overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
   overlay.innerHTML = `
     <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
-      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:12px;">🧾 Vendas, Vitrine e Inventário — hoje</div>
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:12px;">🧾 Vitrine, Vendas, Laranjas e Tabaco — hoje</div>
       <div id="diarioVisualCapturaWrapHub"></div>
       <div id="diarioVisualPartilhaBtnsHub"></div>
       <button id="fecharDiarioVisualHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
@@ -2054,13 +2054,13 @@ async function abrirDiarioVisualHub(){
 
     capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
     capturaWrap.innerHTML = `
-      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Vendas, Vitrine e Inventário</div>
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Vitrine, Vendas, Laranjas e Tabaco</div>
       <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} · ${horaFmt}</div>
       <table style="border-collapse:collapse; width:100%;"><thead><tr><th></th>${headerHtml}</tr></thead><tbody>${linhasHtml}</tbody></table>
     `;
     if(!botoesJaCriados){
       botoesJaCriados = true;
-      criarBotoesPartilhaHub(document.getElementById("diarioVisualPartilhaBtnsHub"), capturaWrap, `CoreJoint_diario`, "CoreJoint · Vendas, Vitrine e Inventário");
+      criarBotoesPartilhaHub(document.getElementById("diarioVisualPartilhaBtnsHub"), capturaWrap, `CoreJoint_diario`, "CoreJoint · Vitrine, Vendas, Laranjas e Tabaco");
     }
   }
   await render();
