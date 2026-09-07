@@ -357,10 +357,10 @@ async function aplicarCorteCategoria(rows){
     return !corte || r.data >= corte;
   });
 }
-function invStatus(catKey, freq){
+function invStatus(catKey, freq, semFoto){
   const today = new Date();
   const w = windowFor(freq, today);
-  const rows = invRows.filter(r=>r.categoria===catKey && inRange(r.data, w.start, w.end) && (r.fotos||[]).length>0);
+  const rows = invRows.filter(r=>r.categoria===catKey && inRange(r.data, w.start, w.end) && (semFoto || (r.fotos||[]).length>0));
   const dow = CATEGORY_DOW[catKey];
   if(dow){
     const dataCerta = findWeekdayInRange(w.start, w.end, dow);
@@ -396,7 +396,7 @@ function invStatus(catKey, freq){
   }
   if(freq==="mensal_inicio" || freq==="mensal_dia20"){
     const mesInteiro = monthWindow(today);
-    const rowsMes = invRows.filter(r=>r.categoria===catKey && inRange(r.data, mesInteiro.start, mesInteiro.end) && (r.fotos||[]).length>0);
+    const rowsMes = invRows.filter(r=>r.categoria===catKey && inRange(r.data, mesInteiro.start, mesInteiro.end) && (semFoto || (r.fotos||[]).length>0));
     if(rowsMes.length>0){
       return {state:"ok", latest: rowsMes[0], window:w, diaErrado:false, dowLabel:null};
     }
@@ -814,7 +814,7 @@ async function render(){
   });
   main.appendChild(hojeGrid);
 
-  const dueInv = categoriasParaLoja(currentLoja).filter(c=>!naoAplicaveis.includes(c.key)).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado).filter(c=>{
+  const dueInv = categoriasParaLoja(currentLoja).filter(c=>!naoAplicaveis.includes(c.key)).map(c=>({...c, st:invStatus(c.key, c.freq, c.semFoto)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado).filter(c=>{
     if(c.key==="global"){
       const mesAtual = mesKey(new Date());
       const ag = agendamentos.find(a=>a.mes===mesAtual);
@@ -968,7 +968,7 @@ async function render(){
     }
   }
 
-  const dueMkt = MARKETING_CATS.filter(c=>!naoAplicaveis.includes(c.key)).map(c=>({...c, st:invStatus(c.key, c.freq)})).filter(c=>c.st.state!=="ok");
+  const dueMkt = MARKETING_CATS.filter(c=>!naoAplicaveis.includes(c.key)).map(c=>({...c, st:invStatus(c.key, c.freq, c.semFoto)})).filter(c=>c.st.state!=="ok");
   if(dueMkt.length>0){
     const folderBtn = document.createElement("button");
     folderBtn.style.cssText = "width:100%; display:flex; align-items:center; gap:10px; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,.06); margin-bottom:14px;";
@@ -1917,7 +1917,7 @@ async function renderAreaGestaoLoja(){
 
   // ---------- Inventário (reaproveita invStatus() ja existente, que usa invRows ja carregado so desta loja) ----------
   const invHtml = INV_CATS.map(c=>{
-    const st = invStatus(c.key, c.freq);
+    const st = invStatus(c.key, c.freq, c.semFoto);
     if(st.state==="na" || st.state==="pausado") return "";
     const cor = st.state==="ok" ? "var(--green,#2e7d32)" : st.state==="late" ? "var(--red,#b0432f)" : "var(--ink-soft)";
     const txt = st.state==="ok" ? "✔ Feito" : st.state==="late" ? "✕ Atrasado" : "Pendente";
