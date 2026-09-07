@@ -408,7 +408,33 @@ async function renderPanoramaGeral(){
     }
 
     const lembretesPendentes = lembretesPg.length;
+
+    const listaAtencao = [];
+    if(vendasFaltam.length>0) listaAtencao.push({topico:"vendas", texto:`🧾 ${vendasFaltam.length} loja(s) sem vendas hoje`, urgente:true});
+    if(valorQuebrasTotal>0) listaAtencao.push({topico:"quebras", texto:`💸 ${valorQuebrasTotal.toFixed(0)}€ de quebras por justificar`, urgente:true});
+    if(stockNegPendentesPg.length>0) listaAtencao.push({topico:"stockneg", texto:`📉 ${stockNegPendentesPg.length} stock negativo por justificar`, urgente:true});
+    if(errosPg.length>0) listaAtencao.push({topico:"diagnostico", texto:`🩺 ${errosPg.length} erro(s) nas últimas 24h`, urgente:true});
+    if(formacoesPendentesPg.length>0) listaAtencao.push({topico:"formacoes", texto:`🎓 ${formacoesPendentesPg.length} formação/ões por justificar`, urgente:false});
+    if(horariosAlertas>0) listaAtencao.push({topico:"horarios", texto:`👥 ${horariosAlertas} dia(s)/loja(s) sem cobertura de horário`, urgente:false});
+    if(trocasPendentesPg.length>0) listaAtencao.push({topico:"trocas", texto:`🔁 ${trocasPendentesPg.length} troca(s) de horário pendente(s)`, urgente:false});
+    if(maisAlertasPg>0) listaAtencao.push({topico:"mais", texto:`🔧 ${maisAlertasPg} certificado/calibração do óleo a expirar em 30 dias`, urgente:true});
+    if(fardStockLowPg.length+fardDevPg.length+fardRececoesPendentesPg>0) listaAtencao.push({topico:"fardamento", texto:`👕 ${fardStockLowPg.length+fardDevPg.length+fardRececoesPendentesPg} pendência(s) de fardamento`, urgente:false});
+    if(adendasAtivasPg.length>0) listaAtencao.push({topico:"rh", texto:`📋 ${adendasAtivasPg.length} adenda(s) em curso`, urgente:false});
+    listaAtencao.sort((a,b)=>(b.urgente?1:0)-(a.urgente?1:0));
+
     el.innerHTML = `
+      <div style="margin-bottom:14px;">
+        ${listaAtencao.length===0
+          ? `<div style="text-align:center; padding:14px; background:var(--sf2); border-radius:12px; font-size:.85rem; font-weight:700; color:var(--grn);">✔ Tudo em dia — nada precisa da tua atenção agora.</div>`
+          : `<div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin-bottom:6px;">Precisa da tua atenção</div>
+             <div style="display:flex; flex-direction:column; gap:1px; border-radius:12px; overflow:hidden; border:1px solid var(--br);">
+               ${listaAtencao.map(a=>`<button data-atencao="${a.topico}" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; justify-content:space-between; align-items:center; padding:11px 12px; background:${a.urgente?'#fdf1ee':'var(--sf2)'};">
+                 <span style="font-size:.82rem; font-weight:700; color:${a.urgente?'var(--red)':'var(--tx)'};">${a.texto}</span>
+                 <span style="color:var(--t2);">›</span>
+               </button>`).join("")}
+             </div>`
+        }
+      </div>
       <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
         ${tileLink("CoreJoint_Reportes.html?abrir=calendario","📅","Calendário","")}
         ${tile("espaco","🌿","O Meu Espaço", lembretesPendentes>0?`${lembretesPendentes}`:'vazio', lembretesPendentes>0?'var(--terracotta,#C1622D)':'var(--t2)')}
@@ -675,6 +701,13 @@ async function renderPanoramaGeral(){
       abrirModalTopico("🩺 Diagnóstico", corpo);
       document.getElementById("btnAbrirDiagnosticoHub").onclick = abrirDiagnosticoHub;
     };
+
+    document.querySelectorAll("[data-atencao]").forEach(btn=>{
+      btn.onclick = ()=>{
+        const alvo = document.querySelector(`[data-topico="${btn.dataset.atencao}"]`);
+        if(alvo) alvo.click();
+      };
+    });
   }catch(e){ console.error(e); }
 }
 function toast(msg){
@@ -4990,12 +5023,7 @@ function semanaKey(d){
     };
   });
 
-  const section = document.getElementById("attnSection");
-  if(attn.length===0){
-    section.innerHTML = `<div class="all-clear">✔ Tudo em dia — nada precisa da tua atenção agora.</div>`;
-    return;
-  }
-  section.innerHTML = `<div style="text-align:center; font-size:.8rem; color:var(--t2); margin-bottom:14px;">${attn.length} coisa${attn.length>1?'s':''} a precisar de atenção — toca num dos quadrados acima para ver.</div>`;
+  document.getElementById("attnSection").innerHTML = "";
 })();
 
 if('serviceWorker' in navigator){
