@@ -605,7 +605,8 @@ async function render(){
     const handler = (ev)=>handlePedidoFile(p.id, ev.target.files[0]);
     document.getElementById(`pedidoCam_${p.id}`).addEventListener("change", handler);
     document.getElementById(`pedidoGal_${p.id}`).addEventListener("change", handler);
-    document.getElementById(`pedidoEnviar_${p.id}`).onclick = ()=>enviarPedidoFotos(p.id);
+    const btnEnviarPedido = document.getElementById(`pedidoEnviar_${p.id}`);
+    btnEnviarPedido.onclick = protegerClique(btnEnviarPedido, ()=>enviarPedidoFotos(p.id), "A enviar...");
   });
 
   await renderPendenciasCard(secPorFazer.body);
@@ -1483,7 +1484,12 @@ async function enviarPedidoFotos(pedidoId){
       const url = await uploadPhoto(fotos[i], path);
       urls.push({url});
     }
-    await api("POST", "cj_pedidos_fotos_respostas", {pedido_id: pedidoId, loja: currentLoja, fotos: urls});
+    const existente = await api("GET", `cj_pedidos_fotos_respostas?select=id&pedido_id=eq.${pedidoId}&loja=eq.${encodeURIComponent(currentLoja)}`);
+    if(existente && existente.length>0){
+      await api("PATCH", `cj_pedidos_fotos_respostas?id=eq.${existente[0].id}`, {fotos: urls});
+    } else {
+      await api("POST", "cj_pedidos_fotos_respostas", {pedido_id: pedidoId, loja: currentLoja, fotos: urls});
+    }
     delete pendingPhotosPedidos[pedidoId];
     mostrarSucesso("Fotos enviadas! Obrigado.");
     loadAll();
