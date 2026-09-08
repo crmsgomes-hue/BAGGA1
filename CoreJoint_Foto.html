@@ -2092,11 +2092,7 @@ async function renderPendenciasCard(main){
   `;
   main.appendChild(card);
   if(trocas.length>0) document.getElementById("pendTrocasBtn").onclick = ()=>abrirListaTrocasFoto(trocas);
-  if(formacoes.length>0) document.getElementById("pendFormacoesBtn").onclick = ()=>abrirListaPendenciaFoto("🎓 Formações por concluir", formacoes.map(f=>`
-    <div style="padding:8px 0; border-bottom:1px solid var(--line); font-size:13px;">
-      <b>${f.colaborador}</b>
-      <div style="color:var(--ink-soft); font-size:12px;">${f.formacao}</div>
-    </div>`).join(""));
+  if(formacoes.length>0) document.getElementById("pendFormacoesBtn").onclick = ()=>abrirListaFormacoesFoto(formacoes);
   if(stockNeg.length>0) document.getElementById("pendStockNegBtn").onclick = ()=>abrirListaStockNegFoto(stockNeg);
 }
 
@@ -2124,7 +2120,7 @@ function abrirListaTrocasFoto(trocas){
           <span style="color:var(--ink-soft); font-size:12px; white-space:nowrap;">${new Date(t.data+"T00:00:00").toLocaleDateString('pt-PT')}</span>
         </div>
         ${t.descricao ? `<div style="font-size:12px; color:var(--ink-soft); margin-top:3px;">${t.descricao}</div>` : ""}
-        <button class="pendTrocaAceitarBtn" data-id="${t.id}" style="width:100%; margin-top:8px; background:var(--terracotta,#C1622E); color:#fff; border:none; border-radius:6px; padding:7px; font-size:12px; font-weight:700;">✔ Aceitar</button>
+        <button class="pendTrocaAceitarBtn" data-id="${t.id}" style="width:100%; margin-top:8px; background:var(--terracotta,#C1622E); color:#fff; border:none; border-radius:6px; padding:7px; font-size:12px; font-weight:700;">✔ Já aceitei na Better</button>
       </div>
     `).join("");
     document.querySelectorAll(".pendTrocaAceitarBtn").forEach(btn=>{
@@ -2136,6 +2132,50 @@ function abrirListaTrocasFoto(trocas){
           if(i>=0) trocas.splice(i,1);
           render();
           mostrarSucesso("Troca aceite!");
+          await loadAll();
+        }catch(e){
+          console.error(e);
+          toast("Erro: " + (e.message||e).slice(0,100));
+        }
+      });
+    });
+  }
+  render();
+}
+
+function abrirListaFormacoesFoto(formacoes){
+  const o = document.createElement("div");
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:9999999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  o.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:380px; width:100%; margin-top:30px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:16px; margin-bottom:10px;">🎓 Formações por concluir</div>
+      <div id="pendFormacoesLista"></div>
+      <button id="fecharPendFormacoesBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--line); border-radius:10px; padding:11px; font-weight:700; color:var(--ink-soft);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(o);
+  document.getElementById("fecharPendFormacoesBtn").onclick = ()=>o.remove();
+  function render(){
+    if(formacoes.length===0){
+      document.getElementById("pendFormacoesLista").innerHTML = `<div style="font-size:13px; color:var(--ink-soft);">Não há mais formações por concluir.</div>`;
+      return;
+    }
+    document.getElementById("pendFormacoesLista").innerHTML = formacoes.map(f=>`
+      <div style="background:var(--cream,#faf6ef); border-radius:8px; padding:10px 12px; margin-bottom:6px;">
+        <b style="font-size:13px;">${f.colaborador}</b>
+        <div style="color:var(--ink-soft); font-size:12px; margin-top:2px;">${f.formacao}</div>
+        <button class="pendFormacaoConcluirBtn" data-id="${f.id}" style="width:100%; margin-top:8px; background:var(--terracotta,#C1622E); color:#fff; border:none; border-radius:6px; padding:7px; font-size:12px; font-weight:700;">✔ Já fiz a formação no Escolhi Aprender</button>
+      </div>
+    `).join("");
+    document.querySelectorAll(".pendFormacaoConcluirBtn").forEach(btn=>{
+      btn.onclick = protegerClique(btn, async ()=>{
+        const id = btn.dataset.id;
+        try{
+          await api("PATCH", `cj_formacoes?id=eq.${id}`, {justificacao:`Concluída no Escolhi Aprender — confirmado pela loja em ${new Date().toLocaleString('pt-PT')}`});
+          const i = formacoes.findIndex(f=>String(f.id)===String(id));
+          if(i>=0) formacoes.splice(i,1);
+          render();
+          mostrarSucesso("Formação confirmada!");
           await loadAll();
         }catch(e){
           console.error(e);
