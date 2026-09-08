@@ -550,7 +550,19 @@ async function loadAll(){
   }catch(e){ console.error(e); toast("Erro a carregar"); }
 }
 
+let renderEmCurso = false;
+let renderPedidoNovamente = false;
 async function render(){
+  if(renderEmCurso){ renderPedidoNovamente = true; return; }
+  renderEmCurso = true;
+  try{
+    await renderInterno();
+  } finally {
+    renderEmCurso = false;
+    if(renderPedidoNovamente){ renderPedidoNovamente = false; render(); }
+  }
+}
+async function renderInterno(){
   document.getElementById("titleLoja").textContent = currentLoja;
   document.getElementById("dateSub").textContent = new Date().toLocaleDateString('pt-PT', {weekday:'long', day:'2-digit', month:'long'});
   const main = document.getElementById("main");
@@ -603,10 +615,10 @@ async function render(){
     secPorFazer.body.appendChild(card);
     pendingPhotosPedidos[p.id] = pendingPhotosPedidos[p.id] || [];
     const handler = (ev)=>handlePedidoFile(p.id, ev.target.files[0]);
-    document.getElementById(`pedidoCam_${p.id}`).addEventListener("change", handler);
-    document.getElementById(`pedidoGal_${p.id}`).addEventListener("change", handler);
+    document.getElementById(`pedidoCam_${p.id}`)?.addEventListener("change", handler);
+    document.getElementById(`pedidoGal_${p.id}`)?.addEventListener("change", handler);
     const btnEnviarPedido = document.getElementById(`pedidoEnviar_${p.id}`);
-    btnEnviarPedido.onclick = protegerClique(btnEnviarPedido, ()=>enviarPedidoFotos(p.id), "A enviar...");
+    if(btnEnviarPedido) btnEnviarPedido.onclick = protegerClique(btnEnviarPedido, ()=>enviarPedidoFotos(p.id), "A enviar...");
   });
 
   await renderPendenciasCard(secPorFazer.body);
@@ -823,7 +835,11 @@ async function render(){
     hojeGrid.appendChild(tile);
   });
   hojeWrap.appendChild(hojeGrid);
-  main.insertBefore(hojeWrap, secPorFazer.wrap);
+  if(secPorFazer.wrap.parentNode === main){
+    main.insertBefore(hojeWrap, secPorFazer.wrap);
+  } else {
+    main.prepend(hojeWrap);
+  }
 
   const dueInv = categoriasParaLoja(currentLoja).filter(c=>!naoAplicaveis.includes(c.key)).map(c=>({...c, st:invStatus(c.key, c.freq, c.semFoto)})).filter(c=>(c.st.state!=="ok" && c.st.state!=="pausado") || c.st.diaErrado).filter(c=>{
     if(c.key==="global"){
@@ -868,7 +884,7 @@ async function render(){
   linkCorrigir.style.cssText = "text-align:center;";
   linkCorrigir.innerHTML = `<span style="font-size:12.5px; color:var(--ink-soft); text-decoration:underline; cursor:pointer;" id="verEnviosRecentesLink">✏️ Ver/corrigir envios recentes de inventário</span>`;
   secInventario.body.appendChild(linkCorrigir);
-  document.getElementById("verEnviosRecentesLink").onclick = abrirEnviosRecentesInventario;
+  document.getElementById("verEnviosRecentesLink")?.addEventListener("click", abrirEnviosRecentesInventario);
 
   const invParaGrid = dueInv.filter(c=>!c.st.diaErrado);
   if(invParaGrid.length>0){
@@ -2026,7 +2042,7 @@ function abrirConfirmarStockNegLoja(id){
   document.getElementById("stockNegConfirmarSalvarBtn").onclick = protegerClique(document.getElementById("stockNegConfirmarSalvarBtn"), async ()=>{
     let fotoUrl = null;
     if(fotoDataUrl){
-      fotoUrl = await uploadPhoto(fotoDataUrl, `stock_negativo/${currentLoja}_${id}_${Date.now()}.jpg`);
+      fotoUrl = await uploadPhoto(fotoDataUrl, `stock_negativo/${slug(currentLoja)}_${id}_${Date.now()}.jpg`);
     }
     await api("PATCH", `cj_stock_negativo?id=eq.${id}`, {confirmado:true, confirmado_por:currentLoja, confirmado_em:new Date().toISOString(), foto_confirmacao:fotoUrl});
     toast("✔ Confirmado!");
@@ -2429,7 +2445,7 @@ function abrirCapturaCertificadoOleo(){
     if(!fotoDataUrl && !certificadoOleoAtual?.foto){ toast("Tira uma foto do certificado"); return; }
     let fotoUrl = certificadoOleoAtual?.foto || null;
     if(fotoDataUrl){
-      fotoUrl = await uploadPhoto(fotoDataUrl, `certificados_oleo/${currentLoja}_${Date.now()}.jpg`);
+      fotoUrl = await uploadPhoto(fotoDataUrl, `certificados_oleo/${slug(currentLoja)}_${Date.now()}.jpg`);
     }
     if(certificadoOleoAtual){
       await api("PATCH", `cj_certificados_oleo?loja=eq.${encodeURIComponent(currentLoja)}`, {foto:fotoUrl, data_validade:dataValidade, criado_por:currentLoja, alerta_enviado:false});
@@ -2498,7 +2514,7 @@ function abrirCapturaCalibracaoMedidorOleo(){
     if(!fotoDataUrl && !calibracaoMedidorAtual?.foto){ toast("Tira uma foto da calibração"); return; }
     let fotoUrl = calibracaoMedidorAtual?.foto || null;
     if(fotoDataUrl){
-      fotoUrl = await uploadPhoto(fotoDataUrl, `calibracao_medidor_oleo/${currentLoja}_${Date.now()}.jpg`);
+      fotoUrl = await uploadPhoto(fotoDataUrl, `calibracao_medidor_oleo/${slug(currentLoja)}_${Date.now()}.jpg`);
     }
     if(calibracaoMedidorAtual){
       await api("PATCH", `cj_calibracoes_oleo?loja=eq.${encodeURIComponent(currentLoja)}`, {foto:fotoUrl, data_validade:dataValidade, criado_por:currentLoja, alerta_enviado:false});
