@@ -2585,7 +2585,8 @@ async function abrirFotosPontuaisHub(){
 
     const capturaWrap = document.getElementById(`fpCapturaWrap_${p.id}`);
     const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
-    const fotosHtml = respostasComFoto.length===0 ? `<div style="font-size:12px; color:var(--t2);">Ainda ninguém enviou.</div>` :
+    const fotosHtml = respostasComFoto.length===0 ?
+      `<div style="font-size:12px; color:#555; line-height:1.5;">${p.descricao ? p.descricao : 'Ainda ninguém enviou.'}</div>` :
       respostasComFoto.sort((a,b)=>a.loja.localeCompare(b.loja)).map(r=>(r.fotos||[]).map(f=>`
         <div style="text-align:center; display:inline-block; margin:0 6px 8px 0; vertical-align:top;">
           <img src="${f.url}" style="width:74px; height:74px; object-fit:cover; border-radius:8px; border:1px solid #eee; display:block;">
@@ -2605,12 +2606,10 @@ async function abrirFotosPontuaisHub(){
       <div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #f0ebe3;">${linhasStatusHtml}</div>
       <div>${fotosHtml}</div>
     `;
-    if(respostasComFoto.length>0){
-      // espera as imagens carregarem antes de disponibilizar a partilha, para o html2canvas nao capturar em branco
-      const imgs = Array.from(capturaWrap.querySelectorAll("img"));
-      await Promise.all(imgs.map(img=>img.complete ? Promise.resolve() : new Promise(res=>{ img.onload=res; img.onerror=res; })));
-      criarBotoesPartilhaHub(document.getElementById(`fpPartilhaBtns_${p.id}`), capturaWrap, `CoreJoint_fotos_${p.titulo.replace(/\s+/g,"_")}`, `CoreJoint · ${p.titulo}`);
-    }
+    // espera as imagens carregarem (se houver) antes de disponibilizar a partilha, para o html2canvas nao capturar em branco
+    const imgs = Array.from(capturaWrap.querySelectorAll("img"));
+    await Promise.all(imgs.map(img=>img.complete ? Promise.resolve() : new Promise(res=>{ img.onload=res; img.onerror=res; })));
+    criarBotoesPartilhaHub(document.getElementById(`fpPartilhaBtns_${p.id}`), capturaWrap, `CoreJoint_fotos_${p.titulo.replace(/\s+/g,"_")}`, `CoreJoint · ${p.titulo}`);
   }
 }
 
