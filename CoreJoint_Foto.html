@@ -2704,6 +2704,9 @@ function abrirFormularioResposta(fm, respostaExistente){
   overlay.id = "formRespOverlay";
   const valoresAtuais = respostaExistente ? respostaExistente.respostas : {};
   let camposHtml = fm.perguntas.map(p=>{
+    if(p.tipo==="info"){
+      return `<div style="font-size:13px; color:var(--ink-soft); background:var(--cream,#faf6ef); border-radius:8px; padding:10px 12px; margin-bottom:12px; line-height:1.4;">${p.texto}</div>`;
+    }
     const valorAtual = valoresAtuais[p.id] || "";
     const escondido = p.condicao ? "display:none;" : "";
     let campoInterno;
@@ -2752,6 +2755,7 @@ async function submeterFormulario(formularioId){
   const perguntas = overlay.__perguntas;
   const respostas = {};
   for(const p of perguntas){
+    if(p.tipo==="info") continue;
     const campoDiv = document.getElementById(`fcampo-${p.id}`);
     const escondidoPorCondicao = campoDiv && campoDiv.style.display === "none";
     const el = document.getElementById(`fresp-${p.id}`);
