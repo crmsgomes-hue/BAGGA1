@@ -524,6 +524,7 @@ async function renderPanoramaGeral(){
         ])}
 
         ${secao("Outros")}
+        <button id="btnInscricoesFormacaoHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">🎓 Inscrições — Formação Horários</button>
         ${botoesAcao([
           ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
           ["📊 Sondagens e Formulários","CoreJoint_Reportes.html?abrir=grelhaSondagensForms"],
@@ -557,6 +558,7 @@ async function renderPanoramaGeral(){
       document.getElementById("btnAbrirSemanalHub").onclick = abrirRelatorioSemanalHub;
       document.getElementById("btnAbrirRegistosQuebrasHub").onclick = abrirRegistosQuebrasHub;
       document.getElementById("btnAbrirExportQuebrasEmpresaHub").onclick = abrirExportQuebrasEmpresaHub;
+      document.getElementById("btnInscricoesFormacaoHub").onclick = ()=>abrirDetalheFormularioHub(8);
       document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
       document.getElementById("btnAbrirFotosCategoriaHub").onclick = ()=>{
         fecharEcraHub();
@@ -2341,6 +2343,62 @@ async function abrirResetCategoriaHub(){
     toast(`✔ Reset de ${catLabel} aplicado`);
     renderAtivos();
   };
+}
+
+async function abrirDetalheFormularioHub(formularioId){
+  const overlay = document.createElement("div");
+  overlay.id = "detalheFormOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:480px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div id="detalheFormConteudoHub"><div style="text-align:center; padding:20px 0; color:var(--t2); font-size:.85rem;">A carregar...</div></div>
+      <button id="fecharDetalheFormHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharDetalheFormHubBtn").onclick = ()=>fecharEcraHub();
+
+  const [form, respostas] = await Promise.all([
+    api(`cj_formularios?select=*&id=eq.${formularioId}`, "GET"),
+    api(`cj_formularios_respostas?select=*&formulario_id=eq.${formularioId}`, "GET")
+  ]);
+  const f = form[0];
+  const perguntas = f.perguntas;
+  const lojasAlvo = (f.lojas_alvo && f.lojas_alvo.length>0) ? f.lojas_alvo : (f.loja_alvo ? [f.loja_alvo] : LOJAS);
+
+  const capturaWrap = document.createElement("div");
+  capturaWrap.style.cssText = "background:#fff; padding:4px;";
+  const linhas = lojasAlvo.map(l=>{
+    const r = respostas.find(x=>x.loja===l);
+    const celulas = perguntas.map(p=>{
+      const resp = r ? r.respostas[p.id] : null;
+      const cor = !resp ? 'var(--t2)' : (resp==="Não vou" ? '#b0432f' : 'var(--grn,#3a7d44)');
+      return `<td style="padding:6px 4px; border-bottom:1px solid var(--br); font-size:11px; text-align:center; color:${cor}; font-weight:${resp?'700':'400'};">${resp||'—'}</td>`;
+    }).join("");
+    return `<tr><td style="padding:6px 4px; border-bottom:1px solid var(--br); font-size:12px; font-weight:700;">${l}</td>${celulas}</tr>`;
+  }).join("");
+  capturaWrap.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:2px;">${f.titulo}</div>
+    <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'})} · ${respostas.length}/${lojasAlvo.length} responderam</div>
+    <div style="overflow-x:auto;">
+    <table style="border-collapse:collapse; width:100%;">
+      <thead><tr><th></th>${perguntas.map((p,i)=>`<th style="font-size:10px; color:var(--terracotta); padding:4px 2px; border-bottom:2px solid var(--terracotta);">Mód. ${i+1}</th>`).join("")}</tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>
+    </div>
+    <div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--br); font-size:10px; color:var(--t2);">
+      ${perguntas.map((p,i)=>`<div style="margin-bottom:2px;"><b>Mód. ${i+1}</b> — ${p.texto}</div>`).join("")}
+    </div>
+  `;
+
+  document.getElementById("detalheFormConteudoHub").innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:12px;">${f.titulo}</div>
+    <div id="detalheFormCapturaHost"></div>
+    <div id="detalheFormPartilhaBtnsHub" style="margin-top:12px; display:flex; gap:8px;"></div>
+  `;
+  document.getElementById("detalheFormCapturaHost").appendChild(capturaWrap);
+  criarBotoesPartilhaHub(document.getElementById("detalheFormPartilhaBtnsHub"), capturaWrap, `CoreJoint_${f.titulo.replace(/\s+/g,"_")}`, `CoreJoint · ${f.titulo}`);
 }
 
 async function abrirPinsLojasHub(){
