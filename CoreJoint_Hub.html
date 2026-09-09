@@ -2364,7 +2364,7 @@ async function abrirDetalheFormularioHub(formularioId){
     api(`cj_formularios_respostas?select=*&formulario_id=eq.${formularioId}`, "GET")
   ]);
   const f = form[0];
-  const perguntas = f.perguntas;
+  const perguntas = f.perguntas.filter(p=>p.tipo!=="info");
   const lojasAlvo = (f.lojas_alvo && f.lojas_alvo.length>0) ? f.lojas_alvo : (f.loja_alvo ? [f.loja_alvo] : LOJAS);
 
   const capturaWrap = document.createElement("div");
