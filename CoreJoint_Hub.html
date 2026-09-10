@@ -525,6 +525,7 @@ async function renderPanoramaGeral(){
 
         ${secao("Outros")}
         <button id="btnInscricoesFormacaoHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">🎓 Inscrições — Formação Horários</button>
+        <button id="btnApsPreventivaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📋 APS e Preventiva Delta</button>
         ${botoesAcao([
           ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
           ["📊 Sondagens e Formulários","CoreJoint_Reportes.html?abrir=grelhaSondagensForms"],
@@ -559,6 +560,7 @@ async function renderPanoramaGeral(){
       document.getElementById("btnAbrirRegistosQuebrasHub").onclick = abrirRegistosQuebrasHub;
       document.getElementById("btnAbrirExportQuebrasEmpresaHub").onclick = abrirExportQuebrasEmpresaHub;
       document.getElementById("btnInscricoesFormacaoHub").onclick = ()=>abrirDetalheFormularioHub(8);
+      document.getElementById("btnApsPreventivaHub").onclick = abrirRelatorioApsPreventivaHub;
       document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
       document.getElementById("btnAbrirFotosCategoriaHub").onclick = ()=>{
         fecharEcraHub();
@@ -1936,6 +1938,60 @@ function protegerCliqueHub(btn, fn, textoDurante){
     catch(e){ console.error(e); toast("Erro: " + (e.message||e).slice(0,100)); }
     finally{ btn.disabled = false; if(textoDurante) btn.textContent = original; }
   };
+}
+
+async function abrirRelatorioApsPreventivaHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "apsPrevOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:12px;">📋 APS e Preventiva Delta</div>
+      <div id="apsPrevCapturaWrapHub"></div>
+      <div id="apsPrevPartilhaBtnsHub"></div>
+      <button id="fecharApsPrevHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharApsPrevHubBtn").onclick = ()=>fecharEcraHub();
+
+  const capturaWrap = document.getElementById("apsPrevCapturaWrapHub");
+  const hoje = new Date();
+  const inicioMes = isoDate(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  const fimMes = isoDate(new Date(hoje.getFullYear(), hoje.getMonth()+1, 0));
+  const mesLabel = hoje.toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
+
+  let rows = await api(`cj_inventario_reportes?select=loja,categoria,data&categoria=in.(aps,preventiva_delta)&data=gte.${inicioMes}&data=lte.${fimMes}`, "GET");
+  rows = await aplicarCorteCategoria(rows);
+  const naoAplic = await api("cj_categoria_nao_aplicavel?select=loja,categoria", "GET");
+
+  const linhasHtml = LOJAS.map(l=>{
+    const semAps = naoAplic.some(n=>n.loja===l && n.categoria==="aps");
+    const semPrev = naoAplic.some(n=>n.loja===l && n.categoria==="preventiva_delta");
+    const apsFeito = rows.some(r=>r.loja===l && r.categoria==="aps");
+    const prevFeito = rows.some(r=>r.loja===l && r.categoria==="preventiva_delta");
+    return `<tr>
+      <td style="font-weight:700; font-size:10.5px; padding:5px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>
+      <td style="text-align:center; font-size:12px; padding:5px 2px; border-bottom:1px solid #f0ebe3;">${semAps?'<span style="color:var(--t2);">—</span>':(apsFeito?'<span style="color:#2e7d32; font-weight:800;">✔</span>':'<span style="color:#b0432f; font-weight:800;">✕</span>')}</td>
+      <td style="text-align:center; font-size:12px; padding:5px 2px; border-bottom:1px solid #f0ebe3;">${semPrev?'<span style="color:var(--t2);">—</span>':(prevFeito?'<span style="color:#2e7d32; font-weight:800;">✔</span>':'<span style="color:#b0432f; font-weight:800;">✕</span>')}</td>
+    </tr>`;
+  }).join("");
+
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+  capturaWrap.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · APS e Preventiva Delta</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${mesLabel} — feito este mês</div>
+    <table style="border-collapse:collapse; width:100%;">
+      <thead><tr>
+        <th></th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 4px; border-bottom:2px solid #C1622D;">APS</th>
+        <th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 4px; border-bottom:2px solid #C1622D;">Prev. Delta</th>
+      </tr></thead>
+      <tbody>${linhasHtml}</tbody>
+    </table>
+  `;
+  criarBotoesPartilhaHub(document.getElementById("apsPrevPartilhaBtnsHub"), capturaWrap, `CoreJoint_aps_preventiva`, "CoreJoint · APS e Preventiva Delta");
 }
 
 async function abrirRelatorioMensalHub(){
