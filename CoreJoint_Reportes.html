@@ -3042,7 +3042,7 @@ function openEvolucaoCnvs(){
 
   const explicacao = document.createElement("div");
   explicacao.style.cssText = "font-size:12px; color:var(--ink-soft); background:var(--cream,#faf6ef); border-radius:8px; padding:10px 12px; margin-bottom:14px; line-height:1.4;";
-  explicacao.textContent = "CNVs = consumíveis. Para acertar o valor, tem de se fazer uma entrada justificada no Winrest e, a seguir, um desperdício — motivo: correção de inventário e consumíveis Winrest. As barras mostram a evolução mês a mês; cinzento = sem envio nesse mês.";
+  explicacao.textContent = "CNVs = consumíveis. Para acertar o valor, tem de se fazer uma entrada justificada no Winrest e, a seguir, um desperdício — motivo: correção de inventário e consumíveis Winrest. Lista abaixo: valor, data e quem enviou, últimos 6 meses.";
   main.appendChild(explicacao);
 
   const capturaWrap = document.createElement("div");
@@ -3052,33 +3052,40 @@ function openEvolucaoCnvs(){
   tituloImg.textContent = "CoreJoint · CNVs (Global)";
   const subImg = document.createElement("div");
   subImg.style.cssText = "font-size:10px; color:#777; margin-bottom:8px;";
-  subImg.textContent = "Valor de consumíveis reportado no Global, últimos 12 meses";
+  subImg.textContent = "Valor de consumíveis reportado no Global — data, quem enviou, últimos 6 meses";
   capturaWrap.appendChild(tituloImg);
   capturaWrap.appendChild(subImg);
   main.appendChild(capturaWrap);
 
-  LOJAS.forEach(l=>{
-    const valores = months.map(m=>{
+  const meses6 = months.slice(-6);
+  const linhasHtml = LOJAS.map(l=>{
+    const entradas = meses6.map(m=>{
       const mk = monthKey(m);
       const row = invRows.find(r=>r.loja===l && r.categoria==="global" && r.data && r.data.slice(0,7)===mk);
-      return row ? (row.valor_cnvs ?? null) : null;
-    });
-    if(valores.every(v=>v===null)) return;
-    const maxV = Math.max(...valores.filter(v=>v!==null), 1);
-    const card = document.createElement("div");
-    card.className = "card";
-    let html = `<div class="card-title" style="margin-bottom:8px;">${l}</div><div style="display:flex; align-items:flex-end; gap:4px; height:80px;">`;
-    valores.forEach((v,i)=>{
-      const h = v!==null ? Math.max(6, (v/maxV)*70) : 4;
-      html += `<div style="flex:1; display:flex; flex-direction:column; align-items:center;">
-        <div style="width:100%; height:${h}px; background:${v!==null?'var(--terracotta)':'var(--line)'}; border-radius:3px 3px 0 0;" title="${monthLabel(months[i])}: ${v!==null?v+'€':'sem envio'}"></div>
-        <div style="font-size:7px; color:var(--ink-soft); margin-top:2px;">${monthLabel(months[i])}</div>
-      </div>`;
-    });
-    html += `</div>`;
-    card.innerHTML = html;
-    capturaWrap.appendChild(card);
-  });
+      return row;
+    }).filter(Boolean);
+    if(entradas.length===0) return "";
+    return entradas.map((r,i)=>`
+      <tr>
+        ${i===0 ? `<td rowspan="${entradas.length}" style="font-weight:700; font-size:12px; padding:6px 6px; border-bottom:1px solid #f0ebe3; vertical-align:top;">${l}</td>` : ``}
+        <td style="font-size:11px; padding:6px 4px; border-bottom:1px solid #f0ebe3; color:#777;">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</td>
+        <td style="font-size:11px; padding:6px 4px; border-bottom:1px solid #f0ebe3;">${r.enviado_por||'—'}</td>
+        <td style="font-size:12px; padding:6px 4px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:${r.valor_cnvs<0?'#b0432f':'#2e7d32'};">${r.valor_cnvs!=null ? Number(r.valor_cnvs).toFixed(2).replace('.',',')+'€' : '—'}</td>
+      </tr>
+    `).join("");
+  }).join("");
+
+  capturaWrap.innerHTML = `
+    <table style="border-collapse:collapse; width:100%;">
+      <thead><tr>
+        <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 6px; border-bottom:2px solid #C1622D;">Loja</th>
+        <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Data</th>
+        <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Quem enviou</th>
+        <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:4px 4px; border-bottom:2px solid #C1622D;">CNVs</th>
+      </tr></thead>
+      <tbody>${linhasHtml}</tbody>
+    </table>
+  `;
 
   criarBotoesPartilha(main, capturaWrap, "CoreJoint_cnvs", "CoreJoint · CNVs (Global)", location.origin + location.pathname + "?abrir=cnvs");
 }
