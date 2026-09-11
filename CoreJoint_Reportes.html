@@ -3076,7 +3076,8 @@ function openEvolucaoCnvs(){
     `).join("");
   }).join("");
 
-  capturaWrap.innerHTML = `
+  const tabelaEl = document.createElement("div");
+  tabelaEl.innerHTML = `
     <table style="border-collapse:collapse; width:100%;">
       <thead><tr>
         <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 6px; border-bottom:2px solid #C1622D;">Loja</th>
@@ -3088,6 +3089,7 @@ function openEvolucaoCnvs(){
       <tbody>${linhasHtml}</tbody>
     </table>
   `;
+  capturaWrap.appendChild(tabelaEl);
 
   criarBotoesPartilha(main, capturaWrap, "CoreJoint_cnvs", "CoreJoint · CNVs (Global)", location.origin + location.pathname + "?abrir=cnvs");
 }
