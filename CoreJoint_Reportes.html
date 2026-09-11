@@ -3101,9 +3101,6 @@ function openHistoricoAnual(){
   back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
-  const hoje = new Date();
-  const mesAtualLabel = hoje.toLocaleDateString('pt-PT',{month:'long'});
-  const anoAtual = hoje.getFullYear();
   const yoyCard = document.createElement("div");
   yoyCard.className = "card";
   let yoyHtml = `<div class="card-title" style="margin-bottom:8px; text-transform:capitalize;">📊 ${mesAtualLabel} — este ano vs. ano passado</div>`;
@@ -3114,7 +3111,6 @@ function openHistoricoAnual(){
     yoyHtml += `<div style="display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:1px solid var(--line);"><span>${l}</span><span>${nEste} vs ${nAno}${seta}</span></div>`;
   });
   yoyCard.innerHTML = yoyHtml;
-  main.appendChild(yoyCard);
 
   const months = [];
   for(let i=11;i>=0;i--){
@@ -3131,7 +3127,16 @@ function openHistoricoAnual(){
   const title = document.createElement("div");
   title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:14px;";
   title.textContent = "✔ = pelo menos 1 envio nesse período";
-  main.appendChild(title);
+
+  const capturaWrap = document.createElement("div");
+  capturaWrap.style.cssText = "background:#fff; padding:4px;";
+  const tituloImg = document.createElement("div");
+  tituloImg.style.cssText = "font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:8px;";
+  tituloImg.textContent = "CoreJoint · Histórico 12 meses";
+  capturaWrap.appendChild(tituloImg);
+  capturaWrap.appendChild(yoyCard);
+  capturaWrap.appendChild(title);
+  main.appendChild(capturaWrap);
 
   LOJAS.forEach(l=>{
     const semanais = categoriasParaLoja(l).filter(c=>c.freq==="semanal");
@@ -3190,8 +3195,10 @@ function openHistoricoAnual(){
     });
 
     card.innerHTML = html;
-    main.appendChild(card);
+    capturaWrap.appendChild(card);
   });
+
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_historico12m", "CoreJoint · Histórico 12 meses", location.origin + location.pathname + "?abrir=historico12m");
 }
 
 /* ---------- EXPORTAR PARA EXCEL ---------- */
