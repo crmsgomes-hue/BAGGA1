@@ -5318,6 +5318,8 @@ async function confirmarImportarHorarios(){
     importado_por: currentUser
   }));
   try{
+    // o ficheiro da empresa e sempre o horario completo e atual - substitui tudo
+    await api("DELETE", "cj_horarios?loja=not.is.null");
     await api("POST", "cj_horarios", payload);
   }catch(e){
     toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
