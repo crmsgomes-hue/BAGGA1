@@ -5087,7 +5087,8 @@ function semanaKey(d){
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js', {scope: './'}).catch(e=>console.warn('sw.js falhou', e));
 }
-// Verifica automaticamente se há uma versão nova publicada e mostra uma faixa a avisar (nunca recarrega sozinho sem dizer)
+// Verifica automaticamente se há uma versão nova publicada. Se estiveres no ecrã
+// principal (sem nada aberto), recarrega sozinho. Se estiveres a meio de algo, só avisa.
 let versaoInicial = null;
 function mostrarFaixaAtualizacao(){
   if(document.getElementById("_faixaAtualizacao")) return;
@@ -5106,11 +5107,15 @@ async function verificarAtualizacao(){
     if(!marca) return;
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
-      mostrarFaixaAtualizacao();
+      if(typeof pilhaEcraisHub !== "undefined" && pilhaEcraisHub.length===0){
+        location.reload();
+      } else {
+        mostrarFaixaAtualizacao();
+      }
     }
   }catch(e){ /* falha silenciosa, tenta outra vez depois */ }
 }
-setInterval(verificarAtualizacao, 90*1000);
+setInterval(verificarAtualizacao, 30*1000);
 verificarAtualizacao();
 
 </script>
