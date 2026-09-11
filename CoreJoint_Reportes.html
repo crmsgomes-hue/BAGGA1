@@ -3435,16 +3435,30 @@ function nomeLimpoLojaExterna(lojaOriginal){
   let n = String(lojaOriginal).replace(/^BAGGA\s+/i, "").replace(/^CZ CNT\s+/i, "").trim();
   return n.split(" ").map(p=>p.length<=2 ? p.toUpperCase() : p.charAt(0).toUpperCase()+p.slice(1).toLowerCase()).join(" ");
 }
-function criarBotoesPartilha(main, capturaWrap, nomeFicheiro, tituloPartilha){
+function criarBotoesPartilha(main, capturaWrap, nomeFicheiro, tituloPartilha, linkParaCopiar){
   const actionsRow = document.createElement("div");
-  actionsRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px;";
+  actionsRow.style.cssText = "display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;";
   actionsRow.innerHTML = `
     <button class="cambtn">📱 Partilhar (WhatsApp)</button>
     <button class="cambtn secondary">📸 Copiar</button>
+    ${linkParaCopiar ? `<button class="cambtn secondary">🔗 Copiar link (atualiza sozinho)</button>` : ``}
   `;
   main.appendChild(actionsRow);
   const btnPartilhar = actionsRow.children[0];
   const btnCopiar = actionsRow.children[1];
+  if(linkParaCopiar){
+    const btnLink = actionsRow.children[2];
+    btnLink.onclick = async ()=>{
+      const textoOriginal = btnLink.textContent;
+      try{
+        await navigator.clipboard.writeText(linkParaCopiar);
+        btnLink.textContent = "✔ Link copiado!";
+      }catch(e){
+        btnLink.textContent = "Erro ao copiar";
+      }
+      setTimeout(()=>{ btnLink.textContent = textoOriginal; }, 1500);
+    };
+  }
 
   async function gerarImagem(){
     return new Promise((resolve, reject)=>{
@@ -3524,7 +3538,7 @@ async function abrirRelatorioVisualInventario(){
   const capturaWrap = document.createElement("div");
   capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line);";
   main.appendChild(capturaWrap);
-  criarBotoesPartilha(main, capturaWrap, "CoreJoint_inventario", "CoreJoint · Inventário");
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_inventario", "CoreJoint · Inventário", location.origin + location.pathname + "?abrir=visualInventario");
 
   const avisoAuto = document.createElement("div");
   avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
@@ -5443,7 +5457,7 @@ async function abrirPainelMonitorizacao(){
 
   const capturaWrap = document.createElement("div");
   main.appendChild(capturaWrap);
-  criarBotoesPartilha(main, capturaWrap, "CoreJoint_monitorizacao", "CoreJoint · Monitorização de lojas");
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_monitorizacao", "CoreJoint · Monitorização de lojas", location.origin + location.pathname + "?abrir=painelMonitorizacao");
 
   const avisoAuto = document.createElement("div");
   avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
