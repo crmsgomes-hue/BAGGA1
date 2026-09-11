@@ -5547,9 +5547,10 @@ async function abrirPainelMonitorizacao(){
       const quebrasLoja = quebrasMes.filter(q=>q.loja===l);
       const totalQuebras = quebrasLoja.reduce((s,q)=>s+Math.abs(Number(q.valor_quebra||0)),0);
 
-      // streak positivo (dias consecutivos completos, a contar de hoje para tras)
+      // streak positivo (dias consecutivos completos, a contar de ontem para tras -
+      // hoje fica de fora porque o dia normalmente ainda nao acabou quando se ve este relatorio)
       let streak = 0;
-      for(let i=0;i<60;i++){
+      for(let i=1;i<60;i++){
         const d = new Date(hoje); d.setDate(d.getDate()-i);
         const ds = isoDate(d);
         if(diaCompleto(l, ds)) streak++;
