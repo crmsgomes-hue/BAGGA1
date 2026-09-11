@@ -4493,26 +4493,16 @@ async function confirmarImportarTrocas(){
     id: crypto.randomUUID(), loja: t.loja||null, loja_original: t.lojaOriginal, tipo:"troca_horario", descricao: t.descricao || null, data: t.data, data_iso: t.data,
     estado: "pendente", criado_por: t.operador, fora_dop: trocasForaDop.includes(t)
   }));
-  let existentes = [];
   try{
-    existentes = await api("GET", "cj_trocas?select=loja,criado_por,data,descricao");
-  }catch(e){ existentes = []; }
-  const chaveExistente = new Set(existentes.map(r=>[r.loja||"", r.criado_por||"", r.data||"", r.descricao||""].join("|")));
-  const payloadNovo = payload.filter(p=>!chaveExistente.has([p.loja||"", p.criado_por||"", p.data||"", p.descricao||""].join("|")));
-  const jaExistiam = payload.length - payloadNovo.length;
-  if(payloadNovo.length===0){
-    toast(`As ${payload.length} troca(s) já estavam todas importadas — nada de novo para gravar.`);
-    trocasParaImportar = []; trocasComErro = []; trocasForaDop = [];
-    const v = previousView; previousView = null; (v||render)();
-    return;
-  }
-  try{
-    await api("POST", "cj_trocas", payloadNovo);
+    // o ficheiro da empresa e sempre a lista completa e atual das pendentes -
+    // substitui todas as pendentes antigas, mas nunca mexe nas ja aceites pela loja
+    await api("DELETE", "cj_trocas?estado=eq.pendente");
+    await api("POST", "cj_trocas", payload);
   }catch(e){
     toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
     return;
   }
-  mostrarSucesso(`${payloadNovo.length} troca(s) de horário importada(s) nova(s)${jaExistiam>0?` (${jaExistiam} já existiam e foram ignoradas)`:''}`);
+  mostrarSucesso(`${todas.length} troca(s) de horário importada(s) (lista de pendentes substituída; as já aceites mantêm-se)`);
   trocasParaImportar = []; trocasComErro = []; trocasForaDop = [];
   const v = previousView; previousView = null; (v||render)();
 }
@@ -5833,12 +5823,15 @@ async function confirmarImportarStockNeg(){
     fora_dop: stockNegForaDop.includes(r)
   }));
   try{
+    // o ficheiro da empresa e sempre a lista completa e atual -
+    // substitui os registos ainda nao confirmados, mas nunca mexe nos ja confirmados pela loja
+    await api("DELETE", "cj_stock_negativo?justificacao=is.null");
     await api("POST", "cj_stock_negativo", payload);
   }catch(e){
     toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
     return;
   }
-  mostrarSucesso(`${todos.length} registo(s) de stock negativo importado(s)`);
+  mostrarSucesso(`${todos.length} registo(s) de stock negativo importado(s) (lista substituída; os já confirmados mantêm-se)`);
   stockNegParaImportar = []; stockNegForaDop = []; stockNegComErro = [];
   const v = previousView; previousView = null; (v||render)();
 }
