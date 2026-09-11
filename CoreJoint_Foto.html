@@ -1068,12 +1068,19 @@ function openCapture(kind, key, label, turno, estaAtrasado){
       ${isInv ? `
         <div class="field" style="margin-top:16px;">
           <label>Valor do inventário (€)</label>
-          <input id="vInv" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
+          <div style="display:flex; gap:8px;">
+            <button type="button" id="vInvSinal" style="width:44px; flex-shrink:0; font-size:18px; font-weight:800; border-radius:8px; border:1.5px solid var(--terracotta,#C1622E); background:none; color:var(--terracotta,#C1622E);">+</button>
+            <input id="vInv" type="number" inputmode="decimal" step="0.01" placeholder="0.00" style="flex:1;">
+          </div>
+          <div class="sub" style="margin-top:2px;">Se for negativo (falta), toca no botão ao lado para pôr o sinal — o teclado do telemóvel não tem tecla de menos.</div>
         </div>
         ${key==="global" ? `
         <div class="field">
           <label>Valor CNVs (consumíveis) (€)</label>
-          <input id="vCnvs" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
+          <div style="display:flex; gap:8px;">
+            <button type="button" id="vCnvsSinal" style="width:44px; flex-shrink:0; font-size:18px; font-weight:800; border-radius:8px; border:1.5px solid var(--terracotta,#C1622E); background:none; color:var(--terracotta,#C1622E);">+</button>
+            <input id="vCnvs" type="number" inputmode="decimal" step="0.01" placeholder="0.00" style="flex:1;">
+          </div>
         </div>
         <div class="field">
           <label>Foto(s) da entrada justificada</label>
@@ -1115,6 +1122,23 @@ function openCapture(kind, key, label, turno, estaAtrasado){
   if(desperdicioInput) desperdicioInput.addEventListener("change", handleCapFileDesperdicio);
   const desperdicioGaleriaInput = document.getElementById("capFileDesperdicioGaleria");
   if(desperdicioGaleriaInput) desperdicioGaleriaInput.addEventListener("change", handleCapFileDesperdicio);
+
+  function ligarBotaoSinal(idBotao, idInput){
+    const btn = document.getElementById(idBotao);
+    const input = document.getElementById(idInput);
+    if(!btn || !input) return;
+    btn.onclick = ()=>{
+      const negativo = btn.textContent === "−";
+      btn.textContent = negativo ? "+" : "−";
+      btn.style.background = negativo ? "none" : "var(--red,#b0432f)";
+      btn.style.color = negativo ? "var(--terracotta,#C1622E)" : "#fff";
+      btn.style.borderColor = negativo ? "var(--terracotta,#C1622E)" : "var(--red,#b0432f)";
+      const v = Math.abs(parseFloat(input.value)||0);
+      if(v>0) input.value = negativo ? v : -v;
+    };
+  }
+  ligarBotaoSinal("vInvSinal", "vInv");
+  ligarBotaoSinal("vCnvsSinal", "vCnvs");
 }
 function closeCapture(){
   const o = document.getElementById("capOverlay");
@@ -1756,7 +1780,10 @@ function corrigirValorEnvio(r){
       <div class="sub">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</div>
       <div class="field" style="margin-top:14px;">
         <label>Valor do inventário (€)</label>
-        <input id="corrigirValorInput" type="number" inputmode="decimal" step="0.01" value="${r.valor_inventario||''}" placeholder="0.00">
+        <div style="display:flex; gap:8px;">
+          <button type="button" id="corrigirValorSinal" style="width:44px; flex-shrink:0; font-size:18px; font-weight:800; border-radius:8px; border:1.5px solid var(--terracotta,#C1622E); background:none; color:var(--terracotta,#C1622E);">${(r.valor_inventario||0)<0?'−':'+'}</button>
+          <input id="corrigirValorInput" type="number" inputmode="decimal" step="0.01" value="${r.valor_inventario||''}" placeholder="0.00" style="flex:1;">
+        </div>
       </div>
       <div class="field">
         <label>Foto(s) — toca no ✕ se estiver errada, e tira/escolhe outra</label>
@@ -1774,6 +1801,20 @@ function corrigirValorEnvio(r){
   `;
   document.body.appendChild(overlay);
   renderCorrigirFotosGrid(r);
+  {
+    const btn = document.getElementById("corrigirValorSinal");
+    const input = document.getElementById("corrigirValorInput");
+    if((r.valor_inventario||0)<0){ btn.style.background="var(--red,#b0432f)"; btn.style.color="#fff"; btn.style.borderColor="var(--red,#b0432f)"; }
+    btn.onclick = ()=>{
+      const negativo = btn.textContent === "−";
+      btn.textContent = negativo ? "+" : "−";
+      btn.style.background = negativo ? "none" : "var(--red,#b0432f)";
+      btn.style.color = negativo ? "var(--terracotta,#C1622E)" : "#fff";
+      btn.style.borderColor = negativo ? "var(--terracotta,#C1622E)" : "var(--red,#b0432f)";
+      const v = Math.abs(parseFloat(input.value)||0);
+      if(v>0) input.value = negativo ? v : -v;
+    };
+  }
   document.getElementById("corrigirFotoCamara").addEventListener("change", (ev)=>adicionarFotoEnvio(r, ev.target.files[0]));
   document.getElementById("corrigirFotoGaleria").addEventListener("change", (ev)=>adicionarFotoEnvio(r, ev.target.files[0]));
   document.getElementById("corrigirValorGuardarBtn").onclick = async ()=>{
