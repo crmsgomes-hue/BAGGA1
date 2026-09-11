@@ -5691,12 +5691,15 @@ async function confirmarImportarFormacoes(){
     fora_dop: formacoesForaDop.includes(r)
   }));
   try{
+    // o ficheiro da empresa e sempre a lista completa e atual -
+    // substitui os registos ainda nao justificados, mas nunca mexe nos ja justificados pela loja
+    await api("DELETE", "cj_formacoes?justificacao=is.null");
     await api("POST", "cj_formacoes", payload);
   }catch(e){
     toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
     return;
   }
-  mostrarSucesso(`${todos.length} registo(s) de formação importado(s)`);
+  mostrarSucesso(`${todos.length} registo(s) de formação importado(s) (lista substituída; os já justificados mantêm-se)`);
   formacoesParaImportar = []; formacoesForaDop = []; formacoesComErro = [];
   const v = previousView; previousView = null; (v||render)();
 }
