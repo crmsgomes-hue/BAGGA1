@@ -4407,6 +4407,14 @@ function handleTrocasFile(ev){
       const headers = Object.keys(rows[0]);
 
       function finalizarImportacao(todasLinhas){
+        // remove duplicados exatos dentro do proprio ficheiro (mesma loja+operador+data+tipo+descricao)
+        const vistos = new Set();
+        todasLinhas = todasLinhas.filter(r=>{
+          const chave = [r.loja||"", r.operador||"", r.data||"", r.descricao||""].join("|");
+          if(vistos.has(chave)) return false;
+          vistos.add(chave);
+          return true;
+        });
         trocasParaImportar = todasLinhas.filter(r=>r.loja);
         const semLoja = todasLinhas.filter(r=>!r.loja);
         trocasForaDop = semLoja.filter(r=>ehLojaConhecidaForaDop(r.lojaOriginal));
@@ -4485,13 +4493,26 @@ async function confirmarImportarTrocas(){
     id: crypto.randomUUID(), loja: t.loja||null, loja_original: t.lojaOriginal, tipo:"troca_horario", descricao: t.descricao || null, data: t.data, data_iso: t.data,
     estado: "pendente", criado_por: t.operador, fora_dop: trocasForaDop.includes(t)
   }));
+  let existentes = [];
   try{
-    await api("POST", "cj_trocas", payload);
+    existentes = await api("GET", "cj_trocas?select=loja,criado_por,data,descricao");
+  }catch(e){ existentes = []; }
+  const chaveExistente = new Set(existentes.map(r=>[r.loja||"", r.criado_por||"", r.data||"", r.descricao||""].join("|")));
+  const payloadNovo = payload.filter(p=>!chaveExistente.has([p.loja||"", p.criado_por||"", p.data||"", p.descricao||""].join("|")));
+  const jaExistiam = payload.length - payloadNovo.length;
+  if(payloadNovo.length===0){
+    toast(`As ${payload.length} troca(s) já estavam todas importadas — nada de novo para gravar.`);
+    trocasParaImportar = []; trocasComErro = []; trocasForaDop = [];
+    const v = previousView; previousView = null; (v||render)();
+    return;
+  }
+  try{
+    await api("POST", "cj_trocas", payloadNovo);
   }catch(e){
     toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
     return;
   }
-  mostrarSucesso(`${todas.length} troca(s) de horário importada(s)`);
+  mostrarSucesso(`${payloadNovo.length} troca(s) de horário importada(s) nova(s)${jaExistiam>0?` (${jaExistiam} já existiam e foram ignoradas)`:''}`);
   trocasParaImportar = []; trocasComErro = []; trocasForaDop = [];
   const v = previousView; previousView = null; (v||render)();
 }
