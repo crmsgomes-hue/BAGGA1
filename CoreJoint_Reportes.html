@@ -3037,12 +3037,12 @@ function openEvolucaoCnvs(){
 
   const title = document.createElement("div");
   title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:4px;";
-  title.textContent = "Valor CNVs (€) enviado no Global, por mês";
+  title.textContent = "Valor do Global e de CNVs (€), por envio";
   main.appendChild(title);
 
   const explicacao = document.createElement("div");
   explicacao.style.cssText = "font-size:12px; color:var(--ink-soft); background:var(--cream,#faf6ef); border-radius:8px; padding:10px 12px; margin-bottom:14px; line-height:1.4;";
-  explicacao.textContent = "CNVs = consumíveis. Para acertar o valor, tem de se fazer uma entrada justificada no Winrest e, a seguir, um desperdício — motivo: correção de inventário e consumíveis Winrest. Lista abaixo: valor, data e quem enviou, últimos 6 meses.";
+  explicacao.textContent = "CNVs = consumíveis. Para acertar o valor, tem de se fazer uma entrada justificada no Winrest e, a seguir, um desperdício — motivo: correção de inventário e consumíveis Winrest. Lista abaixo: valor do Global, valor de CNVs, data e quem enviou, últimos 6 meses.";
   main.appendChild(explicacao);
 
   const capturaWrap = document.createElement("div");
@@ -3052,7 +3052,7 @@ function openEvolucaoCnvs(){
   tituloImg.textContent = "CoreJoint · CNVs (Global)";
   const subImg = document.createElement("div");
   subImg.style.cssText = "font-size:10px; color:#777; margin-bottom:8px;";
-  subImg.textContent = "Valor de consumíveis reportado no Global — data, quem enviou, últimos 6 meses";
+  subImg.textContent = "Valor do Global e de CNVs — data, quem enviou, últimos 6 meses";
   capturaWrap.appendChild(tituloImg);
   capturaWrap.appendChild(subImg);
   main.appendChild(capturaWrap);
@@ -3070,6 +3070,7 @@ function openEvolucaoCnvs(){
         ${i===0 ? `<td rowspan="${entradas.length}" style="font-weight:700; font-size:12px; padding:6px 6px; border-bottom:1px solid #f0ebe3; vertical-align:top;">${l}</td>` : ``}
         <td style="font-size:11px; padding:6px 4px; border-bottom:1px solid #f0ebe3; color:#777;">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</td>
         <td style="font-size:11px; padding:6px 4px; border-bottom:1px solid #f0ebe3;">${r.enviado_por||'—'}</td>
+        <td style="font-size:12px; padding:6px 4px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:${r.valor_inventario<0?'#b0432f':'#2e7d32'};">${r.valor_inventario!=null ? Number(r.valor_inventario).toFixed(2).replace('.',',')+'€' : '—'}</td>
         <td style="font-size:12px; padding:6px 4px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:${r.valor_cnvs<0?'#b0432f':'#2e7d32'};">${r.valor_cnvs!=null ? Number(r.valor_cnvs).toFixed(2).replace('.',',')+'€' : '—'}</td>
       </tr>
     `).join("");
@@ -3081,6 +3082,7 @@ function openEvolucaoCnvs(){
         <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 6px; border-bottom:2px solid #C1622D;">Loja</th>
         <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Data</th>
         <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Quem enviou</th>
+        <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:4px 4px; border-bottom:2px solid #C1622D;">Global</th>
         <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:4px 4px; border-bottom:2px solid #C1622D;">CNVs</th>
       </tr></thead>
       <tbody>${linhasHtml}</tbody>
