@@ -5825,7 +5825,7 @@ async function confirmarImportarStockNeg(){
   try{
     // o ficheiro da empresa e sempre a lista completa e atual -
     // substitui os registos ainda nao confirmados, mas nunca mexe nos ja confirmados pela loja
-    await api("DELETE", "cj_stock_negativo?justificacao=is.null");
+    await api("DELETE", "cj_stock_negativo?or=(confirmado.is.null,confirmado.eq.false)");
     await api("POST", "cj_stock_negativo", payload);
   }catch(e){
     toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
