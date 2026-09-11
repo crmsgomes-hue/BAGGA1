@@ -1485,7 +1485,7 @@ async function abrirGrelhaSondagensForms(){
   tableWrap.id = "capturaSondagensGrelha";
   tableWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--line); width:100%; box-sizing:border-box;";
   main.appendChild(tableWrap);
-  criarBotoesPartilha(main, tableWrap, "CoreJoint_sondagens", "CoreJoint · Sondagens e Formulários");
+  criarBotoesPartilha(main, tableWrap, "CoreJoint_sondagens", "CoreJoint · Sondagens e Formulários", location.origin + location.pathname + "?abrir=grelhaSondagensForms");
 
   async function renderGrelha(){
     const [sondagensAtivas, respostasSond, formsAtivos, respostasForm] = await Promise.all([
@@ -3604,7 +3604,7 @@ async function abrirRelatorioVisualQuebras(){
   const capturaRede = document.createElement("div");
   capturaRede.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line); margin-bottom:8px;";
   main.appendChild(capturaRede);
-  criarBotoesPartilha(main, capturaRede, "CoreJoint_quebras_rede", "CoreJoint · Quebras de caixa");
+  criarBotoesPartilha(main, capturaRede, "CoreJoint_quebras_rede", "CoreJoint · Quebras de caixa", location.origin + location.pathname + "?abrir=visualQuebras");
 
   const separador = document.createElement("div");
   separador.style.cssText = "height:1px; background:var(--line); margin:22px 0 16px;";
@@ -3617,7 +3617,7 @@ async function abrirRelatorioVisualQuebras(){
   const capturaFora = document.createElement("div");
   capturaFora.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line); margin-bottom:8px;";
   main.appendChild(capturaFora);
-  criarBotoesPartilha(main, capturaFora, "CoreJoint_quebras_fora_rede", "CoreJoint · Quebras fora da rede");
+  criarBotoesPartilha(main, capturaFora, "CoreJoint_quebras_fora_rede", "CoreJoint · Quebras fora da rede", location.origin + location.pathname + "?abrir=visualQuebras");
 
   const avisoAuto = document.createElement("div");
   avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
@@ -3856,7 +3856,7 @@ async function abrirRelatorioVisualFotosPontuais(){
   const capturaWrap = document.createElement("div");
   capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line);";
   main.appendChild(capturaWrap);
-  criarBotoesPartilha(main, capturaWrap, "CoreJoint_fotos_pontuais", "CoreJoint · Fotos pontuais");
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_fotos_pontuais", "CoreJoint · Fotos pontuais", location.origin + location.pathname + "?abrir=visualFotosPontuais");
 
   const avisoAuto = document.createElement("div");
   avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
@@ -3924,7 +3924,7 @@ async function abrirRelatorioVisualDiario(){
   capturaWrap.id = "capturaVisualDiario";
   capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line);";
   main.appendChild(capturaWrap);
-  criarBotoesPartilha(main, capturaWrap, "CoreJoint_diario", "CoreJoint · Vendas, Vitrine e Inventário");
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_diario", "CoreJoint · Vendas, Vitrine e Inventário", location.origin + location.pathname + "?abrir=diarioVisual");
 
   const avisoAuto = document.createElement("div");
   avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
@@ -4740,7 +4740,7 @@ async function abrirPivotTrocas(){
 
   const tableWrap = document.createElement("div");
   main.appendChild(tableWrap);
-  criarBotoesPartilha(main, tableWrap, "CoreJoint_trocas_horario", "CoreJoint · Trocas de horário pendentes");
+  criarBotoesPartilha(main, tableWrap, "CoreJoint_trocas_horario", "CoreJoint · Trocas de horário pendentes", location.origin + location.pathname + "?abrir=pivotTrocas");
 
   const avisoAuto = document.createElement("div");
   avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
@@ -5346,7 +5346,7 @@ async function abrirRelatorioEstivaLaranjas(){
 
   const capturaWrap = document.createElement("div");
   main.appendChild(capturaWrap);
-  criarBotoesPartilha(main, capturaWrap, "CoreJoint_estiva_laranjas", "CoreJoint · Estiva das Laranjas");
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_estiva_laranjas", "CoreJoint · Estiva das Laranjas", location.origin + location.pathname + "?abrir=relatorioEstivaLaranjas");
 
   const avisoAuto = document.createElement("div");
   avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
@@ -5404,7 +5404,7 @@ async function abrirRelatorioGlobalAgendamento(){
 
   const capturaWrap = document.createElement("div");
   main.appendChild(capturaWrap);
-  criarBotoesPartilha(main, capturaWrap, "CoreJoint_global_agendamento", "CoreJoint · Global — datas marcadas");
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_global_agendamento", "CoreJoint · Global — datas marcadas", location.origin + location.pathname + "?abrir=relatorioGlobalAgendamento");
 
   const avisoAuto = document.createElement("div");
   avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
@@ -5577,7 +5577,7 @@ async function abrirRelatorioHorarios(){
 
   const capturaWrap = document.createElement("div");
   main.appendChild(capturaWrap);
-  criarBotoesPartilha(main, capturaWrap, "CoreJoint_horarios", "CoreJoint · Horários — colaboradores por dia");
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_horarios", "CoreJoint · Horários — colaboradores por dia", location.origin + location.pathname + "?abrir=relatorioHorarios");
 
   document.getElementById("horPrev").onclick = ()=>{ _horMes--; if(_horMes<0){_horMes=11; _horAno--;} renderRelatorioHorarios(capturaWrap); };
   document.getElementById("horNext").onclick = ()=>{ _horMes++; if(_horMes>11){_horMes=0; _horAno++;} renderRelatorioHorarios(capturaWrap); };
@@ -5714,7 +5714,7 @@ async function abrirRelatorioVisualFormacoes(){
   const capturaRede = document.createElement("div");
   capturaRede.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line); margin-bottom:8px;";
   main.appendChild(capturaRede);
-  criarBotoesPartilha(main, capturaRede, "CoreJoint_formacoes_rede", "CoreJoint · Formações");
+  criarBotoesPartilha(main, capturaRede, "CoreJoint_formacoes_rede", "CoreJoint · Formações", location.origin + location.pathname + "?abrir=visualFormacoes");
 
   const separador = document.createElement("div");
   separador.style.cssText = "height:1px; background:var(--line); margin:22px 0 16px;";
@@ -5727,7 +5727,7 @@ async function abrirRelatorioVisualFormacoes(){
   const capturaFora = document.createElement("div");
   capturaFora.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line); margin-bottom:8px;";
   main.appendChild(capturaFora);
-  criarBotoesPartilha(main, capturaFora, "CoreJoint_formacoes_fora_rede", "CoreJoint · Formações fora da rede");
+  criarBotoesPartilha(main, capturaFora, "CoreJoint_formacoes_fora_rede", "CoreJoint · Formações fora da rede", location.origin + location.pathname + "?abrir=visualFormacoes");
 
   const avisoAuto = document.createElement("div");
   avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
@@ -5846,7 +5846,7 @@ async function abrirRelatorioVisualStockNegativo(){
   const capturaRede = document.createElement("div");
   capturaRede.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line); margin-bottom:8px;";
   main.appendChild(capturaRede);
-  criarBotoesPartilha(main, capturaRede, "CoreJoint_stock_negativo_rede", "CoreJoint · Stock negativo");
+  criarBotoesPartilha(main, capturaRede, "CoreJoint_stock_negativo_rede", "CoreJoint · Stock negativo", location.origin + location.pathname + "?abrir=visualStockNeg");
 
   const separador = document.createElement("div");
   separador.style.cssText = "height:1px; background:var(--line); margin:22px 0 16px;";
@@ -5859,7 +5859,7 @@ async function abrirRelatorioVisualStockNegativo(){
   const capturaFora = document.createElement("div");
   capturaFora.style.cssText = "background:#fff; border-radius:14px; padding:18px; border:1px solid var(--line); margin-bottom:8px;";
   main.appendChild(capturaFora);
-  criarBotoesPartilha(main, capturaFora, "CoreJoint_stock_negativo_fora_rede", "CoreJoint · Stock negativo fora da rede");
+  criarBotoesPartilha(main, capturaFora, "CoreJoint_stock_negativo_fora_rede", "CoreJoint · Stock negativo fora da rede", location.origin + location.pathname + "?abrir=visualStockNeg");
 
   const avisoAuto = document.createElement("div");
   avisoAuto.style.cssText = "font-size:11px; color:var(--green); font-weight:700; margin-top:8px; text-align:center;";
@@ -7169,7 +7169,7 @@ function openRelatorioQuebras(){
       </div>
     `;
     main.appendChild(resumo);
-    criarBotoesPartilha(main, resumo, "CoreJoint_resumo_quebras", "CoreJoint · Resumo de Quebras");
+    criarBotoesPartilha(main, resumo, "CoreJoint_resumo_quebras", "CoreJoint · Resumo de Quebras", location.origin + location.pathname + "?abrir=relatorioQuebras");
 
     // Aguarda validação — sempre em destaque, ação para ti/GOP
     if(aguardaValidacao.length>0){
