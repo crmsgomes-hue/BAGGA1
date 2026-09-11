@@ -3597,6 +3597,11 @@ async function abrirRelatorioVisualInventario(){
       const r = invStatus(loja, catKey, freq);
       if(r.state==="na" || r.state==="pausado") return `<td style="text-align:center; color:#ccc; padding:4px 2px; border-bottom:1px solid #f0ebe3;">—</td>`;
       const ok = r.state==="ok";
+      if(ok && r.latest && r.latest.valor_inventario!=null){
+        const v = Number(r.latest.valor_inventario);
+        const cor = v<0 ? "#b0432f" : "#2e7d32";
+        return `<td style="text-align:center; color:${cor}; font-weight:800; padding:4px 2px; border-bottom:1px solid #f0ebe3; font-size:10.5px; white-space:nowrap;">${v.toFixed(2).replace('.',',')}€</td>`;
+      }
       const cor = ok ? "#2e7d32" : "#b0432f";
       return `<td style="text-align:center; color:${cor}; font-weight:800; padding:4px 2px; border-bottom:1px solid #f0ebe3; font-size:12px;">${ok?'✔':'✕'}</td>`;
     }
