@@ -536,6 +536,7 @@ async function renderPanoramaGeral(){
         <button id="btnApsPreventivaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📋 APS e Preventiva Delta</button>
         <button id="btnLegionelaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚿 Forms Legionela — histórico semanal</button>
         <button id="btnStockNegCruzadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo cruzado (mesmo artigo, 4+ lojas)</button>
+        <button id="btnColaboradoresHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👥 Colaboradores (nomes e nº mecanográfico)</button>
         ${botoesAcao([
           ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
           ["📊 Sondagens e Formulários","CoreJoint_Reportes.html?abrir=grelhaSondagensForms"],
@@ -554,7 +555,7 @@ async function renderPanoramaGeral(){
           ["🕵️ Relatório de Integridade","CoreJoint_Reportes.html?abrir=integridade"],
           ["🖼️ Galeria de fotos","CoreJoint_Reportes.html?abrir=galeria"],
           ["📈 CNVs Global","CoreJoint_Reportes.html?abrir=cnvs"],
-          ["📅 Quem marcou o Global","CoreJoint_Reportes.html?abrir=agendamentosGlobal"],
+          ["📤 Importar Colaboradores","CoreJoint_Reportes.html?abrir=importarColaboradores"],
         ])}
       `;
       abrirModalTopico("📊 Relatórios", corpo);
@@ -569,6 +570,7 @@ async function renderPanoramaGeral(){
       document.getElementById("btnApsPreventivaHub").onclick = abrirRelatorioApsPreventivaHub;
       document.getElementById("btnLegionelaHub").onclick = ()=>abrirRelatorioSondagemRecorrenteHub("Forms Leggionela", "Forms Legionela — histórico semanal");
       document.getElementById("btnStockNegCruzadoHub").onclick = abrirRelatorioStockNegCruzadoHub;
+      document.getElementById("btnColaboradoresHub").onclick = abrirColaboradoresHub;
       document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
       document.getElementById("btnAbrirFotosCategoriaHub").onclick = ()=>{
         fecharEcraHub();
@@ -2406,6 +2408,70 @@ async function abrirResetCategoriaHub(){
     btn.disabled = false; btn.textContent = "Aplicar reset";
     toast(`✔ Reset de ${catLabel} aplicado`);
     renderAtivos();
+  };
+}
+
+async function abrirColaboradoresHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "colaboradoresOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">👥 Colaboradores</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:12px;">Lista de nomes e números mecanográficos, importada de Excel. Para atualizar, importa um ficheiro novo em Relatórios → Ferramentas → Importar Colaboradores.</div>
+      <input id="colaboradoresFiltroHub" placeholder="Procurar (nome, número, loja...)" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--br); margin-bottom:12px; font-size:.85rem;">
+      <div id="colaboradoresCapturaWrapHub"></div>
+      <div id="colaboradoresPartilhaBtnsHub" style="margin-top:12px;"></div>
+      <div id="colaboradoresListaHub" style="margin-top:14px;"></div>
+      <button id="fecharColaboradoresHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharColaboradoresHubBtn").onclick = ()=>fecharEcraHub();
+
+  const colaboradores = await api("cj_colaboradores?select=*&order=nome.asc", "GET");
+
+  if(colaboradores.length===0){
+    document.getElementById("colaboradoresCapturaWrapHub").innerHTML = `<div style="text-align:center; padding:20px 0; color:var(--t2); font-size:.85rem;">Ainda não importaste nenhum colaborador. Vai a Relatórios → Ferramentas → Importar Colaboradores.</div>`;
+    return;
+  }
+
+  const capturaWrap = document.getElementById("colaboradoresCapturaWrapHub");
+  capturaWrap.style.cssText = "background:#fff; padding:4px;";
+
+  function renderTabela(lista){
+    const linhas = lista.map(c=>`<tr>
+      <td style="font-weight:700; font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3;">${c.nome}</td>
+      <td style="font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3; text-align:center; white-space:nowrap;">${c.numero_mecanografico}</td>
+      <td style="font-size:10.5px; padding:5px 4px; border-bottom:1px solid #f0ebe3; color:var(--t2); white-space:nowrap;">${c.loja||'—'}</td>
+    </tr>`).join("");
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Colaboradores</div>
+      <div style="font-size:10px; color:#777; margin-bottom:8px;">${lista.length} pessoa(s)</div>
+      <div style="overflow-x:auto; max-height:340px; overflow-y:auto;">
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Nome</th>
+          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:center; padding:4px 4px; border-bottom:2px solid #C1622D;">Nº Mec.</th>
+          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Loja</th>
+        </tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+      </div>
+    `;
+  }
+  renderTabela(colaboradores);
+  criarBotoesPartilhaHub(document.getElementById("colaboradoresPartilhaBtnsHub"), capturaWrap, "CoreJoint_colaboradores", "CoreJoint · Colaboradores");
+
+  document.getElementById("colaboradoresFiltroHub").oninput = (e)=>{
+    const f = e.target.value.toLowerCase().trim();
+    const filtrados = !f ? colaboradores : colaboradores.filter(c=>
+      (c.nome||"").toLowerCase().includes(f) ||
+      (c.numero_mecanografico||"").toLowerCase().includes(f) ||
+      (c.loja||"").toLowerCase().includes(f)
+    );
+    renderTabela(filtrados);
   };
 }
 
