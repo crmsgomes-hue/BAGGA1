@@ -540,15 +540,12 @@ async function renderPanoramaGeral(){
         ${secao("Ferramentas")}
         <button id="btnCriarSondagemFormHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">➕ Criar sondagem/formulário</button>
         ${botoesAcao([
-          ["📲 Inserir do WhatsApp","CoreJoint_Reportes.html?abrir=manualEntry"],
           ["📅 Histórico 12 meses","CoreJoint_Reportes.html?abrir=historico12m"],
-          ["🕓 Registo de atividade","CoreJoint_Reportes.html?abrir=atividade"],
           ["📅 Calendário","CoreJoint_Reportes.html?abrir=calendario"],
           ["🕵️ Relatório de Integridade","CoreJoint_Reportes.html?abrir=integridade"],
           ["🖼️ Galeria de fotos","CoreJoint_Reportes.html?abrir=galeria"],
           ["📈 CNVs Global","CoreJoint_Reportes.html?abrir=cnvs"],
           ["📅 Quem marcou o Global","CoreJoint_Reportes.html?abrir=agendamentosGlobal"],
-          ["🖥️ Modo apresentação","CoreJoint_Reportes.html?abrir=apresentacao"],
         ])}
       `;
       abrirModalTopico("📊 Relatórios", corpo);
