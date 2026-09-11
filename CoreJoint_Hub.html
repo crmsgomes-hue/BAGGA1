@@ -525,6 +525,7 @@ async function renderPanoramaGeral(){
         ${secao("Outros")}
         <button id="btnInscricoesFormacaoHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">🎓 Inscrições — Formação Horários</button>
         <button id="btnApsPreventivaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📋 APS e Preventiva Delta</button>
+        <button id="btnLegionelaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚿 Forms Legionela — histórico semanal</button>
         ${botoesAcao([
           ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
           ["📊 Sondagens e Formulários","CoreJoint_Reportes.html?abrir=grelhaSondagensForms"],
@@ -556,6 +557,7 @@ async function renderPanoramaGeral(){
       document.getElementById("btnAbrirExportQuebrasEmpresaHub").onclick = abrirExportQuebrasEmpresaHub;
       document.getElementById("btnInscricoesFormacaoHub").onclick = ()=>abrirDetalheFormularioHub(8);
       document.getElementById("btnApsPreventivaHub").onclick = abrirRelatorioApsPreventivaHub;
+      document.getElementById("btnLegionelaHub").onclick = ()=>abrirRelatorioSondagemRecorrenteHub("Forms Leggionela", "Forms Legionela — histórico semanal");
       document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
       document.getElementById("btnAbrirFotosCategoriaHub").onclick = ()=>{
         fecharEcraHub();
@@ -2393,6 +2395,54 @@ async function abrirResetCategoriaHub(){
     toast(`✔ Reset de ${catLabel} aplicado`);
     renderAtivos();
   };
+}
+
+async function abrirRelatorioSondagemRecorrenteHub(perguntaTexto, tituloRelatorio){
+  const overlay = document.createElement("div");
+  overlay.id = "sondagemRecOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div id="sondagemRecConteudoHub"><div style="text-align:center; padding:20px 0; color:var(--t2); font-size:.85rem;">A carregar...</div></div>
+      <button id="fecharSondagemRecHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharSondagemRecHubBtn").onclick = ()=>fecharEcraHub();
+
+  const sondagens = await api(`cj_sondagens?select=id,criado_em&pergunta=ilike.*${encodeURIComponent(perguntaTexto)}*&order=criado_em.asc`, "GET");
+  const ids = sondagens.map(s=>s.id);
+  const respostas = ids.length>0 ? await api(`cj_sondagens_respostas?select=sondagem_id,loja,opcao&sondagem_id=in.(${ids.join(",")})`, "GET") : [];
+
+  const capturaWrap = document.createElement("div");
+  capturaWrap.style.cssText = "background:#fff; padding:4px;";
+  const linhas = LOJAS.map(l=>{
+    const celulas = sondagens.map(s=>{
+      const r = respostas.find(x=>x.sondagem_id===s.id && x.loja===l);
+      const cor = !r ? 'var(--t2)' : (r.opcao==="Sim" ? '#2e7d32' : '#b0432f');
+      return `<td style="text-align:center; font-size:11px; padding:5px 3px; border-bottom:1px solid #f0ebe3; color:${cor}; font-weight:700;">${r ? r.opcao : '—'}</td>`;
+    }).join("");
+    return `<tr><td style="padding:5px 4px; border-bottom:1px solid #f0ebe3; font-size:11px; font-weight:700; white-space:nowrap;">${abreviarLoja(l)}</td>${celulas}</tr>`;
+  }).join("");
+  capturaWrap.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:2px;">${tituloRelatorio}</div>
+    <div style="font-size:10px; color:#777; margin-bottom:10px;">${perguntaTexto}</div>
+    <div style="overflow-x:auto;">
+    <table style="border-collapse:collapse; width:100%;">
+      <thead><tr><th></th>${sondagens.map(s=>`<th style="font-size:9px; color:#9c4d23; padding:4px 3px; border-bottom:2px solid #C1622D; white-space:nowrap;">${new Date(s.criado_em).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}</th>`).join("")}</tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>
+    </div>
+  `;
+
+  document.getElementById("sondagemRecConteudoHub").innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:12px;">${tituloRelatorio}</div>
+    <div id="sondagemRecCapturaHost"></div>
+    <div id="sondagemRecPartilhaBtnsHub" style="margin-top:12px; display:flex; gap:8px;"></div>
+  `;
+  document.getElementById("sondagemRecCapturaHost").appendChild(capturaWrap);
+  criarBotoesPartilhaHub(document.getElementById("sondagemRecPartilhaBtnsHub"), capturaWrap, `CoreJoint_${tituloRelatorio.replace(/\s+/g,"_")}`, `CoreJoint · ${tituloRelatorio}`);
 }
 
 async function abrirDetalheFormularioHub(formularioId){
