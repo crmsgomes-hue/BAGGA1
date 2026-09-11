@@ -4852,6 +4852,93 @@ async function abrirPivotTrocas(){
   iniciarAutoAtualizacao(renderPivot, 20);
 }
 
+function openImportarColaboradores(){
+  currentView = openImportarColaboradores;
+  window._formEmEdicao = true;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <div class="card-title" style="margin-bottom:6px;">📤 Importar Excel de colaboradores</div>
+    <div class="card-sub" style="margin-bottom:12px;">Colunas esperadas: Nome, Número Mecanográfico, Loja (opcional). Esta importação substitui a lista completa — é sempre a versão mais atual.</div>
+    <label style="display:block; width:100%; text-align:center; background:var(--terracotta); color:#fff; font-weight:700; padding:14px; border-radius:10px; cursor:pointer;">📁 Escolher ficheiro Excel<input type="file" id="colaboradoresFile" accept=".xlsx,.xls,.csv" style="display:none;"></label>
+    <div id="colaboradoresPreview" style="margin-top:14px;"></div>
+  `;
+  main.appendChild(card);
+  document.getElementById("colaboradoresFile").addEventListener("change", handleColaboradoresFile);
+}
+
+let colaboradoresParaImportar = [];
+function handleColaboradoresFile(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  lerFicheiroTabular(file, (rows)=>{
+    const headers = Object.keys(rows[0]);
+    abrirMapeamentoColunas("Colaboradores", headers, [
+      {key:"nome", label:"Nome", sinonimos:["nome","colaborador","utilizador","trabalhador"], obrigatorio:true},
+      {key:"numero", label:"Número Mecanográfico", sinonimos:["número mecanográfico","numero mecanografico","nº mecanográfico","mecanográfico","nº mec","n mec","número","numero","id"], obrigatorio:true},
+      {key:"loja", label:"Loja", sinonimos:["loja","cód. loja","cod. loja","secção","seccao"], obrigatorio:false},
+    ], rows, (mapa)=>{
+      colaboradoresParaImportar = rows.map(r=>{
+        const nome = String(r[mapa.nome]||"").trim();
+        const numero = String(r[mapa.numero]||"").trim();
+        const lojaOriginal = mapa.loja ? String(r[mapa.loja]||"").trim() : "";
+        const lojaCanonica = lojaOriginal ? encontrarLojaCorrespondente(lojaOriginal) : null;
+        return {nome, numero_mecanografico:numero, loja:lojaCanonica, loja_original:lojaOriginal};
+      }).filter(r=>r.nome && r.numero_mecanografico);
+      window._formEmEdicao = true;
+      const main = document.getElementById("main");
+      main.innerHTML = "";
+      const back = document.createElement("button");
+      back.className = "cambtn secondary";
+      back.style.marginBottom = "14px";
+      back.textContent = "← Voltar ao painel";
+      back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+      main.appendChild(back);
+      const card = document.createElement("div");
+      card.className = "card";
+      const amostra = colaboradoresParaImportar.slice(0,5).map(r=>`<div style="font-size:12px; padding:5px 0; border-bottom:1px solid var(--line);">${r.nome} — Nº ${r.numero_mecanografico}${r.loja?' — '+r.loja:''}</div>`).join("");
+      card.innerHTML = `
+        <div class="card-sub" style="margin-bottom:6px;">${colaboradoresParaImportar.length} colaborador(es) encontrado(s).</div>
+        ${amostra ? `<div style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:8px 10px; margin-bottom:12px;">
+          <div style="font-size:10px; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:4px;">Amostra:</div>${amostra}
+        </div>` : ``}
+        <button class="cambtn" id="confirmarImportarColaboradoresBtn" style="width:100%;">✔ Confirmar importação</button>
+      `;
+      main.appendChild(card);
+      document.getElementById("confirmarImportarColaboradoresBtn").onclick = confirmarImportarColaboradores;
+    });
+  });
+}
+async function confirmarImportarColaboradores(){
+  const btn = document.getElementById("confirmarImportarColaboradoresBtn");
+  btn.disabled = true; btn.textContent = "A gravar...";
+  const payload = colaboradoresParaImportar.map(r=>({
+    nome: r.nome, numero_mecanografico: r.numero_mecanografico, loja: r.loja, loja_original: r.loja_original, importado_por: currentUser
+  }));
+  try{
+    // e sempre a lista completa e atual - substitui tudo
+    await api("DELETE", "cj_colaboradores?nome=not.is.null");
+    await api("POST", "cj_colaboradores", payload);
+  }catch(e){
+    toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
+    btn.disabled = false; btn.textContent = "✔ Confirmar importação";
+    return;
+  }
+  mostrarSucesso(`${payload.length} colaborador(es) importado(s)`);
+  colaboradoresParaImportar = [];
+  window._formEmEdicao = false;
+  const v = previousView; previousView = null; (v||render)();
+}
+
 function openImportarStockNegativo(){
   currentView = openImportarStockNegativo;
   window._formEmEdicao = true;
@@ -8437,6 +8524,7 @@ function renderGestao(){
     importarStockNeg: openImportarStockNegativo, visualStockNeg: abrirRelatorioVisualStockNegativo,
     importarFormacoes: openImportarFormacoes, visualFormacoes: abrirRelatorioVisualFormacoes,
     importarHorarios: openImportarHorarios, relatorioHorarios: abrirRelatorioHorarios,
+    importarColaboradores: openImportarColaboradores,
     painelMonitorizacao: abrirPainelMonitorizacao, relatorioGlobalAgendamento: abrirRelatorioGlobalAgendamento,
     relatorioEstivaLaranjas: abrirRelatorioEstivaLaranjas,
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
