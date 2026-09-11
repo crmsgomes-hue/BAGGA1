@@ -3036,9 +3036,26 @@ function openEvolucaoCnvs(){
   for(let i=11;i>=0;i--){ const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-i); months.push(d); }
 
   const title = document.createElement("div");
-  title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:14px;";
+  title.style.cssText = "font-size:13px;color:var(--ink-soft); margin-bottom:4px;";
   title.textContent = "Valor CNVs (€) enviado no Global, por mês";
   main.appendChild(title);
+
+  const explicacao = document.createElement("div");
+  explicacao.style.cssText = "font-size:12px; color:var(--ink-soft); background:var(--cream,#faf6ef); border-radius:8px; padding:10px 12px; margin-bottom:14px; line-height:1.4;";
+  explicacao.textContent = "CNVs = valor de consumíveis reportado junto com o Global de cada loja, uma vez por mês. As barras mostram a evolução mês a mês; cinzento = sem envio nesse mês.";
+  main.appendChild(explicacao);
+
+  const capturaWrap = document.createElement("div");
+  capturaWrap.style.cssText = "background:#fff; padding:4px;";
+  const tituloImg = document.createElement("div");
+  tituloImg.style.cssText = "font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;";
+  tituloImg.textContent = "CoreJoint · CNVs (Global)";
+  const subImg = document.createElement("div");
+  subImg.style.cssText = "font-size:10px; color:#777; margin-bottom:8px;";
+  subImg.textContent = "Valor de consumíveis reportado no Global, últimos 12 meses";
+  capturaWrap.appendChild(tituloImg);
+  capturaWrap.appendChild(subImg);
+  main.appendChild(capturaWrap);
 
   LOJAS.forEach(l=>{
     const valores = months.map(m=>{
@@ -3060,8 +3077,10 @@ function openEvolucaoCnvs(){
     });
     html += `</div>`;
     card.innerHTML = html;
-    main.appendChild(card);
+    capturaWrap.appendChild(card);
   });
+
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_cnvs", "CoreJoint · CNVs (Global)", location.origin + location.pathname + "?abrir=cnvs");
 }
 
 function openHistoricoAnual(){
