@@ -518,7 +518,6 @@ async function renderPanoramaGeral(){
         ${secao("Inventário")}
         <button id="btnAbrirFotosCategoriaHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📷 Fotos por categoria (datas de cada envio)</button>
         <button id="btnAbrirExportInvEmpresaHub" style="width:100%; margin-bottom:6px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📋 Preencher Excel da empresa</button>
-        <button id="btnAbrirMensalHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🗓️ Relatório mensal completo</button>
         ${botoesAcao([
           ["📦 Ver relatório de inventário","CoreJoint_Reportes.html?abrir=visualInventario"]
         ])}
@@ -534,7 +533,6 @@ async function renderPanoramaGeral(){
           ["👥 Horários","CoreJoint_Reportes.html?abrir=relatorioHorarios"],
           ["🔁 Trocas de horário","CoreJoint_Reportes.html?abrir=pivotTrocas"],
           ["🗓️ Global — datas marcadas (Set/Out)","CoreJoint_Reportes.html?abrir=relatorioGlobalAgendamento"],
-          ["📊 Monitorização de lojas","CoreJoint_Reportes.html?abrir=painelMonitorizacao"],
         ])}
 
         ${secao("Ferramentas")}
@@ -568,7 +566,6 @@ async function renderPanoramaGeral(){
         setTimeout(()=>{ secao?.scrollIntoView({behavior:"smooth"}); }, 50);
       };
       document.getElementById("btnAbrirExportInvEmpresaHub").onclick = abrirExportInventarioEmpresaHub;
-      document.getElementById("btnAbrirMensalHub").onclick = abrirRelatorioMensalHub;
     };
 
     document.querySelector('[data-topico="vendas"]').onclick = ()=>{
