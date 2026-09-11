@@ -3105,6 +3105,9 @@ function openHistoricoAnual(){
   back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
   main.appendChild(back);
 
+  const hoje = new Date();
+  const mesAtualLabel = hoje.toLocaleDateString('pt-PT',{month:'long'});
+  const anoAtual = hoje.getFullYear();
   const yoyCard = document.createElement("div");
   yoyCard.className = "card";
   let yoyHtml = `<div class="card-title" style="margin-bottom:8px; text-transform:capitalize;">📊 ${mesAtualLabel} — este ano vs. ano passado</div>`;
