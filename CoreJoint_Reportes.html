@@ -3042,9 +3042,7 @@ function openEvolucaoCnvs(){
 
   const explicacao = document.createElement("div");
   explicacao.style.cssText = "font-size:12px; color:var(--ink-soft); background:var(--cream,#faf6ef); border-radius:8px; padding:10px 12px; margin-bottom:14px; line-height:1.4;";
-  explicacao.innerHTML = `<b>CNVs = consumíveis</b> (açúcar, paus de canela, chávenas, etc.) — fazem parte do serviço, não são roubo nem erro de contagem, por isso não é justo ficarem a contar como quebra no inventário normal.<br><br>
-  Por isso corrige-se assim: faz-se uma <b>entrada justificada</b> no Winrest (para o inventário deixar de mostrar esse valor em falta) e a seguir dá-se <b>quebra com o motivo correto</b> — correção de inventário e consumíveis Winrest. Assim tudo fica alocado ao sítio certo, em vez de aparecer como se fosse uma quebra real.<br><br>
-  As barras mostram a evolução mês a mês; cinzento = sem envio nesse mês.`;
+  explicacao.textContent = "CNVs = consumíveis. Para acertar o valor, tem de se fazer uma entrada justificada no Winrest e, a seguir, um desperdício — motivo: correção de inventário e consumíveis Winrest. As barras mostram a evolução mês a mês; cinzento = sem envio nesse mês.";
   main.appendChild(explicacao);
 
   const capturaWrap = document.createElement("div");
