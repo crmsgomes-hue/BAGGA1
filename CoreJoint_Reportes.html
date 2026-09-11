@@ -7121,24 +7121,75 @@ async function abrirRelatorioIntegridade(){
 }
 
 async function gerarRelatorioSemanalQuebras(){
+  currentView = gerarRelatorioSemanalQuebras;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
   const seteDiasAtras = isoDate(new Date(Date.now()-7*86400000));
   const rows = await api("GET", "cj_quebras_reportes?select=*&order=data.desc&limit=500");
   const daSemana = rows.filter(r=>r.data>=seteDiasAtras);
   if(daSemana.length===0){
     toast("Sem quebras registadas nos últimos 7 dias.");
+    const v = previousView; previousView = null; (v||render)();
     return;
   }
-  let html = `<h1>CoreJoint · Relatório Semanal de Quebras</h1><div style="font-size:8px; color:#555; margin-bottom:8px;">Últimos 7 dias · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
-  html += `<table><tr><th style="text-align:left;">Loja</th><th>Data</th><th>Operador</th><th>Quebra</th><th>Nº Registo</th><th>Justificação</th><th>Estado</th></tr>`;
-  daSemana.sort((a,b)=> (a.loja||"").localeCompare(b.loja||"") || new Date(b.data)-new Date(a.data)).forEach(r=>{
+  daSemana.sort((a,b)=> (a.loja||"").localeCompare(b.loja||"") || new Date(b.data)-new Date(a.data));
+
+  const explicacao = document.createElement("div");
+  explicacao.style.cssText = "font-size:12px; color:var(--ink-soft); background:var(--cream,#faf6ef); border-radius:8px; padding:10px 12px; margin-bottom:14px; line-height:1.4;";
+  explicacao.textContent = "Todas as quebras registadas nos últimos 7 dias, por loja. Verde = justificada, vermelho = por justificar.";
+  main.appendChild(explicacao);
+
+  const capturaWrap = document.createElement("div");
+  capturaWrap.style.cssText = "background:#fff; padding:4px;";
+  const tituloImg = document.createElement("div");
+  tituloImg.style.cssText = "font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;";
+  tituloImg.textContent = "CoreJoint · Quebras — últimos 7 dias";
+  const subImg = document.createElement("div");
+  subImg.style.cssText = "font-size:10px; color:#777; margin-bottom:8px;";
+  subImg.textContent = `Gerado em ${new Date().toLocaleDateString('pt-PT')}`;
+  capturaWrap.appendChild(tituloImg);
+  capturaWrap.appendChild(subImg);
+  main.appendChild(capturaWrap);
+
+  const linhasHtml = daSemana.map(r=>{
     const loja = r.loja || (r.fora_dop ? `${r.loja_original} (fora DOP)` : `⚠ ${r.loja_original||'?'}`);
     const estado = estadoQuebra(r);
-    html += `<tr><td class="name">${loja}</td><td>${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</td><td>${r.operador||'-'}</td><td>${Number(r.valor_quebra).toFixed(2)} €</td><td>${r.numero_registo||'—'}</td><td>${r.justificacao||'—'}</td><td>${estado}</td></tr>`;
-  });
-  html += `</table>`;
+    const justificada = estado.startsWith("Justificado");
+    const corEstado = justificada ? '#2e7d32' : (estado==="Aguarda validação" ? '#c17817' : '#b0432f');
+    return `<tr>
+      <td style="font-weight:700; font-size:11px; padding:6px 4px; border-bottom:1px solid #f0ebe3;">${loja}</td>
+      <td style="font-size:10.5px; padding:6px 4px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</td>
+      <td style="font-size:10.5px; padding:6px 4px; border-bottom:1px solid #f0ebe3;">${r.operador||'—'}</td>
+      <td style="font-size:11px; padding:6px 4px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700;">${Number(r.valor_quebra).toFixed(2).replace('.',',')}€</td>
+      <td style="font-size:9.5px; padding:6px 4px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:${corEstado};">${estado}</td>
+    </tr>`;
+  }).join("");
+
   const pendentes = daSemana.filter(r=>r.loja && !r.numero_registo).length;
-  html += `<div style="font-size:9px; color:#555; margin-top:10px;">${daSemana.length} quebra(s) na semana · ${pendentes} por justificar</div>`;
-  mostrarAcoesRelatorio(html, `CoreJoint_quebras_semanal_${todayStr()}.pdf`);
+  const tabelaEl = document.createElement("div");
+  tabelaEl.innerHTML = `
+    <table style="border-collapse:collapse; width:100%;">
+      <thead><tr>
+        <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Loja</th>
+        <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Data</th>
+        <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Operador</th>
+        <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:4px 4px; border-bottom:2px solid #C1622D;">Quebra</th>
+        <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:4px 4px; border-bottom:2px solid #C1622D;">Estado</th>
+      </tr></thead>
+      <tbody>${linhasHtml}</tbody>
+    </table>
+    <div style="font-size:10px; color:#777; margin-top:8px;">${daSemana.length} quebra(s) na semana · ${pendentes} por justificar</div>
+  `;
+  capturaWrap.appendChild(tabelaEl);
+
+  criarBotoesPartilha(main, capturaWrap, `CoreJoint_quebras_semanal_${todayStr()}`, "CoreJoint · Quebras — últimos 7 dias", location.origin + location.pathname + "?abrir=quebrasSemanal");
 }
 
 async function validarQuebraSemRegisto(id){
