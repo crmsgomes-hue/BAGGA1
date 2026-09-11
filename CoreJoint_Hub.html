@@ -300,7 +300,7 @@ async function renderPanoramaGeral(){
     const inicioSemana = isoDate(weekWindow(today).start);
 
     const inicioMesAtual = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, erros7diasPg, lembretesPg, stockNegPendentesPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg] = await Promise.all([
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, erros7diasPg, lembretesPg, stockNegPendentesPg, stockNegComProdutoPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
       api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`),
@@ -311,6 +311,7 @@ async function renderPanoramaGeral(){
       api(`cj_error_log?select=loja,mensagem&criado_em=gte.${new Date(Date.now()-7*24*3600*1000).toISOString()}`),
       api(`cj_lembretes_pessoais?select=id&feito=eq.false&criado_por=eq.${currentUser}`),
       api(`cj_stock_negativo?select=loja&justificacao=is.null&loja=not.is.null`),
+      api(`cj_stock_negativo?select=loja,produto&justificacao=is.null&loja=not.is.null`),
       api(`cj_formacoes?select=loja&justificacao=is.null&loja=not.is.null`),
       api(`cj_horarios?select=loja,data,colaborador,hora_inicio,hora_fim&data=gte.${inicioMesAtual}&data=lte.${todayStr}`),
       api(`cj_trocas?select=loja&estado=eq.pendente`),
@@ -330,6 +331,13 @@ async function renderPanoramaGeral(){
       padroesMapPg[chave] = (padroesMapPg[chave]||0) + 1;
     });
     const padroesRepetidosPg = Object.values(padroesMapPg).filter(n=>n>=3).length;
+    const produtosMapPg = {};
+    (stockNegComProdutoPg||[]).forEach(r=>{
+      if(!r.produto) return;
+      produtosMapPg[r.produto] ||= new Set();
+      produtosMapPg[r.produto].add(r.loja);
+    });
+    const produtosCruzadosPg = Object.entries(produtosMapPg).filter(([,lojas])=>lojas.size>=4).length;
 
     // Conta dias/lojas sem cobertura de abertura (antes das 07:15) ou fecho (ate as 21:00), so onde ha horas importadas
     const porDiaLojaSet = {}, porDiaLojaHor = {};
@@ -390,6 +398,7 @@ async function renderPanoramaGeral(){
     if(stockNegPendentesPg.length>0) listaAtencao.push({topico:"stockneg", texto:`📉 ${stockNegPendentesPg.length} stock negativo por justificar`, urgente:true});
     if(errosPg.length>0) listaAtencao.push({topico:"diagnostico", texto:`🩺 ${errosPg.length} erro(s) nas últimas 24h`, urgente:true});
     if(padroesRepetidosPg>0) listaAtencao.push({topico:"diagnostico", texto:`🔁 ${padroesRepetidosPg} erro(s) a repetir-se (últimos 7 dias) — provável bug`, urgente:true});
+    if(produtosCruzadosPg>0) listaAtencao.push({acao:abrirRelatorioStockNegCruzadoHub, texto:`📉 ${produtosCruzadosPg} artigo(s) com stock negativo em 4+ lojas — pode ser quebra mal dada`, urgente:true});
     if(formacoesPendentesPg.length>0) listaAtencao.push({topico:"formacoes", texto:`🎓 ${formacoesPendentesPg.length} formação/ões por justificar`, urgente:false});
     if(horariosAlertas>0) listaAtencao.push({topico:"horarios", texto:`👥 ${horariosAlertas} dia(s)/loja(s) sem cobertura de horário`, urgente:false});
     if(trocasPendentesPg.length>0) listaAtencao.push({topico:"trocas", texto:`🔁 ${trocasPendentesPg.length} troca(s) de horário pendente(s)`, urgente:false});
@@ -526,6 +535,7 @@ async function renderPanoramaGeral(){
         <button id="btnInscricoesFormacaoHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">🎓 Inscrições — Formação Horários</button>
         <button id="btnApsPreventivaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📋 APS e Preventiva Delta</button>
         <button id="btnLegionelaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚿 Forms Legionela — histórico semanal</button>
+        <button id="btnStockNegCruzadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo cruzado (mesmo artigo, 4+ lojas)</button>
         ${botoesAcao([
           ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
           ["📊 Sondagens e Formulários","CoreJoint_Reportes.html?abrir=grelhaSondagensForms"],
@@ -558,6 +568,7 @@ async function renderPanoramaGeral(){
       document.getElementById("btnInscricoesFormacaoHub").onclick = ()=>abrirDetalheFormularioHub(8);
       document.getElementById("btnApsPreventivaHub").onclick = abrirRelatorioApsPreventivaHub;
       document.getElementById("btnLegionelaHub").onclick = ()=>abrirRelatorioSondagemRecorrenteHub("Forms Leggionela", "Forms Legionela — histórico semanal");
+      document.getElementById("btnStockNegCruzadoHub").onclick = abrirRelatorioStockNegCruzadoHub;
       document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
       document.getElementById("btnAbrirFotosCategoriaHub").onclick = ()=>{
         fecharEcraHub();
@@ -696,6 +707,7 @@ async function renderPanoramaGeral(){
     document.querySelectorAll("[data-atencao-idx]").forEach(btn=>{
       const item = listaAtencao[Number(btn.dataset.atencaoIdx)];
       btn.onclick = ()=>{
+        if(item.acao){ item.acao(); return; }
         if(item.href){ location.href = item.href; return; }
         const alvo = document.querySelector(`[data-topico="${item.topico}"]`);
         if(alvo) alvo.click();
@@ -2395,6 +2407,53 @@ async function abrirResetCategoriaHub(){
     toast(`✔ Reset de ${catLabel} aplicado`);
     renderAtivos();
   };
+}
+
+async function abrirRelatorioStockNegCruzadoHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "stockNegCruzadoOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div id="stockNegCruzadoConteudoHub"><div style="text-align:center; padding:20px 0; color:var(--t2); font-size:.85rem;">A carregar...</div></div>
+      <button id="fecharStockNegCruzadoHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharStockNegCruzadoHubBtn").onclick = ()=>fecharEcraHub();
+
+  const rows = await api("cj_stock_negativo?select=loja,produto&justificacao=is.null&loja=not.is.null", "GET");
+  const porProduto = {};
+  rows.forEach(r=>{
+    if(!r.produto) return;
+    porProduto[r.produto] ||= new Set();
+    porProduto[r.produto].add(r.loja);
+  });
+  const cruzados = Object.entries(porProduto).filter(([,lojas])=>lojas.size>=4).sort((a,b)=>b[1].size-a[1].size);
+
+  const capturaWrap = document.createElement("div");
+  capturaWrap.style.cssText = "background:#fff; padding:4px;";
+  const linhas = cruzados.map(([produto, lojas])=>`
+    <div style="background:var(--sf2); border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+      <div style="font-weight:700; font-size:12px; margin-bottom:4px;">${produto}</div>
+      <div style="font-size:11px; color:var(--red,#b0432f); font-weight:700;">${lojas.size} lojas: ${Array.from(lojas).join(", ")}</div>
+    </div>
+  `).join("");
+  capturaWrap.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Stock negativo cruzado</div>
+    <div style="font-size:10px; color:#777; margin-bottom:10px;">Mesmo artigo com stock negativo em 4+ lojas — possível quebra mal dada (motivo errado no Winrest, comum a todas)</div>
+    ${cruzados.length===0 ? `<div style="font-size:12px; color:var(--t2); text-align:center; padding:14px 0;">Nenhum artigo neste padrão agora.</div>` : linhas}
+  `;
+
+  document.getElementById("stockNegCruzadoConteudoHub").innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">📉 Stock negativo cruzado</div>
+    <div style="font-size:12px; color:var(--t2); margin-bottom:12px;">Artigos com stock negativo em 4 ou mais lojas ao mesmo tempo — quando isto acontece, é normalmente o motivo da quebra a ser dado errado no Winrest em todas as lojas (não é roubo/falha individual).</div>
+    <div id="stockNegCruzadoCapturaHost"></div>
+    <div id="stockNegCruzadoPartilhaBtnsHub" style="margin-top:12px; display:flex; gap:8px;"></div>
+  `;
+  document.getElementById("stockNegCruzadoCapturaHost").appendChild(capturaWrap);
+  criarBotoesPartilhaHub(document.getElementById("stockNegCruzadoPartilhaBtnsHub"), capturaWrap, `CoreJoint_stock_neg_cruzado`, "CoreJoint · Stock negativo cruzado");
 }
 
 async function abrirRelatorioSondagemRecorrenteHub(perguntaTexto, tituloRelatorio){
