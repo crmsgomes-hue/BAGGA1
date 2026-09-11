@@ -872,6 +872,13 @@ async function renderInterno(){
     secInventario.body.appendChild(warn);
   }
 
+  if(dueInv.some(c=>c.key==="tabaco")){
+    const avisoTabaco = document.createElement("div");
+    avisoTabaco.style.cssText = "background:#fff3cd; border:2px solid #e0a800; border-radius:10px; padding:12px 14px; margin-bottom:10px; font-size:14px; font-weight:700; color:#5a4400; line-height:1.4;";
+    avisoTabaco.innerHTML = `⚠️ ATENÇÃO: "Tabaco (inventário)" é DIFERENTE do "Expositor do tabaco" que fazem de manhã.<br>Este é o de 15 em 15 dias — tem de ser feito à parte, mesmo que já tenham feito o expositor.`;
+    secInventario.body.appendChild(avisoTabaco);
+  }
+
   const diaErradoItems = dueInv.filter(c=>c.st.diaErrado);
   diaErradoItems.forEach(c=>{
     const w = document.createElement("div");
