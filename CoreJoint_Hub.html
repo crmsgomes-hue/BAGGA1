@@ -228,8 +228,15 @@ function linhasValoresTopico(linhas, linkBase, corPositiva){
   </div>`;
 }
 function botoesAcao(lista){
-  return `<div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
-    ${lista.map(([label,href])=>`<a href="${href}" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">${label}</a>`).join("")}
+  return `<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+    ${lista.map(([label,href])=>{
+      const partes = label.split(" ");
+      const icone = partes[0], resto = partes.slice(1).join(" ");
+      return `<a href="${href}" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;">
+        <span style="font-size:19px;">${icone}</span>
+        <span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">${resto}</span>
+      </a>`;
+    }).join("")}
   </div>`;
 }
 async function renderSemaforoLojas(){
@@ -505,8 +512,18 @@ async function renderPanoramaGeral(){
 
     document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
       const secao = (titulo)=>`<div style="font-size:11px; text-transform:uppercase; color:var(--t2); font-weight:700; margin:18px 0 8px;">${titulo}</div>`;
-      const g = (...items)=>`<div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">${items.join("")}</div>`;
-      const t = (id, label, extra="")=>`<button id="${id}" class="sc" style="text-align:center; border:none; cursor:pointer; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px; ${extra}">${label}</button>`;
+      const g = (...items)=>`<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">${items.join("")}</div>`;
+      const partirIcone = (texto)=>{
+        const partes = texto.split(" ");
+        return {icone: partes[0], resto: partes.slice(1).join(" ")};
+      };
+      const t = (id, textoCompleto)=>{
+        const {icone, resto} = partirIcone(textoCompleto);
+        return `<button id="${id}" data-topico="" class="sc" style="text-align:center; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;">
+          <span style="font-size:19px;">${icone}</span>
+          <span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">${resto}</span>
+        </button>`;
+      };
       const tp = t;
       const to = t;
       const corpo = `
@@ -526,15 +543,15 @@ async function renderPanoramaGeral(){
         ${g(
           t("btnAbrirRegistosQuebrasHub", "🔎 Registos e justificações"),
           to("btnAbrirExportQuebrasEmpresaHub", "📋 Preencher Excel da empresa"),
-          `<a href="CoreJoint_Reportes.html?abrir=importarQuebras" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">📤 Importar Excel de quebras</a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=quebrasSemanal" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">🖨️ Relatório semanal de quebras</a>`
+          `<a href="CoreJoint_Reportes.html?abrir=importarQuebras" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📤</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Importar Excel de quebras</span></a>`,
+          `<a href="CoreJoint_Reportes.html?abrir=quebrasSemanal" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">🖨️</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Relatório semanal de quebras</span></a>`
         )}
 
         ${secao("Inventário")}
         ${g(
           tp("btnAbrirFotosCategoriaHub", "📷 Fotos por categoria"),
           to("btnAbrirExportInvEmpresaHub", "📋 Preencher Excel da empresa"),
-          `<a href="CoreJoint_Reportes.html?abrir=visualInventario" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">📦 Ver relatório de inventário</a>`
+          `<a href="CoreJoint_Reportes.html?abrir=visualInventario" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📦</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Ver relatório de inventário</span></a>`
         )}
 
         ${secao("Outros")}
@@ -544,24 +561,27 @@ async function renderPanoramaGeral(){
           t("btnLegionelaHub", "🚿 Forms Legionela"),
           t("btnStockNegCruzadoHub", "📉 Stock negativo cruzado"),
           t("btnColaboradoresHub", "👥 Colaboradores"),
-          `<a href="CoreJoint_Reportes.html?abrir=visualFotosPontuais" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">📸 Fotos pontuais</a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=grelhaSondagensForms" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">📊 Sondagens e Formulários</a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=visualStockNeg" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">📉 Stock negativo</a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=visualFormacoes" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">🎓 Formações</a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=relatorioHorarios" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">👥 Horários</a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=pivotTrocas" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">🔁 Trocas de horário</a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=relatorioGlobalAgendamento" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">🗓️ Global — datas marcadas</a>`
+          `<a href="CoreJoint_Reportes.html?abrir=visualFotosPontuais" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📸</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Fotos pontuais</span></a>`,
+          `<a href="CoreJoint_Reportes.html?abrir=grelhaSondagensForms" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📊</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Sondagens e Formulários</span></a>`,
+          `<a href="CoreJoint_Reportes.html?abrir=visualStockNeg" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📉</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Stock negativo</span></a>`,
+          `<a href="CoreJoint_Reportes.html?abrir=visualFormacoes" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">🎓</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Formações</span></a>`,
+          `<a href="CoreJoint_Reportes.html?abrir=relatorioHorarios" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">👥</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Horários</span></a>`,
+          `<a href="CoreJoint_Reportes.html?abrir=pivotTrocas" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">🔁</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Trocas de horário</span></a>`,
+          `<a href="CoreJoint_Reportes.html?abrir=relatorioGlobalAgendamento" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">🗓️</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Global — datas marcadas</span></a>`
         )}
 
         ${secao("Ferramentas")}
         ${g(
-          `<button id="btnCriarSondagemFormHub" class="sc" style="text-align:center; border:none; cursor:pointer; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">➕ Criar sondagem/formulário</button>`,
-          `<a href="CoreJoint_Reportes.html?abrir=historico12m" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">📅 Histórico 12 meses</a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=calendario" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">📅 Calendário</a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=integridade" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">🕵️ Relatório de Integridade</a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=galeria" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">🖼️ Galeria de fotos</a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=cnvs" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">📈 CNVs Global</a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=importarColaboradores" class="sc" style="text-decoration:none; text-align:center; font-size:.76rem; font-weight:700; color:var(--tx); min-height:52px; display:flex; align-items:center; justify-content:center; line-height:1.2; padding:8px 6px;">📤 Importar Colaboradores</a>`
+          `<button id="btnCriarSondagemFormHub" class="sc" style="text-align:center; border:none; cursor:pointer; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;">
+            <span style="font-size:19px;">➕</span>
+            <span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Criar sondagem/formulário</span>
+          </button>`,
+          `<a href="CoreJoint_Reportes.html?abrir=historico12m" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📅</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Histórico 12 meses</span></a>`,
+          `<a href="CoreJoint_Reportes.html?abrir=calendario" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📅</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Calendário</span></a>`,
+          `<a href="CoreJoint_Reportes.html?abrir=integridade" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">🕵️</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Relatório de Integridade</span></a>`,
+          `<a href="CoreJoint_Reportes.html?abrir=galeria" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">🖼️</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Galeria de fotos</span></a>`,
+          `<a href="CoreJoint_Reportes.html?abrir=cnvs" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📈</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">CNVs Global</span></a>`,
+          `<a href="CoreJoint_Reportes.html?abrir=importarColaboradores" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📤</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Importar Colaboradores</span></a>`
         )}
       `;
       abrirModalTopico("📊 Relatórios", corpo);
