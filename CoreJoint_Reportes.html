@@ -5237,18 +5237,138 @@ function openImportarHorarios(){
   const card = document.createElement("div");
   card.className = "card";
   card.innerHTML = `
-    <div class="card-title" style="margin-bottom:6px;">📤 Importar horário (por loja)</div>
-    <div class="card-sub" style="margin-bottom:12px;">Escolhe a loja e depois o Excel. Colunas esperadas: Colaborador, Data, Turno (opcional).</div>
-    <select id="horariosLojaSel" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--line); margin-bottom:12px;">
-      <option value="">— Escolher loja —</option>
-      ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
-    </select>
-    <label style="display:block; width:100%; text-align:center; background:var(--terracotta); color:#fff; font-weight:700; padding:14px; border-radius:10px; cursor:pointer;">📁 Escolher ficheiro Excel<input type="file" id="horariosFile" accept=".xlsx,.xls,.csv" style="display:none;"></label>
-    <div id="horariosPreview" style="margin-top:14px;"></div>
+    <div class="card-title" style="margin-bottom:6px;">📤 Importar horários — todas as lojas</div>
+    <div class="card-sub" style="margin-bottom:14px;">Cada loja tem o seu ficheiro (a empresa exporta assim, um por um). Escolhe aqui os ficheiros que já tiveres — não precisa de ser todos de uma vez — e no fim toca em "Importar tudo".</div>
+    <div id="horariosLinhasLojas"></div>
+    <button class="cambtn" id="horariosImportarTudoBtn" style="width:100%; margin-top:14px;" disabled>✔ Importar tudo (0 loja(s) pronta(s))</button>
   `;
   main.appendChild(card);
-  document.getElementById("horariosFile").addEventListener("change", handleHorariosFile);
+
+  window._horariosPorLoja = {}; // { loja: {linhas:[...], nomeFicheiro} }
+
+  const linhasEl = document.getElementById("horariosLinhasLojas");
+  linhasEl.innerHTML = LOJAS.map(l=>`
+    <div id="horariosLinha_${l.replace(/\s+/g,"_")}" style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 0; border-bottom:1px solid var(--line);">
+      <div style="font-size:13px; font-weight:700; flex:1;">${l}</div>
+      <div id="horariosStatus_${l.replace(/\s+/g,"_")}" style="font-size:11px; color:var(--ink-soft); flex:1; text-align:right;">por escolher</div>
+      <label style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:7px 12px; font-size:11px; font-weight:700; color:var(--terracotta,#C1622E); cursor:pointer; white-space:nowrap;">📁 Escolher<input type="file" accept=".xlsx,.xls,.csv" style="display:none;" data-loja-horario="${l}"></label>
+    </div>
+  `).join("");
+
+  linhasEl.querySelectorAll("[data-loja-horario]").forEach(input=>{
+    input.addEventListener("change", (ev)=>handleHorariosFileLoja(ev, input.dataset.lojaHorario));
+  });
+
+  document.getElementById("horariosImportarTudoBtn").onclick = confirmarImportarHorariosTodas;
 }
+
+function atualizarStatusHorariosLoja(loja, texto, cor){
+  const el = document.getElementById(`horariosStatus_${loja.replace(/\s+/g,"_")}`);
+  if(el){ el.textContent = texto; el.style.color = cor || "var(--ink-soft)"; }
+  const prontos = Object.keys(window._horariosPorLoja||{}).length;
+  const btn = document.getElementById("horariosImportarTudoBtn");
+  if(btn){
+    btn.disabled = prontos===0;
+    btn.textContent = `✔ Importar tudo (${prontos} loja${prontos===1?'':'s'} pronta${prontos===1?'':'s'})`;
+  }
+}
+
+function handleHorariosFileLoja(ev, loja){
+  const file = ev.target.files[0];
+  if(!file) return;
+  atualizarStatusHorariosLoja(loja, "a ler...", "var(--ink-soft)");
+  lerFicheiroTabular(file, (rows)=>{
+    if(!rows || rows.length===0){
+      atualizarStatusHorariosLoja(loja, "✕ ficheiro vazio", "var(--red)");
+      return;
+    }
+    const headers = Object.keys(rows[0]);
+
+    if(ehFormatoSemanalLargo(headers)){
+      const linhas = converterFormatoSemanalLargo(rows, loja);
+      window._horariosPorLoja[loja] = linhas;
+      atualizarStatusHorariosLoja(loja, `✔ ${linhas.length} turno(s)`, "var(--green,#2e7d32)");
+      return;
+    }
+
+    abrirMapeamentoColunas(`Horário — ${loja}`, headers, [
+      {key:"colaborador", label:"Colaborador", sinonimos:["colaborador","nome","operador"], obrigatorio:true},
+      {key:"data", label:"Data", sinonimos:["data","data da escala"], obrigatorio:true},
+      {key:"turno", label:"Turno / Posto", sinonimos:["turno","posto"], obrigatorio:false},
+      {key:"horario", label:"Horário (a coluna com as horas — pode ter FOLGA/FÉRIAS/turnos partidos, é tratado automaticamente)", sinonimos:["horario","horário","periodo","período","entrada"], obrigatorio:true},
+    ], rows, (mapa)=>{
+      const todasLinhas = rows.map(r=>{
+        const colaborador = mapa.colaborador ? String(r[mapa.colaborador]||"").trim() : "";
+        const dataStr = mapa.data ? parseDataExcel(r[mapa.data]) : "";
+        const turno = mapa.turno ? String(r[mapa.turno]||"").trim() : "";
+        const intervalo = extrairIntervaloHoras(r[mapa.horario]);
+        return {loja, loja_original:loja, colaborador, data:dataStr, turno, hora_inicio: intervalo?.inicio||null, hora_fim: intervalo?.fim||null, _temHorario: !!intervalo};
+      }).filter(r=>r.colaborador && r.data && r._temHorario);
+      const linhas = todasLinhas.map(({_temHorario, ...resto})=>resto);
+      window._horariosPorLoja[loja] = linhas;
+      // volta ao ecra das 10 lojas em vez de seguir para o ecra generico de pre-visualizacao
+      openImportarHorariosRestaurarEstado();
+    });
+    // o botao "Voltar ao painel" dentro do ecra de mapeamento, por defeito, sairia deste fluxo por completo -
+    // troca para voltar ao ecra das 10 lojas, mantendo o que ja estava pronto
+    const btnVoltarMapeamento = document.querySelector("#main > button.cambtn.secondary");
+    if(btnVoltarMapeamento) btnVoltarMapeamento.onclick = openImportarHorariosRestaurarEstado;
+  });
+}
+// abrirMapeamentoColunas troca o ecra inteiro (main.innerHTML) - por isso, depois de mapear
+// uma loja, e preciso reconstruir o ecra das 10 lojas do zero, mantendo o que ja estava pronto
+function openImportarHorariosRestaurarEstado(){
+  const feito = window._horariosPorLoja || {};
+  openImportarHorarios();
+  Object.keys(feito).forEach(l=>atualizarStatusHorariosLoja(l, `✔ ${feito[l].length} turno(s)`, "var(--green,#2e7d32)"));
+}
+
+async function confirmarImportarHorariosTodas(){
+  const btn = document.getElementById("horariosImportarTudoBtn");
+  const todasLinhas = Object.values(window._horariosPorLoja||{}).flat();
+  // valida todas as datas ANTES de gravar - uma so linha invalida nunca deve deixar lixo parcial na base de dados
+  const invalidas = todasLinhas.filter(r=>!/^\d{4}-\d{2}-\d{2}$/.test(r.data));
+  if(invalidas.length>0){
+    const exemplos = invalidas.slice(0,5).map(r=>`${r.colaborador} (${r.loja}): "${r.data}"`).join(", ");
+    toast(`${invalidas.length} linha(s) com data inválida — nada foi gravado. Exemplos: ${exemplos}`);
+    return;
+  }
+  btn.disabled = true; btn.textContent = "A gravar...";
+  const payload = todasLinhas.map(r=>({
+    loja: r.loja, loja_original: r.loja_original, data: r.data,
+    colaborador: r.colaborador, turno: r.turno||null,
+    hora_inicio: r.hora_inicio||null, hora_fim: r.hora_fim||null,
+    importado_por: currentUser
+  }));
+  try{
+    // o ficheiro de cada loja e sempre o horario completo e atual dessa loja - substitui so as lojas que importaste agora
+    const lojasImportadasAgora = Object.keys(window._horariosPorLoja||{});
+    for(const l of lojasImportadasAgora){
+      await api("DELETE", `cj_horarios?loja=eq.${encodeURIComponent(l)}`);
+    }
+    await api("POST", "cj_horarios", payload);
+  }catch(e){
+    toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
+    btn.disabled = false;
+    return;
+  }
+  // detecta automaticamente o mes com mais dados importados, para abrir o relatorio logo no sitio certo
+  const contagemPorMes = {};
+  payload.forEach(r=>{
+    const chave = r.data.slice(0,7);
+    contagemPorMes[chave] = (contagemPorMes[chave]||0) + 1;
+  });
+  const mesComMaisDados = Object.entries(contagemPorMes).sort((a,b)=>b[1]-a[1])[0]?.[0];
+  if(mesComMaisDados){
+    const [ano, mes] = mesComMaisDados.split("-").map(Number);
+    _horAno = ano; _horMes = mes - 1;
+  }
+  mostrarSucesso(`${payload.length} turno(s) importado(s), em ${Object.keys(window._horariosPorLoja||{}).length} loja(s)`);
+  window._horariosPorLoja = {};
+  window._formEmEdicao = false;
+  await abrirRelatorioHorarios();
+}
+
 
 let horariosParaImportar = [];
 // Parser de CSV tolerante a aspas, quebras de linha dentro de celulas, e separador ; ou , (deteta automaticamente)
@@ -5353,125 +5473,6 @@ function converterFormatoSemanalLargo(rows, loja){
     });
   });
   return linhas;
-}
-
-function handleHorariosFile(ev){
-  const loja = document.getElementById("horariosLojaSel").value;
-  if(!loja){ toast("Escolhe a loja primeiro"); ev.target.value = ""; return; }
-  const file = ev.target.files[0];
-  if(!file) return;
-  lerFicheiroTabular(file, (rows)=>{
-      const headers = Object.keys(rows[0]);
-
-      if(ehFormatoSemanalLargo(headers)){
-        // formato reconhecido automaticamente - nao precisa de mapear colunas
-        horariosParaImportar = converterFormatoSemanalLargo(rows, loja);
-        window._formEmEdicao = true;
-        const main = document.getElementById("main");
-        main.innerHTML = "";
-        const back = document.createElement("button");
-        back.className = "cambtn secondary";
-        back.style.marginBottom = "14px";
-        back.textContent = "← Voltar ao painel";
-        back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
-        main.appendChild(back);
-        const card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML = `<div id="horariosPreview"></div>`;
-        main.appendChild(card);
-        renderHorariosPreview(loja, horariosParaImportar.length);
-        return;
-      }
-
-      abrirMapeamentoColunas(`Horário — ${loja}`, headers, [
-        {key:"colaborador", label:"Colaborador", sinonimos:["colaborador","nome","operador"], obrigatorio:true},
-        {key:"data", label:"Data", sinonimos:["data","data da escala"], obrigatorio:true},
-        {key:"turno", label:"Turno / Posto", sinonimos:["turno","posto"], obrigatorio:false},
-        {key:"horario", label:"Horário (a coluna com as horas — pode ter FOLGA/FÉRIAS/turnos partidos, é tratado automaticamente)", sinonimos:["horario","horário","periodo","período","entrada"], obrigatorio:true},
-      ], rows, (mapa)=>{
-        const todasLinhas = rows.map(r=>{
-          const colaborador = mapa.colaborador ? String(r[mapa.colaborador]||"").trim() : "";
-          const dataStr = mapa.data ? parseDataExcel(r[mapa.data]) : "";
-          const turno = mapa.turno ? String(r[mapa.turno]||"").trim() : "";
-          const intervalo = extrairIntervaloHoras(r[mapa.horario]);
-          return {loja, loja_original:loja, colaborador, data:dataStr, turno, hora_inicio: intervalo?.inicio||null, hora_fim: intervalo?.fim||null, _temHorario: !!intervalo};
-        }).filter(r=>r.colaborador && r.data && r._temHorario); // linhas so com FOLGA/FERIAS/BAIXA (sem nenhum intervalo de horas) nao sao turnos reais - ficam de fora
-
-        horariosParaImportar = todasLinhas.map(({_temHorario, ...resto})=>resto);
-        window._formEmEdicao = true;
-        const main = document.getElementById("main");
-        main.innerHTML = "";
-        const back = document.createElement("button");
-        back.className = "cambtn secondary";
-        back.style.marginBottom = "14px";
-        back.textContent = "← Voltar ao painel";
-        back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
-        main.appendChild(back);
-        const card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML = `<div id="horariosPreview"></div>`;
-        main.appendChild(card);
-        renderHorariosPreview(loja, horariosParaImportar.length);
-      });
-  });
-}
-function renderHorariosPreview(loja, totalLinhas){
-  const el = document.getElementById("horariosPreview");
-  const amostra = horariosParaImportar.slice(0,5);
-  const datasUnicas = [...new Set(horariosParaImportar.map(r=>r.data))];
-  const amostraHtml = amostra.map(r=>{
-    const dataOk = /^\d{4}-\d{2}-\d{2}$/.test(r.data);
-    const cor = dataOk ? "var(--ink)" : "var(--red)";
-    return `<div style="font-size:12px; padding:5px 0; border-bottom:1px solid var(--line); color:${cor};">${r.colaborador} — <b>${r.data||'(sem data!)'}</b>${r.hora_inicio?` · ${r.hora_inicio}-${r.hora_fim||'?'}`:''}</div>`;
-  }).join("");
-  el.innerHTML = `
-    <div class="card-sub" style="margin-bottom:6px;">${totalLinhas} turno(s) encontrado(s) para ${loja}, em ${datasUnicas.length} dia(s) diferentes.</div>
-    <div style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:8px 10px; margin-bottom:12px;">
-      <div style="font-size:10px; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:4px;">Amostra — confirma que as datas fazem sentido:</div>
-      ${amostraHtml}
-    </div>
-    <button class="cambtn" id="confirmarImportarHorariosBtn" style="width:100%;">✔ Confirmar importação</button>
-  `;
-  const btn = document.getElementById("confirmarImportarHorariosBtn");
-  btn.onclick = protegerClique(btn, confirmarImportarHorarios, `A gravar ${horariosParaImportar.length} registo(s)...`);
-}
-async function confirmarImportarHorarios(){
-  // valida todas as datas ANTES de gravar - uma so linha invalida nunca deve deixar lixo parcial na base de dados
-  const invalidas = horariosParaImportar.filter(r=>!/^\d{4}-\d{2}-\d{2}$/.test(r.data));
-  if(invalidas.length>0){
-    const exemplos = invalidas.slice(0,5).map(r=>`${r.colaborador}: "${r.data}"`).join(", ");
-    toast(`${invalidas.length} linha(s) com data inválida — nada foi gravado. Exemplos: ${exemplos}`);
-    return;
-  }
-  const payload = horariosParaImportar.map(r=>({
-    loja: r.loja, loja_original: r.loja_original, data: r.data,
-    colaborador: r.colaborador, turno: r.turno||null,
-    hora_inicio: r.hora_inicio||null, hora_fim: r.hora_fim||null,
-    importado_por: currentUser
-  }));
-  try{
-    // o ficheiro da empresa e sempre o horario completo e atual - substitui tudo
-    await api("DELETE", "cj_horarios?loja=not.is.null");
-    await api("POST", "cj_horarios", payload);
-  }catch(e){
-    toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
-    return;
-  }
-  // detecta automaticamente o mes com mais dados importados, para abrir o relatorio logo no sitio certo
-  // (em vez de adivinhar "mes atual" ou "mes anterior", que pode nao ter nada a ver com os dados reais do ficheiro)
-  const contagemPorMes = {};
-  payload.forEach(r=>{
-    const chave = r.data.slice(0,7); // "2026-09"
-    contagemPorMes[chave] = (contagemPorMes[chave]||0) + 1;
-  });
-  const mesComMaisDados = Object.entries(contagemPorMes).sort((a,b)=>b[1]-a[1])[0]?.[0];
-  if(mesComMaisDados){
-    const [ano, mes] = mesComMaisDados.split("-").map(Number);
-    _horAno = ano; _horMes = mes - 1;
-  }
-  mostrarSucesso(`${horariosParaImportar.length} turno(s) importado(s)`);
-  horariosParaImportar = [];
-  await abrirRelatorioHorarios();
 }
 
 let _horMes = new Date().getMonth();
