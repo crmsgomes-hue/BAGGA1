@@ -5792,11 +5792,14 @@ async function renderRelatorioHorarios(capturaWrap){
     </div>
   ` : `<div style="background:#e8f3e8; border:1px solid #c8e0c8; border-radius:10px; padding:10px; margin-bottom:12px; font-size:12px; color:#2e7d32; font-weight:700;">✔ Abertura e fecho cobertos em todos os dias com horas importadas.</div>`;
 
-  const headerHtml = LOJAS.map(l=>`<th style="font-size:8px; color:#9c4d23; padding:2px 1px; border-bottom:2px solid #C1622D; white-space:nowrap;" title="${l}">${abreviarLoja(l).slice(0,4)}</th>`).join("");
+  const lojasComDados = LOJAS.filter(l=>rows.some(r=>r.loja===l));
+  const lojasSemDados = LOJAS.filter(l=>!lojasComDados.includes(l));
+
+  const headerHtml = lojasComDados.map(l=>`<th style="font-size:8px; color:#9c4d23; padding:2px 1px; border-bottom:2px solid #C1622D; white-space:nowrap;" title="${l}">${abreviarLoja(l).slice(0,4)}</th>`).join("");
   const linhasHtml = [];
   for(let d=new Date(inicioMes); d<=fimMes; d.setDate(d.getDate()+1)){
     const ds = isoDate(d);
-    const cols = LOJAS.map(l=>{
+    const cols = lojasComDados.map(l=>{
       const n = (porDiaLoja[`${ds}|${l}`] || new Set()).size;
       const cor = n===0 ? "#ccc" : "#2e7d32";
       return `<td style="text-align:center; color:${cor}; font-weight:800; padding:2px 1px; border-bottom:1px solid #f0ebe3; font-size:9.5px;">${n||'—'}</td>`;
@@ -5804,12 +5807,19 @@ async function renderRelatorioHorarios(capturaWrap){
     linhasHtml.push(`<tr><td style="font-weight:700; font-size:9px; padding:2px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${d.getDate()}</td>${cols}</tr>`);
   }
 
+  const avisoSemDadosHtml = lojasSemDados.length>0 ? `
+    <div style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:10.5px; color:var(--ink-soft);">
+      Sem horário importado este mês: <b>${lojasSemDados.join(", ")}</b>
+    </div>
+  ` : "";
+
   capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:10px 6px; border:1px solid var(--line); width:100%; box-sizing:border-box;";
   capturaWrap.innerHTML = `
     <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:13px; color:#C1622D; margin-bottom:1px; padding:0 4px;">CoreJoint · Horários — colaboradores por dia</div>
     <div style="font-size:9px; color:#777; margin-bottom:8px; padding:0 4px; text-transform:capitalize;">${MESES_PT_CAL[_horMes]} ${_horAno}</div>
     <div style="padding:0 4px;">${alertaHtml}</div>
-    <table style="border-collapse:collapse; width:100%;"><thead><tr><th></th>${headerHtml}</tr></thead><tbody>${linhasHtml.join("")}</tbody></table>
+    <div style="padding:0 4px;">${avisoSemDadosHtml}</div>
+    ${lojasComDados.length===0 ? `<div style="text-align:center; padding:20px 4px; color:var(--t2); font-size:12px;">Nenhuma loja tem horário importado este mês.</div>` : `<table style="border-collapse:collapse; width:100%;"><thead><tr><th></th>${headerHtml}</tr></thead><tbody>${linhasHtml.join("")}</tbody></table>`}
   `;
 }
 
