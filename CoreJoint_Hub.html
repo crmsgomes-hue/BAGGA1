@@ -228,15 +228,8 @@ function linhasValoresTopico(linhas, linkBase, corPositiva){
   </div>`;
 }
 function botoesAcao(lista){
-  return `<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-    ${lista.map(([label,href])=>{
-      const partes = label.split(" ");
-      const icone = partes[0], resto = partes.slice(1).join(" ");
-      return `<a href="${href}" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;">
-        <span style="font-size:19px;">${icone}</span>
-        <span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">${resto}</span>
-      </a>`;
-    }).join("")}
+  return `<div style="display:flex; flex-direction:column; gap:6px;">
+    ${lista.map(([label,href])=>`<a href="${href}" style="text-decoration:none; display:block; text-align:center; background:var(--terracotta,#C1622D); color:#fff; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">${label}</a>`).join("")}
   </div>`;
 }
 async function renderSemaforoLojas(){
@@ -512,77 +505,58 @@ async function renderPanoramaGeral(){
 
     document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
       const secao = (titulo)=>`<div style="font-size:11px; text-transform:uppercase; color:var(--t2); font-weight:700; margin:18px 0 8px;">${titulo}</div>`;
-      const g = (...items)=>`<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">${items.join("")}</div>`;
-      const partirIcone = (texto)=>{
-        const partes = texto.split(" ");
-        return {icone: partes[0], resto: partes.slice(1).join(" ")};
-      };
-      const t = (id, textoCompleto)=>{
-        const {icone, resto} = partirIcone(textoCompleto);
-        return `<button id="${id}" data-topico="" class="sc" style="text-align:center; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;">
-          <span style="font-size:19px;">${icone}</span>
-          <span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">${resto}</span>
-        </button>`;
-      };
-      const tp = t;
-      const to = t;
       const corpo = `
-        ${g(
-          t("btnAbrirPinsLojasHub", "🔑 PINs das lojas"),
-          t("btnAbrirResetCategoriaHub", "🔄 Reset de categoria")
-        )}
+        <div style="display:flex; gap:8px; margin-bottom:4px;">
+          <button id="btnAbrirPinsLojasHub" style="flex:1; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.76rem; font-weight:700; cursor:pointer;">🔑 PINs das lojas</button>
+          <button id="btnAbrirResetCategoriaHub" style="flex:1; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.76rem; font-weight:700; cursor:pointer;">🔄 Reset de categoria</button>
+        </div>
 
         ${secao("Diário")}
-        ${g(
-          tp("btnAbrirDiarioVisualHub", "📸 Vitrine, Vendas, Laranjas e Tabaco"),
-          t("btnAbrirResumoOntemModal", "📅 Resumo de ontem"),
-          t("btnAbrirSemanalHub", "🖨️ Relatório semanal de vendas")
-        )}
+        <button id="btnAbrirDiarioVisualHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📸 Vitrine, Vendas, Laranjas e Tabaco (imagem p/ WhatsApp)</button>
+        <button id="btnAbrirResumoOntemModal" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📅 Resumo de ontem</button>
+        <button id="btnAbrirSemanalHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🖨️ Relatório semanal de vendas</button>
 
         ${secao("Quebras")}
-        ${g(
-          t("btnAbrirRegistosQuebrasHub", "🔎 Registos e justificações"),
-          to("btnAbrirExportQuebrasEmpresaHub", "📋 Preencher Excel da empresa"),
-          `<a href="CoreJoint_Reportes.html?abrir=importarQuebras" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📤</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Importar Excel de quebras</span></a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=quebrasSemanal" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">🖨️</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Relatório semanal de quebras</span></a>`
-        )}
+        <button id="btnAbrirRegistosQuebrasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔎 Registos e justificações</button>
+        <button id="btnAbrirExportQuebrasEmpresaHub" style="width:100%; margin-bottom:6px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📋 Preencher Excel da empresa</button>
+        ${botoesAcao([
+          ["📤 Importar Excel de quebras","CoreJoint_Reportes.html?abrir=importarQuebras"],
+          ["🖨️ Relatório semanal de quebras","CoreJoint_Reportes.html?abrir=quebrasSemanal"]
+        ])}
 
         ${secao("Inventário")}
-        ${g(
-          tp("btnAbrirFotosCategoriaHub", "📷 Fotos por categoria"),
-          to("btnAbrirExportInvEmpresaHub", "📋 Preencher Excel da empresa"),
-          `<a href="CoreJoint_Reportes.html?abrir=visualInventario" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📦</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Ver relatório de inventário</span></a>`
-        )}
+        <button id="btnAbrirFotosCategoriaHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📷 Fotos por categoria (datas de cada envio)</button>
+        <button id="btnAbrirExportInvEmpresaHub" style="width:100%; margin-bottom:6px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📋 Preencher Excel da empresa</button>
+        ${botoesAcao([
+          ["📦 Ver relatório de inventário","CoreJoint_Reportes.html?abrir=visualInventario"]
+        ])}
 
         ${secao("Outros")}
-        ${g(
-          tp("btnInscricoesFormacaoHub", "🎓 Inscrições — Formação Horários"),
-          t("btnApsPreventivaHub", "📋 APS e Preventiva Delta"),
-          t("btnLegionelaHub", "🚿 Forms Legionela"),
-          t("btnStockNegCruzadoHub", "📉 Stock negativo cruzado"),
-          t("btnColaboradoresHub", "👥 Colaboradores"),
-          `<a href="CoreJoint_Reportes.html?abrir=visualFotosPontuais" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📸</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Fotos pontuais</span></a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=grelhaSondagensForms" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📊</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Sondagens e Formulários</span></a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=visualStockNeg" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📉</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Stock negativo</span></a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=visualFormacoes" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">🎓</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Formações</span></a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=relatorioHorarios" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">👥</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Horários</span></a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=pivotTrocas" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">🔁</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Trocas de horário</span></a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=relatorioGlobalAgendamento" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">🗓️</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Global — datas marcadas</span></a>`
-        )}
+        <button id="btnInscricoesFormacaoHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">🎓 Inscrições — Formação Horários</button>
+        <button id="btnApsPreventivaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📋 APS e Preventiva Delta</button>
+        <button id="btnLegionelaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚿 Forms Legionela — histórico semanal</button>
+        <button id="btnStockNegCruzadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo cruzado (mesmo artigo, 4+ lojas)</button>
+        <button id="btnColaboradoresHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👥 Colaboradores (nomes e nº mecanográfico)</button>
+        ${botoesAcao([
+          ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
+          ["📊 Sondagens e Formulários","CoreJoint_Reportes.html?abrir=grelhaSondagensForms"],
+          ["📉 Stock negativo","CoreJoint_Reportes.html?abrir=visualStockNeg"],
+          ["🎓 Formações","CoreJoint_Reportes.html?abrir=visualFormacoes"],
+          ["👥 Horários","CoreJoint_Reportes.html?abrir=relatorioHorarios"],
+          ["🔁 Trocas de horário","CoreJoint_Reportes.html?abrir=pivotTrocas"],
+          ["🗓️ Global — datas marcadas (Set/Out)","CoreJoint_Reportes.html?abrir=relatorioGlobalAgendamento"],
+        ])}
 
         ${secao("Ferramentas")}
-        ${g(
-          `<button id="btnCriarSondagemFormHub" class="sc" style="text-align:center; border:none; cursor:pointer; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;">
-            <span style="font-size:19px;">➕</span>
-            <span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Criar sondagem/formulário</span>
-          </button>`,
-          `<a href="CoreJoint_Reportes.html?abrir=historico12m" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📅</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Histórico 12 meses</span></a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=calendario" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📅</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Calendário</span></a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=integridade" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">🕵️</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Relatório de Integridade</span></a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=galeria" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">🖼️</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Galeria de fotos</span></a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=cnvs" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📈</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">CNVs Global</span></a>`,
-          `<a href="CoreJoint_Reportes.html?abrir=importarColaboradores" class="sc" style="text-decoration:none; text-align:center; width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:14px 6px; min-height:76px;"><span style="font-size:19px;">📤</span><span style="font-size:.72rem; font-weight:700; color:var(--tx); line-height:1.2;">Importar Colaboradores</span></a>`
-        )}
+        <button id="btnCriarSondagemFormHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">➕ Criar sondagem/formulário</button>
+        ${botoesAcao([
+          ["📅 Histórico 12 meses","CoreJoint_Reportes.html?abrir=historico12m"],
+          ["📅 Calendário","CoreJoint_Reportes.html?abrir=calendario"],
+          ["🕵️ Relatório de Integridade","CoreJoint_Reportes.html?abrir=integridade"],
+          ["🖼️ Galeria de fotos","CoreJoint_Reportes.html?abrir=galeria"],
+          ["📈 CNVs Global","CoreJoint_Reportes.html?abrir=cnvs"],
+          ["📤 Importar Colaboradores","CoreJoint_Reportes.html?abrir=importarColaboradores"],
+        ])}
       `;
       abrirModalTopico("📊 Relatórios", corpo);
       document.getElementById("btnAbrirPinsLojasHub").onclick = abrirPinsLojasHub;
