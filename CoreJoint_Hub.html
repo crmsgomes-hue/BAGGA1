@@ -2443,26 +2443,31 @@ async function abrirColaboradoresHub(){
   capturaWrap.style.cssText = "background:#fff; padding:4px;";
 
   function renderTabela(lista){
-    const linhas = lista.map(c=>`<tr>
-      <td style="font-weight:700; font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3;">${c.nome}</td>
-      <td style="font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3; text-align:center; white-space:nowrap;">${c.numero_mecanografico}</td>
-      <td style="font-size:10.5px; padding:5px 4px; border-bottom:1px solid #f0ebe3; color:var(--t2); white-space:nowrap;">${c.loja||'—'}</td>
-      <td style="font-size:10.5px; padding:5px 4px; border-bottom:1px solid #f0ebe3; text-align:center; white-space:nowrap;">${c.carga_horaria||'—'}</td>
-    </tr>`).join("");
+    const porLoja = {};
+    lista.forEach(c=>{
+      const l = c.loja || "Sem loja";
+      porLoja[l] ||= [];
+      porLoja[l].push(c);
+    });
+    const lojasOrdenadas = Object.keys(porLoja).sort();
+    const gruposHtml = lojasOrdenadas.map(l=>{
+      const linhas = porLoja[l].map(c=>`
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:5px 4px; border-bottom:1px solid #f0ebe3;">
+          <span style="font-size:11px; font-weight:700;">${c.nome}</span>
+          <span style="font-size:10px; color:#777; white-space:nowrap;">Nº ${c.numero_mecanografico}${c.carga_horaria?` · ${c.carga_horaria}`:''}</span>
+        </div>
+      `).join("");
+      return `
+        <div style="margin-bottom:10px;">
+          <div style="font-size:11px; font-weight:800; color:#C1622D; padding:4px 2px; border-bottom:2px solid #C1622D; margin-bottom:2px;">${l} (${porLoja[l].length})</div>
+          ${linhas}
+        </div>
+      `;
+    }).join("");
     capturaWrap.innerHTML = `
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Colaboradores</div>
-      <div style="font-size:10px; color:#777; margin-bottom:8px;">${lista.length} pessoa(s)</div>
-      <div style="overflow-x:auto; max-height:340px; overflow-y:auto;">
-      <table style="border-collapse:collapse; width:100%;">
-        <thead><tr>
-          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Nome</th>
-          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:center; padding:4px 4px; border-bottom:2px solid #C1622D;">Nº Mec.</th>
-          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Loja</th>
-          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:center; padding:4px 4px; border-bottom:2px solid #C1622D;">Carga</th>
-        </tr></thead>
-        <tbody>${linhas}</tbody>
-      </table>
-      </div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px;">${lista.length} pessoa(s)</div>
+      <div style="max-height:400px; overflow-y:auto;">${gruposHtml}</div>
     `;
   }
   renderTabela(colaboradores);
