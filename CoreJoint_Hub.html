@@ -2445,24 +2445,53 @@ async function abrirInventarioArtigosRelatorioHub(lojaInicial){
     const artigos = await api(`cj_inventario_artigos?select=*&loja=eq.${encodeURIComponent(loja)}&order=valor.asc`, "GET");
     const totalJust = artigos.filter(a=>a.justificacao).length;
 
+    // agrupa por categoria principal - Consumiveis (Cafetaria\Consumiveis ou Restauracao\Consumiveis) juntam-se em "CNVs";
+    // o resto agrupa pelo primeiro nivel da categoria (antes da \)
+    function grupoDe(a){
+      if((a.categoria||"").toLowerCase().includes("consumíveis") || (a.categoria||"").toLowerCase().includes("consumiveis")) return "CNVs";
+      return (a.categoria||"Outros").split("\\")[0].trim();
+    }
+    const grupos = {};
+    artigos.forEach(a=>{
+      const g = grupoDe(a);
+      grupos[g] ||= [];
+      grupos[g].push(a);
+    });
+    const nomesGrupos = Object.keys(grupos).sort((a,b)=> grupos[b].length - grupos[a].length);
+
     const capturaWrap = document.createElement("div");
     capturaWrap.style.cssText = "background:#fff; padding:4px;";
-    const linhas = artigos.map(a=>`
-      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:10px 12px; margin-bottom:6px;">
-        <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
-          <b style="font-size:11.5px;">${a.artigo}</b>
-          <span style="font-size:12.5px; font-weight:800; color:${a.valor<0?'#b0432f':'#2e7d32'}; white-space:nowrap;">${Number(a.valor).toFixed(2).replace('.',',')}€</span>
+    const blocosHtml = nomesGrupos.map(g=>{
+      const linhasTabela = grupos[g].map(a=>`
+        <tr>
+          <td style="font-size:10px; padding:4px 4px; border-bottom:1px solid #f0ebe3;">${a.artigo}</td>
+          <td style="font-size:9.5px; padding:4px 4px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${a.unidade||'—'}</td>
+          <td style="font-size:10px; padding:4px 4px; border-bottom:1px solid #f0ebe3; text-align:right;">${a.diferenca_qtd!=null?Number(a.diferenca_qtd).toFixed(1).replace('.',','):'—'}</td>
+          <td style="font-size:10.5px; padding:4px 4px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:${a.valor<0?'#b0432f':'#2e7d32'};">${Number(a.valor).toFixed(2).replace('.',',')}€</td>
+          <td style="font-size:9px; padding:4px 4px; border-bottom:1px solid #f0ebe3; text-align:center;">${a.justificacao?'✔':'✕'}</td>
+        </tr>
+      `).join("");
+      const totalGrupo = grupos[g].reduce((s,a)=>s+Number(a.valor||0),0);
+      return `
+        <div style="margin-bottom:12px;">
+          <div style="background:#e8a95c; color:#5a3a10; font-weight:800; font-size:11px; padding:5px 8px; border-radius:6px 6px 0 0;">${g.toUpperCase()} (${grupos[g].length}) — ${totalGrupo.toFixed(2).replace('.',',')}€</div>
+          <table style="border-collapse:collapse; width:100%;">
+            <thead><tr style="background:#f5e6c8;">
+              <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 4px;">Artigo</th>
+              <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 4px;">Un.</th>
+              <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:3px 4px;">Qde</th>
+              <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:3px 4px;">Valor</th>
+              <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:center; padding:3px 4px;">Just.</th>
+            </tr></thead>
+            <tbody>${linhasTabela}</tbody>
+          </table>
         </div>
-        <div style="font-size:9.5px; color:#777; margin-bottom:4px;">${a.categoria}${a.subcategoria?' · '+a.subcategoria:''}</div>
-        ${a.justificacao
-          ? `<div style="font-size:10.5px; color:#2e7d32; background:#e8f3e9; border-radius:6px; padding:5px 7px;"><b>✔ Justificado:</b> ${a.justificacao}</div>`
-          : `<div style="font-size:10.5px; color:#b0432f; background:#fdf1ee; border-radius:6px; padding:5px 7px;"><b>✕ Por justificar</b></div>`}
-      </div>
-    `).join("");
+      `;
+    }).join("");
     capturaWrap.innerHTML = `
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Inventário por Artigo — ${loja}</div>
       <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')} · ${artigos.length} artigo(s) com diferença · ${totalJust}/${artigos.length} justificado(s)</div>
-      ${linhas || `<div style="text-align:center; color:var(--t2); font-size:12px; padding:14px 0;">Sem artigos com diferença.</div>`}
+      ${blocosHtml || `<div style="text-align:center; color:var(--t2); font-size:12px; padding:14px 0;">Sem artigos com diferença.</div>`}
     `;
 
     host.innerHTML = "";
