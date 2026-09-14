@@ -536,6 +536,7 @@ async function renderPanoramaGeral(){
         <button id="btnApsPreventivaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📋 APS e Preventiva Delta</button>
         <button id="btnLegionelaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚿 Forms Legionela — histórico semanal</button>
         <button id="btnStockNegCruzadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo cruzado (mesmo artigo, 4+ lojas)</button>
+        <button id="btnStockNegDetalhadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo (lista detalhada, artigo a artigo)</button>
         <button id="btnColaboradoresHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👥 Colaboradores (nomes e nº mecanográfico)</button>
         ${botoesAcao([
           ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
@@ -570,6 +571,7 @@ async function renderPanoramaGeral(){
       document.getElementById("btnApsPreventivaHub").onclick = abrirRelatorioApsPreventivaHub;
       document.getElementById("btnLegionelaHub").onclick = ()=>abrirRelatorioSondagemRecorrenteHub("Forms Leggionela", "Forms Legionela — histórico semanal");
       document.getElementById("btnStockNegCruzadoHub").onclick = abrirRelatorioStockNegCruzadoHub;
+      document.getElementById("btnStockNegDetalhadoHub").onclick = abrirRelatorioStockNegDetalhadoHub;
       document.getElementById("btnColaboradoresHub").onclick = abrirColaboradoresHub;
       document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
       document.getElementById("btnAbrirFotosCategoriaHub").onclick = ()=>{
@@ -2473,6 +2475,61 @@ async function abrirColaboradoresHub(){
     );
     renderTabela(filtrados);
   };
+}
+
+async function abrirRelatorioStockNegDetalhadoHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "stockNegDetalhadoOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div id="stockNegDetalhadoConteudoHub"><div style="text-align:center; padding:20px 0; color:var(--t2); font-size:.85rem;">A carregar...</div></div>
+      <button id="fecharStockNegDetalhadoHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharStockNegDetalhadoHubBtn").onclick = ()=>fecharEcraHub();
+
+  const rows = await api("cj_stock_negativo?select=loja,loja_original,data,operador,produto,valor_stock,fora_dop&justificacao=is.null&order=valor_stock.asc", "GET");
+  const validas = rows.filter(r=>r.loja || r.fora_dop);
+  validas.sort((a,b)=>(a.loja||a.loja_original||"").localeCompare(b.loja||b.loja_original||"") || Number(a.valor_stock)-Number(b.valor_stock));
+
+  const capturaWrap = document.createElement("div");
+  capturaWrap.style.cssText = "background:#fff; padding:4px;";
+  const linhas = validas.map(r=>`<tr>
+    <td style="font-weight:700; font-size:10.5px; padding:5px 4px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${r.loja || (r.loja_original+' (fora)')}</td>
+    <td style="font-size:10px; padding:5px 4px; border-bottom:1px solid #f0ebe3;">${r.produto||'—'}</td>
+    <td style="font-size:9.5px; padding:5px 4px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${r.data?new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT'):'—'}</td>
+    <td style="font-size:9.5px; padding:5px 4px; border-bottom:1px solid #f0ebe3;">${r.operador||'—'}</td>
+    <td style="font-size:10.5px; padding:5px 4px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:#b0432f;">${Number(r.valor_stock).toFixed(2).replace('.',',')}€</td>
+  </tr>`).join("");
+  const totalGeral = validas.reduce((s,r)=>s+Number(r.valor_stock||0),0);
+
+  capturaWrap.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Stock negativo (detalhado)</div>
+    <div style="font-size:10px; color:#777; margin-bottom:8px;">${new Date().toLocaleDateString('pt-PT')} · ${validas.length} artigo(s) · total ${totalGeral.toFixed(2).replace('.',',')}€</div>
+    <div style="overflow-x:auto;">
+    <table style="border-collapse:collapse; width:100%;">
+      <thead><tr>
+        <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Loja</th>
+        <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Produto</th>
+        <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Data</th>
+        <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Operador</th>
+        <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:4px 4px; border-bottom:2px solid #C1622D;">Valor</th>
+      </tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>
+    </div>
+  `;
+
+  document.getElementById("stockNegDetalhadoConteudoHub").innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:12px;">📉 Stock negativo (detalhado)</div>
+    <div id="stockNegDetalhadoCapturaHost"></div>
+    <div id="stockNegDetalhadoPartilhaBtnsHub" style="margin-top:12px; display:flex; gap:8px;"></div>
+  `;
+  document.getElementById("stockNegDetalhadoCapturaHost").appendChild(capturaWrap);
+  criarBotoesPartilhaHub(document.getElementById("stockNegDetalhadoPartilhaBtnsHub"), capturaWrap, `CoreJoint_stock_neg_detalhado`, "CoreJoint · Stock negativo (detalhado)");
 }
 
 async function abrirRelatorioStockNegCruzadoHub(){
