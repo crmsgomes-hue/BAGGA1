@@ -2435,7 +2435,11 @@ async function abrirInventarioArtigosRelatorioHub(lojaInicial){
   `;
   document.body.appendChild(overlay);
   empilharEcraHub(overlay);
-  document.getElementById("fecharInvArtigosRelHubBtn").onclick = ()=>fecharEcraHub();
+  document.getElementById("fecharInvArtigosRelHubBtn").onclick = ()=>{
+    const antigo = document.getElementById("invArtigosRelCapturaEscondida");
+    if(antigo) antigo.remove();
+    fecharEcraHub();
+  };
 
   function grupoDe(a){
     if((a.categoria||"").toLowerCase().includes("consumíveis") || (a.categoria||"").toLowerCase().includes("consumiveis")) return "CNVs";
@@ -2492,33 +2496,32 @@ async function abrirInventarioArtigosRelatorioHub(lojaInicial){
       </div>
     `;
 
-    const capturaWrap = document.createElement("div");
-    capturaWrap.style.cssText = "background:#fff; padding:4px;";
-    const blocosHtml = nomesGrupos.map(g=>{
+    const totalGrupoRealPorGrupo = {};
+    const blocosCol = nomesGrupos.map(g=>{
       const top20 = [...grupos[g]].sort((a,b)=>Math.abs(Number(b.valor))-Math.abs(Number(a.valor))).slice(0,20);
+      const totalGrupoReal = grupos[g].reduce((s,a)=>s+Number(a.valor||0),0);
+      totalGrupoRealPorGrupo[g] = totalGrupoReal;
+      const maisFora = grupos[g].length>20 ? `<div style="font-size:8px; color:#777; padding:3px 3px;">+${grupos[g].length-20} fora do Top 20</div>` : "";
       const linhasTabela = top20.map(a=>`
         <tr>
-          ${todasLojas ? `<td style="font-size:9px; padding:4px 4px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${abreviarLoja(a.loja)}</td>` : ``}
-          <td style="font-size:10px; padding:4px 4px; border-bottom:1px solid #f0ebe3;">${a.artigo}</td>
-          <td style="font-size:9.5px; padding:4px 4px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${a.unidade||'—'}</td>
-          <td style="font-size:10px; padding:4px 4px; border-bottom:1px solid #f0ebe3; text-align:right;">${a.diferenca_qtd!=null?Number(a.diferenca_qtd).toFixed(1).replace('.',','):'—'}</td>
-          <td style="font-size:10.5px; padding:4px 4px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:${a.valor<0?'#b0432f':'#2e7d32'};">${Number(a.valor).toFixed(2).replace('.',',')}€</td>
-          <td style="font-size:9px; padding:4px 4px; border-bottom:1px solid #f0ebe3; text-align:center;">${a.justificacao?'✔':'✕'}</td>
+          ${todasLojas ? `<td style="font-size:8px; padding:3px 3px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${abreviarLoja(a.loja)}</td>` : ``}
+          <td style="font-size:8.5px; padding:3px 3px; border-bottom:1px solid #f0ebe3;">${a.artigo}</td>
+          <td style="font-size:8.5px; padding:3px 3px; border-bottom:1px solid #f0ebe3; text-align:right;">${a.diferenca_qtd!=null?Number(a.diferenca_qtd).toFixed(1).replace('.',','):'—'}</td>
+          <td style="font-size:9px; padding:3px 3px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:${a.valor<0?'#b0432f':'#2e7d32'};">${Number(a.valor).toFixed(0)}€</td>
+          <td style="font-size:8px; padding:3px 3px; border-bottom:1px solid #f0ebe3; text-align:center;">${a.justificacao?'✔':'✕'}</td>
         </tr>
       `).join("");
-      const totalGrupoReal = grupos[g].reduce((s,a)=>s+Number(a.valor||0),0);
-      const maisFora = grupos[g].length>20 ? `<div style="font-size:9px; color:#777; padding:3px 4px;">+ ${grupos[g].length-20} artigo(s) fora do Top 20</div>` : "";
       return `
-        <div style="margin-bottom:12px;">
-          <div style="background:#e8a95c; color:#5a3a10; font-weight:800; font-size:11px; padding:5px 8px; border-radius:6px 6px 0 0;">${g.toUpperCase()} — Top ${top20.length} de ${grupos[g].length} · total ${totalGrupoReal.toFixed(2).replace('.',',')}€</div>
+        <div style="flex:0 0 auto; width:${todasLojas?'240':'210'}px; border:1px solid #f0ebe3; border-radius:8px; overflow:hidden;">
+          <div style="background:#e8a95c; color:#5a3a10; font-weight:800; font-size:10px; padding:5px 6px;">${g.toUpperCase()}</div>
+          <div style="font-size:8.5px; color:#5a3a10; padding:3px 6px; background:#f5e6c8;">${top20.length}/${grupos[g].length} · ${totalGrupoReal.toFixed(0)}€</div>
           <table style="border-collapse:collapse; width:100%;">
-            <thead><tr style="background:#f5e6c8;">
-              ${todasLojas ? `<th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 4px;">Loja</th>` : ``}
-              <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 4px;">Artigo</th>
-              <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 4px;">Un.</th>
-              <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:3px 4px;">Qde</th>
-              <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:3px 4px;">Valor</th>
-              <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:center; padding:3px 4px;">Just.</th>
+            <thead><tr style="background:#faf3e4;">
+              ${todasLojas ? `<th style="font-size:7.5px; color:#9c4d23; text-align:left; padding:2px 3px;">Loja</th>` : ``}
+              <th style="font-size:7.5px; color:#9c4d23; text-align:left; padding:2px 3px;">Artigo</th>
+              <th style="font-size:7.5px; color:#9c4d23; text-align:right; padding:2px 3px;">Qde</th>
+              <th style="font-size:7.5px; color:#9c4d23; text-align:right; padding:2px 3px;">€</th>
+              <th style="font-size:7.5px; color:#9c4d23; text-align:center; padding:2px 3px;">J</th>
             </tr></thead>
             <tbody>${linhasTabela}</tbody>
           </table>
@@ -2526,14 +2529,39 @@ async function abrirInventarioArtigosRelatorioHub(lojaInicial){
         </div>
       `;
     }).join("");
-    capturaWrap.innerHTML = `
+
+    const cabecalho = `
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Analisador de Inventário — ${todasLojas?'Todas as lojas':lojaSel}</div>
       <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')} · ${artigos.length} artigo(s) com diferença · ${totalJust}/${artigos.length} justificado(s)</div>
-      ${artigos.length===0 ? `<div style="text-align:center; color:var(--t2); font-size:12px; padding:14px 0;">Sem artigos com diferença.</div>` : resumoHtml + blocosHtml}
     `;
 
+    // versao completa (para a imagem partilhada) - largura total, sem cortar nada, gerada fora de ecra
+    const antigo = document.getElementById("invArtigosRelCapturaEscondida");
+    if(antigo) antigo.remove();
+    const capturaWrap = document.createElement("div");
+    capturaWrap.id = "invArtigosRelCapturaEscondida";
+    capturaWrap.style.cssText = "position:absolute; left:-9999px; top:0; background:#fff; padding:10px; box-sizing:border-box;";
+    capturaWrap.innerHTML = artigos.length===0
+      ? cabecalho + `<div style="text-align:center; color:var(--t2); font-size:12px; padding:14px 0;">Sem artigos com diferença.</div>`
+      : cabecalho + resumoHtml + `<div style="display:flex; gap:8px;">${blocosCol}</div>`;
+    document.body.appendChild(capturaWrap);
+
+    // vista no ecra - mesmos blocos, mas com scroll horizontal (nao vertical) para veres tudo sem arrastar para baixo
     host.innerHTML = "";
-    host.appendChild(capturaWrap);
+    const cabecalhoEl = document.createElement("div");
+    cabecalhoEl.innerHTML = cabecalho + (artigos.length===0 ? "" : resumoHtml);
+    host.appendChild(cabecalhoEl);
+    if(artigos.length>0){
+      const scrollWrap = document.createElement("div");
+      scrollWrap.style.cssText = "overflow-x:auto; padding-bottom:6px;";
+      scrollWrap.innerHTML = `<div style="display:flex; gap:8px;">${blocosCol}</div>`;
+      host.appendChild(scrollWrap);
+      const dica = document.createElement("div");
+      dica.style.cssText = "font-size:10px; color:var(--t2); text-align:center; margin-top:4px;";
+      dica.textContent = "👉 Arrasta para o lado para ver as outras categorias";
+      host.appendChild(dica);
+    }
+
     criarBotoesPartilhaHub(document.getElementById("invArtigosRelPartilhaBtnsHub"), capturaWrap, `CoreJoint_inventario_artigo_${todasLojas?'todas':lojaSel.replace(/\s+/g,"_")}`, `CoreJoint · Analisador de Inventário — ${todasLojas?'Todas as lojas':lojaSel}`);
   }
   document.getElementById("invArtigosRelLojaSel").onchange = render;
