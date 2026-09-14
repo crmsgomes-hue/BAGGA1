@@ -4916,13 +4916,15 @@ function handleColaboradoresFileLoja(ev, loja){
     abrirMapeamentoColunas(`Colaboradores — ${loja}`, headers, [
       {key:"nome", label:"Nome", sinonimos:["nome","colaborador","utilizador","trabalhador"], obrigatorio:true},
       {key:"numero", label:"Número Mecanográfico", sinonimos:["número mecanográfico","numero mecanografico","nº mecanográfico","mecanográfico","nº mec","n mec","número","numero","id"], obrigatorio:true},
-      {key:"cargaHoraria", label:"Carga Horária", sinonimos:["carga horária","carga horaria","horas","h. semanais","horas semanais","nº horas","numero horas","carga","horario contratual","horário contratual","contrato","tipo contrato","regime","regime horario","regime horário","horas contrato","h contrato","jornada","jornada semanal","nº h semana","horas semana"], obrigatorio:false},
+      {key:"cargaHoraria", label:"Carga Horária", sinonimos:["carga semanal","carga horária","carga horaria","horas","h. semanais","horas semanais","nº horas","numero horas","carga","horario contratual","horário contratual","contrato","tipo contrato","regime","regime horario","regime horário","horas contrato","h contrato","jornada","jornada semanal","nº h semana","horas semana"], obrigatorio:false},
+      {key:"dataAdmissao", label:"Data de Admissão", sinonimos:["data de admissão","data admissao","data de admissao","admissão","admissao","data adm"], obrigatorio:false},
     ], rows, (mapa)=>{
       const linhas = rows.map(r=>{
         const nome = String(r[mapa.nome]||"").trim();
         const numero = String(r[mapa.numero]||"").trim();
         const cargaHoraria = mapa.cargaHoraria ? String(r[mapa.cargaHoraria]||"").trim() : "";
-        return {nome, numero_mecanografico:numero, loja, loja_original:loja, carga_horaria: cargaHoraria || null};
+        const dataAdmissao = mapa.dataAdmissao ? parseDataExcel(r[mapa.dataAdmissao]) : "";
+        return {nome, numero_mecanografico:numero, loja, loja_original:loja, carga_horaria: cargaHoraria || null, data_admissao: dataAdmissao || null};
       }).filter(r=>r.nome && r.numero_mecanografico);
       window._colaboradoresPorLoja[loja] = linhas;
       openImportarColaboradoresRestaurarEstado();
