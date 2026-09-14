@@ -2497,30 +2497,22 @@ async function abrirRelatorioStockNegDetalhadoHub(){
 
   const capturaWrap = document.createElement("div");
   capturaWrap.style.cssText = "background:#fff; padding:4px;";
-  const linhas = validas.map(r=>`<tr>
-    <td style="font-weight:700; font-size:10.5px; padding:5px 4px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${r.loja || (r.loja_original+' (fora)')}</td>
-    <td style="font-size:10px; padding:5px 4px; border-bottom:1px solid #f0ebe3;">${r.produto||'—'}</td>
-    <td style="font-size:9.5px; padding:5px 4px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${r.data?new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT'):'—'}</td>
-    <td style="font-size:9.5px; padding:5px 4px; border-bottom:1px solid #f0ebe3;">${r.operador||'—'}</td>
-    <td style="font-size:10.5px; padding:5px 4px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:#b0432f;">${Number(r.valor_stock).toFixed(2).replace('.',',')}€</td>
-  </tr>`).join("");
+  const linhas = validas.map(r=>`
+    <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:10px 12px; margin-bottom:6px;">
+      <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
+        <b style="font-size:12px;">${r.loja || (r.loja_original+' (fora)')}</b>
+        <span style="font-size:13px; font-weight:800; color:#b0432f; white-space:nowrap;">${Number(r.valor_stock).toFixed(2).replace('.',',')}€</span>
+      </div>
+      <div style="font-size:11px; color:var(--ink,#333); margin:3px 0 2px;">${r.produto||'—'}</div>
+      <div style="font-size:10px; color:#777;">${r.data?new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT'):'—'}${r.operador?` · ${r.operador}`:''}</div>
+    </div>
+  `).join("");
   const totalGeral = validas.reduce((s,r)=>s+Number(r.valor_stock||0),0);
 
   capturaWrap.innerHTML = `
     <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Stock negativo (detalhado)</div>
-    <div style="font-size:10px; color:#777; margin-bottom:8px;">${new Date().toLocaleDateString('pt-PT')} · ${validas.length} artigo(s) · total ${totalGeral.toFixed(2).replace('.',',')}€</div>
-    <div style="overflow-x:auto;">
-    <table style="border-collapse:collapse; width:100%;">
-      <thead><tr>
-        <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Loja</th>
-        <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Produto</th>
-        <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Data</th>
-        <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Operador</th>
-        <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:4px 4px; border-bottom:2px solid #C1622D;">Valor</th>
-      </tr></thead>
-      <tbody>${linhas}</tbody>
-    </table>
-    </div>
+    <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')} · ${validas.length} artigo(s) · total ${totalGeral.toFixed(2).replace('.',',')}€</div>
+    ${linhas}
   `;
 
   document.getElementById("stockNegDetalhadoConteudoHub").innerHTML = `
