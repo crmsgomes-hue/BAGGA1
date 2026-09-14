@@ -2416,6 +2416,63 @@ async function abrirResetCategoriaHub(){
   };
 }
 
+async function abrirInventarioArtigosRelatorioHub(lojaInicial){
+  const overlay = document.createElement("div");
+  overlay.id = "invArtigosRelOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">📦 Relatório de Inventário por Artigo</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:12px;">Todos os artigos com diferença (justificados e por justificar). Pronto a enviar por email.</div>
+      <select id="invArtigosRelLojaSel" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:12px; font-size:.85rem;">
+        ${LOJAS.map(l=>`<option value="${l}" ${l===lojaInicial?'selected':''}>${l}</option>`).join("")}
+      </select>
+      <div id="invArtigosRelCapturaHost"></div>
+      <div id="invArtigosRelPartilhaBtnsHub" style="margin-top:12px;"></div>
+      <button id="fecharInvArtigosRelHubBtn" style="width:100%; margin-top:10px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharInvArtigosRelHubBtn").onclick = ()=>fecharEcraHub();
+
+  async function render(){
+    const loja = document.getElementById("invArtigosRelLojaSel").value;
+    const host = document.getElementById("invArtigosRelCapturaHost");
+    host.innerHTML = `<div style="text-align:center; padding:20px 0; color:var(--t2); font-size:.85rem;">A carregar...</div>`;
+    document.getElementById("invArtigosRelPartilhaBtnsHub").innerHTML = "";
+
+    const artigos = await api(`cj_inventario_artigos?select=*&loja=eq.${encodeURIComponent(loja)}&order=valor.asc`, "GET");
+    const totalJust = artigos.filter(a=>a.justificacao).length;
+
+    const capturaWrap = document.createElement("div");
+    capturaWrap.style.cssText = "background:#fff; padding:4px;";
+    const linhas = artigos.map(a=>`
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:10px 12px; margin-bottom:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
+          <b style="font-size:11.5px;">${a.artigo}</b>
+          <span style="font-size:12.5px; font-weight:800; color:${a.valor<0?'#b0432f':'#2e7d32'}; white-space:nowrap;">${Number(a.valor).toFixed(2).replace('.',',')}€</span>
+        </div>
+        <div style="font-size:9.5px; color:#777; margin-bottom:4px;">${a.categoria}${a.subcategoria?' · '+a.subcategoria:''}</div>
+        ${a.justificacao
+          ? `<div style="font-size:10.5px; color:#2e7d32; background:#e8f3e9; border-radius:6px; padding:5px 7px;"><b>✔ Justificado:</b> ${a.justificacao}</div>`
+          : `<div style="font-size:10.5px; color:#b0432f; background:#fdf1ee; border-radius:6px; padding:5px 7px;"><b>✕ Por justificar</b></div>`}
+      </div>
+    `).join("");
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Inventário por Artigo — ${loja}</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')} · ${artigos.length} artigo(s) com diferença · ${totalJust}/${artigos.length} justificado(s)</div>
+      ${linhas || `<div style="text-align:center; color:var(--t2); font-size:12px; padding:14px 0;">Sem artigos com diferença.</div>`}
+    `;
+
+    host.innerHTML = "";
+    host.appendChild(capturaWrap);
+    criarBotoesPartilhaHub(document.getElementById("invArtigosRelPartilhaBtnsHub"), capturaWrap, `CoreJoint_inventario_artigo_${loja.replace(/\s+/g,"_")}`, `CoreJoint · Inventário por Artigo — ${loja}`);
+  }
+  document.getElementById("invArtigosRelLojaSel").onchange = render;
+  render();
+}
+
 async function abrirInventarioArtigosJustificarHub(){
   const overlay = document.createElement("div");
   overlay.id = "invArtigosJustOverlayHub";
@@ -2429,12 +2486,14 @@ async function abrirInventarioArtigosJustificarHub(){
         ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
       </select>
       <div id="invArtigosJustListaHub"></div>
+      <button id="btnVerRelInvArtigosHub" style="width:100%; margin-top:10px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">📤 Ver relatório partilhável (para email)</button>
       <button id="fecharInvArtigosJustHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
     </div>
   `;
   document.body.appendChild(overlay);
   empilharEcraHub(overlay);
   document.getElementById("fecharInvArtigosJustHubBtn").onclick = ()=>fecharEcraHub();
+  document.getElementById("btnVerRelInvArtigosHub").onclick = ()=>abrirInventarioArtigosRelatorioHub(document.getElementById("invArtigosJustLojaSel").value || LOJAS[0]);
 
   let todos = await api("cj_inventario_artigos?select=*&justificacao=is.null&order=loja.asc,valor.asc", "GET");
 
@@ -4220,7 +4279,7 @@ function criarBotoesPartilhaHub(main, capturaWrap, nomeFicheiro, tituloPartilha)
   const row = document.createElement("div");
   row.style.cssText = "display:flex; gap:8px; margin:10px 0;";
   row.innerHTML = `
-    <button class="cambtnHub" id="btnPartilharHub_${nomeFicheiro}" style="flex:1; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:12px; font-weight:700; font-size:13px;">📱 Partilhar (WhatsApp)</button>
+    <button class="cambtnHub" id="btnPartilharHub_${nomeFicheiro}" style="flex:1; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:12px; font-weight:700; font-size:13px;">📤 Partilhar</button>
     <button class="cambtnHub" id="btnCopiarHub_${nomeFicheiro}" style="flex:1; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:12px; font-weight:700; font-size:13px;">📸 Copiar</button>
   `;
   main.appendChild(row);
