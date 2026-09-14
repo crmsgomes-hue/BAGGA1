@@ -4916,11 +4916,13 @@ function handleColaboradoresFileLoja(ev, loja){
     abrirMapeamentoColunas(`Colaboradores — ${loja}`, headers, [
       {key:"nome", label:"Nome", sinonimos:["nome","colaborador","utilizador","trabalhador"], obrigatorio:true},
       {key:"numero", label:"Número Mecanográfico", sinonimos:["número mecanográfico","numero mecanografico","nº mecanográfico","mecanográfico","nº mec","n mec","número","numero","id"], obrigatorio:true},
+      {key:"cargaHoraria", label:"Carga Horária", sinonimos:["carga horária","carga horaria","horas","h. semanais","horas semanais","nº horas"], obrigatorio:false},
     ], rows, (mapa)=>{
       const linhas = rows.map(r=>{
         const nome = String(r[mapa.nome]||"").trim();
         const numero = String(r[mapa.numero]||"").trim();
-        return {nome, numero_mecanografico:numero, loja, loja_original:loja};
+        const cargaHoraria = mapa.cargaHoraria ? String(r[mapa.cargaHoraria]||"").trim() : "";
+        return {nome, numero_mecanografico:numero, loja, loja_original:loja, carga_horaria: cargaHoraria || null};
       }).filter(r=>r.nome && r.numero_mecanografico);
       window._colaboradoresPorLoja[loja] = linhas;
       openImportarColaboradoresRestaurarEstado();
@@ -4932,6 +4934,7 @@ function handleColaboradoresFileLoja(ev, loja){
 function openImportarColaboradoresRestaurarEstado(){
   const feito = window._colaboradoresPorLoja || {};
   openImportarColaboradores();
+  window._colaboradoresPorLoja = feito;
   Object.keys(feito).forEach(l=>atualizarStatusColaboradoresLoja(l, `✔ ${feito[l].length} pessoa(s)`, "var(--green,#2e7d32)"));
 }
 
@@ -5339,6 +5342,7 @@ function handleHorariosFileLoja(ev, loja){
 function openImportarHorariosRestaurarEstado(){
   const feito = window._horariosPorLoja || {};
   openImportarHorarios();
+  window._horariosPorLoja = feito;
   Object.keys(feito).forEach(l=>atualizarStatusHorariosLoja(l, `✔ ${feito[l].length} turno(s)`, "var(--green,#2e7d32)"));
 }
 
