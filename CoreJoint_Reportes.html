@@ -4916,7 +4916,7 @@ function handleColaboradoresFileLoja(ev, loja){
     abrirMapeamentoColunas(`Colaboradores — ${loja}`, headers, [
       {key:"nome", label:"Nome", sinonimos:["nome","colaborador","utilizador","trabalhador"], obrigatorio:true},
       {key:"numero", label:"Número Mecanográfico", sinonimos:["número mecanográfico","numero mecanografico","nº mecanográfico","mecanográfico","nº mec","n mec","número","numero","id"], obrigatorio:true},
-      {key:"cargaHoraria", label:"Carga Horária", sinonimos:["carga horária","carga horaria","horas","h. semanais","horas semanais","nº horas"], obrigatorio:false},
+      {key:"cargaHoraria", label:"Carga Horária", sinonimos:["carga horária","carga horaria","horas","h. semanais","horas semanais","nº horas","numero horas","carga","horario contratual","horário contratual","contrato","tipo contrato","regime","regime horario","regime horário","horas contrato","h contrato","jornada","jornada semanal","nº h semana","horas semana"], obrigatorio:false},
     ], rows, (mapa)=>{
       const linhas = rows.map(r=>{
         const nome = String(r[mapa.nome]||"").trim();
