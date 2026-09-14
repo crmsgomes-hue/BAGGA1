@@ -2496,9 +2496,9 @@ async function abrirRelatorioStockNegDetalhadoHub(){
   validas.sort((a,b)=>(a.loja||a.loja_original||"").localeCompare(b.loja||b.loja_original||"") || Number(a.valor_stock)-Number(b.valor_stock));
 
   const capturaWrap = document.createElement("div");
-  capturaWrap.style.cssText = "background:#fff; padding:4px;";
+  capturaWrap.style.cssText = "position:absolute; left:-9999px; top:0; background:#fff; padding:4px; width:640px; box-sizing:border-box;";
   const linhas = validas.map(r=>`
-    <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:10px 12px; margin-bottom:6px;">
+    <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:10px 12px;">
       <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
         <b style="font-size:12px;">${r.loja || (r.loja_original+' (fora)')}</b>
         <span style="font-size:13px; font-weight:800; color:#b0432f; white-space:nowrap;">${Number(r.valor_stock).toFixed(2).replace('.',',')}€</span>
@@ -2512,7 +2512,23 @@ async function abrirRelatorioStockNegDetalhadoHub(){
   capturaWrap.innerHTML = `
     <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Stock negativo (detalhado)</div>
     <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')} · ${validas.length} artigo(s) · total ${totalGeral.toFixed(2).replace('.',',')}€</div>
-    ${linhas}
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">${linhas}</div>
+  `;
+  document.body.appendChild(capturaWrap);
+
+  const vistaLegivel = document.createElement("div");
+  vistaLegivel.innerHTML = `
+    <div style="font-size:11px; color:#777; margin-bottom:8px;">${new Date().toLocaleDateString('pt-PT')} · ${validas.length} artigo(s) · total ${totalGeral.toFixed(2).replace('.',',')}€</div>
+    ${validas.map(r=>`
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:10px 12px; margin-bottom:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
+          <b style="font-size:12px;">${r.loja || (r.loja_original+' (fora)')}</b>
+          <span style="font-size:13px; font-weight:800; color:#b0432f; white-space:nowrap;">${Number(r.valor_stock).toFixed(2).replace('.',',')}€</span>
+        </div>
+        <div style="font-size:11px; color:var(--ink,#333); margin:3px 0 2px;">${r.produto||'—'}</div>
+        <div style="font-size:10px; color:#777;">${r.data?new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT'):'—'}${r.operador?` · ${r.operador}`:''}</div>
+      </div>
+    `).join("")}
   `;
 
   document.getElementById("stockNegDetalhadoConteudoHub").innerHTML = `
@@ -2520,7 +2536,7 @@ async function abrirRelatorioStockNegDetalhadoHub(){
     <div id="stockNegDetalhadoCapturaHost"></div>
     <div id="stockNegDetalhadoPartilhaBtnsHub" style="margin-top:12px; display:flex; gap:8px;"></div>
   `;
-  document.getElementById("stockNegDetalhadoCapturaHost").appendChild(capturaWrap);
+  document.getElementById("stockNegDetalhadoCapturaHost").appendChild(vistaLegivel);
   criarBotoesPartilhaHub(document.getElementById("stockNegDetalhadoPartilhaBtnsHub"), capturaWrap, `CoreJoint_stock_neg_detalhado`, "CoreJoint · Stock negativo (detalhado)");
 }
 
