@@ -538,6 +538,7 @@ async function renderPanoramaGeral(){
         <button id="btnStockNegCruzadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo cruzado (mesmo artigo, 4+ lojas)</button>
         <button id="btnStockNegDetalhadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo (lista detalhada, artigo a artigo)</button>
         <button id="btnColaboradoresHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👥 Colaboradores (nomes e nº mecanográfico)</button>
+        <button id="btnInvArtigosJustHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Artigos de inventário por justificar</button>
         ${botoesAcao([
           ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
           ["📊 Sondagens e Formulários","CoreJoint_Reportes.html?abrir=grelhaSondagensForms"],
@@ -557,6 +558,7 @@ async function renderPanoramaGeral(){
           ["🖼️ Galeria de fotos","CoreJoint_Reportes.html?abrir=galeria"],
           ["📈 CNVs Global","CoreJoint_Reportes.html?abrir=cnvs"],
           ["📤 Importar Colaboradores","CoreJoint_Reportes.html?abrir=importarColaboradores"],
+          ["📤 Importar Inventário por Artigo","CoreJoint_Reportes.html?abrir=importarInventarioArtigos"],
         ])}
       `;
       abrirModalTopico("📊 Relatórios", corpo);
@@ -573,6 +575,7 @@ async function renderPanoramaGeral(){
       document.getElementById("btnStockNegCruzadoHub").onclick = abrirRelatorioStockNegCruzadoHub;
       document.getElementById("btnStockNegDetalhadoHub").onclick = abrirRelatorioStockNegDetalhadoHub;
       document.getElementById("btnColaboradoresHub").onclick = abrirColaboradoresHub;
+      document.getElementById("btnInvArtigosJustHub").onclick = abrirInventarioArtigosJustificarHub;
       document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
       document.getElementById("btnAbrirFotosCategoriaHub").onclick = ()=>{
         fecharEcraHub();
@@ -2411,6 +2414,70 @@ async function abrirResetCategoriaHub(){
     toast(`✔ Reset de ${catLabel} aplicado`);
     renderAtivos();
   };
+}
+
+async function abrirInventarioArtigosJustificarHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "invArtigosJustOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">📦 Artigos por justificar</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:12px;">Artigos com diferença real no último inventário importado. Escreve a justificação de cada um (o que aconteceu: quebra mal dada, erro de contagem, etc).</div>
+      <select id="invArtigosJustLojaSel" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:12px; font-size:.85rem;">
+        <option value="">— Todas as lojas —</option>
+        ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+      </select>
+      <div id="invArtigosJustListaHub"></div>
+      <button id="fecharInvArtigosJustHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharInvArtigosJustHubBtn").onclick = ()=>fecharEcraHub();
+
+  let todos = await api("cj_inventario_artigos?select=*&justificacao=is.null&order=loja.asc,valor.asc", "GET");
+
+  function render(){
+    const lojaFiltro = document.getElementById("invArtigosJustLojaSel").value;
+    const lista = lojaFiltro ? todos.filter(a=>a.loja===lojaFiltro) : todos;
+    const container = document.getElementById("invArtigosJustListaHub");
+    if(lista.length===0){
+      container.innerHTML = `<div style="text-align:center; padding:20px 0; color:var(--t2); font-size:.85rem;">Nenhum artigo por justificar${lojaFiltro?' nesta loja':''}. 🎉</div>`;
+      return;
+    }
+    container.innerHTML = lista.map((a,i)=>`
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
+          <b style="font-size:12px;">${a.loja}</b>
+          <span style="font-size:13px; font-weight:800; color:${a.valor<0?'#b0432f':'#2e7d32'};">${Number(a.valor).toFixed(2).replace('.',',')}€</span>
+        </div>
+        <div style="font-size:11px; color:var(--ink,#333); margin:3px 0 1px;">${a.artigo}</div>
+        <div style="font-size:9.5px; color:#777; margin-bottom:6px;">${a.categoria}${a.subcategoria?' · '+a.subcategoria:''}${a.diferenca_qtd!=null?' · '+a.diferenca_qtd+' un':''}</div>
+        <textarea id="invArtJust_${a.id}" placeholder="Escreve a justificação..." style="width:100%; padding:7px 9px; border-radius:6px; border:1px solid var(--br); font-size:.78rem; box-sizing:border-box; min-height:40px;"></textarea>
+        <button data-id="${a.id}" class="btnGuardarInvArtJust" style="width:100%; margin-top:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:8px; padding:7px; font-size:.76rem; font-weight:700;">✔ Guardar justificação</button>
+      </div>
+    `).join("");
+
+    container.querySelectorAll(".btnGuardarInvArtJust").forEach(btn=>{
+      btn.onclick = async ()=>{
+        const id = btn.dataset.id;
+        const texto = document.getElementById(`invArtJust_${id}`).value.trim();
+        if(!texto){ toast("Escreve a justificação primeiro"); return; }
+        btn.disabled = true; btn.textContent = "A guardar...";
+        try{
+          await api("PATCH", `cj_inventario_artigos?id=eq.${id}`, {justificacao: texto, justificado_por: "Cristina", justificado_em: new Date().toISOString()});
+          todos = todos.filter(a=>a.id!==id);
+          render();
+        }catch(e){
+          toast("Erro ao guardar: " + (e.message||e).slice(0,100));
+          btn.disabled = false; btn.textContent = "✔ Guardar justificação";
+        }
+      };
+    });
+  }
+  render();
+  document.getElementById("invArtigosJustLojaSel").onchange = render;
 }
 
 async function abrirColaboradoresHub(){
