@@ -2447,6 +2447,7 @@ async function abrirColaboradoresHub(){
       <td style="font-weight:700; font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3;">${c.nome}</td>
       <td style="font-size:11px; padding:5px 4px; border-bottom:1px solid #f0ebe3; text-align:center; white-space:nowrap;">${c.numero_mecanografico}</td>
       <td style="font-size:10.5px; padding:5px 4px; border-bottom:1px solid #f0ebe3; color:var(--t2); white-space:nowrap;">${c.loja||'—'}</td>
+      <td style="font-size:10.5px; padding:5px 4px; border-bottom:1px solid #f0ebe3; text-align:center; white-space:nowrap;">${c.carga_horaria||'—'}</td>
     </tr>`).join("");
     capturaWrap.innerHTML = `
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Colaboradores</div>
@@ -2457,6 +2458,7 @@ async function abrirColaboradoresHub(){
           <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Nome</th>
           <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:center; padding:4px 4px; border-bottom:2px solid #C1622D;">Nº Mec.</th>
           <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Loja</th>
+          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:center; padding:4px 4px; border-bottom:2px solid #C1622D;">Carga</th>
         </tr></thead>
         <tbody>${linhas}</tbody>
       </table>
