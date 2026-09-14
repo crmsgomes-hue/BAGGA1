@@ -2454,7 +2454,7 @@ async function abrirColaboradoresHub(){
       const linhas = porLoja[l].map(c=>`
         <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:5px 4px; border-bottom:1px solid #f0ebe3;">
           <span style="font-size:11px; font-weight:700;">${c.nome}</span>
-          <span style="font-size:10px; color:#777; white-space:nowrap;">Nº ${c.numero_mecanografico}${c.carga_horaria?` · ${c.carga_horaria}`:''}</span>
+          <span style="font-size:10px; color:#777; white-space:nowrap;">Nº ${c.numero_mecanografico}${c.carga_horaria?` · ${c.carga_horaria}h`:''}${c.data_admissao?` · desde ${new Date(c.data_admissao+"T00:00:00").toLocaleDateString('pt-PT')}`:''}</span>
         </div>
       `).join("");
       return `
