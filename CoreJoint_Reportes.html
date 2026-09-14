@@ -4852,6 +4852,134 @@ async function abrirPivotTrocas(){
   iniciarAutoAtualizacao(renderPivot, 20);
 }
 
+/* ---------- INVENTÁRIO POR ARTIGO (diferenças reais a justificar) ---------- */
+function openImportarInventarioArtigos(){
+  currentView = openImportarInventarioArtigos;
+  window._formEmEdicao = true;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <div class="card-title" style="margin-bottom:6px;">📤 Importar inventário por artigo — todas as lojas</div>
+    <div class="card-sub" style="margin-bottom:14px;">Cada loja tem o seu ficheiro. Só guarda os artigos com diferença real (os que estão a zero não interessam). Escolhe aqui os que já tiveres e no fim toca em "Importar tudo".</div>
+    <div id="invArtigosLinhasLojas"></div>
+    <button class="cambtn" id="invArtigosImportarTudoBtn" style="width:100%; margin-top:14px;" disabled>✔ Importar tudo (0 loja(s) pronta(s))</button>
+  `;
+  main.appendChild(card);
+
+  window._invArtigosPorLoja = {};
+
+  const linhasEl = document.getElementById("invArtigosLinhasLojas");
+  linhasEl.innerHTML = LOJAS.map(l=>`
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 0; border-bottom:1px solid var(--line);">
+      <div style="font-size:13px; font-weight:700; flex:1;">${l}</div>
+      <div id="invArtigosStatus_${l.replace(/\s+/g,"_")}" style="font-size:11px; color:var(--ink-soft); flex:1; text-align:right;">por escolher</div>
+      <label style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:7px 12px; font-size:11px; font-weight:700; color:var(--terracotta,#C1622E); cursor:pointer; white-space:nowrap;">📁 Escolher<input type="file" accept=".xlsx,.xls,.csv" style="display:none;" data-loja-invartigos="${l}"></label>
+    </div>
+  `).join("");
+
+  linhasEl.querySelectorAll("[data-loja-invartigos]").forEach(input=>{
+    input.addEventListener("change", (ev)=>handleInvArtigosFileLoja(ev, input.dataset.lojaInvartigos));
+  });
+
+  document.getElementById("invArtigosImportarTudoBtn").onclick = confirmarImportarInvArtigosTodas;
+}
+
+function atualizarStatusInvArtigosLoja(loja, texto, cor){
+  const el = document.getElementById(`invArtigosStatus_${loja.replace(/\s+/g,"_")}`);
+  if(el){ el.textContent = texto; el.style.color = cor || "var(--ink-soft)"; }
+  const prontos = Object.keys(window._invArtigosPorLoja||{}).length;
+  const btn = document.getElementById("invArtigosImportarTudoBtn");
+  if(btn){
+    btn.disabled = prontos===0;
+    btn.textContent = `✔ Importar tudo (${prontos} loja${prontos===1?'':'s'} pronta${prontos===1?'':'s'})`;
+  }
+}
+
+function handleInvArtigosFileLoja(ev, loja){
+  const file = ev.target.files[0];
+  if(!file) return;
+  atualizarStatusInvArtigosLoja(loja, "a ler...", "var(--ink-soft)");
+  lerFicheiroTabular(file, (rows)=>{
+    if(!rows || rows.length===0){
+      atualizarStatusInvArtigosLoja(loja, "✕ ficheiro vazio", "var(--red)");
+      return;
+    }
+    const headers = Object.keys(rows[0]);
+    abrirMapeamentoColunas(`Inventário — ${loja}`, headers, [
+      {key:"categoria", label:"Categoria", sinonimos:["categoria"], obrigatorio:true},
+      {key:"subcategoria", label:"Sub-categoria", sinonimos:["sub-categoria","subcategoria","sub categoria"], obrigatorio:false},
+      {key:"codigo", label:"Código do Artigo", sinonimos:["cód. artigo","cod. artigo","codigo artigo","código artigo"], obrigatorio:false},
+      {key:"artigo", label:"Artigo", sinonimos:["artigo"], obrigatorio:true},
+      {key:"unidade", label:"Unidade", sinonimos:["unidade"], obrigatorio:false},
+      {key:"diferencaQtd", label:"Diferença Real (QNT)", sinonimos:["diferença real (qnt)","diferenca real (qnt)","diferença real qnt","diferenca qtd"], obrigatorio:false},
+      {key:"diferencaValor", label:"Diferença Real (Valor)", sinonimos:["diferença real (valor)","diferenca real (valor)","diferença real valor","diferenca valor"], obrigatorio:true},
+    ], rows, (mapa)=>{
+      const linhas = rows.map(r=>{
+        const categoria = String(r[mapa.categoria]||"").trim();
+        const subcategoria = mapa.subcategoria ? String(r[mapa.subcategoria]||"").trim() : "";
+        const codigo = mapa.codigo ? String(r[mapa.codigo]||"").trim() : "";
+        const artigo = String(r[mapa.artigo]||"").trim();
+        const unidade = mapa.unidade ? String(r[mapa.unidade]||"").trim() : "";
+        const diferencaQtd = mapa.diferencaQtd ? lerNumeroCelula(r[mapa.diferencaQtd]) : null;
+        const diferencaValor = lerNumeroCelula(r[mapa.diferencaValor]);
+        return {categoria, subcategoria: subcategoria||null, codigo_artigo: codigo||null, artigo, unidade: unidade||null, diferenca_qtd: diferencaQtd, valor: diferencaValor};
+      }).filter(r=>r.artigo && r.valor!=null && Math.abs(r.valor)>0.001);
+      window._invArtigosPorLoja[loja] = linhas;
+      atualizarStatusInvArtigosLoja(loja, `✔ ${linhas.length} artigo(s) com diferença`, "var(--green,#2e7d32)");
+    });
+    const btnVoltarMapeamento = document.querySelector("#main > button.cambtn.secondary");
+    if(btnVoltarMapeamento) btnVoltarMapeamento.onclick = ()=>{
+      const feito = window._invArtigosPorLoja || {};
+      openImportarInventarioArtigos();
+      window._invArtigosPorLoja = feito;
+      Object.keys(feito).forEach(l=>atualizarStatusInvArtigosLoja(l, `✔ ${feito[l].length} artigo(s) com diferença`, "var(--green,#2e7d32)"));
+    };
+  });
+}
+function lerNumeroCelula(v){
+  if(v===""||v==null) return null;
+  if(typeof v === "number") return v;
+  const n = parseFloat(String(v).replace(/\./g,"").replace(",","."));
+  return isNaN(n) ? null : n;
+}
+
+async function confirmarImportarInvArtigosTodas(){
+  const btn = document.getElementById("invArtigosImportarTudoBtn");
+  btn.disabled = true; btn.textContent = "A gravar...";
+  const payload = [];
+  Object.entries(window._invArtigosPorLoja||{}).forEach(([loja, linhas])=>{
+    linhas.forEach(a=>{
+      payload.push({loja, loja_original: loja, ...a, importado_por: currentUser});
+    });
+  });
+  try{
+    // o ficheiro de cada loja e sempre a lista completa e atual dessa loja - substitui so as lojas que importaste agora,
+    // mas nunca apaga o que ja foi justificado
+    const lojasImportadasAgora = Object.keys(window._invArtigosPorLoja||{});
+    for(const l of lojasImportadasAgora){
+      await api("DELETE", `cj_inventario_artigos?loja=eq.${encodeURIComponent(l)}&justificacao=is.null`);
+    }
+    if(payload.length>0) await api("POST", "cj_inventario_artigos", payload);
+  }catch(e){
+    toast("Erro ao importar — nada foi gravado. " + (e.message||e).slice(0,150));
+    btn.disabled = false;
+    return;
+  }
+  mostrarSucesso(`${payload.length} artigo(s) importado(s), em ${Object.keys(window._invArtigosPorLoja||{}).length} loja(s)`);
+  window._invArtigosPorLoja = {};
+  window._formEmEdicao = false;
+  const v = previousView; previousView = null; (v||render)();
+}
+
 function openImportarColaboradores(){
   currentView = openImportarColaboradores;
   window._formEmEdicao = true;
@@ -8594,6 +8722,7 @@ function renderGestao(){
     importarFormacoes: openImportarFormacoes, visualFormacoes: abrirRelatorioVisualFormacoes,
     importarHorarios: openImportarHorarios, relatorioHorarios: abrirRelatorioHorarios,
     importarColaboradores: openImportarColaboradores,
+    importarInventarioArtigos: openImportarInventarioArtigos,
     painelMonitorizacao: abrirPainelMonitorizacao, relatorioGlobalAgendamento: abrirRelatorioGlobalAgendamento,
     relatorioEstivaLaranjas: abrirRelatorioEstivaLaranjas,
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
