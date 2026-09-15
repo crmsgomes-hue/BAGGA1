@@ -5477,10 +5477,10 @@ async function verificarAtualizacao(){
     if(!marca) return;
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
-      if(typeof pilhaEcraisHub !== "undefined" && pilhaEcraisHub.length===0){
-        location.reload();
-      } else {
+      if(window._formEmEdicao){
         mostrarFaixaAtualizacao();
+      } else {
+        location.reload();
       }
     }
   }catch(e){ /* falha silenciosa, tenta outra vez depois */ }
