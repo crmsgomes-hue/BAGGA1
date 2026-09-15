@@ -9127,6 +9127,15 @@ if('serviceWorker' in navigator){
 }
 // Verifica automaticamente se há uma versão nova publicada e recarrega sozinho
 let versaoInicial = null;
+function mostrarFaixaAtualizacao(){
+  if(document.getElementById("_faixaAtualizacao")) return;
+  const faixa = document.createElement("div");
+  faixa.id = "_faixaAtualizacao";
+  faixa.style.cssText = "position:fixed; top:0; left:0; right:0; z-index:999999; background:var(--terracotta,#C1622D); color:#fff; text-align:center; padding:10px 14px; font-size:13px; font-weight:700; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.15);";
+  faixa.textContent = "🔄 Há uma versão mais recente — toca para atualizar";
+  faixa.onclick = ()=>location.reload();
+  document.body.prepend(faixa);
+}
 async function verificarAtualizacao(){
   try{
     const res = await fetch("version.json?t=" + Date.now(), {cache:"no-store"});
@@ -9135,12 +9144,11 @@ async function verificarAtualizacao(){
     if(!marca) return;
     if(versaoInicial === null){ versaoInicial = marca; return; }
     if(marca !== versaoInicial){
-      const overlayAberto = document.querySelector(".overlay");
-      const noEcraPrincipal = currentView === render;
-      if(!overlayAberto && noEcraPrincipal){
+      if(window._formEmEdicao){
+        mostrarFaixaAtualizacao();
+      } else {
         location.reload();
       }
-      // se estiveres a meio de uma ferramenta/relatório, não interrompe — só atualiza da próxima vez que estiveres no painel principal
     }
   }catch(e){ /* falha silenciosa, tenta outra vez depois */ }
 }
