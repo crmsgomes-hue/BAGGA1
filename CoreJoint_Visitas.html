@@ -7884,7 +7884,7 @@ async function abrirHistLoja(store){
   try{
     // Filtrar por saved_by para GOPs normais — evita que vejam histórico de outros GOPs nas lojas partilhadas
     const savedByFilter = (!isIsolatedUser() && CU && CU.role==='gop') ? '&saved_by=eq.'+encodeURIComponent(who()) : '';
-    const url = SB+'/rest/v1/cj_historico?select=id,data,hora,resumo&loja=eq.'+store+savedByFilter+'&order=created_at.desc';
+    const url = SB+'/rest/v1/cj_historico?select=id,loja,data,hora,resumo,saved_by&loja=eq.'+store+savedByFilter+'&order=created_at.desc';
     const r = await fetch(url, { headers: { 'apikey': SK, 'Authorization': 'Bearer '+SK } });
     if(!r.ok){ const t = await r.text(); throw new Error(t); }
     const hist = await r.json();
