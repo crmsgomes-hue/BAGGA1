@@ -6130,47 +6130,60 @@ async function genRel(){
 async function partilharAlertasLoja(){
   if(!vStore || !CU) return;
 
-  // Buscar NCs/tarefas desta visita (criadas no arquivo)
   const loja = vStore;
-  const dataHoje = now().slice(0,10);
-  const tarefas = await dbGet('cj_tarefas',
-    'loja=eq.'+loja+'&estado=neq.concluido&order=prazo.asc&select=codigo,descricao,notas,prazo,estado') || [];
-
+  const dataHoje = new Date().toISOString().slice(0,10);
   const lojaNome = sn(loja);
   const gopNome = who().replace('GOP — ','');
-  const dataVisita = now().slice(0,10).split('-').reverse().join('/');
+  const dataVisita = dataHoje.split('-').reverse().join('/');
+
+  // Só os alertas criados HOJE nesta visita
+  const tarefas = await dbGet('cj_tarefas',
+    'loja=eq.'+loja+'&criado_iso=eq.'+dataHoje+'&order=prazo.asc&select=codigo,descricao,notas,prazo,estado') || [];
+
+  // NCs do checklist desta visita (conforme===false)
+  const allChkItems = typeof CHK_ITEM_LABELS !== 'undefined' ? CHK_ITEM_LABELS : [];
+  const ncs = allChkItems.filter(item =>
+    vChecklist[item.id] && vChecklist[item.id].conforme === false
+  );
 
   // Cabeçalho
   let texto = '📋 *Visita CoreJoint — '+lojaNome+'*\n';
   texto += '🗓 '+dataVisita+' | GOP: '+gopNome+'\n';
   texto += '─────────────────────────\n\n';
 
-  if(!tarefas.length){
-    texto += '✅ Sem alertas pendentes. Visita sem não conformidades!\n';
+  if(!tarefas.length && !ncs.length){
+    texto += '✅ Sem alertas nesta visita. Tudo conforme!\n';
   } else {
-    texto += '⚠️ *ALERTAS A CORRIGIR:*\n\n';
-    tarefas.forEach((t, i) => {
-      const prazo = t.prazo ? '📅 Prazo: '+t.prazo : '';
-      texto += (i+1)+'. *['+t.codigo+']* '+t.descricao+'\n';
-      if(t.notas) texto += '   📝 '+t.notas+'\n';
-      if(prazo) texto += '   '+prazo+'\n';
-      texto += '\n';
-    });
+    if(ncs.length){
+      texto += '⚠️ *NÃO CONFORMIDADES:*\n\n';
+      ncs.forEach((item, i) => {
+        const ck = vChecklist[item.id] || {};
+        texto += (i+1)+'. *'+item.label+'*\n';
+        if(ck.nota) texto += '   📝 '+ck.nota+'\n';
+        if(ck.prazo) texto += '   📅 Prazo: '+ck.prazo+'\n';
+        texto += '\n';
+      });
+    }
+    if(tarefas.length){
+      texto += '📌 *ALERTAS A CORRIGIR:*\n\n';
+      tarefas.forEach((t, i) => {
+        texto += (i+1)+'. *['+t.codigo+']* '+t.descricao+'\n';
+        if(t.notas) texto += '   📝 '+t.notas+'\n';
+        if(t.prazo) texto += '   📅 Prazo: '+t.prazo+'\n';
+        texto += '\n';
+      });
+    }
   }
 
   texto += '─────────────────────────\n';
-  texto += '🔗 Relatório: CoreJoint Visitas GOP · Bagga';
+  texto += '🔗 CoreJoint Visitas GOP · Bagga';
 
-  // Tentar Web Share API (nativo no iOS/Android)
   if(navigator.share){
     try{
-      await navigator.share({
-        title: 'Alertas da visita — '+lojaNome,
-        text: texto
-      });
+      await navigator.share({ title: 'Alertas da visita — '+lojaNome, text: texto });
       return;
     }catch(e){
-      if(e.name === 'AbortError') return; // utilizador cancelou
+      if(e.name === 'AbortError') return;
     }
   }
 
