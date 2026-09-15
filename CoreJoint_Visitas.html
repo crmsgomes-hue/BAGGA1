@@ -6931,6 +6931,7 @@ async function rHistorico(){
           '</div>'+
           '<div class="ic-acts"><div class="ic-btns">'+
           '<button class="btn bsm bp" onclick="reabrirRelatorio(\''+r.id+'\')">👁 Ver</button>'+
+          '<button class="btn bsm" style="background:#25D366;color:#fff;border:none" onclick="partilharAlertasHistorico(\''+r.loja+'\',\''+r.data+'\',\''+r.saved_by+'\')">📤</button>'+
           '<button class="del-btn" onclick="delHistorico(\''+r.id+'\')">🗑</button>'+
           '</div></div></div></div>'
         ).join('') : '<div style="color:var(--t2);font-size:.78rem;padding:6px">Sem relatórios guardados nesta loja.</div>') +
@@ -7036,6 +7037,42 @@ function toggleHistFolder(id){
   const el = document.getElementById(id);
   if(!el) return;
   el.style.display = el.style.display==='none' ? 'block' : 'none';
+}
+
+async function partilharAlertasHistorico(loja, dataVisita, savedBy){
+  // dataVisita está em DD/MM/YYYY — converter para YYYY-MM-DD para a query
+  const partes = (dataVisita||'').split('/');
+  const dataISO = partes.length===3 ? partes[2]+'-'+partes[1]+'-'+partes[0] : dataVisita;
+
+  const lojaNome = sn(loja);
+  const gopNome = (savedBy||'').replace('GOP — ','');
+
+  const tarefas = await dbGet('cj_tarefas',
+    'loja=eq.'+loja+'&criado_iso=eq.'+dataISO+'&order=prazo.asc&select=codigo,descricao,notas,prazo') || [];
+
+  let texto = '📋 *Visita CoreJoint — '+lojaNome+'*\n';
+  texto += '🗓 '+dataVisita+' | GOP: '+gopNome+'\n';
+  texto += '─────────────────────────\n\n';
+
+  if(!tarefas.length){
+    texto += '✅ Sem alertas nesta visita.\n';
+  } else {
+    texto += '⚠️ *ALERTAS:*\n\n';
+    tarefas.forEach((t,i)=>{
+      texto += (i+1)+'. *['+t.codigo+']* '+t.descricao+'\n';
+      if(t.notas) texto += '   📝 '+t.notas+'\n';
+      if(t.prazo) texto += '   📅 Prazo: '+t.prazo+'\n';
+      texto += '\n';
+    });
+  }
+  texto += '─────────────────────────\n';
+  texto += '🔗 CoreJoint Visitas GOP · Bagga';
+
+  if(navigator.share){
+    try{ await navigator.share({title:'Alertas — '+lojaNome+' '+dataVisita, text:texto}); return; }
+    catch(e){ if(e.name==='AbortError') return; }
+  }
+  copiarParaClipboard(texto);
 }
 
 async function reabrirRelatorio(id){
@@ -7863,6 +7900,7 @@ async function abrirHistLoja(store){
       '</div>'+
       '<div class="ic-acts"><div class="ic-btns">'+
       '<button class="btn bsm bp" onclick="reabrirRelatorio(\''+h.id+'\')">👁 Ver</button>'+
+      '<button class="btn bsm" style="background:#25D366;color:#fff;border:none" onclick="partilharAlertasHistorico(\''+h.loja+'\',\''+h.data+'\',\''+h.saved_by+'\')">📤</button>'+
       '<button class="del-btn" onclick="delHistLoja(\''+h.id+'\',\''+store+'\')">🗑</button>'+
       '</div></div></div></div>'
     ).join('');
