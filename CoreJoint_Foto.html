@@ -404,7 +404,7 @@ function invStatus(catKey, freq, semFoto){
   return {state: (today>w.end && freq!=="diario") ? "late" : "pend", latest:null, window:w};
 }
 function dailyStatus(tipo, dateStr, turno){
-  return dailyRows.find(r=>r.tipo===tipo && r.data===dateStr && r.turno===turno) || null;
+  return dailyRows.find(r=>r.tipo===tipo && r.data===dateStr && r.turno===turno && (r.fotos||[]).length>0) || null;
 }
 
 const VAPID_PUBLIC_KEY = "BKXMKlUz9TDhHbuUuq9qwmCIoniXhVtICtodo0bwhRxU2FrgSCdwRwQaRXHhG8IL2yl757q8jG96h4guzQfjbWA";
@@ -518,7 +518,7 @@ async function loadAll(){
     avisosPendentes = meusAvisos.filter(a=>{
       if(a.tipo.startsWith("vitrine_")){
         const turno = a.tipo.replace("vitrine_","");
-        return !dailyRows.some(r=>r.tipo==="vitrine" && r.turno===turno && new Date(r.criado_em) > new Date(a.criado_em));
+        return !dailyRows.some(r=>r.tipo==="vitrine" && r.turno===turno && new Date(r.criado_em) > new Date(a.criado_em) && (r.fotos||[]).length>0);
       }
       if(a.tipo==="vendas"){
         return !dailyRows.some(r=>r.tipo==="vendas" && r.turno==="unico" && new Date(r.criado_em) > new Date(a.criado_em));
@@ -2013,7 +2013,7 @@ async function renderAreaGestaoLoja(){
   // ---------- Vitrine (ultimos 7 dias, reaproveita dailyRows ja carregado desta loja) ----------
   const dias7 = [];
   for(let i=6;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); dias7.push(isoDate(d)); }
-  const diasCompletos = dias7.filter(ds=>["manha","almoco","lanche"].every(t=>dailyRows.some(r=>r.tipo==="vitrine" && r.turno===t && r.data===ds))).length;
+  const diasCompletos = dias7.filter(ds=>["manha","almoco","lanche"].every(t=>dailyRows.some(r=>r.tipo==="vitrine" && r.turno===t && r.data===ds && (r.fotos||[]).length>0))).length;
   const pctVitrine = Math.round(diasCompletos/7*100);
 
   corpo.innerHTML = `
