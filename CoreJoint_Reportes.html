@@ -2201,6 +2201,31 @@ function openRegistoAtividade(){
       main.insertAdjacentHTML("beforeend", '<div class="empty">Ainda sem atividade registada.</div>');
       return;
     }
+    const capturaWrap = document.createElement("div");
+    capturaWrap.style.cssText = "background:#fff; padding:4px;";
+    const linhas = top.map(e=>{
+      const dt = new Date(e.quando);
+      return `<tr>
+        <td style="font-size:9.5px; padding:4px 5px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${dt.toLocaleDateString('pt-PT')} ${dt.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}</td>
+        <td style="font-size:10px; padding:4px 5px; border-bottom:1px solid #f0ebe3; font-weight:700;">${e.quem||'—'}</td>
+        <td style="font-size:10px; padding:4px 5px; border-bottom:1px solid #f0ebe3;">${e.texto}</td>
+      </tr>`;
+    }).join("");
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Registo de atividade</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px;">${top.length} ação(ões) mais recentes</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Quando</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Quem</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">O que fez</th>
+        </tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    `;
+    main.appendChild(capturaWrap);
+    criarBotoesPartilha(main, capturaWrap, "CoreJoint_registo_atividade", "CoreJoint · Registo de atividade", location.origin + location.pathname + "?abrir=registoAtividade");
+
     top.forEach(e=>{
       const card = document.createElement("div");
       card.className = "card";
@@ -2313,6 +2338,7 @@ async function openAvisos(lojaFiltro){
     return;
   }
 
+  const dadosResolucao = [];
   for(const a of avisos){
     let resolvido = null;
     if(a.tipo.startsWith("vitrine_")){
@@ -2346,7 +2372,39 @@ async function openAvisos(lojaFiltro){
       <div class="card-sub">${a.confirmado_em ? '✔ Loja confirmou às '+new Date(a.confirmado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : '— Loja ainda não confirmou'}</div>
     `;
     listWrap.appendChild(card);
+    dadosResolucao.push({a, label, resolvido});
   }
+
+  const capturaWrap = document.createElement("div");
+  capturaWrap.style.cssText = "background:#fff; padding:4px;";
+  const linhasRel = dadosResolucao.map(({a,label,resolvido})=>{
+    const estado = resolvido===null ? "Confirma manual" : resolvido ? "✔ Resolvido" : "⏳ Ainda não";
+    const cor = resolvido===null ? "#777" : resolvido ? "#2e7d32" : "#b0432f";
+    return `<tr>
+      <td style="font-weight:700; font-size:10.5px; padding:4px 5px; border-bottom:1px solid #f0ebe3;">${a.loja}</td>
+      <td style="font-size:10px; padding:4px 5px; border-bottom:1px solid #f0ebe3;">${label}</td>
+      <td style="font-size:9px; padding:4px 5px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${new Date(a.criado_em).toLocaleDateString('pt-PT')}</td>
+      <td style="font-size:9.5px; padding:4px 5px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:${cor};">${estado}</td>
+    </tr>`;
+  }).join("");
+  capturaWrap.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Avisos dados${lojaFiltro?' — '+lojaFiltro:''}</div>
+    <div style="font-size:10px; color:#777; margin-bottom:10px;">${avisos.length} aviso(s)</div>
+    <table style="border-collapse:collapse; width:100%;">
+      <thead><tr>
+        <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Loja</th>
+        <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Aviso</th>
+        <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Data</th>
+        <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:3px 5px; border-bottom:2px solid #C1622D;">Estado</th>
+      </tr></thead>
+      <tbody>${linhasRel}</tbody>
+    </table>
+  `;
+  const partilhaHost = document.createElement("div");
+  partilhaHost.style.cssText = "margin-top:14px;";
+  main.appendChild(partilhaHost);
+  partilhaHost.appendChild(capturaWrap);
+  criarBotoesPartilha(partilhaHost, capturaWrap, "CoreJoint_avisos", `CoreJoint · Avisos${lojaFiltro?' — '+lojaFiltro:''}`);
 }
 
 async function notificarLojaAviso(loja, tipo, descricao){
@@ -8799,6 +8857,7 @@ function renderGestao(){
     importarInventarioArtigos: openImportarInventarioArtigos,
     rankingLojas: openRankingLojas,
     visaoPorCategoria: abrirVisaoPorCategoria,
+    registoAtividade: openRegistoAtividade,
     painelMonitorizacao: abrirPainelMonitorizacao, relatorioGlobalAgendamento: abrirRelatorioGlobalAgendamento,
     relatorioEstivaLaranjas: abrirRelatorioEstivaLaranjas,
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
