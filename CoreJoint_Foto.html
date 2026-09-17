@@ -865,6 +865,14 @@ async function renderInterno(){
     return true;
   });
 
+  const categoriasPausadas = categoriasParaLoja(currentLoja).filter(c=>!naoAplicaveis.includes(c.key)).map(c=>({...c, st:invStatus(c.key, c.freq, c.semFoto)})).filter(c=>c.st.state==="pausado");
+  if(categoriasPausadas.length>0){
+    const avisoPausa = document.createElement("div");
+    avisoPausa.style.cssText = "background:#e8f0fe; border:2px solid #4a7ab5; border-radius:10px; padding:12px 14px; margin-bottom:10px; font-size:13.5px; font-weight:700; color:#1a3a5c; line-height:1.4;";
+    avisoPausa.innerHTML = `📅 Esta semana (15 a 21) é só do <b>Global</b> — ${categoriasPausadas.map(c=>c.label).join(", ")} fica${categoriasPausadas.length===1?'':'m'} em pausa e não precisa${categoriasPausadas.length===1?'':'m'} de ser feito${categoriasPausadas.length===1?'':'s'} esta semana.`;
+    secInventario.body.appendChild(avisoPausa);
+  }
+
   if(isLastDaysOfMonth() && dueInv.length>0){
     const warn = document.createElement("div");
     warn.className = "warn-card";
