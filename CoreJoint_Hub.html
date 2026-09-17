@@ -5046,7 +5046,7 @@ function semanaKey(d){
         <div style="display:flex; flex-wrap:wrap; gap:6px;" data-chips-cat="${cat.key}"></div>
       </div>`;
     });
-    document.getElementById("categoriaLojasSection").innerHTML = htmlCat;
+    document.getElementById("categoriaLojasSection").innerHTML = `<div id="categoriaLojasCapturaWrap" style="background:#fff;">${htmlCat}</div><div id="categoriaLojasPartilhaBtns" style="margin-top:10px;"></div>`;
     [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
       const wrap = document.querySelector(`[data-chips-cat="${cat.key}"]`);
       if(!wrap) return;
@@ -5127,7 +5127,7 @@ function semanaKey(d){
     });
     htmlVit += `</div></div>`;
     htmlVit += `</div>`;
-    document.getElementById("categoriaLojasSection").insertAdjacentHTML("beforeend", htmlVit);
+    document.getElementById("categoriaLojasCapturaWrap").insertAdjacentHTML("beforeend", htmlVit);
     document.querySelectorAll("[data-vit-loja]").forEach(chip=>{
       const reg = todayVitrine.find(r=>r.loja===chip.dataset.vitLoja && r.turno===chip.dataset.vitTurno);
       if(!reg) return;
@@ -5162,6 +5162,7 @@ function semanaKey(d){
         else alert(`${chip.dataset.vendasLoja} — Vendas enviadas${horaLbl?' às '+horaLbl:''}\n(sem foto anexada)`);
       };
     });
+    criarBotoesPartilhaHub(document.getElementById("categoriaLojasPartilhaBtns"), document.getElementById("categoriaLojasCapturaWrap"), "CoreJoint_categorias_lojas", "CoreJoint · Inventário por categoria");
   }catch(e){ console.error(e); }
 
 
