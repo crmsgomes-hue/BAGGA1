@@ -2230,7 +2230,11 @@ async function abrirDiagnosticoHub(){
   `;
   document.body.appendChild(overlay);
   empilharEcraHub(overlay);
-  document.getElementById("fecharDiagnosticoHubBtn").onclick = ()=>fecharEcraHub();
+  document.getElementById("fecharDiagnosticoHubBtn").onclick = ()=>{
+    const c = document.getElementById("diagnosticoCapturaEscondida");
+    if(c) c.remove();
+    fecharEcraHub();
+  };
 
   const today = new Date();
   const desdeErros = new Date(); desdeErros.setDate(desdeErros.getDate()-7);
@@ -2331,6 +2335,12 @@ async function abrirDiagnosticoHub(){
     html += problemas.map(p=>`<div style="background:var(--sf2,#f5f0e6); padding:7px 10px; margin-bottom:4px; font-size:10.5px;"><b>${p.loja}</b> · ${p.categoria} — último envio ${new Date(p.ultimaData+"T00:00:00").toLocaleDateString('pt-PT')}</div>`).join("");
   }
   capturaWrap.innerHTML = html;
+  const antigoDiag = document.getElementById("diagnosticoCapturaEscondida");
+  if(antigoDiag) antigoDiag.remove();
+  capturaWrap.id = "diagnosticoCapturaEscondida";
+  document.body.appendChild(capturaWrap);
+  capturaWrap.style.position = "absolute";
+  capturaWrap.style.left = "-9999px";
   criarBotoesPartilhaHub(document.getElementById("diagnosticoPartilhaBtnsHub"), capturaWrap, "CoreJoint_diagnostico", "CoreJoint · Diagnóstico");
 
   document.getElementById("diagVerPadroesBtn").onclick = ()=>{
@@ -2752,7 +2762,11 @@ async function abrirAvariasHub(){
   document.body.appendChild(overlay);
   empilharEcraHub(overlay);
   document.getElementById("avDataPedido").value = todayStrHub();
-  document.getElementById("fecharAvariasHubBtn").onclick = ()=>fecharEcraHub();
+  document.getElementById("fecharAvariasHubBtn").onclick = ()=>{
+    const c = document.getElementById("avariasCapturaEscondida");
+    if(c) c.remove();
+    fecharEcraHub();
+  };
 
   document.getElementById("avGuardarBtn").onclick = async ()=>{
     const loja = document.getElementById("avLoja").value;
@@ -2826,7 +2840,10 @@ async function abrirAvariasHub(){
     });
 
     // relatorio partilhavel
+    const antigoCapturaAvarias = document.getElementById("avariasCapturaEscondida");
+    if(antigoCapturaAvarias) antigoCapturaAvarias.remove();
     const capturaWrap = document.createElement("div");
+    capturaWrap.id = "avariasCapturaEscondida";
     capturaWrap.style.cssText = "background:#fff; padding:4px;";
     const linhas = avarias.map(a=>`
       <tr>
@@ -2852,6 +2869,9 @@ async function abrirAvariasHub(){
       </table>
     `;
     criarBotoesPartilhaHub(document.getElementById("avariasPartilhaBtnsHub"), capturaWrap, "CoreJoint_avarias", "CoreJoint · Equipamentos avariados");
+    document.body.appendChild(capturaWrap);
+    capturaWrap.style.position = "absolute";
+    capturaWrap.style.left = "-9999px";
   }
   document.getElementById("avFiltroEstado").onchange = renderListaAvarias;
   document.getElementById("avFiltroLoja").onchange = renderListaAvarias;
@@ -2919,7 +2939,11 @@ async function abrirReclamacoesHub(){
   `;
   document.body.appendChild(overlay);
   empilharEcraHub(overlay);
-  document.getElementById("fecharReclamacoesHubBtn").onclick = ()=>fecharEcraHub();
+  document.getElementById("fecharReclamacoesHubBtn").onclick = ()=>{
+    const c = document.getElementById("reclamacoesCapturaEscondida");
+    if(c) c.remove();
+    fecharEcraHub();
+  };
 
   // data/hora agora, no formato que o input datetime-local aceita
   const agora = new Date();
@@ -3043,7 +3067,10 @@ async function abrirReclamacoesHub(){
     });
 
     // relatorio partilhavel
+    const antigoCapturaReclam = document.getElementById("reclamacoesCapturaEscondida");
+    if(antigoCapturaReclam) antigoCapturaReclam.remove();
     const capturaWrap = document.createElement("div");
+    capturaWrap.id = "reclamacoesCapturaEscondida";
     capturaWrap.style.cssText = "background:#fff; padding:4px;";
     const linhas = reclamacoes.map(r=>`
       <tr>
@@ -3067,6 +3094,9 @@ async function abrirReclamacoesHub(){
       </table>
     `;
     criarBotoesPartilhaHub(document.getElementById("reclamacoesPartilhaBtnsHub"), capturaWrap, "CoreJoint_reclamacoes", "CoreJoint · Reclamações");
+    document.body.appendChild(capturaWrap);
+    capturaWrap.style.position = "absolute";
+    capturaWrap.style.left = "-9999px";
   }
   document.getElementById("rcFiltroEstado").onchange = renderListaReclamacoes;
   document.getElementById("rcFiltroLoja").onchange = renderListaReclamacoes;
