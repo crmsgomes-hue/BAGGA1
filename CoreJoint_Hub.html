@@ -114,6 +114,25 @@ if(localStorage.getItem("cj_dark_mode")==="1"){
 
 const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k";
+const BUCKET = "cj_reportes_fotos";
+async function uploadPhotoHub(dataUrl, path){
+  const blob = await (await fetch(dataUrl)).blob();
+  const res = await fetch(`${SUPA_URL}/storage/v1/object/${BUCKET}/${path}`, {
+    method:"POST",
+    headers:{ "apikey":SUPA_KEY, "Authorization":"Bearer "+SUPA_KEY, "Content-Type":"image/jpeg", "x-upsert":"true" },
+    body: blob
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return `${SUPA_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+}
+function ficheiroParaDataUrl(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 // Mesmo mecanismo de perfil do Reportes.html (mesma chave de localStorage, para ficar consistente
 // no mesmo aparelho entre as duas apps). CG = Cristina, JM = Joao - cada um ve so os seus lembretes.
 let currentUser = localStorage.getItem("cj_rep_user") || "CG";
@@ -539,6 +558,7 @@ async function renderPanoramaGeral(){
         <button id="btnStockNegDetalhadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo (lista detalhada, artigo a artigo)</button>
         <button id="btnColaboradoresHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👥 Colaboradores (nomes e nº mecanográfico)</button>
         <button id="btnAvariasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔧 Equipamentos avariados</button>
+        <button id="btnReclamacoesHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📣 Reclamações</button>
         <button id="btnInvArtigosJustHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Artigos de inventário por justificar</button>
         ${botoesAcao([
           ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
@@ -577,6 +597,7 @@ async function renderPanoramaGeral(){
       document.getElementById("btnStockNegDetalhadoHub").onclick = abrirRelatorioStockNegDetalhadoHub;
       document.getElementById("btnColaboradoresHub").onclick = abrirColaboradoresHub;
       document.getElementById("btnAvariasHub").onclick = abrirAvariasHub;
+      document.getElementById("btnReclamacoesHub").onclick = abrirReclamacoesHub;
       document.getElementById("btnInvArtigosJustHub").onclick = abrirInventarioArtigosJustificarHub;
       document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
       document.getElementById("btnAbrirFotosCategoriaHub").onclick = ()=>{
@@ -2835,6 +2856,221 @@ async function abrirAvariasHub(){
   document.getElementById("avFiltroEstado").onchange = renderListaAvarias;
   document.getElementById("avFiltroLoja").onchange = renderListaAvarias;
   renderListaAvarias();
+}
+
+async function abrirReclamacoesHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "reclamacoesOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">📣 Reclamações</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Regista aqui as reclamações, com a data/hora exata, a loja, e foto se houver (carta, recibo, print, etc).</div>
+
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:14px; margin-bottom:16px;">
+        <div style="font-weight:800; font-size:13px; margin-bottom:10px;">➕ Nova reclamação</div>
+        <select id="rcLoja" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem;">
+          <option value="">— Loja —</option>
+          ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+        </select>
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <div style="flex:1;">
+            <div style="font-size:10px; color:var(--t2); margin-bottom:3px;">Data e hora</div>
+            <input id="rcDataHora" type="datetime-local" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.8rem; box-sizing:border-box;">
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:10px; color:var(--t2); margin-bottom:3px;">Canal</div>
+            <select id="rcCanal" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem; box-sizing:border-box;">
+              <option value="Presencial">Presencial</option>
+              <option value="Telefone">Telefone</option>
+              <option value="Email">Email</option>
+              <option value="Redes sociais">Redes sociais</option>
+              <option value="Livro de reclamações">Livro de reclamações</option>
+              <option value="Outro">Outro</option>
+            </select>
+          </div>
+        </div>
+        <input id="rcCliente" placeholder="Nome do cliente (opcional)" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box;">
+        <textarea id="rcDescricao" placeholder="O que aconteceu..." style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box; min-height:60px;"></textarea>
+        <label style="display:block; width:100%; text-align:center; background:#fff; border:1.5px dashed var(--br); color:var(--terracotta,#C1622D); font-weight:700; padding:11px; border-radius:10px; cursor:pointer; margin-bottom:8px; font-size:.82rem; box-sizing:border-box;">
+          📷 Adicionar foto (opcional)
+          <input id="rcFotoInput" type="file" accept="image/*" multiple style="display:none;">
+        </label>
+        <div id="rcFotosPreview" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;"></div>
+        <button id="rcGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Registar reclamação</button>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <select id="rcFiltroEstado" style="flex:1; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem;">
+          <option value="pendente">Pendentes</option>
+          <option value="resolvido">Resolvidas</option>
+          <option value="">Todas</option>
+        </select>
+        <select id="rcFiltroLoja" style="flex:1; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem;">
+          <option value="">Todas as lojas</option>
+          ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+        </select>
+      </div>
+
+      <div id="reclamacoesListaHub"></div>
+      <div id="reclamacoesPartilhaBtnsHub" style="margin-top:12px;"></div>
+      <button id="fecharReclamacoesHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharReclamacoesHubBtn").onclick = ()=>fecharEcraHub();
+
+  // data/hora agora, no formato que o input datetime-local aceita
+  const agora = new Date();
+  agora.setMinutes(agora.getMinutes() - agora.getTimezoneOffset());
+  document.getElementById("rcDataHora").value = agora.toISOString().slice(0,16);
+
+  let fotosSelecionadas = [];
+  document.getElementById("rcFotoInput").addEventListener("change", async (ev)=>{
+    const files = Array.from(ev.target.files||[]);
+    for(const file of files){
+      const dataUrl = await ficheiroParaDataUrl(file);
+      fotosSelecionadas.push(dataUrl);
+    }
+    renderFotosPreview();
+    ev.target.value = "";
+  });
+  function renderFotosPreview(){
+    const host = document.getElementById("rcFotosPreview");
+    host.innerHTML = fotosSelecionadas.map((f,i)=>`
+      <div style="position:relative; width:56px; height:56px;">
+        <img src="${f}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;">
+        <button data-i="${i}" class="btnRemoverFotoRc" style="position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%; background:#b0432f; color:#fff; border:none; font-size:12px; line-height:1;">✕</button>
+      </div>
+    `).join("");
+    host.querySelectorAll(".btnRemoverFotoRc").forEach(btn=>{
+      btn.onclick = ()=>{ fotosSelecionadas.splice(Number(btn.dataset.i),1); renderFotosPreview(); };
+    });
+  }
+
+  document.getElementById("rcGuardarBtn").onclick = async ()=>{
+    const loja = document.getElementById("rcLoja").value;
+    const descricao = document.getElementById("rcDescricao").value.trim();
+    if(!loja || !descricao){ toast("Escolhe a loja e descreve a reclamação"); return; }
+    const btn = document.getElementById("rcGuardarBtn");
+    btn.disabled = true; btn.textContent = "A guardar...";
+    try{
+      const urls = [];
+      for(let i=0;i<fotosSelecionadas.length;i++){
+        const path = `reclamacoes/${loja.replace(/\s+/g,"_")}/${Date.now()}_${i}.jpg`;
+        const url = await uploadPhotoHub(fotosSelecionadas[i], path);
+        urls.push(url);
+      }
+      const dataHoraVal = document.getElementById("rcDataHora").value;
+      await api("cj_reclamacoes", "POST", {
+        loja,
+        data_hora: dataHoraVal ? new Date(dataHoraVal).toISOString() : new Date().toISOString(),
+        canal: document.getElementById("rcCanal").value,
+        cliente_nome: document.getElementById("rcCliente").value.trim() || null,
+        descricao,
+        fotos: urls,
+        registado_por: currentUser,
+      });
+    }catch(e){
+      toast("Erro ao guardar: " + (e.message||e).slice(0,120));
+      btn.disabled = false; btn.textContent = "✔ Registar reclamação";
+      return;
+    }
+    document.getElementById("rcCliente").value = "";
+    document.getElementById("rcDescricao").value = "";
+    fotosSelecionadas = [];
+    renderFotosPreview();
+    btn.disabled = false; btn.textContent = "✔ Registar reclamação";
+    mostrarSucesso("Reclamação registada");
+    renderListaReclamacoes();
+  };
+
+  async function renderListaReclamacoes(){
+    const estadoF = document.getElementById("rcFiltroEstado").value;
+    const lojaF = document.getElementById("rcFiltroLoja").value;
+    const lista = document.getElementById("reclamacoesListaHub");
+    lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">A carregar...</div>`;
+    let qs = "cj_reclamacoes?select=*&order=data_hora.desc";
+    if(estadoF) qs += `&estado=eq.${estadoF}`;
+    if(lojaF) qs += `&loja=eq.${encodeURIComponent(lojaF)}`;
+    const reclamacoes = await api(qs, "GET");
+
+    if(reclamacoes.length===0){
+      lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">Nada aqui.</div>`;
+      document.getElementById("reclamacoesPartilhaBtnsHub").innerHTML = "";
+      return;
+    }
+
+    lista.innerHTML = reclamacoes.map(r=>{
+      const fotosHtml = (r.fotos||[]).length>0 ? `<div style="display:flex; gap:5px; margin-top:6px;">${r.fotos.map(f=>`<img src="${f}" data-full="${f}" class="rcFotoAmpliar" style="width:44px; height:44px; object-fit:cover; border-radius:6px; cursor:pointer;">`).join("")}</div>` : "";
+      return `
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
+          <b style="font-size:12px;">${r.loja}</b>
+          <span style="font-size:10px; font-weight:800; padding:3px 8px; border-radius:99px; white-space:nowrap; background:${r.estado==='resolvido'?'#2e7d32':'#c17817'}; color:#fff;">${r.estado==='resolvido'?'✔ Resolvida':'⏳ Pendente'}</span>
+        </div>
+        <div style="font-size:11px; color:#555; margin:3px 0;">${r.descricao}</div>
+        <div style="font-size:9.5px; color:#777;">${new Date(r.data_hora).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}${r.canal?' · '+r.canal:''}${r.cliente_nome?' · '+r.cliente_nome:''}</div>
+        ${fotosHtml}
+        ${r.resposta?`<div style="font-size:10px; color:#2e7d32; background:#e8f3e9; border-radius:6px; padding:5px 7px; margin-top:6px;"><b>Resposta:</b> ${r.resposta}</div>`:''}
+        ${r.estado!=='resolvido' ? `<button data-id="${r.id}" class="btnResolverReclamacaoHub" style="width:100%; margin-top:7px; background:#2e7d32; color:#fff; border:none; border-radius:8px; padding:7px; font-size:.76rem; font-weight:700;">✔ Marcar como resolvida</button>` : ''}
+      </div>
+    `;}).join("");
+
+    lista.querySelectorAll(".rcFotoAmpliar").forEach(img=>{
+      img.onclick = ()=>{
+        const v = document.createElement("div");
+        v.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:20px;";
+        v.innerHTML = `<img src="${img.dataset.full}" style="max-width:100%; max-height:100%; border-radius:8px;">`;
+        v.onclick = ()=>v.remove();
+        document.body.appendChild(v);
+      };
+    });
+
+    lista.querySelectorAll(".btnResolverReclamacaoHub").forEach(btn=>{
+      btn.onclick = async ()=>{
+        const resposta = prompt("Resposta dada ao cliente (opcional):") || null;
+        btn.disabled = true; btn.textContent = "A guardar...";
+        try{
+          await api(`cj_reclamacoes?id=eq.${btn.dataset.id}`, "PATCH", {estado:"resolvido", resposta, data_resposta: new Date().toISOString()});
+          renderListaReclamacoes();
+        }catch(e){
+          toast("Erro: " + (e.message||e).slice(0,100));
+          btn.disabled = false; btn.textContent = "✔ Marcar como resolvida";
+        }
+      };
+    });
+
+    // relatorio partilhavel
+    const capturaWrap = document.createElement("div");
+    capturaWrap.style.cssText = "background:#fff; padding:4px;";
+    const linhas = reclamacoes.map(r=>`
+      <tr>
+        <td style="font-weight:700; font-size:10px; padding:4px 5px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${r.loja}</td>
+        <td style="font-size:9px; padding:4px 5px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${new Date(r.data_hora).toLocaleDateString('pt-PT')} ${new Date(r.data_hora).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}</td>
+        <td style="font-size:9.5px; padding:4px 5px; border-bottom:1px solid #f0ebe3;">${r.descricao.slice(0,60)}${r.descricao.length>60?'…':''}</td>
+        <td style="font-size:9.5px; padding:4px 5px; border-bottom:1px solid #f0ebe3; text-align:center; font-weight:800; color:${r.estado==='resolvido'?'#2e7d32':'#c17817'};">${r.estado==='resolvido'?'✔':'⏳'}</td>
+      </tr>
+    `).join("");
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Reclamações</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')} · ${reclamacoes.length} registo(s)</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Loja</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Quando</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Descrição</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:center; padding:3px 5px; border-bottom:2px solid #C1622D;">Estado</th>
+        </tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    `;
+    criarBotoesPartilhaHub(document.getElementById("reclamacoesPartilhaBtnsHub"), capturaWrap, "CoreJoint_reclamacoes", "CoreJoint · Reclamações");
+  }
+  document.getElementById("rcFiltroEstado").onchange = renderListaReclamacoes;
+  document.getElementById("rcFiltroLoja").onchange = renderListaReclamacoes;
+  renderListaReclamacoes();
 }
 
 async function abrirColaboradoresHub(){
