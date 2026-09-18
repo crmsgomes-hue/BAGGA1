@@ -538,6 +538,7 @@ async function renderPanoramaGeral(){
         <button id="btnStockNegCruzadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo cruzado (mesmo artigo, 4+ lojas)</button>
         <button id="btnStockNegDetalhadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo (lista detalhada, artigo a artigo)</button>
         <button id="btnColaboradoresHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👥 Colaboradores (nomes e nº mecanográfico)</button>
+        <button id="btnAvariasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔧 Equipamentos avariados</button>
         <button id="btnInvArtigosJustHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Artigos de inventário por justificar</button>
         ${botoesAcao([
           ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
@@ -575,6 +576,7 @@ async function renderPanoramaGeral(){
       document.getElementById("btnStockNegCruzadoHub").onclick = abrirRelatorioStockNegCruzadoHub;
       document.getElementById("btnStockNegDetalhadoHub").onclick = abrirRelatorioStockNegDetalhadoHub;
       document.getElementById("btnColaboradoresHub").onclick = abrirColaboradoresHub;
+      document.getElementById("btnAvariasHub").onclick = abrirAvariasHub;
       document.getElementById("btnInvArtigosJustHub").onclick = abrirInventarioArtigosJustificarHub;
       document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
       document.getElementById("btnAbrirFotosCategoriaHub").onclick = ()=>{
@@ -2676,6 +2678,163 @@ async function abrirInventarioArtigosJustificarHub(){
   }
   render();
   document.getElementById("invArtigosJustLojaSel").onchange = render;
+}
+
+async function abrirAvariasHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "avariasOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">🔧 Equipamentos avariados</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Regista aqui os equipamentos avariados, o fornecedor contactado e o estado da assistência.</div>
+
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:14px; margin-bottom:16px;">
+        <div style="font-weight:800; font-size:13px; margin-bottom:10px;">➕ Novo registo</div>
+        <select id="avLoja" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem;">
+          <option value="">— Loja —</option>
+          ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+        </select>
+        <input id="avEquipamento" placeholder="Equipamento (ex: Forno, Máquina de café)" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box;">
+        <textarea id="avDescricao" placeholder="O que se passa..." style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box; min-height:50px;"></textarea>
+        <input id="avFornecedor" placeholder="Fornecedor contactado" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box;">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <div style="flex:1;">
+            <div style="font-size:10px; color:var(--t2); margin-bottom:3px;">Data do pedido</div>
+            <input id="avDataPedido" type="date" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem; box-sizing:border-box;">
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:10px; color:var(--t2); margin-bottom:3px;">Custo estimado (€)</div>
+            <input id="avCusto" type="number" step="0.01" placeholder="opcional" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem; box-sizing:border-box;">
+          </div>
+        </div>
+        <button id="avGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Registar avaria</button>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <select id="avFiltroEstado" style="flex:1; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem;">
+          <option value="pendente">Pendentes</option>
+          <option value="resolvido">Resolvidas</option>
+          <option value="">Todas</option>
+        </select>
+        <select id="avFiltroLoja" style="flex:1; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem;">
+          <option value="">Todas as lojas</option>
+          ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+        </select>
+      </div>
+
+      <div id="avariasListaHub"></div>
+      <div id="avariasPartilhaBtnsHub" style="margin-top:12px;"></div>
+      <button id="fecharAvariasHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("avDataPedido").value = todayStrHub();
+  document.getElementById("fecharAvariasHubBtn").onclick = ()=>fecharEcraHub();
+
+  document.getElementById("avGuardarBtn").onclick = async ()=>{
+    const loja = document.getElementById("avLoja").value;
+    const equipamento = document.getElementById("avEquipamento").value.trim();
+    if(!loja || !equipamento){ toast("Escolhe a loja e o equipamento"); return; }
+    const btn = document.getElementById("avGuardarBtn");
+    btn.disabled = true; btn.textContent = "A guardar...";
+    try{
+      await api("cj_avarias_bagga", "POST", {
+        loja, equipamento,
+        descricao_problema: document.getElementById("avDescricao").value.trim() || null,
+        fornecedor: document.getElementById("avFornecedor").value.trim() || null,
+        data_pedido: document.getElementById("avDataPedido").value || todayStrHub(),
+        custo: document.getElementById("avCusto").value ? parseFloat(document.getElementById("avCusto").value) : null,
+        registado_por: currentUser,
+      });
+    }catch(e){
+      toast("Erro ao guardar: " + (e.message||e).slice(0,120));
+      btn.disabled = false; btn.textContent = "✔ Registar avaria";
+      return;
+    }
+    document.getElementById("avEquipamento").value = "";
+    document.getElementById("avDescricao").value = "";
+    document.getElementById("avFornecedor").value = "";
+    document.getElementById("avCusto").value = "";
+    btn.disabled = false; btn.textContent = "✔ Registar avaria";
+    mostrarSucesso("Avaria registada");
+    renderListaAvarias();
+  };
+
+  async function renderListaAvarias(){
+    const estadoF = document.getElementById("avFiltroEstado").value;
+    const lojaF = document.getElementById("avFiltroLoja").value;
+    const lista = document.getElementById("avariasListaHub");
+    lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">A carregar...</div>`;
+    let qs = "cj_avarias_bagga?select=*&order=data_pedido.desc";
+    if(estadoF) qs += `&estado=eq.${estadoF}`;
+    if(lojaF) qs += `&loja=eq.${encodeURIComponent(lojaF)}`;
+    const avarias = await api(qs, "GET");
+
+    if(avarias.length===0){
+      lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">Nada aqui.</div>`;
+      document.getElementById("avariasPartilhaBtnsHub").innerHTML = "";
+      return;
+    }
+
+    lista.innerHTML = avarias.map(a=>`
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
+          <b style="font-size:12px;">${a.loja} — ${a.equipamento}</b>
+          <span style="font-size:10px; font-weight:800; padding:3px 8px; border-radius:99px; white-space:nowrap; background:${a.estado==='resolvido'?'#2e7d32':'#c17817'}; color:#fff;">${a.estado==='resolvido'?'✔ Resolvido':'⏳ Pendente'}</span>
+        </div>
+        ${a.descricao_problema?`<div style="font-size:11px; color:#555; margin:3px 0;">${a.descricao_problema}</div>`:''}
+        <div style="font-size:9.5px; color:#777; margin-top:3px;">${a.fornecedor?'Fornecedor: '+a.fornecedor+' · ':''}Pedido: ${new Date(a.data_pedido+"T00:00:00").toLocaleDateString('pt-PT')}${a.custo?' · '+Number(a.custo).toFixed(2).replace('.',',')+'€':''}</div>
+        ${a.data_resolucao?`<div style="font-size:9.5px; color:#2e7d32; margin-top:2px;">Resolvido em ${new Date(a.data_resolucao+"T00:00:00").toLocaleDateString('pt-PT')}</div>`:''}
+        ${a.estado!=='resolvido' ? `<button data-id="${a.id}" class="btnResolverAvariaHub" style="width:100%; margin-top:7px; background:#2e7d32; color:#fff; border:none; border-radius:8px; padding:7px; font-size:.76rem; font-weight:700;">✔ Marcar como resolvido</button>` : ''}
+      </div>
+    `).join("");
+
+    lista.querySelectorAll(".btnResolverAvariaHub").forEach(btn=>{
+      btn.onclick = async ()=>{
+        btn.disabled = true; btn.textContent = "A guardar...";
+        try{
+          await api(`cj_avarias_bagga?id=eq.${btn.dataset.id}`, "PATCH", {estado:"resolvido", data_resolucao: todayStrHub(), atualizado_em: new Date().toISOString()});
+          renderListaAvarias();
+        }catch(e){
+          toast("Erro: " + (e.message||e).slice(0,100));
+          btn.disabled = false; btn.textContent = "✔ Marcar como resolvido";
+        }
+      };
+    });
+
+    // relatorio partilhavel
+    const capturaWrap = document.createElement("div");
+    capturaWrap.style.cssText = "background:#fff; padding:4px;";
+    const linhas = avarias.map(a=>`
+      <tr>
+        <td style="font-weight:700; font-size:10px; padding:4px 5px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${a.loja}</td>
+        <td style="font-size:10px; padding:4px 5px; border-bottom:1px solid #f0ebe3;">${a.equipamento}</td>
+        <td style="font-size:9.5px; padding:4px 5px; border-bottom:1px solid #f0ebe3;">${a.fornecedor||'—'}</td>
+        <td style="font-size:9px; padding:4px 5px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${new Date(a.data_pedido+"T00:00:00").toLocaleDateString('pt-PT')}</td>
+        <td style="font-size:9.5px; padding:4px 5px; border-bottom:1px solid #f0ebe3; text-align:center; font-weight:800; color:${a.estado==='resolvido'?'#2e7d32':'#c17817'};">${a.estado==='resolvido'?'✔':'⏳'}</td>
+      </tr>
+    `).join("");
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Equipamentos avariados</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')} · ${avarias.length} registo(s)</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Loja</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Equipamento</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Fornecedor</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Pedido</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:center; padding:3px 5px; border-bottom:2px solid #C1622D;">Estado</th>
+        </tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    `;
+    criarBotoesPartilhaHub(document.getElementById("avariasPartilhaBtnsHub"), capturaWrap, "CoreJoint_avarias", "CoreJoint · Equipamentos avariados");
+  }
+  document.getElementById("avFiltroEstado").onchange = renderListaAvarias;
+  document.getElementById("avFiltroLoja").onchange = renderListaAvarias;
+  renderListaAvarias();
 }
 
 async function abrirColaboradoresHub(){
