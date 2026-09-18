@@ -2849,6 +2849,30 @@ async function openFichaGerente(lojaPreSelecionada){
     `;
     contentWrap.innerHTML = html;
     const dadosFicha = {pctVend, vendOk, diasNoMes: diasNoMes.length, atrasados, diaErrado, avisosLoja, avisosConfirmados, adendasParadas, streak, ultimaAtividade};
+
+    const capturaWrap = document.createElement("div");
+    capturaWrap.style.cssText = "background:#fff; padding:4px;";
+    const linha = (label,valor,cor)=>`<tr><td style="font-size:11px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${label}</td><td style="font-size:11.5px; font-weight:800; padding:5px 6px; border-bottom:1px solid #f0ebe3; text-align:right; color:${cor||'#333'};">${valor}</td></tr>`;
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Ficha da loja — ${l}</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px;">${today.toLocaleDateString('pt-PT',{month:'long',year:'numeric'})}</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <tbody>
+          ${linha("🧾 Vendas registadas", `${pctVend}% (${vendOk}/${diasNoMes.length} dias)`, pctVend>=80?'#2e7d32':'#c17817')}
+          ${linha("📦 Inventário atrasado agora", atrasados, atrasados>0?'#b0432f':'#2e7d32')}
+          ${linha("⚠ Enviado no dia errado", diaErrado, diaErrado>0?'#c17817':'#2e7d32')}
+          ${linha("📢 Avisos este mês", `${avisosConfirmados}/${avisosLoja.length} confirmados`, avisosConfirmados===avisosLoja.length?'#2e7d32':'#c17817')}
+          ${linha("📋 Adendas paradas 3+ dias", adendasParadas, adendasParadas>0?'#b0432f':'#2e7d32')}
+          ${linha("🔥 Sequência atual", streak>=2?`${streak} dias seguidos`:'—', streak>=2?'#2e7d32':'#777')}
+          ${ultimaAtividade!==null && ultimaAtividade>=3 ? linha("⚠ Sem qualquer envio há", `${ultimaAtividade} dias`, '#b0432f') : ``}
+        </tbody>
+      </table>
+    `;
+    const partilhaHostFicha = document.createElement("div");
+    partilhaHostFicha.style.cssText = "margin:12px 0;";
+    contentWrap.appendChild(partilhaHostFicha);
+    partilhaHostFicha.appendChild(capturaWrap);
+    criarBotoesPartilha(partilhaHostFicha, capturaWrap, `CoreJoint_ficha_${l.replace(/\s+/g,"_")}`, `CoreJoint · Ficha da loja — ${l}`, location.origin + location.pathname + `?abrir=fichaLoja&loja=${encodeURIComponent(l)}`);
     document.getElementById("fichaPdfBtn").onclick = ()=>exportarFichaPDF(l, dadosFicha);
     document.getElementById("fichaExcelBtn").onclick = ()=>exportarFichaExcel(l, dadosFicha);
     const fichaArqBtn = document.getElementById("fichaArquivarBtn"); fichaArqBtn.onclick = protegerClique(fichaArqBtn, ()=>arquivarFicha(l, dadosFicha), "A arquivar...");
@@ -7165,6 +7189,31 @@ async function abrirPainelSaude(){
     card.onclick = ()=>{ previousView = abrirPainelSaude; c.fn(); };
     main.appendChild(card);
   });
+
+  const capturaWrap = document.createElement("div");
+  capturaWrap.style.cssText = "background:#fff; padding:4px;";
+  const linhaResumo = (label,n,cor)=>`<tr><td style="font-size:11.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${label}</td><td style="font-size:12px; font-weight:800; padding:5px 6px; border-bottom:1px solid #f0ebe3; text-align:right; color:${cor};">${n}</td></tr>`;
+  let htmlSaude = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Painel de saúde</div>
+    <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')} · ${totalProblemas===0 ? 'tudo bem' : totalProblemas+' coisa(s) a rever'}</div>
+    <table style="border-collapse:collapse; width:100%; margin-bottom:12px;">
+      <thead><tr><th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Resumo</th><th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:3px 6px; border-bottom:2px solid #C1622D;">Nº</th></tr></thead>
+      <tbody>
+        ${linhaResumo("🐛 Erros (7 dias)", erros.length, erros.length>0?'#c17817':'#2e7d32')}
+        ${linhaResumo("🔍 Categorias invisíveis", problemas.length, problemas.length>0?'#c17817':'#2e7d32')}
+        ${linhaResumo("📋 Exceções por loja", excecoes.length, '#777')}
+      </tbody>
+    </table>`;
+  if(problemas.length>0){
+    htmlSaude += `<div style="background:#e8a95c; color:#5a3a10; font-weight:800; font-size:11px; padding:5px 8px; border-radius:6px 6px 0 0;">CATEGORIAS INVISÍVEIS</div>`;
+    htmlSaude += problemas.map(p=>`<div style="background:var(--sf2,#f5f0e6); padding:7px 10px; margin-bottom:4px; font-size:10.5px;"><b>${p.loja}</b> · ${p.categoria} — último envio ${new Date(p.ultimaData+"T00:00:00").toLocaleDateString('pt-PT')}</div>`).join("");
+  }
+  capturaWrap.innerHTML = htmlSaude;
+  const partilhaHostSaude = document.createElement("div");
+  partilhaHostSaude.style.cssText = "margin-top:14px;";
+  main.appendChild(partilhaHostSaude);
+  partilhaHostSaude.appendChild(capturaWrap);
+  criarBotoesPartilha(partilhaHostSaude, capturaWrap, "CoreJoint_painel_saude", "CoreJoint · Painel de saúde", location.origin + location.pathname + "?abrir=painelSaude");
 }
 
 async function abrirExportarBackup(){
@@ -7526,6 +7575,30 @@ async function abrirRelatorioIntegridade(){
   }
 
   main.insertAdjacentHTML("beforeend", html);
+
+  const capturaWrap = document.createElement("div");
+  capturaWrap.style.cssText = "background:#fff; padding:4px;";
+  let htmlPartilha = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Relatório de Integridade</div>
+    <div style="font-size:10px; color:#777; margin-bottom:10px;">Últimos 7 dias · ${new Date().toLocaleDateString('pt-PT')}</div>`;
+  htmlPartilha += `<div style="background:#e8a95c; color:#5a3a10; font-weight:800; font-size:11px; padding:5px 8px; border-radius:6px 6px 0 0;">ENVIOS EM BLOCO (&lt;5 MIN)</div>`;
+  htmlPartilha += suspeitosBloco.length===0
+    ? `<div style="padding:7px 10px; font-size:10.5px; color:#2e7d32; margin-bottom:8px;">Nada suspeito.</div>`
+    : suspeitosBloco.map(s=>`<div style="background:#fdf1ee; padding:7px 10px; margin-bottom:4px; font-size:10.5px;"><b>${s.loja}</b> · ${new Date(s.data+"T00:00:00").toLocaleDateString('pt-PT')} — ${s.tipos} (${s.minutos} min)</div>`).join("");
+  htmlPartilha += `<div style="background:#e8a95c; color:#5a3a10; font-weight:800; font-size:11px; padding:5px 8px; border-radius:6px 6px 0 0; margin-top:8px;">FOTOS REPETIDAS</div>`;
+  htmlPartilha += suspeitosFotoRepetida.length===0
+    ? `<div style="padding:7px 10px; font-size:10.5px; color:#2e7d32; margin-bottom:8px;">Nenhuma detetada.</div>`
+    : suspeitosFotoRepetida.map(s=>`<div style="background:#fdf1ee; padding:7px 10px; margin-bottom:4px; font-size:10.5px;"><b>${s.loja}</b> · ${s.tipo} — mesma foto em ${new Date(s.data1+"T00:00:00").toLocaleDateString('pt-PT')} e ${new Date(s.data2+"T00:00:00").toLocaleDateString('pt-PT')}</div>`).join("");
+  htmlPartilha += `<div style="background:#e8a95c; color:#5a3a10; font-weight:800; font-size:11px; padding:5px 8px; border-radius:6px 6px 0 0; margin-top:8px;">INCIDENTES REGISTADOS</div>`;
+  htmlPartilha += incidentes.length===0
+    ? `<div style="padding:7px 10px; font-size:10.5px; color:#777;">Nenhum.</div>`
+    : incidentes.map(inc=>`<div style="background:var(--sf2,#f5f0e6); padding:7px 10px; margin-bottom:4px; font-size:10.5px;"><b>${inc.loja}</b> · ${new Date(inc.data+"T00:00:00").toLocaleDateString('pt-PT')} — ${inc.descricao}</div>`).join("");
+  capturaWrap.innerHTML = htmlPartilha;
+  const partilhaHostInteg = document.createElement("div");
+  partilhaHostInteg.style.cssText = "margin-top:14px;";
+  main.appendChild(partilhaHostInteg);
+  partilhaHostInteg.appendChild(capturaWrap);
+  criarBotoesPartilha(partilhaHostInteg, capturaWrap, "CoreJoint_integridade", "CoreJoint · Relatório de Integridade", location.origin + location.pathname + "?abrir=relatorioIntegridade");
 
   const exportBtn = document.createElement("button");
   exportBtn.className = "cambtn";
@@ -8858,6 +8931,8 @@ function renderGestao(){
     rankingLojas: openRankingLojas,
     visaoPorCategoria: abrirVisaoPorCategoria,
     registoAtividade: openRegistoAtividade,
+    painelSaude: abrirPainelSaude,
+    relatorioIntegridade: abrirRelatorioIntegridade,
     painelMonitorizacao: abrirPainelMonitorizacao, relatorioGlobalAgendamento: abrirRelatorioGlobalAgendamento,
     relatorioEstivaLaranjas: abrirRelatorioEstivaLaranjas,
     fichaLoja: openFichaGerente, ranking: openRankingLojas, checklist: openChecklistMensal,
