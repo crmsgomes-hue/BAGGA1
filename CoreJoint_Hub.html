@@ -559,6 +559,7 @@ async function renderPanoramaGeral(){
         <button id="btnColaboradoresHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👥 Colaboradores (nomes e nº mecanográfico)</button>
         <button id="btnAvariasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔧 Equipamentos avariados</button>
         <button id="btnReclamacoesHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📣 Reclamações</button>
+        <button id="btnCodigosPortasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚪 Códigos das portas</button>
         <button id="btnInvArtigosJustHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Artigos de inventário por justificar</button>
         ${botoesAcao([
           ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
@@ -598,6 +599,7 @@ async function renderPanoramaGeral(){
       document.getElementById("btnColaboradoresHub").onclick = abrirColaboradoresHub;
       document.getElementById("btnAvariasHub").onclick = abrirAvariasHub;
       document.getElementById("btnReclamacoesHub").onclick = abrirReclamacoesHub;
+      document.getElementById("btnCodigosPortasHub").onclick = abrirCodigosPortasHub;
       document.getElementById("btnInvArtigosJustHub").onclick = abrirInventarioArtigosJustificarHub;
       document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
       document.getElementById("btnAbrirFotosCategoriaHub").onclick = ()=>{
@@ -3101,6 +3103,117 @@ async function abrirReclamacoesHub(){
   document.getElementById("rcFiltroEstado").onchange = renderListaReclamacoes;
   document.getElementById("rcFiltroLoja").onchange = renderListaReclamacoes;
   renderListaReclamacoes();
+}
+
+async function abrirCodigosPortasHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "codigosPortasOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">🚪 Códigos das portas</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Só tu e o João veem isto.</div>
+
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:14px; margin-bottom:16px;">
+        <div style="font-weight:800; font-size:13px; margin-bottom:10px;">➕ Novo código</div>
+        <select id="cpLoja" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem;">
+          <option value="">— Loja —</option>
+          ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+        </select>
+        <input id="cpLocal" placeholder="Local (ex: Porta traseira, Portão exterior)" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box;">
+        <input id="cpCodigo" placeholder="Código" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.9rem; font-family:monospace; letter-spacing:1px; box-sizing:border-box;">
+        <input id="cpNotas" placeholder="Notas (opcional)" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box;">
+        <button id="cpGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Guardar código</button>
+      </div>
+
+      <select id="cpFiltroLoja" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem; margin-bottom:10px;">
+        <option value="">Todas as lojas</option>
+        ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+      </select>
+
+      <div id="codigosPortasListaHub"></div>
+      <button id="fecharCodigosPortasHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharCodigosPortasHubBtn").onclick = ()=>fecharEcraHub();
+
+  document.getElementById("cpGuardarBtn").onclick = async ()=>{
+    const loja = document.getElementById("cpLoja").value;
+    const local = document.getElementById("cpLocal").value.trim();
+    const codigo = document.getElementById("cpCodigo").value.trim();
+    if(!loja || !local || !codigo){ toast("Escolhe a loja, o local e o código"); return; }
+    const btn = document.getElementById("cpGuardarBtn");
+    btn.disabled = true; btn.textContent = "A guardar...";
+    try{
+      await api("cj_codigos_portas", "POST", {
+        loja, local, codigo,
+        notas: document.getElementById("cpNotas").value.trim() || null,
+        atualizado_por: currentUser,
+      });
+    }catch(e){
+      toast("Erro ao guardar: " + (e.message||e).slice(0,120));
+      btn.disabled = false; btn.textContent = "✔ Guardar código";
+      return;
+    }
+    document.getElementById("cpLocal").value = "";
+    document.getElementById("cpCodigo").value = "";
+    document.getElementById("cpNotas").value = "";
+    btn.disabled = false; btn.textContent = "✔ Guardar código";
+    mostrarSucesso("Código guardado");
+    renderListaCodigosPortas();
+  };
+
+  async function renderListaCodigosPortas(){
+    const lojaF = document.getElementById("cpFiltroLoja").value;
+    const lista = document.getElementById("codigosPortasListaHub");
+    lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">A carregar...</div>`;
+    let qs = "cj_codigos_portas?select=*&order=loja.asc,local.asc";
+    if(lojaF) qs += `&loja=eq.${encodeURIComponent(lojaF)}`;
+    const codigos = await api(qs, "GET");
+
+    if(codigos.length===0){
+      lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">Nada guardado ainda.</div>`;
+      return;
+    }
+
+    const porLoja = {};
+    codigos.forEach(c=>{ (porLoja[c.loja] ||= []).push(c); });
+    lista.innerHTML = Object.keys(porLoja).sort().map(loja=>`
+      <div style="margin-bottom:10px;">
+        <div style="font-size:11px; font-weight:800; color:#C1622D; text-transform:uppercase; padding:6px 2px 4px; border-bottom:2px solid #C1622D;">${loja}</div>
+        ${porLoja[loja].map(c=>`
+          <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:10px 12px; margin-top:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <b style="font-size:.82rem;">${c.local}</b>
+              <span style="font-family:monospace; font-weight:800; font-size:1rem; letter-spacing:2px;">${c.codigo}</span>
+            </div>
+            ${c.notas?`<div style="font-size:10.5px; color:#777; margin-top:3px;">${c.notas}</div>`:''}
+            <div style="display:flex; gap:8px; margin-top:7px;">
+              <button data-id="${c.id}" data-texto="${c.loja} — ${c.local}: ${c.codigo}" class="cpCopiarBtn" style="flex:1; background:var(--terracotta,#C1622E); color:#fff; border:none; border-radius:8px; padding:7px; font-size:.72rem; font-weight:700;">📋 Copiar</button>
+              <button data-id="${c.id}" class="cpApagarBtn" style="flex:1; background:none; border:1.5px solid var(--br); border-radius:8px; padding:7px; font-size:.72rem; font-weight:700; color:var(--t2);">🗑️ Apagar</button>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `).join("");
+
+    lista.querySelectorAll(".cpCopiarBtn").forEach(btn=>{
+      btn.onclick = ()=>{
+        navigator.clipboard.writeText(btn.dataset.texto).then(()=>toast("✔ Copiado"));
+      };
+    });
+    lista.querySelectorAll(".cpApagarBtn").forEach(btn=>{
+      btn.onclick = async ()=>{
+        if(!confirm("Apagar este código?")) return;
+        await api(`cj_codigos_portas?id=eq.${btn.dataset.id}`, "DELETE");
+        renderListaCodigosPortas();
+      };
+    });
+  }
+  document.getElementById("cpFiltroLoja").onchange = renderListaCodigosPortas;
+  renderListaCodigosPortas();
 }
 
 async function abrirColaboradoresHub(){
