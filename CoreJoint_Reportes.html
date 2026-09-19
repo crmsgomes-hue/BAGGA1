@@ -3160,8 +3160,19 @@ function openEvolucaoCnvs(){
 
   const explicacao = document.createElement("div");
   explicacao.style.cssText = "font-size:12px; color:var(--ink-soft); background:var(--cream,#faf6ef); border-radius:8px; padding:10px 12px; margin-bottom:14px; line-height:1.4;";
-  explicacao.textContent = "CNVs = consumíveis. Para acertar o valor, tem de se fazer uma entrada justificada no Winrest e, a seguir, um desperdício — motivo: correção de inventário e consumíveis Winrest. Lista abaixo: valor do Global, valor de CNVs, data e quem enviou, últimos 6 meses.";
+  explicacao.textContent = "CNVs = consumíveis. Para acertar o valor, tem de se fazer uma entrada justificada no Winrest e, a seguir, um desperdício — motivo: correção de inventário e consumíveis Winrest. Lista abaixo: valor do Global, valor de CNVs, data e quem enviou.";
   main.appendChild(explicacao);
+
+  const mesSel = document.createElement("select");
+  mesSel.style.cssText = "width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:14px; font-size:.85rem;";
+  months.forEach(m=>{
+    const opt = document.createElement("option");
+    opt.value = monthKey(m);
+    opt.textContent = m.toLocaleDateString('pt-PT',{month:'long', year:'numeric'});
+    mesSel.appendChild(opt);
+  });
+  mesSel.value = monthKey(new Date());
+  main.appendChild(mesSel);
 
   const capturaWrap = document.createElement("div");
   capturaWrap.style.cssText = "background:#fff; padding:4px;";
@@ -3170,44 +3181,46 @@ function openEvolucaoCnvs(){
   tituloImg.textContent = "CoreJoint · CNVs (Global)";
   const subImg = document.createElement("div");
   subImg.style.cssText = "font-size:10px; color:#777; margin-bottom:8px;";
-  subImg.textContent = "Valor do Global e de CNVs — data, quem enviou, últimos 6 meses";
   capturaWrap.appendChild(tituloImg);
   capturaWrap.appendChild(subImg);
   main.appendChild(capturaWrap);
 
-  const meses6 = months.slice(-6);
-  const linhasHtml = LOJAS.map(l=>{
-    const entradas = meses6.map(m=>{
-      const mk = monthKey(m);
-      const row = invRows.find(r=>r.loja===l && r.categoria==="global" && r.data && r.data.slice(0,7)===mk);
-      return row;
-    }).filter(Boolean);
-    if(entradas.length===0) return "";
-    return entradas.map((r,i)=>`
-      <tr>
-        ${i===0 ? `<td rowspan="${entradas.length}" style="font-weight:700; font-size:12px; padding:6px 6px; border-bottom:1px solid #f0ebe3; vertical-align:top;">${l}</td>` : ``}
-        <td style="font-size:11px; padding:6px 4px; border-bottom:1px solid #f0ebe3; color:#777;">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</td>
-        <td style="font-size:11px; padding:6px 4px; border-bottom:1px solid #f0ebe3;">${r.enviado_por||'—'}</td>
-        <td style="font-size:12px; padding:6px 4px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:${r.valor_inventario<0?'#b0432f':'#2e7d32'};">${r.valor_inventario!=null ? Number(r.valor_inventario).toFixed(2).replace('.',',')+'€' : '—'}</td>
-        <td style="font-size:12px; padding:6px 4px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:${r.valor_cnvs<0?'#b0432f':'#2e7d32'};">${r.valor_cnvs!=null ? Number(r.valor_cnvs).toFixed(2).replace('.',',')+'€' : '—'}</td>
-      </tr>
-    `).join("");
-  }).join("");
-
   const tabelaEl = document.createElement("div");
-  tabelaEl.innerHTML = `
-    <table style="border-collapse:collapse; width:100%;">
-      <thead><tr>
-        <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 6px; border-bottom:2px solid #C1622D;">Loja</th>
-        <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Data</th>
-        <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Quem enviou</th>
-        <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:4px 4px; border-bottom:2px solid #C1622D;">Global</th>
-        <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:4px 4px; border-bottom:2px solid #C1622D;">CNVs</th>
-      </tr></thead>
-      <tbody>${linhasHtml}</tbody>
-    </table>
-  `;
   capturaWrap.appendChild(tabelaEl);
+
+  function renderTabelaCnvs(){
+    const mk = mesSel.value;
+    const mesLabel = mesSel.options[mesSel.selectedIndex].textContent;
+    subImg.textContent = `Valor do Global e de CNVs — data, quem enviou — ${mesLabel}`;
+    const linhasHtml = LOJAS.map(l=>{
+      const entradas = invRows.filter(r=>r.loja===l && r.categoria==="global" && r.data && r.data.slice(0,7)===mk);
+      if(entradas.length===0) return "";
+      return entradas.map((r,i)=>`
+        <tr>
+          ${i===0 ? `<td rowspan="${entradas.length}" style="font-weight:700; font-size:12px; padding:6px 6px; border-bottom:1px solid #f0ebe3; vertical-align:top;">${l}</td>` : ``}
+          <td style="font-size:11px; padding:6px 4px; border-bottom:1px solid #f0ebe3; color:#777;">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</td>
+          <td style="font-size:11px; padding:6px 4px; border-bottom:1px solid #f0ebe3;">${r.enviado_por||'—'}</td>
+          <td style="font-size:12px; padding:6px 4px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:${r.valor_inventario<0?'#b0432f':'#2e7d32'};">${r.valor_inventario!=null ? Number(r.valor_inventario).toFixed(2).replace('.',',')+'€' : '—'}</td>
+          <td style="font-size:12px; padding:6px 4px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:${r.valor_cnvs<0?'#b0432f':'#2e7d32'};">${r.valor_cnvs!=null ? Number(r.valor_cnvs).toFixed(2).replace('.',',')+'€' : '—'}</td>
+        </tr>
+      `).join("");
+    }).join("");
+
+    tabelaEl.innerHTML = linhasHtml ? `
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 6px; border-bottom:2px solid #C1622D;">Loja</th>
+          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Data</th>
+          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:4px 4px; border-bottom:2px solid #C1622D;">Quem enviou</th>
+          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:4px 4px; border-bottom:2px solid #C1622D;">Global</th>
+          <th style="font-size:9px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:4px 4px; border-bottom:2px solid #C1622D;">CNVs</th>
+        </tr></thead>
+        <tbody>${linhasHtml}</tbody>
+      </table>
+    ` : `<div style="text-align:center; color:var(--ink-soft); font-size:12px; padding:14px 0;">Sem envios em ${mesLabel}.</div>`;
+  }
+  mesSel.onchange = renderTabelaCnvs;
+  renderTabelaCnvs();
 
   criarBotoesPartilha(main, capturaWrap, "CoreJoint_cnvs", "CoreJoint · CNVs (Global)", location.origin + location.pathname + "?abrir=cnvs");
 }
