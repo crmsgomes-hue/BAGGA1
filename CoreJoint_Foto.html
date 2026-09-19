@@ -1050,6 +1050,20 @@ async function renderInterno(){
     secInventario.body.appendChild(ok);
   }
 
+  const cardPedirMaterial = document.createElement("div");
+  cardPedirMaterial.className = "card";
+  cardPedirMaterial.style.cssText = "padding:16px 18px;";
+  cardPedirMaterial.innerHTML = `
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+      <div style="width:34px; height:34px; border-radius:50%; background:var(--terracotta); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">📦</div>
+      <div style="font-weight:700; font-size:15.5px; color:var(--ink);">Pedir material</div>
+    </div>
+    <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px; padding-left:44px;">Loiça, embalagens, produtos de limpeza, fardamento, etc.</div>
+    <button id="btnAbrirPedirMaterial" style="width:100%; background:var(--terracotta,#C1622E); color:#fff; border:none; border-radius:10px; padding:12px; font-weight:700;">➕ Novo pedido</button>
+  `;
+  secInfo.body.appendChild(cardPedirMaterial);
+  document.getElementById("btnAbrirPedirMaterial").onclick = abrirFormPedirMaterial;
+
   if(secPorFazer.body.children.length===0) secPorFazer.wrap.style.display = "none";
   if(secInfo.body.children.length===0) secInfo.wrap.style.display = "none";
 }
@@ -2105,6 +2119,73 @@ function abrirConfirmarStockNegLoja(id){
     o.remove();
     if(document.getElementById("gestaoCorpo")){ await renderAreaGestaoLoja(); } else { await render(); }
   }, "A guardar...");
+}
+
+function abrirFormPedirMaterial(){
+  const o = document.createElement("div");
+  o.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.6); z-index:9999999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  o.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:400px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-size:16px; font-weight:700; margin-bottom:12px;">📦 Pedir material</div>
+      <select id="pmCategoria" style="width:100%; padding:11px; border-radius:8px; border:1px solid var(--line); margin-bottom:10px; font-size:.9rem;">
+        <option value="Loiça">Loiça</option>
+        <option value="Embalagens">Embalagens</option>
+        <option value="Produtos de limpeza">Produtos de limpeza</option>
+        <option value="Fardamento">Fardamento</option>
+        <option value="Outro">Outro</option>
+      </select>
+      <input id="pmArtigo" placeholder="O que precisas (ex: chávenas de café, sacos pequenos...)" style="width:100%; padding:11px; border-radius:8px; border:1px solid var(--line); margin-bottom:10px; font-size:.9rem; box-sizing:border-box;">
+      <input id="pmQuantidade" placeholder="Quantidade (opcional)" style="width:100%; padding:11px; border-radius:8px; border:1px solid var(--line); margin-bottom:10px; font-size:.9rem; box-sizing:border-box;">
+      <textarea id="pmNotas" placeholder="Notas (opcional)" style="width:100%; padding:11px; border-radius:8px; border:1px solid var(--line); margin-bottom:14px; font-size:.9rem; box-sizing:border-box; min-height:50px;"></textarea>
+      <div style="display:flex; gap:8px; margin-bottom:14px;">
+        <button id="pmCancelar" style="flex:1; background:none; border:1.5px solid var(--line); border-radius:10px; padding:12px; font-weight:700;">Cancelar</button>
+        <button id="pmGuardar" style="flex:1; background:var(--terracotta,#C1622E); color:#fff; border:none; border-radius:10px; padding:12px; font-weight:700;">Enviar pedido</button>
+      </div>
+      <div style="font-size:11px; color:var(--ink-soft); font-weight:700; margin-bottom:6px; text-transform:uppercase;">Pedidos anteriores</div>
+      <div id="pmListaAnteriores"><div style="text-align:center; padding:10px 0; color:var(--ink-soft); font-size:.82rem;">A carregar...</div></div>
+    </div>
+  `;
+  document.body.appendChild(o);
+  document.getElementById("pmCancelar").onclick = ()=>o.remove();
+  document.getElementById("pmGuardar").onclick = protegerClique(document.getElementById("pmGuardar"), async ()=>{
+    const artigo = document.getElementById("pmArtigo").value.trim();
+    if(!artigo){ toast("Escreve o que precisas"); return; }
+    await api("POST", "cj_pedidos_material", {
+      loja: currentLoja,
+      categoria: document.getElementById("pmCategoria").value,
+      artigo,
+      quantidade: document.getElementById("pmQuantidade").value.trim() || null,
+      notas: document.getElementById("pmNotas").value.trim() || null,
+      registado_por: currentLoja,
+    });
+    toast("✔ Pedido enviado");
+    document.getElementById("pmArtigo").value = "";
+    document.getElementById("pmQuantidade").value = "";
+    document.getElementById("pmNotas").value = "";
+    renderListaPedidosMaterialLoja();
+  }, "A enviar...");
+
+  async function renderListaPedidosMaterialLoja(){
+    const lojaQ = encodeURIComponent(currentLoja);
+    const pedidos = await api("GET", `cj_pedidos_material?select=*&loja=eq.${lojaQ}&order=criado_em.desc&limit=20`);
+    const host = document.getElementById("pmListaAnteriores");
+    if(pedidos.length===0){
+      host.innerHTML = `<div style="text-align:center; padding:10px 0; color:var(--ink-soft); font-size:.82rem;">Ainda não pediste nada.</div>`;
+      return;
+    }
+    const ESTADOS = {pendente:["⏳ Pendente","#c17817"], enviado:["📦 Enviado","#2e6bb0"], entregue:["✔ Entregue","#2e7d32"]};
+    host.innerHTML = pedidos.map(p=>{
+      const [label, cor] = ESTADOS[p.estado] || ESTADOS.pendente;
+      return `<div style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:8px 10px; margin-bottom:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
+          <b style="font-size:12px;">${p.artigo}${p.quantidade?' · '+p.quantidade:''}</b>
+          <span style="font-size:9.5px; font-weight:800; color:${cor}; white-space:nowrap;">${label}</span>
+        </div>
+        <div style="font-size:9.5px; color:#777;">${p.categoria} · ${new Date(p.criado_em).toLocaleDateString('pt-PT')}</div>
+      </div>`;
+    }).join("");
+  }
+  renderListaPedidosMaterialLoja();
 }
 
 function abrirJustificarQuebraLoja(id){
