@@ -319,7 +319,7 @@ async function renderPanoramaGeral(){
     const inicioSemana = isoDate(weekWindow(today).start);
 
     const inicioMesAtual = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, erros7diasPg, lembretesPg, stockNegPendentesPg, stockNegComProdutoPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg] = await Promise.all([
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, erros7diasPg, lembretesPg, stockNegPendentesPg, stockNegComProdutoPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg, reclamacoesPendentesPg, avariasPendentesPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
       api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`),
@@ -337,7 +337,9 @@ async function renderPanoramaGeral(){
       api(`cj_fardamento_rececoes?select=id&recolhido=eq.false`),
       api(`cj_fardamento_rececoes?select=data_rececao&order=data_rececao.desc&limit=1`),
       api(`cj_certificados_oleo?select=loja,data_validade`),
-      api(`cj_calibracoes_oleo?select=loja,data_validade`)
+      api(`cj_calibracoes_oleo?select=loja,data_validade`),
+      api(`cj_reclamacoes?select=id&estado=eq.pendente`),
+      api(`cj_avarias_bagga?select=id&estado=eq.pendente`)
     ]);
     const fardRececoesPendentesPg = fardRececoesPg.length;
     const em30diasPg = isoDate(new Date(Date.now()+30*24*3600*1000));
@@ -424,6 +426,8 @@ async function renderPanoramaGeral(){
     if(maisAlertasPg>0) listaAtencao.push({topico:"mais", texto:`🔧 ${maisAlertasPg} certificado/calibração do óleo a expirar em 30 dias`, urgente:true});
     if(fardStockLowPg.length+fardDevPg.length+fardRececoesPendentesPg>0) listaAtencao.push({topico:"fardamento", texto:`👕 ${fardStockLowPg.length+fardDevPg.length+fardRececoesPendentesPg} pendência(s) de fardamento`, urgente:false});
     if(adendasAtivasPg.length>0) listaAtencao.push({topico:"rh", texto:`📋 ${adendasAtivasPg.length} adenda(s) em curso`, urgente:false});
+    if(reclamacoesPendentesPg.length>0) listaAtencao.push({acao:abrirReclamacoesHub, texto:`📣 ${reclamacoesPendentesPg.length} reclamação(ões) por resolver`, urgente:true});
+    if(avariasPendentesPg.length>0) listaAtencao.push({acao:abrirAvariasHub, texto:`🔧 ${avariasPendentesPg.length} equipamento(s) avariado(s) por resolver`, urgente:false});
     listaAtencao.sort((a,b)=>(b.urgente?1:0)-(a.urgente?1:0));
 
     el.innerHTML = `
