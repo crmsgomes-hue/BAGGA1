@@ -337,7 +337,7 @@ async function renderPanoramaGeral(){
     const inicioSemana = isoDate(weekWindow(today).start);
 
     const inicioMesAtual = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, erros7diasPg, lembretesPg, stockNegPendentesPg, stockNegComProdutoPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg, reclamacoesPendentesPg, avariasPendentesPg] = await Promise.all([
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, erros7diasPg, lembretesPg, stockNegPendentesPg, stockNegComProdutoPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg, reclamacoesPendentesPg, avariasPendentesPg, pedidosMaterialPendentesPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
       api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`),
@@ -357,7 +357,8 @@ async function renderPanoramaGeral(){
       api(`cj_certificados_oleo?select=loja,data_validade`),
       api(`cj_calibracoes_oleo?select=loja,data_validade`),
       api(`cj_reclamacoes?select=id,data_hora&estado=eq.pendente`),
-      api(`cj_avarias_bagga?select=id,data_pedido&estado=eq.pendente`)
+      api(`cj_avarias_bagga?select=id,data_pedido&estado=eq.pendente`),
+      api(`cj_pedidos_material?select=id&estado=eq.pendente`)
     ]);
     const fardRececoesPendentesPg = fardRececoesPg.length;
     const em30diasPg = isoDate(new Date(Date.now()+30*24*3600*1000));
@@ -452,6 +453,7 @@ async function renderPanoramaGeral(){
       const maisAntigaAv = Math.max(0,...avariasPendentesPg.map(a=>Math.floor((Date.now()-new Date(a.data_pedido+"T00:00:00").getTime())/86400000)));
       listaAtencao.push({acao:abrirAvariasHub, texto:`🔧 ${avariasPendentesPg.length} equipamento(s) avariado(s) por resolver${maisAntigaAv>=3?` (o mais antigo há ${maisAntigaAv} dias)`:''}`, urgente: maisAntigaAv>=3});
     }
+    if(pedidosMaterialPendentesPg.length>0) listaAtencao.push({acao:abrirPedidosMaterialHub, texto:`📦 ${pedidosMaterialPendentesPg.length} pedido(s) de material por tratar`, urgente:false});
     listaAtencao.sort((a,b)=>(b.urgente?1:0)-(a.urgente?1:0));
 
     el.innerHTML = `
@@ -586,6 +588,7 @@ async function renderPanoramaGeral(){
         <button id="btnStockNegDetalhadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo (lista detalhada, artigo a artigo)</button>
         <button id="btnColaboradoresHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👥 Colaboradores (nomes e nº mecanográfico)</button>
         <button id="btnAvariasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔧 Equipamentos avariados</button>
+        <button id="btnPedidosMaterialHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Pedidos de material</button>
         <button id="btnReclamacoesHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📣 Reclamações</button>
         <button id="btnCodigosPortasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚪 Códigos das portas</button>
         <button id="btnInvArtigosJustHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Artigos de inventário por justificar</button>
@@ -626,6 +629,7 @@ async function renderPanoramaGeral(){
       document.getElementById("btnStockNegDetalhadoHub").onclick = abrirRelatorioStockNegDetalhadoHub;
       document.getElementById("btnColaboradoresHub").onclick = abrirColaboradoresHub;
       document.getElementById("btnAvariasHub").onclick = abrirAvariasHub;
+      document.getElementById("btnPedidosMaterialHub").onclick = abrirPedidosMaterialHub;
       document.getElementById("btnReclamacoesHub").onclick = abrirReclamacoesHub;
       document.getElementById("btnCodigosPortasHub").onclick = abrirCodigosPortasHub;
       document.getElementById("btnInvArtigosJustHub").onclick = abrirInventarioArtigosJustificarHub;
@@ -2757,6 +2761,127 @@ async function abrirInventarioArtigosJustificarHub(){
   }
   render();
   document.getElementById("invArtigosJustLojaSel").onchange = render;
+}
+
+async function abrirPedidosMaterialHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "pedidosMaterialOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">📦 Pedidos de material</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Loiça, embalagens, limpeza, fardamento — pedidos feitos pelas lojas.</div>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <select id="pmFiltroEstado" style="flex:1; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem;">
+          <option value="pendente">Pendentes</option>
+          <option value="enviado">Enviados</option>
+          <option value="entregue">Entregues</option>
+          <option value="">Todos</option>
+        </select>
+        <select id="pmFiltroLoja" style="flex:1; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem;">
+          <option value="">Todas as lojas</option>
+          ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+        </select>
+      </div>
+      <div id="pedidosMaterialListaHub"></div>
+      <div id="pedidosMaterialPartilhaBtnsHub" style="margin-top:12px;"></div>
+      <button id="fecharPedidosMaterialHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharPedidosMaterialHubBtn").onclick = ()=>{
+    const c = document.getElementById("pedidosMaterialCapturaEscondida");
+    if(c) c.remove();
+    fecharEcraHub();
+  };
+
+  async function renderListaPedidosMaterial(){
+    const estadoF = document.getElementById("pmFiltroEstado").value;
+    const lojaF = document.getElementById("pmFiltroLoja").value;
+    const lista = document.getElementById("pedidosMaterialListaHub");
+    lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">A carregar...</div>`;
+    let qs = "cj_pedidos_material?select=*&order=criado_em.desc";
+    if(estadoF) qs += `&estado=eq.${estadoF}`;
+    if(lojaF) qs += `&loja=eq.${encodeURIComponent(lojaF)}`;
+    const pedidos = await api(qs, "GET");
+
+    if(pedidos.length===0){
+      lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">Nada aqui.</div>`;
+      document.getElementById("pedidosMaterialPartilhaBtnsHub").innerHTML = "";
+      return;
+    }
+
+    const PROX_ESTADO = {pendente:["enviado","📦 Marcar como enviado","#2e6bb0"], enviado:["entregue","✔ Marcar como entregue","#2e7d32"]};
+    const ESTADO_LABEL = {pendente:["⏳ Pendente","#c17817"], enviado:["📦 Enviado","#2e6bb0"], entregue:["✔ Entregue","#2e7d32"]};
+
+    lista.innerHTML = pedidos.map(p=>{
+      const diasPendente = p.estado==='pendente' ? Math.floor((Date.now()-new Date(p.criado_em).getTime())/86400000) : 0;
+      const muitoAtrasado = diasPendente>=3;
+      const [labelEstado, corEstado] = ESTADO_LABEL[p.estado] || ESTADO_LABEL.pendente;
+      const proximo = PROX_ESTADO[p.estado];
+      return `
+      <div style="background:${muitoAtrasado?'#fdeceb':'var(--sf2,#f5f0e6)'}; border-radius:10px; padding:10px 12px; margin-bottom:8px; ${muitoAtrasado?'border:1.5px solid #b0432f;':''}">
+        <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
+          <b style="font-size:12px;">${p.loja} — ${p.artigo}${p.quantidade?' ('+p.quantidade+')':''}</b>
+          <span style="font-size:10px; font-weight:800; padding:3px 8px; border-radius:99px; white-space:nowrap; background:${muitoAtrasado?'#b0432f':corEstado}; color:#fff;">${muitoAtrasado?`🔥 Pendente há ${diasPendente} dias`:labelEstado}</span>
+        </div>
+        <div style="font-size:9.5px; color:#777; margin-top:3px;">${p.categoria} · ${new Date(p.criado_em).toLocaleDateString('pt-PT')}</div>
+        ${p.notas?`<div style="font-size:11px; color:#555; margin-top:3px;">${p.notas}</div>`:''}
+        ${proximo ? `<button data-id="${p.id}" data-novoestado="${proximo[0]}" class="btnAvancarPedidoMaterial" style="width:100%; margin-top:7px; background:${proximo[2]}; color:#fff; border:none; border-radius:8px; padding:7px; font-size:.76rem; font-weight:700;">${proximo[1]}</button>` : ''}
+      </div>
+    `;}).join("");
+
+    lista.querySelectorAll(".btnAvancarPedidoMaterial").forEach(btn=>{
+      btn.onclick = async ()=>{
+        btn.disabled = true; btn.textContent = "A guardar...";
+        try{
+          await api(`cj_pedidos_material?id=eq.${btn.dataset.id}`, "PATCH", {estado: btn.dataset.novoestado, atualizado_em: new Date().toISOString()});
+          renderListaPedidosMaterial();
+        }catch(e){
+          toast("Erro: " + (e.message||e).slice(0,100));
+          btn.disabled = false;
+        }
+      };
+    });
+
+    // relatorio partilhavel
+    const antigoCaptura = document.getElementById("pedidosMaterialCapturaEscondida");
+    if(antigoCaptura) antigoCaptura.remove();
+    const capturaWrap = document.createElement("div");
+    capturaWrap.id = "pedidosMaterialCapturaEscondida";
+    capturaWrap.style.cssText = "background:#fff; padding:4px;";
+    const linhas = pedidos.map(p=>`
+      <tr>
+        <td style="font-weight:700; font-size:10px; padding:4px 5px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${p.loja}</td>
+        <td style="font-size:10px; padding:4px 5px; border-bottom:1px solid #f0ebe3;">${p.artigo}${p.quantidade?' ('+p.quantidade+')':''}</td>
+        <td style="font-size:9.5px; padding:4px 5px; border-bottom:1px solid #f0ebe3;">${p.categoria}</td>
+        <td style="font-size:9px; padding:4px 5px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${new Date(p.criado_em).toLocaleDateString('pt-PT')}</td>
+        <td style="font-size:9.5px; padding:4px 5px; border-bottom:1px solid #f0ebe3; text-align:center; font-weight:800; color:${(ESTADO_LABEL[p.estado]||ESTADO_LABEL.pendente)[1]};">${p.estado}</td>
+      </tr>
+    `).join("");
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Pedidos de material</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')} · ${pedidos.length} registo(s)</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Loja</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Artigo</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Categoria</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Data</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:center; padding:3px 5px; border-bottom:2px solid #C1622D;">Estado</th>
+        </tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    `;
+    document.body.appendChild(capturaWrap);
+    capturaWrap.style.position = "absolute";
+    capturaWrap.style.left = "-9999px";
+    criarBotoesPartilhaHub(document.getElementById("pedidosMaterialPartilhaBtnsHub"), capturaWrap, "CoreJoint_pedidos_material", "CoreJoint · Pedidos de material");
+  }
+  document.getElementById("pmFiltroEstado").onchange = renderListaPedidosMaterial;
+  document.getElementById("pmFiltroLoja").onchange = renderListaPedidosMaterial;
+  renderListaPedidosMaterial();
 }
 
 async function abrirAvariasHub(){
