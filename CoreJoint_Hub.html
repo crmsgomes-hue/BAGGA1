@@ -589,6 +589,9 @@ async function renderPanoramaGeral(){
         <button id="btnColaboradoresHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👥 Colaboradores (nomes e nº mecanográfico)</button>
         <button id="btnAvariasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔧 Equipamentos avariados</button>
         <button id="btnPedidosMaterialHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Pedidos de material</button>
+        <button id="btnDepuradorHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">💧 Depurador de água</button>
+        <button id="btnSegurancaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🧯 Extintores e lâmpadas</button>
+        <button id="btnElogiosHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🌟 Elogios</button>
         <button id="btnReclamacoesHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📣 Reclamações</button>
         <button id="btnCodigosPortasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚪 Códigos das portas</button>
         <button id="btnInvArtigosJustHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Artigos de inventário por justificar</button>
@@ -630,6 +633,9 @@ async function renderPanoramaGeral(){
       document.getElementById("btnColaboradoresHub").onclick = abrirColaboradoresHub;
       document.getElementById("btnAvariasHub").onclick = abrirAvariasHub;
       document.getElementById("btnPedidosMaterialHub").onclick = abrirPedidosMaterialHub;
+      document.getElementById("btnDepuradorHub").onclick = abrirDepuradorAguaHub;
+      document.getElementById("btnSegurancaHub").onclick = abrirSegurancaEquipamentoHub;
+      document.getElementById("btnElogiosHub").onclick = abrirElogiosHub;
       document.getElementById("btnReclamacoesHub").onclick = abrirReclamacoesHub;
       document.getElementById("btnCodigosPortasHub").onclick = abrirCodigosPortasHub;
       document.getElementById("btnInvArtigosJustHub").onclick = abrirInventarioArtigosJustificarHub;
@@ -3390,6 +3396,214 @@ async function abrirCodigosPortasHub(){
   }
   document.getElementById("cpFiltroLoja").onchange = renderListaCodigosPortas;
   renderListaCodigosPortas();
+}
+
+async function abrirDepuradorAguaHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "depuradorOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:440px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">💧 Depurador de água</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Ciclo de substituição por loja, para prevenir calcário nas máquinas de café.</div>
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:14px; margin-bottom:16px;">
+        <select id="dpLoja" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem;">
+          <option value="">— Loja —</option>
+          ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+        </select>
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <div style="flex:1;"><div style="font-size:10px; color:var(--t2); margin-bottom:3px;">Data da substituição</div><input id="dpData" type="date" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem; box-sizing:border-box;"></div>
+          <div style="flex:1;"><div style="font-size:10px; color:var(--t2); margin-bottom:3px;">Próxima (em meses)</div><input id="dpMeses" type="number" value="3" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem; box-sizing:border-box;"></div>
+        </div>
+        <button id="dpGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Registar substituição</button>
+      </div>
+      <div id="depuradorListaHub"></div>
+      <button id="fecharDepuradorHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("dpData").value = todayStrHub();
+  document.getElementById("fecharDepuradorHubBtn").onclick = ()=>fecharEcraHub();
+
+  document.getElementById("dpGuardarBtn").onclick = async ()=>{
+    const loja = document.getElementById("dpLoja").value;
+    const dataSub = document.getElementById("dpData").value;
+    const meses = parseInt(document.getElementById("dpMeses").value)||3;
+    if(!loja || !dataSub){ toast("Escolhe a loja e a data"); return; }
+    const prox = new Date(dataSub+"T00:00:00"); prox.setMonth(prox.getMonth()+meses);
+    const btn = document.getElementById("dpGuardarBtn");
+    btn.disabled = true; btn.textContent = "A guardar...";
+    try{
+      await api("cj_depurador_agua", "POST", {loja, data_substituicao:dataSub, proxima_substituicao: isoDate(prox), registado_por: currentUser});
+    }catch(e){ toast("Erro: "+(e.message||e).slice(0,100)); btn.disabled=false; btn.textContent="✔ Registar substituição"; return; }
+    btn.disabled = false; btn.textContent = "✔ Registar substituição";
+    mostrarSucesso("Registado");
+    renderListaDepurador();
+  };
+
+  async function renderListaDepurador(){
+    const registos = await api(`cj_depurador_agua?select=*&order=proxima_substituicao.asc`, "GET");
+    const ultimoPorLoja = {};
+    registos.forEach(r=>{ if(!ultimoPorLoja[r.loja] || r.data_substituicao>ultimoPorLoja[r.loja].data_substituicao) ultimoPorLoja[r.loja]=r; });
+    const hoje = new Date();
+    const lista = document.getElementById("depuradorListaHub");
+    lista.innerHTML = LOJAS.map(l=>{
+      const r = ultimoPorLoja[l];
+      if(!r) return `<div style="padding:8px 6px; border-bottom:1px solid #f0ebe3; font-size:11.5px; color:#777;"><b style="color:#333;">${l}</b> — nunca registado</div>`;
+      const dias = Math.floor((new Date(r.proxima_substituicao+"T00:00:00")-hoje)/86400000);
+      const cor = dias<0 ? '#b0432f' : dias<=15 ? '#c17817' : '#2e7d32';
+      const txt = dias<0 ? `atrasado ${Math.abs(dias)}d` : `próxima em ${dias}d`;
+      return `<div style="padding:8px 6px; border-bottom:1px solid #f0ebe3; display:flex; justify-content:space-between; font-size:11.5px;"><b>${l}</b><span style="color:${cor}; font-weight:700;">${txt}</span></div>`;
+    }).join("");
+  }
+  renderListaDepurador();
+}
+
+async function abrirSegurancaEquipamentoHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "segurancaOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">🧯 Extintores e lâmpadas de segurança</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Controlo de validade/inspeção por loja.</div>
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:14px; margin-bottom:16px;">
+        <select id="segLoja" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem;">
+          <option value="">— Loja —</option>
+          ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+        </select>
+        <select id="segTipo" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem;">
+          <option value="Extintor">Extintor</option>
+          <option value="Luz de emergência">Luz de emergência</option>
+        </select>
+        <input id="segLocal" placeholder="Local (ex: Cozinha, Sala)" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box;">
+        <div style="font-size:10px; color:var(--t2); margin-bottom:3px;">Validade / próxima inspeção</div>
+        <input id="segData" type="date" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem; box-sizing:border-box; margin-bottom:8px;">
+        <button id="segGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Registar</button>
+      </div>
+      <div id="segurancaListaHub"></div>
+      <button id="fecharSegurancaHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharSegurancaHubBtn").onclick = ()=>fecharEcraHub();
+
+  document.getElementById("segGuardarBtn").onclick = async ()=>{
+    const loja = document.getElementById("segLoja").value;
+    const dataVal = document.getElementById("segData").value;
+    if(!loja || !dataVal){ toast("Escolhe a loja e a data"); return; }
+    const btn = document.getElementById("segGuardarBtn");
+    btn.disabled = true; btn.textContent = "A guardar...";
+    try{
+      await api("cj_seguranca_equipamento", "POST", {loja, tipo: document.getElementById("segTipo").value, local: document.getElementById("segLocal").value.trim()||null, data_validade: dataVal, registado_por: currentUser});
+    }catch(e){ toast("Erro: "+(e.message||e).slice(0,100)); btn.disabled=false; btn.textContent="✔ Registar"; return; }
+    btn.disabled = false; btn.textContent = "✔ Registar";
+    mostrarSucesso("Registado");
+    document.getElementById("segLocal").value = "";
+    renderListaSeguranca();
+  };
+
+  async function renderListaSeguranca(){
+    const registos = await api(`cj_seguranca_equipamento?select=*&order=data_validade.asc`, "GET");
+    const hoje = new Date();
+    const lista = document.getElementById("segurancaListaHub");
+    if(registos.length===0){ lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">Nada registado ainda.</div>`; return; }
+    lista.innerHTML = registos.map(r=>{
+      const dias = Math.floor((new Date(r.data_validade+"T00:00:00")-hoje)/86400000);
+      const cor = dias<0 ? '#b0432f' : dias<=30 ? '#c17817' : '#2e7d32';
+      const txt = dias<0 ? `Expirado há ${Math.abs(dias)}d` : `${dias}d restantes`;
+      return `<div style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:8px 10px; margin-bottom:6px;">
+        <div style="display:flex; justify-content:space-between;"><b style="font-size:11.5px;">${r.loja} — ${r.tipo}${r.local?' ('+r.local+')':''}</b><span style="font-size:10px; font-weight:800; color:${cor};">${txt}</span></div>
+        <div style="font-size:9.5px; color:#777;">Validade: ${new Date(r.data_validade+"T00:00:00").toLocaleDateString('pt-PT')}</div>
+      </div>`;
+    }).join("");
+  }
+  renderListaSeguranca();
+}
+
+async function abrirElogiosHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "elogiosOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:440px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">🌟 Elogios</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Regista um destaque positivo.</div>
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:14px; margin-bottom:16px;">
+        <select id="elLoja" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem;">
+          <option value="">— Loja —</option>
+          ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+        </select>
+        <input id="elColaborador" placeholder="Colaborador (opcional)" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box;">
+        <textarea id="elTexto" placeholder="O que se passou..." style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box; min-height:60px;"></textarea>
+        <button id="elGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Registar elogio</button>
+      </div>
+      <div id="elogiosListaHub"></div>
+      <div id="elogiosPartilhaBtnsHub" style="margin-top:12px;"></div>
+      <button id="fecharElogiosHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharElogiosHubBtn").onclick = ()=>{
+    const c = document.getElementById("elogiosCapturaEscondida");
+    if(c) c.remove();
+    fecharEcraHub();
+  };
+
+  document.getElementById("elGuardarBtn").onclick = async ()=>{
+    const loja = document.getElementById("elLoja").value;
+    const texto = document.getElementById("elTexto").value.trim();
+    if(!loja || !texto){ toast("Escolhe a loja e escreve o elogio"); return; }
+    const btn = document.getElementById("elGuardarBtn");
+    btn.disabled = true; btn.textContent = "A guardar...";
+    try{
+      await api("cj_elogios", "POST", {loja, colaborador: document.getElementById("elColaborador").value.trim()||null, texto, registado_por: currentUser});
+    }catch(e){ toast("Erro: "+(e.message||e).slice(0,100)); btn.disabled=false; btn.textContent="✔ Registar elogio"; return; }
+    document.getElementById("elColaborador").value = "";
+    document.getElementById("elTexto").value = "";
+    btn.disabled = false; btn.textContent = "✔ Registar elogio";
+    mostrarSucesso("Elogio registado");
+    renderListaElogios();
+  };
+
+  async function renderListaElogios(){
+    const elogios = await api(`cj_elogios?select=*&order=criado_em.desc&limit=50`, "GET");
+    const lista = document.getElementById("elogiosListaHub");
+    if(elogios.length===0){ lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">Ainda sem elogios registados.</div>`; return; }
+    lista.innerHTML = elogios.map(e=>`
+      <div style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:8px 10px; margin-bottom:6px;">
+        <b style="font-size:11.5px;">${e.loja}${e.colaborador?' — '+e.colaborador:''}</b>
+        <div style="font-size:11px; color:#555; margin-top:2px;">${e.texto}</div>
+        <div style="font-size:9px; color:#777; margin-top:2px;">${new Date(e.criado_em).toLocaleDateString('pt-PT')}</div>
+      </div>
+    `).join("");
+
+    const antigoCaptura = document.getElementById("elogiosCapturaEscondida");
+    if(antigoCaptura) antigoCaptura.remove();
+    const capturaWrap = document.createElement("div");
+    capturaWrap.id = "elogiosCapturaEscondida";
+    capturaWrap.style.cssText = "background:#fff; padding:4px;";
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Elogios</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')} · ${elogios.length} registo(s)</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Loja</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Colaborador</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 5px; border-bottom:2px solid #C1622D;">Elogio</th>
+        </tr></thead>
+        <tbody>${elogios.map(e=>`<tr><td style="font-weight:700; font-size:10px; padding:4px 5px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${e.loja}</td><td style="font-size:10px; padding:4px 5px; border-bottom:1px solid #f0ebe3;">${e.colaborador||'—'}</td><td style="font-size:10px; padding:4px 5px; border-bottom:1px solid #f0ebe3;">${e.texto}</td></tr>`).join("")}</tbody>
+      </table>
+    `;
+    document.body.appendChild(capturaWrap);
+    capturaWrap.style.position = "absolute";
+    capturaWrap.style.left = "-9999px";
+    criarBotoesPartilhaHub(document.getElementById("elogiosPartilhaBtnsHub"), capturaWrap, "CoreJoint_elogios", "CoreJoint · Elogios");
+  }
+  renderListaElogios();
 }
 
 async function abrirColaboradoresHub(){
