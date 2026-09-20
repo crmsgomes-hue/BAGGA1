@@ -111,6 +111,26 @@
 <div id="MN">
 
 
+
+<!-- MODAL: Tipo de Visita -->
+<div class="mo" id="m-tipo-visita">
+  <div class="md" style="max-width:360px;text-align:center">
+    <div class="mh" style="justify-content:center;border-bottom:1px solid var(--br);padding-bottom:12px">
+      <div class="mtt" style="font-size:1.05rem">🏪 Tipo de Visita</div>
+    </div>
+    <div style="padding:10px 0 6px;font-size:.85rem;color:var(--t2)">Selecciona o tipo de visita a realizar:</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin:14px 0">
+      <button onclick="iniciarVisita('normal')" style="padding:16px;border-radius:var(--ra);border:2px solid var(--ac);background:var(--ac);color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit">
+        📋 Visita Normal<br><span style="font-size:.75rem;font-weight:400;opacity:.85">Auditoria completa a todos os pontos</span>
+      </button>
+      <button onclick="iniciarVisita('express')" style="padding:16px;border-radius:var(--ra);border:2px solid var(--org);background:var(--org);color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit">
+        ⚡ Visita Express<br><span style="font-size:.75rem;font-weight:400;opacity:.85">Vitrine · Ruturas · Café · Tabaco · JSC · Limpeza</span>
+      </button>
+    </div>
+    <button onclick="closeM('m-tipo-visita')" style="width:100%;padding:10px;border-radius:var(--rb);border:1.5px solid var(--br);background:var(--sf2);font-size:.85rem;cursor:pointer;font-family:inherit;color:var(--t2)">Cancelar</button>
+  </div>
+</div>
+
 <div class="sec" id="s-dash">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
     <div class="pt">Dashboard</div>
@@ -379,6 +399,7 @@
         <div>
           <div class="ct" id="cv-loja-nome">Loja</div>
           <div style="font-size:.72rem;color:var(--t2)" id="cv-dt"></div>
+          <div style="margin-top:4px"><span id="v-tipo-badge" style="display:none;font-size:.7rem;font-weight:700;color:#fff;padding:2px 8px;border-radius:99px">📋 Normal</span></div>
           <div style="font-size:.8rem;color:var(--t2);margin-top:4px" id="cv-hora-display"></div>
         </div>
         <button class="btn bsm bs" onclick="cropBackV()">← Lojas</button>
@@ -568,6 +589,7 @@
             <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
             <button class="ck" onclick="setConf('vitrine',true)" id="ck-ok-vitrine">✓</button>
             <button class="ck" onclick="setConf('vitrine',false)" id="ck-fail-vitrine">✗</button>
+            <button class="ck" onclick="setConf('vitrine','na')" id="ck-na-vitrine" style="font-size:.65rem;font-weight:700">N/A</button>
           </div>
           <div id="chk-prazo-vitrine" style="display:none;margin-bottom:9px;padding:9px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
             <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -586,18 +608,18 @@
         <div id="checklist-rest" style="display:none"></div>
 
         <!-- RUTURAS -->
-        <div style="font-size:.72rem;font-weight:700;color:var(--t2);margin:14px 0 10px;text-transform:uppercase;letter-spacing:.5px">📦 Ruturas</div>
+        <div class="vsec" data-vsec="ruturas" style="font-size:.72rem;font-weight:700;color:var(--t2);margin:14px 0 10px;text-transform:uppercase;letter-spacing:.5px">📦 Ruturas</div>
         <div style="margin-bottom:8px;display:flex;gap:12px;font-size:.8rem;flex-wrap:wrap" id="rut-counter-static">
           <span style="color:var(--grn);font-weight:700" id="rut-ok-count">✓ 0 disponíveis</span>
           <span style="color:var(--red);font-weight:700" id="rut-fail-count">✗ 0 em rutura</span>
         </div>
         <div style="max-height:400px;overflow-y:auto;border:1px solid var(--br);border-radius:var(--rb)">
-          <div class="cli" style="padding:7px 10px" id="rut-row-biscoito_almendrado"><div style="flex:1;font-size:.82rem">Biscoito Almêndrado</div><button class="ck" id="rut-ok-biscoito_almendrado" onclick="togRut(this,'biscoito_almendrado','ok')">✓</button><button class="ck" id="rut-fail-biscoito_almendrado" onclick="togRut(this,'biscoito_almendrado','fail')">✗</button><button class="ck" id="rut-na-biscoito_almendrado" onclick="togRut(this,'biscoito_almendrado','na')" style="font-size:.62rem;font-weight:700">N/A</button></div>
-              <div class="cli" style="padding:7px 10px" id="rut-row-biscoito_hungaro"><div style="flex:1;font-size:.82rem">Biscoito Hungaro</div><button class="ck" id="rut-ok-biscoito_hungaro" onclick="togRut(this,'biscoito_hungaro','ok')">✓</button><button class="ck" id="rut-fail-biscoito_hungaro" onclick="togRut(this,'biscoito_hungaro','fail')">✗</button><button class="ck" id="rut-na-biscoito_hungaro" onclick="togRut(this,'biscoito_hungaro','na')" style="font-size:.62rem;font-weight:700">N/A</button></div>
-              <div class="cli" style="padding:7px 10px" id="rut-row-mini_cookies"><div style="flex:1;font-size:.82rem">Mini Cookies</div><button class="ck" id="rut-ok-mini_cookies" onclick="togRut(this,'mini_cookies','ok')">✓</button><button class="ck" id="rut-fail-mini_cookies" onclick="togRut(this,'mini_cookies','fail')">✗</button><button class="ck" id="rut-na-mini_cookies" onclick="togRut(this,'mini_cookies','na')" style="font-size:.62rem;font-weight:700">N/A</button></div>
-              <div class="cli" style="padding:7px 10px" id="rut-row-mini_cookies_choc"><div style="flex:1;font-size:.82rem">Mini Cookies Choc</div><button class="ck" id="rut-ok-mini_cookies_choc" onclick="togRut(this,'mini_cookies_choc','ok')">✓</button><button class="ck" id="rut-fail-mini_cookies_choc" onclick="togRut(this,'mini_cookies_choc','fail')">✗</button><button class="ck" id="rut-na-mini_cookies_choc" onclick="togRut(this,'mini_cookies_choc','na')" style="font-size:.62rem;font-weight:700">N/A</button></div>
-              <div class="cli" style="padding:7px 10px" id="rut-row-mini_palmier"><div style="flex:1;font-size:.82rem">Mini Palmier</div><button class="ck" id="rut-ok-mini_palmier" onclick="togRut(this,'mini_palmier','ok')">✓</button><button class="ck" id="rut-fail-mini_palmier" onclick="togRut(this,'mini_palmier','fail')">✗</button><button class="ck" id="rut-na-mini_palmier" onclick="togRut(this,'mini_palmier','na')" style="font-size:.62rem;font-weight:700">N/A</button></div>
-              <div class="cli" style="padding:7px 10px" id="rut-row-mini_brigadeiro"><div style="flex:1;font-size:.82rem">Mini Brigadeiro</div><button class="ck" id="rut-ok-mini_brigadeiro" onclick="togRut(this,'mini_brigadeiro','ok')">✓</button><button class="ck" id="rut-fail-mini_brigadeiro" onclick="togRut(this,'mini_brigadeiro','fail')">✗</button><button class="ck" id="rut-na-mini_brigadeiro" onclick="togRut(this,'mini_brigadeiro','na')" style="font-size:.62rem;font-weight:700">N/A</button></div>
+          <button class="ck" id="rut-ok-biscoito_almendrado" onclick="togRut(this,'biscoito_almendrado','ok')">✓</button><button class="ck" id="rut-fail-biscoito_almendrado" onclick="togRut(this,'biscoito_almendrado','fail')">✗</button><button class="ck" id="rut-na-biscoito_almendrado" onclick="togRut(this,'biscoito_almendrado','na')" style="font-size:.62rem;font-weight:700">N/A</button></div>
+              <button class="ck" id="rut-ok-biscoito_hungaro" onclick="togRut(this,'biscoito_hungaro','ok')">✓</button><button class="ck" id="rut-fail-biscoito_hungaro" onclick="togRut(this,'biscoito_hungaro','fail')">✗</button><button class="ck" id="rut-na-biscoito_hungaro" onclick="togRut(this,'biscoito_hungaro','na')" style="font-size:.62rem;font-weight:700">N/A</button></div>
+              <button class="ck" id="rut-ok-mini_cookies" onclick="togRut(this,'mini_cookies','ok')">✓</button><button class="ck" id="rut-fail-mini_cookies" onclick="togRut(this,'mini_cookies','fail')">✗</button><button class="ck" id="rut-na-mini_cookies" onclick="togRut(this,'mini_cookies','na')" style="font-size:.62rem;font-weight:700">N/A</button></div>
+              <button class="ck" id="rut-ok-mini_cookies_choc" onclick="togRut(this,'mini_cookies_choc','ok')">✓</button><button class="ck" id="rut-fail-mini_cookies_choc" onclick="togRut(this,'mini_cookies_choc','fail')">✗</button><button class="ck" id="rut-na-mini_cookies_choc" onclick="togRut(this,'mini_cookies_choc','na')" style="font-size:.62rem;font-weight:700">N/A</button></div>
+              <button class="ck" id="rut-ok-mini_palmier" onclick="togRut(this,'mini_palmier','ok')">✓</button><button class="ck" id="rut-fail-mini_palmier" onclick="togRut(this,'mini_palmier','fail')">✗</button><button class="ck" id="rut-na-mini_palmier" onclick="togRut(this,'mini_palmier','na')" style="font-size:.62rem;font-weight:700">N/A</button></div>
+              <button class="ck" id="rut-ok-mini_brigadeiro" onclick="togRut(this,'mini_brigadeiro','ok')">✓</button><button class="ck" id="rut-fail-mini_brigadeiro" onclick="togRut(this,'mini_brigadeiro','fail')">✗</button><button class="ck" id="rut-na-mini_brigadeiro" onclick="togRut(this,'mini_brigadeiro','na')" style="font-size:.62rem;font-weight:700">N/A</button></div>
               <div class="cli" style="padding:7px 10px" id="rut-row-bolo_de_maca"><div style="flex:1;font-size:.82rem">Bolo de Maçã</div><button class="ck" id="rut-ok-bolo_de_maca" onclick="togRut(this,'bolo_de_maca','ok')">✓</button><button class="ck" id="rut-fail-bolo_de_maca" onclick="togRut(this,'bolo_de_maca','fail')">✗</button><button class="ck" id="rut-na-bolo_de_maca" onclick="togRut(this,'bolo_de_maca','na')" style="font-size:.62rem;font-weight:700">N/A</button></div>
               <div class="cli" style="padding:7px 10px" id="rut-row-bolo_red_velvet"><div style="flex:1;font-size:.82rem">Bolo Red Velvet</div><button class="ck" id="rut-ok-bolo_red_velvet" onclick="togRut(this,'bolo_red_velvet','ok')">✓</button><button class="ck" id="rut-fail-bolo_red_velvet" onclick="togRut(this,'bolo_red_velvet','fail')">✗</button><button class="ck" id="rut-na-bolo_red_velvet" onclick="togRut(this,'bolo_red_velvet','na')" style="font-size:.62rem;font-weight:700">N/A</button></div>
               <div class="cli" style="padding:7px 10px" id="rut-row-bolo_bolacha"><div style="flex:1;font-size:.82rem">Bolo Bolacha</div><button class="ck" id="rut-ok-bolo_bolacha" onclick="togRut(this,'bolo_bolacha','ok')">✓</button><button class="ck" id="rut-fail-bolo_bolacha" onclick="togRut(this,'bolo_bolacha','fail')">✗</button><button class="ck" id="rut-na-bolo_bolacha" onclick="togRut(this,'bolo_bolacha','na')" style="font-size:.62rem;font-weight:700">N/A</button></div>
@@ -658,6 +680,7 @@
             <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
             <button class="ck" onclick="setConf('tabaco',true)" id="ck-ok-tabaco">✓</button>
             <button class="ck" onclick="setConf('tabaco',false)" id="ck-fail-tabaco">✗</button>
+            <button class="ck" onclick="setConf('tabaco','na')" id="ck-na-tabaco" style="font-size:.65rem;font-weight:700">N/A</button>
           </div>
           <div id="chk-prazo-tabaco" style="display:none;margin-bottom:9px;padding:9px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
             <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -678,6 +701,7 @@
             <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
             <button class="ck" onclick="setConf('cafe',true)" id="ck-ok-cafe">✓</button>
             <button class="ck" onclick="setConf('cafe',false)" id="ck-fail-cafe">✗</button>
+            <button class="ck" onclick="setConf('cafe','na')" id="ck-na-cafe" style="font-size:.65rem;font-weight:700">N/A</button>
           </div>
           <div id="chk-prazo-cafe" style="display:none;margin-bottom:9px;padding:9px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
             <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -708,6 +732,7 @@
             <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
             <button class="ck" onclick="setConf('equipamentos',true)" id="ck-ok-equipamentos">✓</button>
             <button class="ck" onclick="setConf('equipamentos',false)" id="ck-fail-equipamentos">✗</button>
+            <button class="ck" onclick="setConf('equipamentos','na')" id="ck-na-equipamentos" style="font-size:.65rem;font-weight:700">N/A</button>
           </div>
           <div id="chk-prazo-equipamentos" style="display:none;margin-bottom:9px;padding:9px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
             <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -740,6 +765,7 @@
             <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
             <button class="ck" onclick="setConf('limpeza',true)" id="ck-ok-limpeza">✓</button>
             <button class="ck" onclick="setConf('limpeza',false)" id="ck-fail-limpeza">✗</button>
+            <button class="ck" onclick="setConf('limpeza','na')" id="ck-na-limpeza" style="font-size:.65rem;font-weight:700">N/A</button>
           </div>
           <div id="chk-prazo-limpeza" style="display:none;margin-bottom:9px;padding:9px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
             <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -780,6 +806,7 @@
             <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
             <button class="ck" onclick="setConf('jsc',true)" id="ck-ok-jsc">✓</button>
             <button class="ck" onclick="setConf('jsc',false)" id="ck-fail-jsc">✗</button>
+            <button class="ck" onclick="setConf('jsc','na')" id="ck-na-jsc" style="font-size:.65rem;font-weight:700">N/A</button>
           </div>
           <div id="chk-prazo-jsc" style="display:none;margin-bottom:9px;padding:9px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
             <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -798,12 +825,13 @@
           <div style="font-size:.76rem;color:var(--t2);margin-bottom:12px">Formações, trocas, folgas, banco de horas e trabalho suplementar</div>
 
           <!-- FTEs -->
-          <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:var(--rb);padding:12px;margin-bottom:12px">
+          <div class="vsec" data-vsec="fte" style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:var(--rb);padding:12px;margin-bottom:12px">
             <div style="font-size:.75rem;font-weight:700;color:var(--blu);margin-bottom:10px;text-transform:uppercase;letter-spacing:.4px">👥 FTEs — Dotação de Colaboradores</div>
             <div style="display:flex;gap:8px;margin-bottom:9px;align-items:center">
               <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
               <button class="ck" onclick="setConf('fte',true)" id="ck-ok-fte">✓</button>
               <button class="ck" onclick="setConf('fte',false)" id="ck-fail-fte">✗</button>
+            <button class="ck" onclick="setConf('fte','na')" id="ck-na-fte" style="font-size:.65rem;font-weight:700">N/A</button>
             </div>
             <div id="chk-prazo-fte" style="display:none;margin-bottom:9px;padding:9px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
               <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -844,6 +872,7 @@
               <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
               <button class="ck" onclick="setConf('rh_formacoes',true)" id="ck-ok-rh_formacoes">✓</button>
               <button class="ck" onclick="setConf('rh_formacoes',false)" id="ck-fail-rh_formacoes">✗</button>
+            <button class="ck" onclick="setConf('rh_formacoes','na')" id="ck-na-rh_formacoes" style="font-size:.65rem;font-weight:700">N/A</button>
             </div>
             <div id="chk-prazo-rh_formacoes" style="display:none;margin-top:8px;padding:8px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
               <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -863,6 +892,7 @@
               <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
               <button class="ck" onclick="setConf('rh_trocas',true)" id="ck-ok-rh_trocas">✓</button>
               <button class="ck" onclick="setConf('rh_trocas',false)" id="ck-fail-rh_trocas">✗</button>
+            <button class="ck" onclick="setConf('rh_trocas','na')" id="ck-na-rh_trocas" style="font-size:.65rem;font-weight:700">N/A</button>
             </div>
             <div id="chk-prazo-rh_trocas" style="display:none;margin-top:8px;padding:8px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
               <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -882,6 +912,7 @@
               <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
               <button class="ck" onclick="setConf('rh_folgas',true)" id="ck-ok-rh_folgas">✓</button>
               <button class="ck" onclick="setConf('rh_folgas',false)" id="ck-fail-rh_folgas">✗</button>
+            <button class="ck" onclick="setConf('rh_folgas','na')" id="ck-na-rh_folgas" style="font-size:.65rem;font-weight:700">N/A</button>
             </div>
             <div id="chk-prazo-rh_folgas" style="display:none;margin-bottom:9px;padding:9px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
               <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -901,6 +932,7 @@
               <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
               <button class="ck" onclick="setConf('rh_bh',true)" id="ck-ok-rh_bh">✓</button>
               <button class="ck" onclick="setConf('rh_bh',false)" id="ck-fail-rh_bh">✗</button>
+            <button class="ck" onclick="setConf('rh_bh','na')" id="ck-na-rh_bh" style="font-size:.65rem;font-weight:700">N/A</button>
             </div>
             <div id="chk-prazo-rh_bh" style="display:none;margin-top:8px;padding:8px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
               <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -920,6 +952,7 @@
               <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
               <button class="ck" onclick="setConf('rh_ts',true)" id="ck-ok-rh_ts">✓</button>
               <button class="ck" onclick="setConf('rh_ts',false)" id="ck-fail-rh_ts">✗</button>
+            <button class="ck" onclick="setConf('rh_ts','na')" id="ck-na-rh_ts" style="font-size:.65rem;font-weight:700">N/A</button>
             </div>
             <div id="chk-prazo-rh_ts" style="display:none;margin-top:8px;padding:8px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
               <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -939,6 +972,7 @@
               <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
               <button class="ck" onclick="setConf('rh_horarios',true)" id="ck-ok-rh_horarios">✓</button>
               <button class="ck" onclick="setConf('rh_horarios',false)" id="ck-fail-rh_horarios">✗</button>
+            <button class="ck" onclick="setConf('rh_horarios','na')" id="ck-na-rh_horarios" style="font-size:.65rem;font-weight:700">N/A</button>
             </div>
             <div id="chk-prazo-rh_horarios" style="display:none;margin-top:8px;padding:8px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
               <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -958,6 +992,7 @@
               <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
               <button class="ck" onclick="setConf('rh_ferias',true)" id="ck-ok-rh_ferias">✓</button>
               <button class="ck" onclick="setConf('rh_ferias',false)" id="ck-fail-rh_ferias">✗</button>
+            <button class="ck" onclick="setConf('rh_ferias','na')" id="ck-na-rh_ferias" style="font-size:.65rem;font-weight:700">N/A</button>
             </div>
             <div id="chk-prazo-rh_ferias" style="display:none;margin-top:8px;padding:8px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
               <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -986,6 +1021,7 @@
             <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
             <button class="ck" onclick="setConf('procedimentos',true)" id="ck-ok-procedimentos">✓</button>
             <button class="ck" onclick="setConf('procedimentos',false)" id="ck-fail-procedimentos">✗</button>
+            <button class="ck" onclick="setConf('procedimentos','na')" id="ck-na-procedimentos" style="font-size:.65rem;font-weight:700">N/A</button>
           </div>
           <div id="chk-prazo-procedimentos" style="display:none;margin-bottom:9px;padding:9px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
             <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -1031,6 +1067,7 @@
             <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
             <button class="ck" onclick="setConf('quebra_caixa',true)" id="ck-ok-quebra_caixa">✓</button>
             <button class="ck" onclick="setConf('quebra_caixa',false)" id="ck-fail-quebra_caixa">✗</button>
+            <button class="ck" onclick="setConf('quebra_caixa','na')" id="ck-na-quebra_caixa" style="font-size:.65rem;font-weight:700">N/A</button>
           </div>
           <div id="chk-prazo-quebra_caixa" style="display:none;margin-bottom:9px;padding:9px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
             <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -1055,6 +1092,7 @@
             <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
             <button class="ck" onclick="setConf('raid',true)" id="ck-ok-raid">✓</button>
             <button class="ck" onclick="setConf('raid',false)" id="ck-fail-raid">✗</button>
+            <button class="ck" onclick="setConf('raid','na')" id="ck-na-raid" style="font-size:.65rem;font-weight:700">N/A</button>
           </div>
           <div id="chk-prazo-raid" style="display:none;margin-bottom:9px;padding:9px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
             <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para resolver</div>
@@ -4152,9 +4190,9 @@ const _apLabels = ['Código atual','Novo código','Confirmar novo código'];
 const _apHints  = ['Introduz o teu código atual','Escolhe um novo código de 4 dígitos','Repete o novo código para confirmar'];
 
 function openAlterarPin(){
-  // Só disponível para GOPs (não para CROP)
-  if(!_loginGopId || _loginGopId==='crop'){
-    toast('Opção não disponível para a CROP.','e'); return;
+  // Disponível para GOPs e CROP
+  if(!_loginGopId){
+    toast('Sessão não iniciada.','e'); return;
   }
   _apStep=0; _apPins=['','',''];
   _apRefresh();
@@ -4920,6 +4958,61 @@ function switchVTab(t){
   el('v-tasks').style.display=t==='tasks'?'block':'none';
   if(t==='tasks')rVTasks();
 }
+
+let vTipoVisita = 'normal'; // 'normal' ou 'express'
+
+// Secções visíveis na visita express
+const EXPRESS_SECS = ['chegada','vitrine','ruturas','cafe','tabaco','jsc','limpeza'];
+
+let _pendingStartStore = null;
+
+function iniciarVisita(tipo){
+  vTipoVisita = tipo;
+  closeM('m-tipo-visita');
+  if(_pendingStartStore){
+    const store = _pendingStartStore;
+    _pendingStartStore = null;
+    startV(store);
+    applyTipoVisita();
+  }
+}
+
+function applyTipoVisita(){
+  const badge = el('v-tipo-badge');
+  if(badge){
+    badge.textContent = vTipoVisita === 'express' ? '⚡ Express' : '📋 Normal';
+    badge.style.background = vTipoVisita === 'express' ? 'var(--org)' : 'var(--ac)';
+    badge.style.display = 'inline-block';
+  }
+  if(vTipoVisita !== 'express') {
+    // Restaurar tudo
+    document.querySelectorAll('[data-xhide]').forEach(e=>{e.style.display='';e.removeAttribute('data-xhide');});
+    return;
+  }
+  // Em express: esconder secções não express
+  // IDs dentro de cada secção a ESCONDER
+  const hideByIds = [
+    'ck-ok-equipamentos', // Equipamentos
+    'ck-ok-fte',          // FTEs
+    'ck-ok-rh_folgas',    // RH
+    'ck-ok-procedimentos',// Procedimentos/QuebCaixa/RAID
+    'v-cr-food-mes',      // KPIs / Números
+  ];
+  const vForm = el('v-form');
+  if(!vForm) return;
+  hideByIds.forEach(anchorId=>{
+    const anchor = document.getElementById(anchorId);
+    if(!anchor) return;
+    // Subir até encontrar um div card directo do v-form
+    let node = anchor.parentElement;
+    while(node && node.parentElement !== vForm && node !== vForm){ node = node.parentElement; }
+    if(node && node !== vForm && !node.getAttribute('data-xhide')){
+      node.setAttribute('data-xhide','1');
+      node.style.display='none';
+    }
+  });
+}
+
 async function startV(store, skipReset=false){
   // Garantir que a CROP nunca entra no formulário GOP — redirecionar para o formulário CROP
   if(CU && CU.role==='crop'){ await startCropV(store); return; }
@@ -6545,6 +6638,7 @@ function initChecklist(){
         <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
         <button class="ck ${st.conforme===true?'ok':''}" onclick="setConf('${item.id}',true)" id="ck-ok-${item.id}">✓</button>
         <button class="ck ${st.conforme===false?'fail':''}" onclick="setConf('${item.id}',false)" id="ck-fail-${item.id}">✗</button>
+              <button class="ck" onclick="setConf('${item.id}','na')" id="ck-na-${item.id}" style="font-size:.65rem;font-weight:700">N/A</button>
       </div>
       <div id="chk-prazo-${item.id}" style="display:${st.conforme===false?'block':'none'};margin-bottom:9px;padding:9px 11px;background:#fbeeec;border:1.5px solid #e3b3a8;border-radius:var(--rb)">
         <div style="font-size:.71rem;font-weight:700;color:var(--red);margin-bottom:5px">⏱ Prazo para o Gerente resolver</div>
@@ -6577,6 +6671,7 @@ function initChecklist(){
         <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
         <button class="ck ${st.conforme===true?'ok':''}" onclick="setConf('${item.id}',true)" id="ck-ok-${item.id}">✓</button>
         <button class="ck ${st.conforme===false?'fail':''}" onclick="setConf('${item.id}',false)" id="ck-fail-${item.id}">✗</button>
+              <button class="ck" onclick="setConf('${item.id}','na')" id="ck-na-${item.id}" style="font-size:.65rem;font-weight:700">N/A</button>
       </div>
       
       <div style="margin-bottom:8px">
@@ -6622,10 +6717,12 @@ function setConf(id, val){ scheduleAutoSave();
   vChecklist[id].conforme = val;
   const okBtn  = document.getElementById('ck-ok-'+id);
   const failBtn= document.getElementById('ck-fail-'+id);
-  if(okBtn)  { okBtn.classList.toggle('ok',   val===true);  okBtn.classList.remove('fail'); }
-  if(failBtn){ failBtn.classList.toggle('fail',val===false); failBtn.classList.remove('ok'); }
+  const naBtn  = document.getElementById('ck-na-'+id);
+  if(okBtn)  { okBtn.classList.toggle('ok',   val===true);  okBtn.classList.remove('fail','na'); }
+  if(failBtn){ failBtn.classList.toggle('fail',val===false); failBtn.classList.remove('ok','na'); }
+  if(naBtn)  { naBtn.classList.toggle('na',   val==='na');   naBtn.classList.remove('ok','fail'); }
   const card = document.getElementById('chk-'+id);
-  if(card) card.style.borderLeftColor = val===false?'var(--red)':val===true?'var(--grn)':'var(--br)';
+  if(card) card.style.borderLeftColor = val===false?'var(--red)':val===true?'var(--grn)':val==='na'?'var(--t3)':'var(--br)';
   const prazoDiv = document.getElementById('chk-prazo-'+id);
   if(prazoDiv) prazoDiv.style.display = val===false ? 'block' : 'none';
   if(val===false) toast('⚠ Defina o prazo para resolução!','w');
@@ -7934,8 +8031,10 @@ async function iniciarNovaVisita(){
   }
   // Só apaga se o utilizador confirmou explicitamente OU se não há rascunho
   await clearAutoSave(_pickStore);
-  startV(_pickStore);
   closeM('m-pick-store');
+  _pendingStartStore = _pickStore;
+  vTipoVisita = 'normal';
+  openM('m-tipo-visita');
 }
 
 async function pickStore(store){
