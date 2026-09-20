@@ -5990,7 +5990,13 @@ async function genRel(){
       '</div>';
   };
 
-  const chkHtml = allChkItems.map(item => {
+  // Express: só mostrar as secções relevantes
+  const EXPRESS_CHK_IDS = ['vitrine','tabaco','cafe','limpeza','jsc'];
+  const chkItemsFiltered = vTipoVisita === 'express'
+    ? allChkItems.filter(item => EXPRESS_CHK_IDS.includes(item.id))
+    : allChkItems;
+
+  const chkHtml = chkItemsFiltered.map(item => {
     // RH: só o primeiro item do grupo gera um cartão único e fechado (resumo), os restantes ficam vazios
     // — assim a posição no relatório mantém-se a mesma de antes, sem secções soltas a mais.
     if(RH_IDS.includes(item.id)){
@@ -6162,14 +6168,14 @@ async function genRel(){
   <div id="pdf-report">
   <div style="margin-bottom:18px">
     <div class="rep-brand">CoreJoint</div>
-    <div class="rep-doctitle">Relatório de Visita — Bagga</div>
+    <div class="rep-doctitle">${vTipoVisita === 'express' ? 'Relatório Visita Express — Bagga' : 'Relatório de Visita — Bagga'}</div>
     <div class="rep-meta">Loja <b>${sn(vStore)}</b> &nbsp;·&nbsp; Data <b>${now()}</b> &nbsp;·&nbsp; Chegada <b>${hinicio}</b> &nbsp;·&nbsp; Auditor <b>${who()}</b></div>
     <div class="rep-resumo">${ncItems.length} não conformidades · ${okItems.length} conforme · ${fail.length} ruturas</div>
   </div>
   ${chegadaHtml}
-  ${perfHtml}
+  ${vTipoVisita === 'express' ? '' : perfHtml}
   ${chkHtml}
-  ${equipListaHtml}
+  ${vTipoVisita === 'express' ? '' : equipListaHtml}
   <div style="margin-top:36px;border-top:1px solid #e8ddc9;padding-top:13px;display:flex;justify-content:space-between;font-size:10px;color:#a8987f">
     <div>CoreJoint · Bagga · ${now()}</div><div>${who()}</div>
   </div>
