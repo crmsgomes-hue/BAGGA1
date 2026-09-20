@@ -592,6 +592,11 @@ async function renderPanoramaGeral(){
         <button id="btnDepuradorHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">💧 Depurador de água</button>
         <button id="btnSegurancaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🧯 Extintores e lâmpadas</button>
         <button id="btnElogiosHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🌟 Elogios</button>
+        <button id="btnValidadesHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📅 Validades de lotes</button>
+        <button id="btnSintomasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🩺 Sintomas de equipamento</button>
+        <button id="btnMobilidadeHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔀 Empréstimo de pessoal</button>
+        <button id="btnManuaisHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📚 Manuais e fichas técnicas</button>
+        <button id="btnConferenciaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚚 Conferência de fornecedores</button>
         <button id="btnReclamacoesHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📣 Reclamações</button>
         <button id="btnCodigosPortasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚪 Códigos das portas</button>
         <button id="btnInvArtigosJustHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Artigos de inventário por justificar</button>
@@ -636,6 +641,11 @@ async function renderPanoramaGeral(){
       document.getElementById("btnDepuradorHub").onclick = abrirDepuradorAguaHub;
       document.getElementById("btnSegurancaHub").onclick = abrirSegurancaEquipamentoHub;
       document.getElementById("btnElogiosHub").onclick = abrirElogiosHub;
+      document.getElementById("btnValidadesHub").onclick = abrirValidadesLotesHub;
+      document.getElementById("btnSintomasHub").onclick = abrirSintomasEquipamentoHub;
+      document.getElementById("btnMobilidadeHub").onclick = abrirMobilidadePessoalHub;
+      document.getElementById("btnManuaisHub").onclick = abrirManuaisHub;
+      document.getElementById("btnConferenciaHub").onclick = abrirConferenciaFornecedoresHub;
       document.getElementById("btnReclamacoesHub").onclick = abrirReclamacoesHub;
       document.getElementById("btnCodigosPortasHub").onclick = abrirCodigosPortasHub;
       document.getElementById("btnInvArtigosJustHub").onclick = abrirInventarioArtigosJustificarHub;
@@ -3604,6 +3614,326 @@ async function abrirElogiosHub(){
     criarBotoesPartilhaHub(document.getElementById("elogiosPartilhaBtnsHub"), capturaWrap, "CoreJoint_elogios", "CoreJoint · Elogios");
   }
   renderListaElogios();
+}
+
+async function abrirValidadesLotesHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "validadesOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">📅 Validades de lotes</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Produtos próximos do fim de validade.</div>
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:14px; margin-bottom:16px;">
+        <select id="vlLoja" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem;">
+          <option value="">— Loja —</option>
+          ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+        </select>
+        <input id="vlProduto" placeholder="Produto" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box;">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <input id="vlLote" placeholder="Lote (opcional)" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--br); font-size:.85rem; box-sizing:border-box;">
+          <input id="vlData" type="date" style="flex:1; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem; box-sizing:border-box;">
+        </div>
+        <button id="vlGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Registar</button>
+      </div>
+      <select id="vlFiltroLoja" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem; margin-bottom:10px;">
+        <option value="">Todas as lojas</option>
+        ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+      </select>
+      <div id="validadesListaHub"></div>
+      <button id="fecharValidadesHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharValidadesHubBtn").onclick = ()=>fecharEcraHub();
+
+  document.getElementById("vlGuardarBtn").onclick = async ()=>{
+    const loja = document.getElementById("vlLoja").value;
+    const produto = document.getElementById("vlProduto").value.trim();
+    const dataVal = document.getElementById("vlData").value;
+    if(!loja || !produto || !dataVal){ toast("Escolhe a loja, o produto e a data"); return; }
+    const btn = document.getElementById("vlGuardarBtn");
+    btn.disabled = true; btn.textContent = "A guardar...";
+    try{
+      await api("cj_validades_lotes", "POST", {loja, produto, lote: document.getElementById("vlLote").value.trim()||null, data_validade: dataVal, registado_por: currentUser});
+    }catch(e){ toast("Erro: "+(e.message||e).slice(0,100)); btn.disabled=false; btn.textContent="✔ Registar"; return; }
+    document.getElementById("vlProduto").value = "";
+    document.getElementById("vlLote").value = "";
+    btn.disabled = false; btn.textContent = "✔ Registar";
+    mostrarSucesso("Registado");
+    renderListaValidades();
+  };
+
+  async function renderListaValidades(){
+    const lojaF = document.getElementById("vlFiltroLoja").value;
+    let qs = "cj_validades_lotes?select=*&resolvido=eq.false&order=data_validade.asc";
+    if(lojaF) qs += `&loja=eq.${encodeURIComponent(lojaF)}`;
+    const registos = await api(qs, "GET");
+    const hoje = new Date();
+    const lista = document.getElementById("validadesListaHub");
+    if(registos.length===0){ lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">Nada em risco.</div>`; return; }
+    lista.innerHTML = registos.map(r=>{
+      const dias = Math.floor((new Date(r.data_validade+"T00:00:00")-hoje)/86400000);
+      const cor = dias<0 ? '#b0432f' : dias<=3 ? '#b0432f' : dias<=7 ? '#c17817' : '#2e7d32';
+      const txt = dias<0 ? `Expirado há ${Math.abs(dias)}d` : dias===0 ? 'Expira hoje' : `${dias}d restantes`;
+      return `<div style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:8px 10px; margin-bottom:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;"><b style="font-size:11.5px;">${r.loja} — ${r.produto}</b><span style="font-size:10px; font-weight:800; color:${cor}; white-space:nowrap;">${txt}</span></div>
+        <div style="font-size:9.5px; color:#777;">${r.lote?'Lote '+r.lote+' · ':''}Validade: ${new Date(r.data_validade+"T00:00:00").toLocaleDateString('pt-PT')}</div>
+        <button data-id="${r.id}" class="btnResolverValidade" style="width:100%; margin-top:6px; background:#2e7d32; color:#fff; border:none; border-radius:7px; padding:6px; font-size:.72rem; font-weight:700;">✔ Já foi tratado</button>
+      </div>`;
+    }).join("");
+    lista.querySelectorAll(".btnResolverValidade").forEach(btn=>{
+      btn.onclick = async ()=>{ await api(`cj_validades_lotes?id=eq.${btn.dataset.id}`, "PATCH", {resolvido:true}); renderListaValidades(); };
+    });
+  }
+  document.getElementById("vlFiltroLoja").onchange = renderListaValidades;
+  renderListaValidades();
+}
+
+async function abrirSintomasEquipamentoHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "sintomasOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">🩺 Sintomas de equipamento</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Pequenos avisos (ruídos, comportamentos estranhos) antes de avariar de vez. Se o mesmo equipamento aparecer várias vezes, é sinal de alerta.</div>
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:14px; margin-bottom:16px;">
+        <select id="syLoja" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem;">
+          <option value="">— Loja —</option>
+          ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+        </select>
+        <input id="syEquipamento" placeholder="Equipamento" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box;">
+        <textarea id="sySintoma" placeholder="O que reparaste..." style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box; min-height:50px;"></textarea>
+        <button id="syGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Registar</button>
+      </div>
+      <div id="sintomasListaHub"></div>
+      <button id="fecharSintomasHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharSintomasHubBtn").onclick = ()=>fecharEcraHub();
+
+  document.getElementById("syGuardarBtn").onclick = async ()=>{
+    const loja = document.getElementById("syLoja").value;
+    const equipamento = document.getElementById("syEquipamento").value.trim();
+    const sintoma = document.getElementById("sySintoma").value.trim();
+    if(!loja || !equipamento || !sintoma){ toast("Preenche tudo"); return; }
+    const btn = document.getElementById("syGuardarBtn");
+    btn.disabled = true; btn.textContent = "A guardar...";
+    try{
+      await api("cj_sintomas_equipamento", "POST", {loja, equipamento, sintoma, registado_por: currentUser});
+    }catch(e){ toast("Erro: "+(e.message||e).slice(0,100)); btn.disabled=false; btn.textContent="✔ Registar"; return; }
+    document.getElementById("syEquipamento").value = "";
+    document.getElementById("sySintoma").value = "";
+    btn.disabled = false; btn.textContent = "✔ Registar";
+    mostrarSucesso("Registado");
+    renderListaSintomas();
+  };
+
+  async function renderListaSintomas(){
+    const registos = await api(`cj_sintomas_equipamento?select=*&order=criado_em.desc&limit=100`, "GET");
+    const lista = document.getElementById("sintomasListaHub");
+    if(registos.length===0){ lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">Nada registado ainda.</div>`; return; }
+    const grupos = {};
+    registos.forEach(r=>{ const k=`${r.loja}|${r.equipamento}`; (grupos[k] ||= []).push(r); });
+    const repetidos = Object.values(grupos).filter(g=>g.length>=3);
+    let avisoHtml = "";
+    if(repetidos.length>0){
+      avisoHtml = `<div style="background:#fdf1ee; border:1.5px solid #b0432f; border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:11px; font-weight:700; color:#b0432f;">⚠ ${repetidos.map(g=>`${g[0].loja} — ${g[0].equipamento} (${g.length}×)`).join(", ")} — vale a pena chamar assistência antes que avarie de vez.</div>`;
+    }
+    lista.innerHTML = avisoHtml + registos.map(r=>`
+      <div style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:8px 10px; margin-bottom:6px;">
+        <b style="font-size:11.5px;">${r.loja} — ${r.equipamento}</b>
+        <div style="font-size:11px; color:#555; margin-top:2px;">${r.sintoma}</div>
+        <div style="font-size:9px; color:#777; margin-top:2px;">${new Date(r.criado_em).toLocaleDateString('pt-PT')}</div>
+      </div>
+    `).join("");
+  }
+  renderListaSintomas();
+}
+
+async function abrirMobilidadePessoalHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "mobilidadeOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">🔀 Empréstimo de pessoal</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Quando alguém vai ajudar noutra loja.</div>
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:14px; margin-bottom:16px;">
+        <input id="mpColaborador" placeholder="Nome do colaborador" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box;">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <select id="mpOrigem" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--br); font-size:.82rem;"><option value="">Loja de origem</option>${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}</select>
+          <select id="mpDestino" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--br); font-size:.82rem;"><option value="">Loja de destino</option>${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}</select>
+        </div>
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <div style="flex:1;"><div style="font-size:10px; color:var(--t2); margin-bottom:3px;">Data início</div><input id="mpInicio" type="date" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem; box-sizing:border-box;"></div>
+          <div style="flex:1;"><div style="font-size:10px; color:var(--t2); margin-bottom:3px;">Data fim (opcional)</div><input id="mpFim" type="date" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem; box-sizing:border-box;"></div>
+        </div>
+        <input id="mpMotivo" placeholder="Motivo (opcional)" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box;">
+        <button id="mpGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Registar</button>
+      </div>
+      <div id="mobilidadeListaHub"></div>
+      <button id="fecharMobilidadeHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("mpInicio").value = todayStrHub();
+  document.getElementById("fecharMobilidadeHubBtn").onclick = ()=>fecharEcraHub();
+
+  document.getElementById("mpGuardarBtn").onclick = async ()=>{
+    const colaborador = document.getElementById("mpColaborador").value.trim();
+    const origem = document.getElementById("mpOrigem").value;
+    const destino = document.getElementById("mpDestino").value;
+    const inicio = document.getElementById("mpInicio").value;
+    if(!colaborador || !origem || !destino || !inicio){ toast("Preenche colaborador, lojas e data de início"); return; }
+    const btn = document.getElementById("mpGuardarBtn");
+    btn.disabled = true; btn.textContent = "A guardar...";
+    try{
+      await api("cj_mobilidade_pessoal", "POST", {colaborador, loja_origem:origem, loja_destino:destino, data_inicio:inicio, data_fim: document.getElementById("mpFim").value||null, motivo: document.getElementById("mpMotivo").value.trim()||null, registado_por: currentUser});
+    }catch(e){ toast("Erro: "+(e.message||e).slice(0,100)); btn.disabled=false; btn.textContent="✔ Registar"; return; }
+    document.getElementById("mpColaborador").value = "";
+    document.getElementById("mpMotivo").value = "";
+    btn.disabled = false; btn.textContent = "✔ Registar";
+    mostrarSucesso("Registado");
+    renderListaMobilidade();
+  };
+
+  async function renderListaMobilidade(){
+    const registos = await api(`cj_mobilidade_pessoal?select=*&order=data_inicio.desc&limit=50`, "GET");
+    const lista = document.getElementById("mobilidadeListaHub");
+    if(registos.length===0){ lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">Nada registado ainda.</div>`; return; }
+    lista.innerHTML = registos.map(r=>`
+      <div style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:8px 10px; margin-bottom:6px;">
+        <b style="font-size:11.5px;">${r.colaborador}</b>
+        <div style="font-size:11px; color:#555; margin-top:2px;">${r.loja_origem} → ${r.loja_destino}</div>
+        <div style="font-size:9.5px; color:#777; margin-top:2px;">${new Date(r.data_inicio+"T00:00:00").toLocaleDateString('pt-PT')}${r.data_fim?' a '+new Date(r.data_fim+"T00:00:00").toLocaleDateString('pt-PT'):''}${r.motivo?' · '+r.motivo:''}</div>
+      </div>
+    `).join("");
+  }
+  renderListaMobilidade();
+}
+
+async function abrirManuaisHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "manuaisOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">📚 Manuais e fichas técnicas</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Documentos de apoio (podes usar um link do Google Drive, por exemplo).</div>
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:14px; margin-bottom:16px;">
+        <input id="mnTitulo" placeholder="Título do documento" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box;">
+        <input id="mnCategoria" placeholder="Categoria (ex: HACCP, Receitas, Equipamentos)" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box;">
+        <input id="mnUrl" placeholder="Link do documento" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box;">
+        <button id="mnGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Adicionar</button>
+      </div>
+      <div id="manuaisListaHub"></div>
+      <button id="fecharManuaisHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharManuaisHubBtn").onclick = ()=>fecharEcraHub();
+
+  document.getElementById("mnGuardarBtn").onclick = async ()=>{
+    const titulo = document.getElementById("mnTitulo").value.trim();
+    const url = document.getElementById("mnUrl").value.trim();
+    if(!titulo || !url){ toast("Escreve o título e o link"); return; }
+    const btn = document.getElementById("mnGuardarBtn");
+    btn.disabled = true; btn.textContent = "A guardar...";
+    try{
+      await api("cj_manuais", "POST", {titulo, categoria: document.getElementById("mnCategoria").value.trim()||null, url, criado_por: currentUser});
+    }catch(e){ toast("Erro: "+(e.message||e).slice(0,100)); btn.disabled=false; btn.textContent="✔ Adicionar"; return; }
+    document.getElementById("mnTitulo").value = "";
+    document.getElementById("mnCategoria").value = "";
+    document.getElementById("mnUrl").value = "";
+    btn.disabled = false; btn.textContent = "✔ Adicionar";
+    mostrarSucesso("Adicionado");
+    renderListaManuais();
+  };
+
+  async function renderListaManuais(){
+    const registos = await api(`cj_manuais?select=*&order=categoria.asc,titulo.asc`, "GET");
+    const lista = document.getElementById("manuaisListaHub");
+    if(registos.length===0){ lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">Nada adicionado ainda.</div>`; return; }
+    const grupos = {};
+    registos.forEach(r=>{ const c=r.categoria||"Outros"; (grupos[c] ||= []).push(r); });
+    lista.innerHTML = Object.keys(grupos).sort().map(cat=>`
+      <div style="font-size:11px; font-weight:800; color:#C1622D; text-transform:uppercase; padding:8px 2px 4px; border-bottom:2px solid #C1622D;">${cat}</div>
+      ${grupos[cat].map(m=>`<a href="${m.url}" target="_blank" style="display:block; background:var(--sf2,#f5f0e6); border-radius:8px; padding:9px 11px; margin-top:6px; text-decoration:none; color:var(--tx,#333);"><b style="font-size:12px;">📄 ${m.titulo}</b></a>`).join("")}
+    `).join("");
+  }
+  renderListaManuais();
+}
+
+async function abrirConferenciaFornecedoresHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "conferenciaOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">🚚 Conferência de fornecedores</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Mercadoria recebida por guia de remessa.</div>
+      <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:14px; margin-bottom:16px;">
+        <select id="cfLoja" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem;">
+          <option value="">— Loja —</option>
+          ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
+        </select>
+        <input id="cfFornecedor" placeholder="Fornecedor" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box;">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <input id="cfGuia" placeholder="Nº guia de remessa" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--br); font-size:.85rem; box-sizing:border-box;">
+          <input id="cfData" type="date" style="flex:1; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem; box-sizing:border-box;">
+        </div>
+        <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:.85rem;"><input id="cfDiscrepancia" type="checkbox"> Houve discrepância (faltou/veio a mais)</label>
+        <textarea id="cfNotas" placeholder="Notas (opcional)" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--br); margin-bottom:8px; font-size:.85rem; box-sizing:border-box; min-height:50px;"></textarea>
+        <button id="cfGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Registar</button>
+      </div>
+      <div id="conferenciaListaHub"></div>
+      <button id="fecharConferenciaHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("cfData").value = todayStrHub();
+  document.getElementById("fecharConferenciaHubBtn").onclick = ()=>fecharEcraHub();
+
+  document.getElementById("cfGuardarBtn").onclick = async ()=>{
+    const loja = document.getElementById("cfLoja").value;
+    const fornecedor = document.getElementById("cfFornecedor").value.trim();
+    const dataR = document.getElementById("cfData").value;
+    if(!loja || !fornecedor || !dataR){ toast("Escolhe a loja, o fornecedor e a data"); return; }
+    const btn = document.getElementById("cfGuardarBtn");
+    btn.disabled = true; btn.textContent = "A guardar...";
+    try{
+      await api("cj_conferencia_fornecedores", "POST", {loja, fornecedor, guia_remessa: document.getElementById("cfGuia").value.trim()||null, data:dataR, discrepancia: document.getElementById("cfDiscrepancia").checked, notas: document.getElementById("cfNotas").value.trim()||null, registado_por: currentUser});
+    }catch(e){ toast("Erro: "+(e.message||e).slice(0,100)); btn.disabled=false; btn.textContent="✔ Registar"; return; }
+    document.getElementById("cfFornecedor").value = "";
+    document.getElementById("cfGuia").value = "";
+    document.getElementById("cfNotas").value = "";
+    document.getElementById("cfDiscrepancia").checked = false;
+    btn.disabled = false; btn.textContent = "✔ Registar";
+    mostrarSucesso("Registado");
+    renderListaConferencia();
+  };
+
+  async function renderListaConferencia(){
+    const registos = await api(`cj_conferencia_fornecedores?select=*&order=data.desc&limit=50`, "GET");
+    const lista = document.getElementById("conferenciaListaHub");
+    if(registos.length===0){ lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">Nada registado ainda.</div>`; return; }
+    lista.innerHTML = registos.map(r=>`
+      <div style="background:${r.discrepancia?'#fdeceb':'var(--sf2,#f5f0e6)'}; border-radius:8px; padding:8px 10px; margin-bottom:6px; ${r.discrepancia?'border:1.5px solid #b0432f;':''}">
+        <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;"><b style="font-size:11.5px;">${r.loja} — ${r.fornecedor}</b>${r.discrepancia?'<span style="font-size:9.5px; font-weight:800; color:#b0432f; white-space:nowrap;">⚠ Discrepância</span>':''}</div>
+        <div style="font-size:9.5px; color:#777;">${r.guia_remessa?'Guia '+r.guia_remessa+' · ':''}${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</div>
+        ${r.notas?`<div style="font-size:11px; color:#555; margin-top:3px;">${r.notas}</div>`:''}
+      </div>
+    `).join("");
+  }
+  renderListaConferencia();
 }
 
 async function abrirColaboradoresHub(){
