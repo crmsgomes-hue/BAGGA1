@@ -581,7 +581,7 @@
         </div>
 
         <!-- ③ VITRINE -->
-        <div style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">📋 ③ Checklist de Auditoria</div>
+        <div id="vbloco-vitrine" style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">📋 ③ Checklist de Auditoria</div>
         <div class="ic" id="chk-vitrine" style="margin-bottom:10px;border-left-color:var(--br)">
           <div style="font-size:.9rem;font-weight:700;margin-bottom:6px">🏪 Vitrine</div>
           <div style="font-size:.76rem;color:var(--t2);margin-bottom:9px">Apresentação, limpeza e organização da vitrine</div>
@@ -608,7 +608,7 @@
         <div id="checklist-rest" style="display:none"></div>
 
         <!-- RUTURAS -->
-        <div class="vsec" data-vsec="ruturas" style="font-size:.72rem;font-weight:700;color:var(--t2);margin:14px 0 10px;text-transform:uppercase;letter-spacing:.5px">📦 Ruturas</div>
+        <div id="vbloco-ruturas" class="vsec" data-vsec="ruturas" style="font-size:.72rem;font-weight:700;color:var(--t2);margin:14px 0 10px;text-transform:uppercase;letter-spacing:.5px">📦 Ruturas</div>
         <div style="margin-bottom:8px;display:flex;gap:12px;font-size:.8rem;flex-wrap:wrap" id="rut-counter-static">
           <span style="color:var(--grn);font-weight:700" id="rut-ok-count">✓ 0 disponíveis</span>
           <span style="color:var(--red);font-weight:700" id="rut-fail-count">✗ 0 em rutura</span>
@@ -689,7 +689,7 @@
         </div>
 
         <!-- ⑤ PESAGEM DE CAFÉ -->
-        <div style="background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);padding:14px;margin-bottom:14px">
+        <div id="vbloco-cafe" style="background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);padding:14px;margin-bottom:14px">
           <div style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">☕ ⑤ Pesagem de Café</div>
           <div style="display:flex;gap:8px;margin-bottom:9px;align-items:center">
             <span style="font-size:.72rem;color:var(--t2);font-weight:600">Em conformidade?</span>
@@ -4978,31 +4978,22 @@ function applyTipoVisita(){
     badge.style.background = vTipoVisita === 'express' ? 'var(--org)' : 'var(--ac)';
     badge.style.display = 'inline-block';
   }
-  if(vTipoVisita !== 'express') {
-    // Restaurar tudo
-    document.querySelectorAll('[data-xhide]').forEach(e=>{e.style.display='';e.removeAttribute('data-xhide');});
-    return;
-  }
-  // Em express: esconder secções não express
-  // IDs dentro de cada secção a ESCONDER
-  const hideByIds = [
-    'ck-ok-equipamentos', // Equipamentos
-    'ck-ok-fte',          // FTEs
-    'ck-ok-rh_folgas',    // RH
-    'ck-ok-procedimentos',// Procedimentos/QuebCaixa/RAID
-    'v-cr-food-mes',      // KPIs / Números
+
+  // IDs dos blocos a ESCONDER na visita express
+  // Express mostra: chegada, vitrine, ruturas, café, tabaco, limpeza, JSC
+  // Express esconde: equipamentos, RH/FTEs, Procedimentos, Números/KPIs
+  const blocosEsconder = [
+    'chk-equipamentos',  // Equipamentos
+    'chk-equip-lista',   // Lista detalhada de equipamentos
+    'chk-rh',            // RH e FTEs
+    'vbloco-proc',       // Procedimentos/QuebCaixa/RAID
+    'vbloco-numeros',    // Números/KPIs financeiros
   ];
-  const vForm = el('v-form');
-  if(!vForm) return;
-  hideByIds.forEach(anchorId=>{
-    const anchor = document.getElementById(anchorId);
-    if(!anchor) return;
-    // Subir até encontrar um div card directo do v-form
-    let node = anchor.parentElement;
-    while(node && node.parentElement !== vForm && node !== vForm){ node = node.parentElement; }
-    if(node && node !== vForm && !node.getAttribute('data-xhide')){
-      node.setAttribute('data-xhide','1');
-      node.style.display='none';
+
+  blocosEsconder.forEach(id => {
+    const el_bloco = document.getElementById(id);
+    if(el_bloco){
+      el_bloco.style.display = vTipoVisita === 'express' ? 'none' : '';
     }
   });
 }
