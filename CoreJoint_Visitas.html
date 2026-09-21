@@ -548,7 +548,7 @@
         </div>
 
         <!-- ② PERFORMANCE -->
-        <div style="background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);padding:14px;margin-bottom:14px">
+        <div id="vbloco-performance" style="background:var(--sf2);border:1.5px solid var(--br);border-radius:var(--rb);padding:14px;margin-bottom:14px">
           <div style="font-size:.72rem;font-weight:700;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">📈 ② Performance</div>
           <div style="font-size:.71rem;font-weight:700;color:var(--t2);margin-bottom:6px">📊 Crescimento — Food</div>
           <div class="fr">
@@ -4983,11 +4983,11 @@ function applyTipoVisita(){
   // Express mostra: chegada, vitrine, ruturas, café, tabaco, limpeza, JSC
   // Express esconde: equipamentos, RH/FTEs, Procedimentos, Números/KPIs
   const blocosEsconder = [
-    'chk-equipamentos',  // Equipamentos
-    'chk-equip-lista',   // Lista detalhada de equipamentos
-    'chk-rh',            // RH e FTEs
-    'vbloco-proc',       // Procedimentos/QuebCaixa/RAID
-    'vbloco-numeros',    // Números/KPIs financeiros
+    'vbloco-performance', // Performance / KPIs financeiros
+    'chk-equipamentos',   // Equipamentos
+    'chk-equip-lista',    // Lista detalhada de equipamentos
+    'chk-rh',             // RH e FTEs
+    'vbloco-proc',        // Procedimentos/QuebCaixa/RAID
   ];
 
   blocosEsconder.forEach(id => {
