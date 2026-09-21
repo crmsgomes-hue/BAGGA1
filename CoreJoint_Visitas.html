@@ -5846,7 +5846,7 @@ async function genRel(){
   });
   await saveV();
   // Use static ruturas from page checkboxes
-  const staticRutItems=["Biscoito Almêndrado","Biscoito Hungaro","Mini Cookies","Mini Cookies Choc","Mini Palmier","Mini Brigadeiro","Bolo de Maçã","Bolo Red Velvet","Bolo Bolacha","Bolo Brigadeiro","Bolo Chocolate Mousse","Palmier Recheado","Pastel de Nata","Pastel de Nata 50%","Queijada de laranja","Queijada de leite","Tarte de amêndoa","Queque","Muffin de Chocolate","Bolo de Arroz","Dot","Dot Biscoff","Bola de Berlim","Bretzel","Croissant Chocolate","Croissant Ovo","Pão de Deus","Baguete de trigo","Bola de Alfarroba","Bola de Quinoa","Bola Rústica","Croissant Brioche","Croissant Folhado","Nosso Croissant","Coxinha de Frango","Croquete de Carne","Croquete de Pato","Empada de Frango","Folhado de Novilho","Folhado de Salmão","Folhado Misto","Pão com Chouriço","Pastel de Bacalhau","Rissol de Camarão","Pão de queijo","Sandes Panado","Hamburguer de Frango","Baguete de Presunto","Baguete de Atum","Bola de Salmão","Bola de Mozarela","Laranja"];
+  const staticRutItems=["Bolo de Maçã","Bolo Red Velvet","Bolo Bolacha","Bolo Brigadeiro","Bolo Chocolate Mousse","Palmier Recheado","Pastel de Nata","Pastel de Nata 50%","Queijada de laranja","Queijada de leite","Tarte de amêndoa","Queque","Muffin de Chocolate","Bolo de Arroz","Dot","Dot Biscoff","Bola de Berlim","Bretzel","Croissant Chocolate","Croissant Ovo","Pão de Deus","Baguete de trigo","Bola de Alfarroba","Bola de Quinoa","Bola Rústica","Croissant Brioche","Croissant Folhado","Nosso Croissant","Coxinha de Frango","Croquete de Carne","Croquete de Pato","Empada de Frango","Folhado de Novilho","Folhado de Salmão","Folhado Misto","Pão com Chouriço","Pastel de Bacalhau","Rissol de Camarão","Pão de queijo","Sandes Panado","Hamburguer de Frango","Baguete de Presunto","Baguete de Atum","Bola de Salmão","Bola de Mozarela","Laranja"];
   function mkId(n){return n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'_');}
   const fail=staticRutItems.filter(item=>vRut[mkId(item)]==='fail');
   const ok=staticRutItems.filter(item=>vRut[mkId(item)]==='ok');
@@ -6389,6 +6389,35 @@ async function rVTasks(){
   rVTHist(d);
 }
 
+
+// ── Gestão de Tarefas por Gestor ─────────────────────────────────────────────
+async function cnfVT(id){
+  const jta = document.getElementById('jta-vt'+id);
+  const just = jta ? jta.value.trim() : '';
+  if(!just){ toast('Escreve como foi resolvido antes de confirmar.','w'); return; }
+  const now_iso = new Date().toISOString().slice(0,16).replace('T',' ');
+  await sb('PATCH','cj_tarefas',{estado:'concluida',concluido_por:who(),concluido_em:now_iso,justificacao:just},'id=eq.'+id,true);
+  toast('✅ Tarefa marcada como concluída!');
+  const ic = document.getElementById('ic-vt-'+id);
+  if(ic) ic.style.opacity='0.6';
+  if(typeof rVTasks==='function') rVTasks();
+}
+
+async function frcVT(id){
+  if(!confirm('Forçar conclusão desta tarefa sem justificação?')) return;
+  const now_iso = new Date().toISOString().slice(0,16).replace('T',' ');
+  await sb('PATCH','cj_tarefas',{estado:'concluida',concluido_por:who()+' (forçado)',concluido_em:now_iso},'id=eq.'+id,true);
+  toast('✅ Tarefa forçada como concluída.');
+  if(typeof rVTasks==='function') rVTasks();
+}
+
+async function svVT(id){
+  const jta = document.getElementById('jta-vt'+id);
+  if(!jta) return;
+  await sb('PATCH','cj_tarefas',{justificacao:jta.value.trim()},'id=eq.'+id,true);
+  toast('💾 Nota guardada.');
+}
+// ─────────────────────────────────────────────────────────────────────────────
 function toggleVTHist(){
   const c2=document.getElementById('vt-hist-container');
   if(!c2)return;
