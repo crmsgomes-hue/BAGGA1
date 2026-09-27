@@ -3247,6 +3247,15 @@ async function confirmCaptureReal(kind, key, turno, fotosCongeladas, fotosEntrad
     closeCapture();
     return;
   }
+  if(key==="global"){
+    const vInvN = parseFloat(item.vInv);
+    const vCnvsN = parseFloat(item.vCnvs);
+    const algumPositivo = (!isNaN(vInvN) && vInvN>0) || (!isNaN(vCnvsN) && vCnvsN>0);
+    if(algumPositivo){
+      const continuar = confirm("Colocaste um valor positivo no Global ou nos CNVs.\n\nTens a certeza que não devia ser negativo (quebra)? Toca no botão \"+/−\" antes de confirmar, se for esse o caso.\n\nToca OK para enviar assim mesmo, ou Cancelar para corrigir.");
+      if(!continuar){ return; }
+    }
+  }
   try{
     await enviarItem(item);
     mostrarSucessoComFoto(item.fotos);
