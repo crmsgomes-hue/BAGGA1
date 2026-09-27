@@ -552,58 +552,86 @@ async function renderPanoramaGeral(){
       document.getElementById("btnMaisTarefas").onclick = abrirTarefasPessoais;
     };
 
-    document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
-      const secao = (titulo)=>`<div style="font-size:11px; text-transform:uppercase; color:var(--t2); font-weight:700; margin:18px 0 8px;">${titulo}</div>`;
-      const corpo = `
-        <div style="display:flex; gap:8px; margin-bottom:4px;">
+    const relatoriosCategorias = [
+      {chave:"admin", icon:"🔑", nome:"Acessos", corpo:()=>`
+        <div style="display:flex; gap:8px;">
           <button id="btnAbrirPinsLojasHub" style="flex:1; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.76rem; font-weight:700; cursor:pointer;">🔑 PINs das lojas</button>
           <button id="btnAbrirResetCategoriaHub" style="flex:1; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.76rem; font-weight:700; cursor:pointer;">🔄 Reset de categoria</button>
-        </div>
-
-        ${secao("Diário")}
+        </div>`, wire:()=>{
+        document.getElementById("btnAbrirPinsLojasHub").onclick = abrirPinsLojasHub;
+        document.getElementById("btnAbrirResetCategoriaHub").onclick = abrirResetCategoriaHub;
+      }},
+      {chave:"diario", icon:"📸", nome:"Diário", corpo:()=>`
         <button id="btnAbrirDiarioVisualHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📸 Vitrine, Vendas, Laranjas e Tabaco (imagem p/ WhatsApp)</button>
         <button id="btnAbrirResumoOntemModal" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📅 Resumo de ontem</button>
-        <button id="btnAbrirSemanalHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🖨️ Relatório semanal de vendas</button>
-
-        ${secao("Quebras")}
+        <button id="btnAbrirSemanalHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🖨️ Relatório semanal de vendas</button>`, wire:()=>{
+        document.getElementById("btnAbrirDiarioVisualHub").onclick = abrirDiarioVisualHub;
+        document.getElementById("btnAbrirResumoOntemModal").onclick = ()=>{ abrirResumoOntem(); };
+        document.getElementById("btnAbrirSemanalHub").onclick = abrirRelatorioSemanalHub;
+      }},
+      {chave:"quebrasrel", icon:"💸", nome:"Quebras", corpo:()=>`
         <button id="btnAbrirRegistosQuebrasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔎 Registos e justificações</button>
         <button id="btnAbrirExportQuebrasEmpresaHub" style="width:100%; margin-bottom:6px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📋 Preencher Excel da empresa</button>
         ${botoesAcao([
           ["📤 Importar Excel de quebras","CoreJoint_Reportes.html?abrir=importarQuebras"],
           ["🖨️ Relatório semanal de quebras","CoreJoint_Reportes.html?abrir=quebrasSemanal"]
-        ])}
-
-        ${secao("Inventário")}
+        ])}`, wire:()=>{
+        document.getElementById("btnAbrirRegistosQuebrasHub").onclick = abrirRegistosQuebrasHub;
+        document.getElementById("btnAbrirExportQuebrasEmpresaHub").onclick = abrirExportQuebrasEmpresaHub;
+      }},
+      {chave:"inventariorel", icon:"📷", nome:"Inventário", corpo:()=>`
         <button id="btnAbrirFotosCategoriaHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📷 Fotos por categoria (datas de cada envio)</button>
         <button id="btnAbrirExportInvEmpresaHub" style="width:100%; margin-bottom:6px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📋 Preencher Excel da empresa</button>
-        ${botoesAcao([
-          ["📦 Ver relatório de inventário","CoreJoint_Reportes.html?abrir=visualInventario"]
-        ])}
-
-        ${secao("Outros")}
+        ${botoesAcao([["📦 Ver relatório de inventário","CoreJoint_Reportes.html?abrir=visualInventario"]])}`, wire:()=>{
+        document.getElementById("btnAbrirFotosCategoriaHub").onclick = ()=>{
+          fecharEcraHub();
+          const secao = document.getElementById("categoriaLojasSection");
+          if(secao && secao.style.display === "none"){
+            document.querySelector('[data-toggle-secao="categoriaLojasSection"]')?.click();
+          }
+          setTimeout(()=>{ secao?.scrollIntoView({behavior:"smooth"}); }, 50);
+        };
+        document.getElementById("btnAbrirExportInvEmpresaHub").onclick = abrirExportInventarioEmpresaHub;
+      }},
+      {chave:"formacaomkt", icon:"🎓", nome:"Formação e marketing", corpo:()=>`
         <button id="btnInscricoesFormacaoHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">🎓 Inscrições — Formação Horários</button>
         <button id="btnApsPreventivaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📋 APS e Preventiva Delta</button>
-        <button id="btnLegionelaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚿 Forms Legionela — histórico semanal</button>
-
-        ${secao("Stock e inventário por artigo")}
+        <button id="btnLegionelaHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚿 Forms Legionela — histórico semanal</button>`, wire:()=>{
+        document.getElementById("btnInscricoesFormacaoHub").onclick = ()=>abrirDetalheFormularioHub(8);
+        document.getElementById("btnApsPreventivaHub").onclick = abrirRelatorioApsPreventivaHub;
+        document.getElementById("btnLegionelaHub").onclick = ()=>abrirRelatorioSondagemRecorrenteHub("Forms Leggionela", "Forms Legionela — histórico semanal");
+      }},
+      {chave:"stockartigo", icon:"📉", nome:"Stock e inventário por artigo", corpo:()=>`
         <button id="btnStockNegCruzadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo cruzado (mesmo artigo, 4+ lojas)</button>
         <button id="btnStockNegDetalhadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo (lista detalhada, artigo a artigo)</button>
         <button id="btnInvArtigosJustHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Artigos de inventário por justificar</button>
-        <button id="btnValidadesHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📅 Validades de lotes</button>
-
-        ${secao("Pessoas")}
+        <button id="btnValidadesHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📅 Validades de lotes</button>`, wire:()=>{
+        document.getElementById("btnStockNegCruzadoHub").onclick = abrirRelatorioStockNegCruzadoHub;
+        document.getElementById("btnStockNegDetalhadoHub").onclick = abrirRelatorioStockNegDetalhadoHub;
+        document.getElementById("btnInvArtigosJustHub").onclick = abrirInventarioArtigosJustificarHub;
+        document.getElementById("btnValidadesHub").onclick = abrirValidadesLotesHub;
+      }},
+      {chave:"pessoas", icon:"👥", nome:"Pessoas", corpo:()=>`
         <button id="btnColaboradoresHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👥 Colaboradores (nomes e nº mecanográfico)</button>
         <button id="btnMobilidadeHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔀 Empréstimo de pessoal</button>
-        <button id="btnElogiosHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🌟 Elogios</button>
-
-        ${secao("Equipamentos e manutenção")}
+        <button id="btnElogiosHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🌟 Elogios</button>`, wire:()=>{
+        document.getElementById("btnColaboradoresHub").onclick = abrirColaboradoresHub;
+        document.getElementById("btnMobilidadeHub").onclick = abrirMobilidadePessoalHub;
+        document.getElementById("btnElogiosHub").onclick = abrirElogiosHub;
+      }},
+      {chave:"equipamentos", icon:"🔧", nome:"Equipamentos e manutenção", corpo:()=>`
         <button id="btnAvariasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔧 Equipamentos avariados</button>
         <button id="btnSintomasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🩺 Sintomas de equipamento</button>
         <button id="btnDepuradorHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">💧 Depurador de água</button>
         <button id="btnSegurancaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🧯 Extintores e lâmpadas</button>
-        <button id="btnConferenciaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚚 Conferência de fornecedores</button>
-
-        ${secao("Comunicação e loja")}
+        <button id="btnConferenciaHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚚 Conferência de fornecedores</button>`, wire:()=>{
+        document.getElementById("btnAvariasHub").onclick = abrirAvariasHub;
+        document.getElementById("btnSintomasHub").onclick = abrirSintomasEquipamentoHub;
+        document.getElementById("btnDepuradorHub").onclick = abrirDepuradorAguaHub;
+        document.getElementById("btnSegurancaHub").onclick = abrirSegurancaEquipamentoHub;
+        document.getElementById("btnConferenciaHub").onclick = abrirConferenciaFornecedoresHub;
+      }},
+      {chave:"comunicacao", icon:"📣", nome:"Comunicação e loja", corpo:()=>`
         <button id="btnReclamacoesHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📣 Reclamações</button>
         <button id="btnPedidosMaterialHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Pedidos de material</button>
         <button id="btnManuaisHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📚 Manuais e fichas técnicas</button>
@@ -616,9 +644,13 @@ async function renderPanoramaGeral(){
           ["👥 Horários","CoreJoint_Reportes.html?abrir=relatorioHorarios"],
           ["🔁 Trocas de horário","CoreJoint_Reportes.html?abrir=pivotTrocas"],
           ["🗓️ Global — datas marcadas (Set/Out)","CoreJoint_Reportes.html?abrir=relatorioGlobalAgendamento"],
-        ])}
-
-        ${secao("Ferramentas")}
+        ])}`, wire:()=>{
+        document.getElementById("btnReclamacoesHub").onclick = abrirReclamacoesHub;
+        document.getElementById("btnPedidosMaterialHub").onclick = abrirPedidosMaterialHub;
+        document.getElementById("btnManuaisHub").onclick = abrirManuaisHub;
+        document.getElementById("btnCodigosPortasHub").onclick = abrirCodigosPortasHub;
+      }},
+      {chave:"ferramentas", icon:"🛠️", nome:"Ferramentas", corpo:()=>`
         <button id="btnCriarSondagemFormHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">➕ Criar sondagem/formulário</button>
         ${botoesAcao([
           ["📅 Histórico 12 meses","CoreJoint_Reportes.html?abrir=historico12m"],
@@ -628,45 +660,29 @@ async function renderPanoramaGeral(){
           ["📈 CNVs Global","CoreJoint_Reportes.html?abrir=cnvs"],
           ["📤 Importar Colaboradores","CoreJoint_Reportes.html?abrir=importarColaboradores"],
           ["📤 Importar Inventário por Artigo","CoreJoint_Reportes.html?abrir=importarInventarioArtigos"],
-        ])}
+        ])}`, wire:()=>{
+        document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
+      }},
+    ];
+
+    function abrirCategoriaRelatorios(cat){
+      abrirModalTopico(`${cat.icon} ${cat.nome}`, cat.corpo());
+      cat.wire();
+    }
+
+    document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
+      const corpo = `
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          ${relatoriosCategorias.map(c=>`<button data-cat-relatorio="${c.chave}" style="text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px 10px; font-size:.8rem; font-weight:700; color:var(--tx); cursor:pointer;">${c.icon} ${c.nome}</button>`).join("")}
+        </div>
       `;
       abrirModalTopico("📊 Relatórios", corpo);
-      document.getElementById("btnAbrirPinsLojasHub").onclick = abrirPinsLojasHub;
-      document.getElementById("btnAbrirResetCategoriaHub").onclick = abrirResetCategoriaHub;
-      document.getElementById("btnAbrirDiarioVisualHub").onclick = abrirDiarioVisualHub;
-      document.getElementById("btnAbrirResumoOntemModal").onclick = ()=>{ abrirResumoOntem(); };
-      document.getElementById("btnAbrirSemanalHub").onclick = abrirRelatorioSemanalHub;
-      document.getElementById("btnAbrirRegistosQuebrasHub").onclick = abrirRegistosQuebrasHub;
-      document.getElementById("btnAbrirExportQuebrasEmpresaHub").onclick = abrirExportQuebrasEmpresaHub;
-      document.getElementById("btnInscricoesFormacaoHub").onclick = ()=>abrirDetalheFormularioHub(8);
-      document.getElementById("btnApsPreventivaHub").onclick = abrirRelatorioApsPreventivaHub;
-      document.getElementById("btnLegionelaHub").onclick = ()=>abrirRelatorioSondagemRecorrenteHub("Forms Leggionela", "Forms Legionela — histórico semanal");
-      document.getElementById("btnStockNegCruzadoHub").onclick = abrirRelatorioStockNegCruzadoHub;
-      document.getElementById("btnStockNegDetalhadoHub").onclick = abrirRelatorioStockNegDetalhadoHub;
-      document.getElementById("btnColaboradoresHub").onclick = abrirColaboradoresHub;
-      document.getElementById("btnAvariasHub").onclick = abrirAvariasHub;
-      document.getElementById("btnPedidosMaterialHub").onclick = abrirPedidosMaterialHub;
-      document.getElementById("btnDepuradorHub").onclick = abrirDepuradorAguaHub;
-      document.getElementById("btnSegurancaHub").onclick = abrirSegurancaEquipamentoHub;
-      document.getElementById("btnElogiosHub").onclick = abrirElogiosHub;
-      document.getElementById("btnValidadesHub").onclick = abrirValidadesLotesHub;
-      document.getElementById("btnSintomasHub").onclick = abrirSintomasEquipamentoHub;
-      document.getElementById("btnMobilidadeHub").onclick = abrirMobilidadePessoalHub;
-      document.getElementById("btnManuaisHub").onclick = abrirManuaisHub;
-      document.getElementById("btnConferenciaHub").onclick = abrirConferenciaFornecedoresHub;
-      document.getElementById("btnReclamacoesHub").onclick = abrirReclamacoesHub;
-      document.getElementById("btnCodigosPortasHub").onclick = abrirCodigosPortasHub;
-      document.getElementById("btnInvArtigosJustHub").onclick = abrirInventarioArtigosJustificarHub;
-      document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
-      document.getElementById("btnAbrirFotosCategoriaHub").onclick = ()=>{
-        fecharEcraHub();
-        const secao = document.getElementById("categoriaLojasSection");
-        if(secao && secao.style.display === "none"){
-          document.querySelector('[data-toggle-secao="categoriaLojasSection"]')?.click();
-        }
-        setTimeout(()=>{ secao?.scrollIntoView({behavior:"smooth"}); }, 50);
-      };
-      document.getElementById("btnAbrirExportInvEmpresaHub").onclick = abrirExportInventarioEmpresaHub;
+      document.querySelectorAll("[data-cat-relatorio]").forEach(btn=>{
+        btn.onclick = ()=>{
+          const cat = relatoriosCategorias.find(c=>c.chave===btn.dataset.catRelatorio);
+          abrirCategoriaRelatorios(cat);
+        };
+      });
     };
 
     document.querySelector('[data-topico="vendas"]').onclick = ()=>{
