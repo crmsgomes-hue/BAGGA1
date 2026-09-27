@@ -3428,13 +3428,18 @@ async function abrirDepuradorAguaHub(){
         <button id="dpGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Registar substituição</button>
       </div>
       <div id="depuradorListaHub"></div>
+      <div id="depuradorPartilhaBtnsHub" style="margin-top:12px;"></div>
       <button id="fecharDepuradorHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
     </div>
   `;
   document.body.appendChild(overlay);
   empilharEcraHub(overlay);
   document.getElementById("dpData").value = todayStrHub();
-  document.getElementById("fecharDepuradorHubBtn").onclick = ()=>fecharEcraHub();
+  document.getElementById("fecharDepuradorHubBtn").onclick = ()=>{
+    const c = document.getElementById("depuradorCapturaEscondida");
+    if(c) c.remove();
+    fecharEcraHub();
+  };
 
   document.getElementById("dpGuardarBtn").onclick = async ()=>{
     const loja = document.getElementById("dpLoja").value;
@@ -3466,6 +3471,36 @@ async function abrirDepuradorAguaHub(){
       const txt = dias<0 ? `atrasado ${Math.abs(dias)}d` : `próxima em ${dias}d`;
       return `<div style="padding:8px 6px; border-bottom:1px solid #f0ebe3; display:flex; justify-content:space-between; font-size:11.5px;"><b>${l}</b><span style="color:${cor}; font-weight:700;">${txt}</span></div>`;
     }).join("");
+
+    const antigo = document.getElementById("depuradorCapturaEscondida");
+    if(antigo) antigo.remove();
+    const capturaWrap = document.createElement("div");
+    capturaWrap.id = "depuradorCapturaEscondida";
+    capturaWrap.style.cssText = "background:#fff; padding:4px;";
+    const linhasTabela = LOJAS.map(l=>{
+      const r = ultimoPorLoja[l];
+      if(!r) return `<tr><td style="font-weight:700; font-size:11px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${l}</td><td colspan="2" style="font-size:10px; color:#777; padding:5px 6px; border-bottom:1px solid #f0ebe3;">Nunca registado</td></tr>`;
+      const dias = Math.floor((new Date(r.proxima_substituicao+"T00:00:00")-hoje)/86400000);
+      const cor = dias<0 ? '#b0432f' : dias<=15 ? '#c17817' : '#2e7d32';
+      const txt = dias<0 ? `Atrasado ${Math.abs(dias)}d` : `${dias}d restantes`;
+      return `<tr><td style="font-weight:700; font-size:11px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${l}</td><td style="font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3; color:#777;">${new Date(r.data_substituicao+"T00:00:00").toLocaleDateString('pt-PT')}</td><td style="font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:${cor};">${txt}</td></tr>`;
+    }).join("");
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Depurador de água</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')}</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Loja</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Última</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:3px 6px; border-bottom:2px solid #C1622D;">Estado</th>
+        </tr></thead>
+        <tbody>${linhasTabela}</tbody>
+      </table>
+    `;
+    document.body.appendChild(capturaWrap);
+    capturaWrap.style.position = "absolute";
+    capturaWrap.style.left = "-9999px";
+    criarBotoesPartilhaHub(document.getElementById("depuradorPartilhaBtnsHub"), capturaWrap, "CoreJoint_depurador_agua", "CoreJoint · Depurador de água");
   }
   renderListaDepurador();
 }
@@ -3493,12 +3528,17 @@ async function abrirSegurancaEquipamentoHub(){
         <button id="segGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Registar</button>
       </div>
       <div id="segurancaListaHub"></div>
+      <div id="segurancaPartilhaBtnsHub" style="margin-top:12px;"></div>
       <button id="fecharSegurancaHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
     </div>
   `;
   document.body.appendChild(overlay);
   empilharEcraHub(overlay);
-  document.getElementById("fecharSegurancaHubBtn").onclick = ()=>fecharEcraHub();
+  document.getElementById("fecharSegurancaHubBtn").onclick = ()=>{
+    const c = document.getElementById("segurancaCapturaEscondida");
+    if(c) c.remove();
+    fecharEcraHub();
+  };
 
   document.getElementById("segGuardarBtn").onclick = async ()=>{
     const loja = document.getElementById("segLoja").value;
@@ -3529,6 +3569,35 @@ async function abrirSegurancaEquipamentoHub(){
         <div style="font-size:9.5px; color:#777;">Validade: ${new Date(r.data_validade+"T00:00:00").toLocaleDateString('pt-PT')}</div>
       </div>`;
     }).join("");
+
+    const antigo = document.getElementById("segurancaCapturaEscondida");
+    if(antigo) antigo.remove();
+    const capturaWrap = document.createElement("div");
+    capturaWrap.id = "segurancaCapturaEscondida";
+    capturaWrap.style.cssText = "background:#fff; padding:4px;";
+    const linhasTabela = registos.map(r=>{
+      const dias = Math.floor((new Date(r.data_validade+"T00:00:00")-hoje)/86400000);
+      const cor = dias<0 ? '#b0432f' : dias<=30 ? '#c17817' : '#2e7d32';
+      const txt = dias<0 ? `Expirado ${Math.abs(dias)}d` : `${dias}d`;
+      return `<tr><td style="font-weight:700; font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${r.loja}</td><td style="font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${r.tipo}${r.local?' ('+r.local+')':''}</td><td style="font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3; color:#777;">${new Date(r.data_validade+"T00:00:00").toLocaleDateString('pt-PT')}</td><td style="font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:${cor};">${txt}</td></tr>`;
+    }).join("");
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Extintores e lâmpadas</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')} · ${registos.length} registo(s)</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Loja</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Item</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Validade</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:3px 6px; border-bottom:2px solid #C1622D;">Estado</th>
+        </tr></thead>
+        <tbody>${linhasTabela}</tbody>
+      </table>
+    `;
+    document.body.appendChild(capturaWrap);
+    capturaWrap.style.position = "absolute";
+    capturaWrap.style.left = "-9999px";
+    criarBotoesPartilhaHub(document.getElementById("segurancaPartilhaBtnsHub"), capturaWrap, "CoreJoint_extintores_lampadas", "CoreJoint · Extintores e lâmpadas");
   }
   renderListaSeguranca();
 }
@@ -3641,12 +3710,17 @@ async function abrirValidadesLotesHub(){
         ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
       </select>
       <div id="validadesListaHub"></div>
+      <div id="validadesPartilhaBtnsHub" style="margin-top:12px;"></div>
       <button id="fecharValidadesHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
     </div>
   `;
   document.body.appendChild(overlay);
   empilharEcraHub(overlay);
-  document.getElementById("fecharValidadesHubBtn").onclick = ()=>fecharEcraHub();
+  document.getElementById("fecharValidadesHubBtn").onclick = ()=>{
+    const c = document.getElementById("validadesCapturaEscondida");
+    if(c) c.remove();
+    fecharEcraHub();
+  };
 
   document.getElementById("vlGuardarBtn").onclick = async ()=>{
     const loja = document.getElementById("vlLoja").value;
@@ -3686,6 +3760,35 @@ async function abrirValidadesLotesHub(){
     lista.querySelectorAll(".btnResolverValidade").forEach(btn=>{
       btn.onclick = async ()=>{ await api(`cj_validades_lotes?id=eq.${btn.dataset.id}`, "PATCH", {resolvido:true}); renderListaValidades(); };
     });
+
+    const antigo = document.getElementById("validadesCapturaEscondida");
+    if(antigo) antigo.remove();
+    const capturaWrap = document.createElement("div");
+    capturaWrap.id = "validadesCapturaEscondida";
+    capturaWrap.style.cssText = "background:#fff; padding:4px;";
+    const linhasTabela = registos.map(r=>{
+      const dias = Math.floor((new Date(r.data_validade+"T00:00:00")-hoje)/86400000);
+      const cor = dias<0 ? '#b0432f' : dias<=3 ? '#b0432f' : dias<=7 ? '#c17817' : '#2e7d32';
+      const txt = dias<0 ? `Expirado ${Math.abs(dias)}d` : dias===0 ? 'Hoje' : `${dias}d`;
+      return `<tr><td style="font-weight:700; font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${r.loja}</td><td style="font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${r.produto}${r.lote?' ('+r.lote+')':''}</td><td style="font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3; color:#777;">${new Date(r.data_validade+"T00:00:00").toLocaleDateString('pt-PT')}</td><td style="font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:700; color:${cor};">${txt}</td></tr>`;
+    }).join("");
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Validades de lotes</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')} · ${registos.length} artigo(s) em risco</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Loja</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Produto</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Validade</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:right; padding:3px 6px; border-bottom:2px solid #C1622D;">Estado</th>
+        </tr></thead>
+        <tbody>${linhasTabela}</tbody>
+      </table>
+    `;
+    document.body.appendChild(capturaWrap);
+    capturaWrap.style.position = "absolute";
+    capturaWrap.style.left = "-9999px";
+    criarBotoesPartilhaHub(document.getElementById("validadesPartilhaBtnsHub"), capturaWrap, "CoreJoint_validades_lotes", "CoreJoint · Validades de lotes");
   }
   document.getElementById("vlFiltroLoja").onchange = renderListaValidades;
   renderListaValidades();
@@ -3709,12 +3812,17 @@ async function abrirSintomasEquipamentoHub(){
         <button id="syGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Registar</button>
       </div>
       <div id="sintomasListaHub"></div>
+      <div id="sintomasPartilhaBtnsHub" style="margin-top:12px;"></div>
       <button id="fecharSintomasHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
     </div>
   `;
   document.body.appendChild(overlay);
   empilharEcraHub(overlay);
-  document.getElementById("fecharSintomasHubBtn").onclick = ()=>fecharEcraHub();
+  document.getElementById("fecharSintomasHubBtn").onclick = ()=>{
+    const c = document.getElementById("sintomasCapturaEscondida");
+    if(c) c.remove();
+    fecharEcraHub();
+  };
 
   document.getElementById("syGuardarBtn").onclick = async ()=>{
     const loja = document.getElementById("syLoja").value;
@@ -3751,6 +3859,32 @@ async function abrirSintomasEquipamentoHub(){
         <div style="font-size:9px; color:#777; margin-top:2px;">${new Date(r.criado_em).toLocaleDateString('pt-PT')}</div>
       </div>
     `).join("");
+
+    const antigo = document.getElementById("sintomasCapturaEscondida");
+    if(antigo) antigo.remove();
+    const capturaWrap = document.createElement("div");
+    capturaWrap.id = "sintomasCapturaEscondida";
+    capturaWrap.style.cssText = "background:#fff; padding:4px;";
+    const linhasTabela = registos.map(r=>`<tr><td style="font-weight:700; font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${r.loja}</td><td style="font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${r.equipamento}</td><td style="font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${r.sintoma}</td><td style="font-size:9px; padding:5px 6px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${new Date(r.criado_em).toLocaleDateString('pt-PT')}</td></tr>`).join("");
+    const avisoImgHtml = repetidos.length>0 ? `<div style="background:#fdeceb; border:1.5px solid #b0432f; border-radius:6px; padding:6px 8px; margin-bottom:8px; font-size:10px; font-weight:700; color:#b0432f;">⚠ ${repetidos.map(g=>`${g[0].loja} — ${g[0].equipamento} (${g.length}×)`).join(", ")}</div>` : "";
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Sintomas de equipamento</div>
+      <div style="font-size:10px; color:#777; margin-bottom:8px;">${new Date().toLocaleDateString('pt-PT')} · ${registos.length} registo(s)</div>
+      ${avisoImgHtml}
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Loja</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Equip.</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Sintoma</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Data</th>
+        </tr></thead>
+        <tbody>${linhasTabela}</tbody>
+      </table>
+    `;
+    document.body.appendChild(capturaWrap);
+    capturaWrap.style.position = "absolute";
+    capturaWrap.style.left = "-9999px";
+    criarBotoesPartilhaHub(document.getElementById("sintomasPartilhaBtnsHub"), capturaWrap, "CoreJoint_sintomas_equipamento", "CoreJoint · Sintomas de equipamento");
   }
   renderListaSintomas();
 }
@@ -3777,13 +3911,18 @@ async function abrirMobilidadePessoalHub(){
         <button id="mpGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Registar</button>
       </div>
       <div id="mobilidadeListaHub"></div>
+      <div id="mobilidadePartilhaBtnsHub" style="margin-top:12px;"></div>
       <button id="fecharMobilidadeHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
     </div>
   `;
   document.body.appendChild(overlay);
   empilharEcraHub(overlay);
   document.getElementById("mpInicio").value = todayStrHub();
-  document.getElementById("fecharMobilidadeHubBtn").onclick = ()=>fecharEcraHub();
+  document.getElementById("fecharMobilidadeHubBtn").onclick = ()=>{
+    const c = document.getElementById("mobilidadeCapturaEscondida");
+    if(c) c.remove();
+    fecharEcraHub();
+  };
 
   document.getElementById("mpGuardarBtn").onclick = async ()=>{
     const colaborador = document.getElementById("mpColaborador").value.trim();
@@ -3814,6 +3953,29 @@ async function abrirMobilidadePessoalHub(){
         <div style="font-size:9.5px; color:#777; margin-top:2px;">${new Date(r.data_inicio+"T00:00:00").toLocaleDateString('pt-PT')}${r.data_fim?' a '+new Date(r.data_fim+"T00:00:00").toLocaleDateString('pt-PT'):''}${r.motivo?' · '+r.motivo:''}</div>
       </div>
     `).join("");
+
+    const antigo = document.getElementById("mobilidadeCapturaEscondida");
+    if(antigo) antigo.remove();
+    const capturaWrap = document.createElement("div");
+    capturaWrap.id = "mobilidadeCapturaEscondida";
+    capturaWrap.style.cssText = "background:#fff; padding:4px;";
+    const linhasTabela = registos.map(r=>`<tr><td style="font-weight:700; font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${r.colaborador}</td><td style="font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${r.loja_origem} → ${r.loja_destino}</td><td style="font-size:9.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${new Date(r.data_inicio+"T00:00:00").toLocaleDateString('pt-PT')}${r.data_fim?' a '+new Date(r.data_fim+"T00:00:00").toLocaleDateString('pt-PT'):''}</td></tr>`).join("");
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Empréstimo de pessoal</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')} · ${registos.length} registo(s)</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Colaborador</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Movimento</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Datas</th>
+        </tr></thead>
+        <tbody>${linhasTabela}</tbody>
+      </table>
+    `;
+    document.body.appendChild(capturaWrap);
+    capturaWrap.style.position = "absolute";
+    capturaWrap.style.left = "-9999px";
+    criarBotoesPartilhaHub(document.getElementById("mobilidadePartilhaBtnsHub"), capturaWrap, "CoreJoint_emprestimo_pessoal", "CoreJoint · Empréstimo de pessoal");
   }
   renderListaMobilidade();
 }
@@ -3833,12 +3995,17 @@ async function abrirManuaisHub(){
         <button id="mnGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Adicionar</button>
       </div>
       <div id="manuaisListaHub"></div>
+      <div id="manuaisPartilhaBtnsHub" style="margin-top:12px;"></div>
       <button id="fecharManuaisHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
     </div>
   `;
   document.body.appendChild(overlay);
   empilharEcraHub(overlay);
-  document.getElementById("fecharManuaisHubBtn").onclick = ()=>fecharEcraHub();
+  document.getElementById("fecharManuaisHubBtn").onclick = ()=>{
+    const c = document.getElementById("manuaisCapturaEscondida");
+    if(c) c.remove();
+    fecharEcraHub();
+  };
 
   document.getElementById("mnGuardarBtn").onclick = async ()=>{
     const titulo = document.getElementById("mnTitulo").value.trim();
@@ -3867,6 +4034,24 @@ async function abrirManuaisHub(){
       <div style="font-size:11px; font-weight:800; color:#C1622D; text-transform:uppercase; padding:8px 2px 4px; border-bottom:2px solid #C1622D;">${cat}</div>
       ${grupos[cat].map(m=>`<a href="${m.url}" target="_blank" style="display:block; background:var(--sf2,#f5f0e6); border-radius:8px; padding:9px 11px; margin-top:6px; text-decoration:none; color:var(--tx,#333);"><b style="font-size:12px;">📄 ${m.titulo}</b></a>`).join("")}
     `).join("");
+
+    const antigo = document.getElementById("manuaisCapturaEscondida");
+    if(antigo) antigo.remove();
+    const capturaWrap = document.createElement("div");
+    capturaWrap.id = "manuaisCapturaEscondida";
+    capturaWrap.style.cssText = "background:#fff; padding:4px;";
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Manuais e fichas técnicas</div>
+      <div style="font-size:10px; color:#777; margin-bottom:8px;">${new Date().toLocaleDateString('pt-PT')} · ${registos.length} documento(s)</div>
+      ${Object.keys(grupos).sort().map(cat=>`
+        <div style="background:#e8a95c; color:#5a3a10; font-weight:800; font-size:10px; padding:4px 7px; margin-top:6px;">${cat.toUpperCase()}</div>
+        ${grupos[cat].map(m=>`<div style="font-size:10.5px; padding:5px 7px; border-bottom:1px solid #f0ebe3;"><b>${m.titulo}</b><br><span style="color:#2e6bb0; font-size:9px;">${m.url}</span></div>`).join("")}
+      `).join("")}
+    `;
+    document.body.appendChild(capturaWrap);
+    capturaWrap.style.position = "absolute";
+    capturaWrap.style.left = "-9999px";
+    criarBotoesPartilhaHub(document.getElementById("manuaisPartilhaBtnsHub"), capturaWrap, "CoreJoint_manuais", "CoreJoint · Manuais e fichas técnicas");
   }
   renderListaManuais();
 }
@@ -3894,13 +4079,18 @@ async function abrirConferenciaFornecedoresHub(){
         <button id="cfGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Registar</button>
       </div>
       <div id="conferenciaListaHub"></div>
+      <div id="conferenciaPartilhaBtnsHub" style="margin-top:12px;"></div>
       <button id="fecharConferenciaHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
     </div>
   `;
   document.body.appendChild(overlay);
   empilharEcraHub(overlay);
   document.getElementById("cfData").value = todayStrHub();
-  document.getElementById("fecharConferenciaHubBtn").onclick = ()=>fecharEcraHub();
+  document.getElementById("fecharConferenciaHubBtn").onclick = ()=>{
+    const c = document.getElementById("conferenciaCapturaEscondida");
+    if(c) c.remove();
+    fecharEcraHub();
+  };
 
   document.getElementById("cfGuardarBtn").onclick = async ()=>{
     const loja = document.getElementById("cfLoja").value;
@@ -3932,6 +4122,30 @@ async function abrirConferenciaFornecedoresHub(){
         ${r.notas?`<div style="font-size:11px; color:#555; margin-top:3px;">${r.notas}</div>`:''}
       </div>
     `).join("");
+
+    const antigo = document.getElementById("conferenciaCapturaEscondida");
+    if(antigo) antigo.remove();
+    const capturaWrap = document.createElement("div");
+    capturaWrap.id = "conferenciaCapturaEscondida";
+    capturaWrap.style.cssText = "background:#fff; padding:4px;";
+    const linhasTabela = registos.map(r=>`<tr><td style="font-weight:700; font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${r.loja}</td><td style="font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${r.fornecedor}</td><td style="font-size:9.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</td><td style="font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3; text-align:center; font-weight:800; color:${r.discrepancia?'#b0432f':'#2e7d32'};">${r.discrepancia?'⚠':'✔'}</td></tr>`).join("");
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Conferência de fornecedores</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')} · ${registos.length} registo(s)</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Loja</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Fornecedor</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:left; padding:3px 6px; border-bottom:2px solid #C1622D;">Data</th>
+          <th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:center; padding:3px 6px; border-bottom:2px solid #C1622D;">OK?</th>
+        </tr></thead>
+        <tbody>${linhasTabela}</tbody>
+      </table>
+    `;
+    document.body.appendChild(capturaWrap);
+    capturaWrap.style.position = "absolute";
+    capturaWrap.style.left = "-9999px";
+    criarBotoesPartilhaHub(document.getElementById("conferenciaPartilhaBtnsHub"), capturaWrap, "CoreJoint_conferencia_fornecedores", "CoreJoint · Conferência de fornecedores");
   }
   renderListaConferencia();
 }
