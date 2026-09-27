@@ -3850,7 +3850,18 @@ async function abrirSintomasEquipamentoHub(){
     const repetidos = Object.values(grupos).filter(g=>g.length>=3);
     let avisoHtml = "";
     if(repetidos.length>0){
-      avisoHtml = `<div style="background:#fdf1ee; border:1.5px solid #b0432f; border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:11px; font-weight:700; color:#b0432f;">⚠ ${repetidos.map(g=>`${g[0].loja} — ${g[0].equipamento} (${g.length}×)`).join(", ")} — vale a pena chamar assistência antes que avarie de vez.</div>`;
+      avisoHtml = `<div style="background:#fdf1ee; border:1.5px solid #b0432f; border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:11px; font-weight:700; color:#b0432f;">⚠ ${repetidos.map(g=>`${g[0].loja} — ${g[0].equipamento} (${g.length}×)`).join(", ")} — já criado registo em Equipamentos Avariados.</div>`;
+      for(const g of repetidos){
+        const loja = g[0].loja, equipamento = g[0].equipamento;
+        const jaExiste = await api(`cj_avarias_bagga?select=id&loja=eq.${encodeURIComponent(loja)}&equipamento=eq.${encodeURIComponent(equipamento)}&estado=eq.pendente`, "GET");
+        if(jaExiste.length===0){
+          await api("cj_avarias_bagga", "POST", {
+            loja, equipamento,
+            descricao_problema: `Criado automaticamente: ${g.length} sintomas registados (${g.map(s=>s.sintoma).slice(0,3).join('; ')}). Ver Sintomas de equipamento para o histórico.`,
+            registado_por: "Sistema (deteção automática)",
+          });
+        }
+      }
     }
     lista.innerHTML = avisoHtml + registos.map(r=>`
       <div style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:8px 10px; margin-bottom:6px;">
