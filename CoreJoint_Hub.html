@@ -455,17 +455,20 @@ async function renderPanoramaGeral(){
     }
     if(pedidosMaterialPendentesPg.length>0) listaAtencao.push({acao:abrirPedidosMaterialHub, texto:`📦 ${pedidosMaterialPendentesPg.length} pedido(s) de material por tratar`, urgente:false});
     listaAtencao.sort((a,b)=>(b.urgente?1:0)-(a.urgente?1:0));
+    const LIMITE_ATENCAO_VISIVEL = 4;
+    const escondidos = listaAtencao.length - LIMITE_ATENCAO_VISIVEL;
 
     el.innerHTML = `
       <div style="margin-bottom:14px;">
         ${listaAtencao.length===0
           ? `<div style="text-align:center; padding:14px; background:var(--sf2); border-radius:12px; font-size:.85rem; font-weight:700; color:var(--grn);">✔ Tudo em dia — nada precisa da tua atenção agora.</div>`
-          : `<div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin-bottom:6px;">Precisa da tua atenção</div>
+          : `<div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin-bottom:6px;">Precisa da tua atenção${listaAtencao.length>0?` (${listaAtencao.length})`:''}</div>
              <div style="display:flex; flex-direction:column; gap:1px; border-radius:12px; overflow:hidden; border:1px solid var(--br);">
-               ${listaAtencao.map((a,i)=>`<button data-atencao-idx="${i}" class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:flex; justify-content:space-between; align-items:center; padding:11px 12px; background:${a.urgente?'#fdf1ee':'var(--sf2)'};">
+               ${listaAtencao.map((a,i)=>`<button data-atencao-idx="${i}" ${i>=LIMITE_ATENCAO_VISIVEL?'data-atencao-extra="1" style="display:none;"':''} class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:${i>=LIMITE_ATENCAO_VISIVEL?'none':'flex'}; justify-content:space-between; align-items:center; padding:11px 12px; background:${a.urgente?'#fdf1ee':'var(--sf2)'};">
                  <span style="font-size:.82rem; font-weight:700; color:${a.urgente?'var(--red)':'var(--tx)'};">${a.texto}</span>
                  <span style="color:var(--t2);">›</span>
                </button>`).join("")}
+               ${escondidos>0?`<button id="btnVerMaisAtencaoHub" style="text-align:center; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; padding:9px 12px; background:var(--sf2); font-size:.78rem; font-weight:700; color:var(--t2);">+ ver mais ${escondidos}</button>`:''}
              </div>`
         }
       </div>
@@ -817,6 +820,13 @@ async function renderPanoramaGeral(){
         if(alvo) alvo.click();
       };
     });
+    const btnVerMaisAtencao = document.getElementById("btnVerMaisAtencaoHub");
+    if(btnVerMaisAtencao){
+      btnVerMaisAtencao.onclick = ()=>{
+        document.querySelectorAll('[data-atencao-extra="1"]').forEach(b=>{ b.style.display = "flex"; });
+        btnVerMaisAtencao.remove();
+      };
+    }
   }catch(e){ console.error(e); }
 }
 function toast(msg){
