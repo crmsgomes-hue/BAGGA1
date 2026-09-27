@@ -584,22 +584,30 @@ async function renderPanoramaGeral(){
         <button id="btnInscricoesFormacaoHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">🎓 Inscrições — Formação Horários</button>
         <button id="btnApsPreventivaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📋 APS e Preventiva Delta</button>
         <button id="btnLegionelaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚿 Forms Legionela — histórico semanal</button>
+
+        ${secao("Stock e inventário por artigo")}
         <button id="btnStockNegCruzadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo cruzado (mesmo artigo, 4+ lojas)</button>
         <button id="btnStockNegDetalhadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo (lista detalhada, artigo a artigo)</button>
+        <button id="btnInvArtigosJustHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Artigos de inventário por justificar</button>
+        <button id="btnValidadesHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📅 Validades de lotes</button>
+
+        ${secao("Pessoas")}
         <button id="btnColaboradoresHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👥 Colaboradores (nomes e nº mecanográfico)</button>
+        <button id="btnMobilidadeHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔀 Empréstimo de pessoal</button>
+        <button id="btnElogiosHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🌟 Elogios</button>
+
+        ${secao("Equipamentos e manutenção")}
         <button id="btnAvariasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔧 Equipamentos avariados</button>
-        <button id="btnPedidosMaterialHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Pedidos de material</button>
+        <button id="btnSintomasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🩺 Sintomas de equipamento</button>
         <button id="btnDepuradorHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">💧 Depurador de água</button>
         <button id="btnSegurancaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🧯 Extintores e lâmpadas</button>
-        <button id="btnElogiosHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🌟 Elogios</button>
-        <button id="btnValidadesHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📅 Validades de lotes</button>
-        <button id="btnSintomasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🩺 Sintomas de equipamento</button>
-        <button id="btnMobilidadeHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔀 Empréstimo de pessoal</button>
-        <button id="btnManuaisHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📚 Manuais e fichas técnicas</button>
         <button id="btnConferenciaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚚 Conferência de fornecedores</button>
+
+        ${secao("Comunicação e loja")}
         <button id="btnReclamacoesHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📣 Reclamações</button>
+        <button id="btnPedidosMaterialHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Pedidos de material</button>
+        <button id="btnManuaisHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📚 Manuais e fichas técnicas</button>
         <button id="btnCodigosPortasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚪 Códigos das portas</button>
-        <button id="btnInvArtigosJustHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Artigos de inventário por justificar</button>
         ${botoesAcao([
           ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
           ["📊 Sondagens e Formulários","CoreJoint_Reportes.html?abrir=grelhaSondagensForms"],
