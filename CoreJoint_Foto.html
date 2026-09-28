@@ -1753,13 +1753,14 @@ function abrirEnviosRecentesInventario(){
   overlay.className = "overlay";
   overlay.id = "enviosRecentesOverlay";
   const seteDiasAtras = isoDate(new Date(Date.now()-7*86400000));
-  const recentes = invRows.filter(r=>r.data>=seteDiasAtras).sort((a,b)=> new Date(b.criado_em)-new Date(a.criado_em));
+  const quarentaECincoDiasAtras = isoDate(new Date(Date.now()-45*86400000));
+  const recentes = invRows.filter(r=> r.data>=seteDiasAtras || (r.categoria==="global" && r.data>=quarentaECincoDiasAtras)).sort((a,b)=> new Date(b.criado_em)-new Date(a.criado_em));
   const todasCatsLabelFoto = {};
   [...INV_CATS, ...MARKETING_CATS].forEach(c=>todasCatsLabelFoto[c.key]=c.label);
   overlay.innerHTML = `
     <div class="modal">
-      <h2>Envios recentes (7 dias)</h2>
-      <div class="sub">Toca num para corrigir o valor, se estiver em falta ou errado.</div>
+      <h2>Envios recentes</h2>
+      <div class="sub">Toca num para corrigir o valor, se estiver em falta ou errado (ex: faltou o sinal de negativo). O Global fica disponível durante 45 dias.</div>
       <div id="enviosRecentesLista" style="margin-top:10px; max-height:60vh; overflow-y:auto;"></div>
       <div class="modal-actions">
         <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('enviosRecentesOverlay').remove()">Fechar</button>
@@ -1769,12 +1770,15 @@ function abrirEnviosRecentesInventario(){
   document.body.appendChild(overlay);
   const lista = document.getElementById("enviosRecentesLista");
   if(recentes.length===0){
-    lista.innerHTML = `<div class="empty">Sem envios nos últimos 7 dias.</div>`;
+    lista.innerHTML = `<div class="empty">Sem envios recentes.</div>`;
     return;
   }
   recentes.forEach(r=>{
     const label = todasCatsLabelFoto[r.categoria] || r.categoria;
     const temValor = r.valor_inventario!=null && r.valor_inventario!=="";
+    const ehGlobal = r.categoria==="global";
+    const temCnvs = r.valor_cnvs!=null && r.valor_cnvs!=="";
+    const corNum = (v)=> (parseFloat(v)<0) ? 'color:var(--red,#b0432f);' : '';
     const row = document.createElement("div");
     row.style.cssText = "padding:10px 0; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; cursor:pointer;";
     row.innerHTML = `
@@ -1782,7 +1786,10 @@ function abrirEnviosRecentesInventario(){
         <div style="font-weight:700; font-size:14px;">${label}</div>
         <div style="font-size:12px; color:var(--ink-soft);">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</div>
       </div>
-      <div style="font-weight:700; ${temValor?'':'color:var(--red);'}">${temValor ? r.valor_inventario+' €' : '⚠ sem valor'}</div>
+      <div style="text-align:right; font-weight:700;">
+        <div style="${temValor?corNum(r.valor_inventario):'color:var(--red);'}">${temValor ? (ehGlobal?'Global: ':'')+r.valor_inventario+' €' : '⚠ sem valor'}</div>
+        ${ehGlobal ? `<div style="font-size:13px; ${temCnvs?corNum(r.valor_cnvs):'color:var(--red);'}">${temCnvs ? 'CNVs: '+r.valor_cnvs+' €' : '⚠ CNVs sem valor'}</div>` : ''}
+      </div>
     `;
     row.onclick = ()=>corrigirValorEnvio(r);
     lista.appendChild(row);
@@ -1801,12 +1808,20 @@ function corrigirValorEnvio(r){
       <h2>${todasCatsLabelFoto2[r.categoria]||r.categoria}</h2>
       <div class="sub">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</div>
       <div class="field" style="margin-top:14px;">
-        <label>Valor do inventário (€)</label>
+        <label>${r.categoria==="global" ? "Valor do Global (€)" : "Valor do inventário (€)"}</label>
         <div style="display:flex; gap:8px;">
           <button type="button" id="corrigirValorSinal" style="width:44px; flex-shrink:0; font-size:18px; font-weight:800; border-radius:8px; border:1.5px solid var(--terracotta,#C1622E); background:none; color:var(--terracotta,#C1622E);">${(r.valor_inventario||0)<0?'−':'+'}</button>
           <input id="corrigirValorInput" type="number" inputmode="decimal" step="0.01" value="${r.valor_inventario||''}" placeholder="0.00" style="flex:1;">
         </div>
       </div>
+      ${r.categoria==="global" ? `
+      <div class="field">
+        <label>Valor dos CNVs (€)</label>
+        <div style="display:flex; gap:8px;">
+          <button type="button" id="corrigirCnvsSinal" style="width:44px; flex-shrink:0; font-size:18px; font-weight:800; border-radius:8px; border:1.5px solid var(--terracotta,#C1622E); background:none; color:var(--terracotta,#C1622E);">${(r.valor_cnvs||0)<0?'−':'+'}</button>
+          <input id="corrigirCnvsInput" type="number" inputmode="decimal" step="0.01" value="${r.valor_cnvs||''}" placeholder="0.00" style="flex:1;">
+        </div>
+      </div>` : ''}
       <div class="field">
         <label>Foto(s) — toca no ✕ se estiver errada, e tira/escolhe outra</label>
         <div id="corrigirFotosGrid" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;"></div>
@@ -1837,13 +1852,33 @@ function corrigirValorEnvio(r){
       if(v>0) input.value = negativo ? v : -v;
     };
   }
+  if(r.categoria==="global"){
+    const btnC = document.getElementById("corrigirCnvsSinal");
+    const inputC = document.getElementById("corrigirCnvsInput");
+    if((r.valor_cnvs||0)<0){ btnC.style.background="var(--red,#b0432f)"; btnC.style.color="#fff"; btnC.style.borderColor="var(--red,#b0432f)"; }
+    btnC.onclick = ()=>{
+      const negativo = btnC.textContent === "−";
+      btnC.textContent = negativo ? "+" : "−";
+      btnC.style.background = negativo ? "none" : "var(--red,#b0432f)";
+      btnC.style.color = negativo ? "var(--terracotta,#C1622E)" : "#fff";
+      btnC.style.borderColor = negativo ? "var(--terracotta,#C1622E)" : "var(--red,#b0432f)";
+      const v = Math.abs(parseFloat(inputC.value)||0);
+      if(v>0) inputC.value = negativo ? v : -v;
+    };
+  }
   document.getElementById("corrigirFotoCamara").addEventListener("change", (ev)=>adicionarFotoEnvio(r, ev.target.files[0]));
   document.getElementById("corrigirFotoGaleria").addEventListener("change", (ev)=>adicionarFotoEnvio(r, ev.target.files[0]));
   document.getElementById("corrigirValorGuardarBtn").onclick = async ()=>{
     const valor = document.getElementById("corrigirValorInput").value.trim();
     if(valor===""){ toast("Preenche o valor"); return; }
+    const patchCorrecao = {valor_inventario: valor};
+    if(r.categoria==="global"){
+      const valorCnvs = document.getElementById("corrigirCnvsInput").value.trim();
+      if(valorCnvs===""){ toast("Preenche também o valor dos CNVs"); return; }
+      patchCorrecao.valor_cnvs = valorCnvs;
+    }
     try{
-      await api("PATCH", `cj_inventario_reportes?id=eq.${r.id}`, {valor_inventario: valor});
+      await api("PATCH", `cj_inventario_reportes?id=eq.${r.id}`, patchCorrecao);
       toast("✔ Valor corrigido!");
       document.getElementById("corrigirValorOverlay").remove();
       await loadAll();
