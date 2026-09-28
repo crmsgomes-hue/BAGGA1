@@ -337,7 +337,7 @@ async function renderPanoramaGeral(){
     const inicioSemana = isoDate(weekWindow(today).start);
 
     const inicioMesAtual = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, erros7diasPg, lembretesPg, stockNegPendentesPg, stockNegComProdutoPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg, reclamacoesPendentesPg, avariasPendentesPg, pedidosMaterialPendentesPg] = await Promise.all([
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, erros7diasPg, lembretesPg, stockNegPendentesPg, stockNegComProdutoPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg, reclamacoesPendentesPg, avariasPendentesPg, pedidosMaterialPendentesPg, validadesLotesPg, depuradorAguaPg, segurancaEquipPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
       api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`),
@@ -358,12 +358,21 @@ async function renderPanoramaGeral(){
       api(`cj_calibracoes_oleo?select=loja,data_validade`),
       api(`cj_reclamacoes?select=id,data_hora&estado=eq.pendente`),
       api(`cj_avarias_bagga?select=id,data_pedido&estado=eq.pendente`),
-      api(`cj_pedidos_material?select=id&estado=eq.pendente`)
+      api(`cj_pedidos_material?select=id,criado_em&estado=eq.pendente`),
+      api(`cj_validades_lotes?select=id,loja,produto,lote,data_validade&resolvido=eq.false`),
+      api(`cj_depurador_agua?select=loja,proxima_substituicao&order=proxima_substituicao.desc`),
+      api(`cj_seguranca_equipamento?select=id,loja,tipo,local,data_validade&order=data_validade.asc`)
     ]);
     const fardRececoesPendentesPg = fardRececoesPg.length;
     const em30diasPg = isoDate(new Date(Date.now()+30*24*3600*1000));
     const certOleoExpirandoPg = (certOleoPg||[]).filter(c=>c.data_validade && c.data_validade<=em30diasPg).length;
     const calibOleoExpirandoPg = (calibOleoPg||[]).filter(c=>c.data_validade && c.data_validade<=em30diasPg).length;
+    const validadesLotesExpirandoPg = (validadesLotesPg||[]).filter(v=>v.data_validade && v.data_validade<=em30diasPg).length;
+    const depuradorUltimoPorLojaPg = {};
+    (depuradorAguaPg||[]).forEach(d=>{ if(!depuradorUltimoPorLojaPg[d.loja]) depuradorUltimoPorLojaPg[d.loja]=d; });
+    const depuradorExpirandoPg = Object.values(depuradorUltimoPorLojaPg).filter(d=>d.proxima_substituicao && d.proxima_substituicao<=em30diasPg).length;
+    const segurancaExpirandoPg = (segurancaEquipPg||[]).filter(s=>s.data_validade && s.data_validade<=em30diasPg).length;
+    const vencimentosTotalPg = certOleoExpirandoPg + calibOleoExpirandoPg + validadesLotesExpirandoPg + depuradorExpirandoPg + segurancaExpirandoPg;
     const maisAlertasPg = certOleoExpirandoPg + calibOleoExpirandoPg;
     const padroesMapPg = {};
     (erros7diasPg||[]).forEach(e=>{
@@ -453,7 +462,10 @@ async function renderPanoramaGeral(){
       const maisAntigaAv = Math.max(0,...avariasPendentesPg.map(a=>Math.floor((Date.now()-new Date(a.data_pedido+"T00:00:00").getTime())/86400000)));
       listaAtencao.push({acao:abrirAvariasHub, texto:`🔧 ${avariasPendentesPg.length} equipamento(s) avariado(s) por resolver${maisAntigaAv>=3?` (o mais antigo há ${maisAntigaAv} dias)`:''}`, urgente: maisAntigaAv>=3});
     }
-    if(pedidosMaterialPendentesPg.length>0) listaAtencao.push({acao:abrirPedidosMaterialHub, texto:`📦 ${pedidosMaterialPendentesPg.length} pedido(s) de material por tratar`, urgente:false});
+    if(pedidosMaterialPendentesPg.length>0){
+      const maisAntigoPm = Math.max(0,...pedidosMaterialPendentesPg.map(p=>Math.floor((Date.now()-new Date(p.criado_em).getTime())/86400000)));
+      listaAtencao.push({acao:abrirPedidosMaterialHub, texto:`📦 ${pedidosMaterialPendentesPg.length} pedido(s) de material por tratar${maisAntigoPm>=3?` (o mais antigo há ${maisAntigoPm} dias)`:''}`, urgente: maisAntigoPm>=3});
+    }
     listaAtencao.sort((a,b)=>(b.urgente?1:0)-(a.urgente?1:0));
     const LIMITE_ATENCAO_VISIVEL = 4;
     const escondidos = listaAtencao.length - LIMITE_ATENCAO_VISIVEL;
@@ -486,6 +498,7 @@ async function renderPanoramaGeral(){
         ${tile("horarios","👥","Horários", horariosAlertas>0?`${horariosAlertas}`:'✔', horariosAlertas>0?'var(--red)':'var(--grn)')}
         ${tile("trocas","🔁","Trocas", `${trocasPendentesPg.length}`, trocasPendentesPg.length>0?'var(--org,#c17817)':'var(--grn)')}
         ${tile("mais","🔧","Mais", maisAlertasPg>0?`${maisAlertasPg}`:'', maisAlertasPg>0?'var(--red)':'var(--t2)')}
+        ${tile("vencimentos","⏰","A vencer", vencimentosTotalPg>0?`${vencimentosTotalPg}`:'✔', vencimentosTotalPg>0?'var(--red)':'var(--grn)')}
         ${tile("partilhar","📊","Relatórios", "", 'var(--t2)')}
       </div>
     `;
@@ -554,6 +567,8 @@ async function renderPanoramaGeral(){
       document.getElementById("btnMaisCalibOleo").onclick = abrirCalibracoesOleoHub;
       document.getElementById("btnMaisTarefas").onclick = abrirTarefasPessoais;
     };
+
+    document.querySelector('[data-topico="vencimentos"]').onclick = ()=>abrirVencimentosHub();
 
     const relatoriosCategorias = [
       {chave:"admin", icon:"🔑", nome:"Acessos", corpo:()=>`
@@ -3719,6 +3734,89 @@ async function abrirElogiosHub(){
   renderListaElogios();
 }
 
+async function abrirVencimentosHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "vencimentosOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">⏰ A vencer</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Tudo o que expira nos próximos 30 dias (ou já expirou): validades de lotes, depurador de água, extintores/lâmpadas, certificado e calibração do óleo.</div>
+      <div id="vencimentosListaHub"><div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">A carregar...</div></div>
+      <div id="vencimentosPartilhaBtnsHub" style="margin-top:12px;"></div>
+      <button id="fecharVencimentosHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharVencimentosHubBtn").onclick = ()=>{
+    const c = document.getElementById("vencimentosCapturaEscondida");
+    if(c) c.remove();
+    fecharEcraHub();
+  };
+
+  const [lotes, depurador, seguranca, certOleo, calibOleo] = await Promise.all([
+    api(`cj_validades_lotes?select=loja,produto,lote,data_validade&resolvido=eq.false`, "GET"),
+    api(`cj_depurador_agua?select=loja,proxima_substituicao&order=proxima_substituicao.desc`, "GET"),
+    api(`cj_seguranca_equipamento?select=loja,tipo,local,data_validade`, "GET"),
+    api(`cj_certificados_oleo?select=loja,data_validade`, "GET"),
+    api(`cj_calibracoes_oleo?select=loja,data_validade`, "GET"),
+  ]);
+
+  const itens = [];
+  lotes.forEach(v=>itens.push({tipo:"Validade de lote", loja:v.loja, desc:`${v.produto}${v.lote?' ('+v.lote+')':''}`, data:v.data_validade}));
+  const ultimoDepurador = {};
+  depurador.forEach(d=>{ if(!ultimoDepurador[d.loja]) ultimoDepurador[d.loja]=d; });
+  Object.values(ultimoDepurador).forEach(d=>itens.push({tipo:"Depurador de água", loja:d.loja, desc:"Substituição", data:d.proxima_substituicao}));
+  seguranca.forEach(s=>itens.push({tipo:s.tipo, loja:s.loja, desc:s.local||"", data:s.data_validade}));
+  certOleo.forEach(c=>itens.push({tipo:"Certificado do óleo", loja:c.loja, desc:"", data:c.data_validade}));
+  calibOleo.forEach(c=>itens.push({tipo:"Calibração do óleo", loja:c.loja, desc:"", data:c.data_validade}));
+
+  const hoje = new Date();
+  const limite = new Date(Date.now()+30*86400000);
+  const emRisco = itens
+    .filter(i=>i.data && new Date(i.data+"T00:00:00")<=limite)
+    .map(i=>({...i, dias: Math.floor((new Date(i.data+"T00:00:00")-hoje)/86400000)}))
+    .sort((a,b)=>a.dias-b.dias);
+
+  const lista = document.getElementById("vencimentosListaHub");
+  const partilhaBtns = document.getElementById("vencimentosPartilhaBtnsHub");
+  if(emRisco.length===0){
+    lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:#2e7d32; font-size:.9rem; font-weight:700;">✔ Nada a vencer nos próximos 30 dias.</div>`;
+    partilhaBtns.innerHTML = "";
+    return;
+  }
+
+  const corDe = (dias)=> dias<=7 ? '#b0432f' : '#c17817';
+  const txtDe = (dias)=> dias<0 ? `Expirado há ${Math.abs(dias)}d` : dias===0 ? 'Expira hoje' : `${dias}d`;
+  const cabecalho = (txt, align)=>`<th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:${align}; padding:3px 6px; border-bottom:2px solid #C1622D;">${txt}</th>`;
+  const linhasTabela = emRisco.map(i=>`<tr>
+    <td style="font-weight:700; font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${i.loja}</td>
+    <td style="font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${i.tipo}${i.desc?' — '+i.desc:''}</td>
+    <td style="font-size:9.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${new Date(i.data+"T00:00:00").toLocaleDateString('pt-PT')}</td>
+    <td style="font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:800; color:${corDe(i.dias)}; white-space:nowrap;">${txtDe(i.dias)}</td>
+  </tr>`).join("");
+  const tabelaHtml = `<table style="border-collapse:collapse; width:100%;">
+    <thead><tr>${cabecalho("Loja","left")}${cabecalho("O quê","left")}${cabecalho("Data","left")}${cabecalho("Prazo","right")}</tr></thead>
+    <tbody>${linhasTabela}</tbody></table>`;
+  lista.innerHTML = tabelaHtml;
+
+  const antigo = document.getElementById("vencimentosCapturaEscondida");
+  if(antigo) antigo.remove();
+  const capturaWrap = document.createElement("div");
+  capturaWrap.id = "vencimentosCapturaEscondida";
+  capturaWrap.style.cssText = "background:#fff; padding:4px;";
+  capturaWrap.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · A vencer</div>
+    <div style="font-size:10px; color:#777; margin-bottom:10px;">${new Date().toLocaleDateString('pt-PT')} · ${emRisco.length} item(ns) nos próximos 30 dias</div>
+    ${tabelaHtml}
+  `;
+  document.body.appendChild(capturaWrap);
+  capturaWrap.style.position = "absolute";
+  capturaWrap.style.left = "-9999px";
+  criarBotoesPartilhaHub(partilhaBtns, capturaWrap, "CoreJoint_a_vencer", "CoreJoint · A vencer");
+}
+
 async function abrirValidadesLotesHub(){
   const overlay = document.createElement("div");
   overlay.id = "validadesOverlayHub";
@@ -3737,6 +3835,8 @@ async function abrirValidadesLotesHub(){
           <input id="vlLote" placeholder="Lote (opcional)" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--br); font-size:.85rem; box-sizing:border-box;">
           <input id="vlData" type="date" style="flex:1; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem; box-sizing:border-box;">
         </div>
+        <label style="display:block; text-align:center; border:1.5px dashed var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:10px; font-size:.82rem; font-weight:700; margin-bottom:8px; cursor:pointer;">📷 Foto da etiqueta (opcional)<input id="vlFotoInput" type="file" accept="image/*" capture="environment" style="display:none;"></label>
+        <div id="vlFotoPreview" style="margin-bottom:8px;"></div>
         <button id="vlGuardarBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">✔ Registar</button>
       </div>
       <select id="vlFiltroLoja" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem; margin-bottom:10px;">
@@ -3756,6 +3856,15 @@ async function abrirValidadesLotesHub(){
     fecharEcraHub();
   };
 
+  let vlFotoDataUrl = null;
+  document.getElementById("vlFotoInput").addEventListener("change", async (ev)=>{
+    const file = ev.target.files && ev.target.files[0];
+    if(!file) return;
+    vlFotoDataUrl = await ficheiroParaDataUrl(file);
+    document.getElementById("vlFotoPreview").innerHTML = `<img src="${vlFotoDataUrl}" style="width:64px; height:64px; object-fit:cover; border-radius:8px;"> <span style="font-size:.72rem; color:var(--t2);">Confirma que a data escrita acima corresponde à da etiqueta.</span>`;
+    ev.target.value = "";
+  });
+
   document.getElementById("vlGuardarBtn").onclick = async ()=>{
     const loja = document.getElementById("vlLoja").value;
     const produto = document.getElementById("vlProduto").value.trim();
@@ -3764,12 +3873,18 @@ async function abrirValidadesLotesHub(){
     const btn = document.getElementById("vlGuardarBtn");
     btn.disabled = true; btn.textContent = "A guardar...";
     try{
-      await api("cj_validades_lotes", "POST", {loja, produto, lote: document.getElementById("vlLote").value.trim()||null, data_validade: dataVal, registado_por: currentUser});
+      let fotoUrl = null;
+      if(vlFotoDataUrl){
+        fotoUrl = await uploadPhotoHub(vlFotoDataUrl, `validades/${loja.replace(/\s+/g,"_")}/${Date.now()}.jpg`);
+      }
+      await api("cj_validades_lotes", "POST", {loja, produto, lote: document.getElementById("vlLote").value.trim()||null, data_validade: dataVal, foto: fotoUrl, registado_por: currentUser});
     }catch(e){ toast("Erro: "+(e.message||e).slice(0,100)); btn.disabled=false; btn.textContent="✔ Registar"; return; }
     document.getElementById("vlProduto").value = "";
     document.getElementById("vlLote").value = "";
+    document.getElementById("vlFotoPreview").innerHTML = "";
+    vlFotoDataUrl = null;
     btn.disabled = false; btn.textContent = "✔ Registar";
-    mostrarSucesso("Registado");
+    mostrarSucesso("Registado — criei o lembrete e a tarefa");
     renderListaValidades();
   };
 
@@ -3788,6 +3903,7 @@ async function abrirValidadesLotesHub(){
       return `<div style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:8px 10px; margin-bottom:6px;">
         <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;"><b style="font-size:11.5px;">${r.loja} — ${r.produto}</b><span style="font-size:10px; font-weight:800; color:${cor}; white-space:nowrap;">${txt}</span></div>
         <div style="font-size:9.5px; color:#777;">${r.lote?'Lote '+r.lote+' · ':''}Validade: ${new Date(r.data_validade+"T00:00:00").toLocaleDateString('pt-PT')}</div>
+        ${r.foto?`<a href="${r.foto}" target="_blank"><img src="${r.foto}" style="width:44px; height:44px; object-fit:cover; border-radius:6px; margin-top:6px;"></a>`:''}
         <button data-id="${r.id}" class="btnResolverValidade" style="width:100%; margin-top:6px; background:#2e7d32; color:#fff; border:none; border-radius:7px; padding:6px; font-size:.72rem; font-weight:700;">✔ Já foi tratado</button>
       </div>`;
     }).join("");
