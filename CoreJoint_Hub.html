@@ -4419,7 +4419,9 @@ async function abrirQuebrasArtigosHub(){
     document.body.appendChild(capturaWrap);
     capturaWrap.style.position = "absolute";
     capturaWrap.style.left = "-9999px";
-    criarBotoesPartilhaHub(document.getElementById("quebrasArtigosPartilhaBtnsHub"), capturaWrap, "CoreJoint_quebras_artigos", "CoreJoint · Quebras e ajustes por artigo");
+    const partilhaBtnsHost = document.getElementById("quebrasArtigosPartilhaBtnsHub");
+    partilhaBtnsHost.innerHTML = "";
+    criarBotoesPartilhaHub(partilhaBtnsHost, capturaWrap, "CoreJoint_quebras_artigos", "CoreJoint · Quebras e ajustes por artigo");
   }
   mesSel.onchange = renderRelatorio;
   document.getElementById("qaIncluirForaRede").onchange = renderRelatorio;
@@ -6258,6 +6260,7 @@ function todayStrHub(){ return isoDate(new Date()); }
 
 // Mesmo padrao de partilha usado no Reportes.html - gera imagem da area capturada e partilha/copia
 function criarBotoesPartilhaHub(main, capturaWrap, nomeFicheiro, tituloPartilha){
+  main.innerHTML = "";
   const row = document.createElement("div");
   row.style.cssText = "display:flex; gap:8px; margin:10px 0;";
   row.innerHTML = `
