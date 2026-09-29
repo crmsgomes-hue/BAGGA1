@@ -670,6 +670,8 @@ async function renderPanoramaGeral(){
       }},
       {chave:"ferramentas", icon:"🛠️", nome:"Ferramentas", corpo:()=>`
         <button id="btnCriarSondagemFormHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">➕ Criar sondagem/formulário</button>
+        <button id="btnQuebrasArtigosHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; text-align:left;">📦 Quebras e ajustes por artigo (relatório)</button>
+        <button id="btnLojasForaRedeHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🚫 Lojas fora de rede</button>
         ${botoesAcao([
           ["📅 Histórico 12 meses","CoreJoint_Reportes.html?abrir=historico12m"],
           ["📅 Calendário","CoreJoint_Reportes.html?abrir=calendario"],
@@ -681,6 +683,8 @@ async function renderPanoramaGeral(){
           ["📤 Importar Quebras e Ajustes por Artigo","CoreJoint_Reportes.html?abrir=importarQuebrasArtigos"],
         ])}`, wire:()=>{
         document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
+        document.getElementById("btnQuebrasArtigosHub").onclick = abrirQuebrasArtigosHub;
+        document.getElementById("btnLojasForaRedeHub").onclick = abrirLojasForaRedeHub;
       }},
     ];
 
@@ -4216,6 +4220,211 @@ async function abrirManuaisHub(){
     criarBotoesPartilhaHub(document.getElementById("manuaisPartilhaBtnsHub"), capturaWrap, "CoreJoint_manuais", "CoreJoint · Manuais e fichas técnicas");
   }
   renderListaManuais();
+}
+
+async function abrirLojasForaRedeHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "lojasForaRedeOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:440px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">🚫 Lojas fora de rede</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Lojas detetadas nos ficheiros importados que não pertencem à tua rede DOP. Ficam de fora dos relatórios por defeito. Toca para retirar da lista (volta a contar como da rede).</div>
+      <div id="lojasForaRedeListaHub"><div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">A carregar...</div></div>
+      <button id="fecharLojasForaRedeHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharLojasForaRedeHubBtn").onclick = ()=>fecharEcraHub();
+
+  async function renderListaForaRede(){
+    const lojas = await api(`cj_lojas_fora_rede?select=*&order=loja.asc`, "GET");
+    const lista = document.getElementById("lojasForaRedeListaHub");
+    if(lojas.length===0){
+      lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">Nenhuma loja marcada como fora de rede.</div>`;
+      return;
+    }
+    lista.innerHTML = lojas.map(l=>`
+      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--sf2,#f5f0e6); border-radius:8px; padding:9px 11px; margin-bottom:6px;">
+        <b style="font-size:12px;">${l.loja}</b>
+        <button data-loja="${l.loja}" class="btnRemoverForaRede" style="background:#2e7d32; color:#fff; border:none; border-radius:7px; padding:6px 10px; font-size:.72rem; font-weight:700;">✔ Voltar à rede</button>
+      </div>
+    `).join("");
+    lista.querySelectorAll(".btnRemoverForaRede").forEach(btn=>{
+      btn.onclick = async ()=>{
+        await api(`cj_lojas_fora_rede?loja=eq.${encodeURIComponent(btn.dataset.loja)}`, "DELETE");
+        renderListaForaRede();
+      };
+    });
+  }
+  renderListaForaRede();
+}
+
+async function abrirQuebrasArtigosHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "quebrasArtigosOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">📦 Quebras e ajustes por artigo</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Artigos com quebra fora do normal criam sozinhos uma tarefa "Rever plano de produção".</div>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <select id="qaMesSel" style="flex:1; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem;"></select>
+        <label style="display:flex; align-items:center; gap:5px; font-size:.72rem; color:var(--t2); white-space:nowrap;"><input id="qaIncluirForaRede" type="checkbox"> incluir fora de rede</label>
+      </div>
+      <select id="qaLojaSel" style="width:100%; padding:9px; border-radius:8px; border:1px solid var(--br); font-size:.82rem; margin-bottom:12px;">
+        <option value="">Todas as lojas</option>
+      </select>
+      <div id="quebrasArtigosConteudoHub"><div style="text-align:center; padding:20px 0; color:var(--t2); font-size:.85rem;">A carregar...</div></div>
+      <div id="quebrasArtigosPartilhaBtnsHub" style="margin-top:12px;"></div>
+      <button id="fecharQuebrasArtigosHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharQuebrasArtigosHubBtn").onclick = ()=>{
+    const c = document.getElementById("quebrasArtigosCapturaEscondida");
+    if(c) c.remove();
+    fecharEcraHub();
+  };
+
+  const registosOriginais = await api(`cj_quebras_artigos?select=loja,data,artigo,valor,quantidade`, "GET");
+  const lojasForaRede = new Set((await api(`cj_lojas_fora_rede?select=loja`, "GET")).map(r=>r.loja));
+
+  if(registosOriginais.length===0){
+    document.getElementById("quebrasArtigosConteudoHub").innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">Ainda não há nada importado.</div>`;
+    return;
+  }
+
+  const meses = [...new Set(registosOriginais.map(r=>r.data.slice(0,7)))].sort().reverse();
+  const mesSel = document.getElementById("qaMesSel");
+  mesSel.innerHTML = meses.map(m=>`<option value="${m}">${new Date(m+"-01T00:00:00").toLocaleDateString('pt-PT',{month:'long',year:'numeric'})}</option>`).join("");
+
+  const lojasTodas = [...new Set(registosOriginais.map(r=>r.loja))].sort();
+  document.getElementById("qaLojaSel").innerHTML = `<option value="">Todas as lojas</option>` + lojasTodas.map(l=>`<option value="${l}">${l}${lojasForaRede.has(l)?' (fora de rede)':''}</option>`).join("");
+
+  async function renderRelatorio(){
+    const mesEscolhido = mesSel.value;
+    const incluirForaRede = document.getElementById("qaIncluirForaRede").checked;
+    const lojaEscolhida = document.getElementById("qaLojaSel").value;
+    const conteudo = document.getElementById("quebrasArtigosConteudoHub");
+    conteudo.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">A calcular...</div>`;
+
+    let registos = registosOriginais.filter(r=>r.data.slice(0,7)===mesEscolhido);
+    if(!incluirForaRede) registos = registos.filter(r=>!lojasForaRede.has(r.loja));
+    if(lojaEscolhida) registos = registos.filter(r=>r.loja===lojaEscolhida);
+
+    if(registos.length===0){
+      conteudo.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">Nada neste mês/filtro.</div>`;
+      document.getElementById("quebrasArtigosPartilhaBtnsHub").innerHTML = "";
+      return;
+    }
+
+    // total por loja+artigo, para deteção de anomalia (comparação entre lojas do mesmo artigo)
+    const porLojaArtigo = {};
+    registos.forEach(r=>{
+      const k = `${r.loja}|${r.artigo}`;
+      porLojaArtigo[k] ||= {loja:r.loja, artigo:r.artigo, valor:0, quantidade:0};
+      porLojaArtigo[k].valor += Number(r.valor)||0;
+      porLojaArtigo[k].quantidade += Number(r.quantidade)||0;
+    });
+    const combos = Object.values(porLojaArtigo);
+
+    const porArtigoTodasLojas = {};
+    combos.forEach(c=>{ (porArtigoTodasLojas[c.artigo] ||= []).push(Math.abs(c.valor)); });
+    function mediana(vals){
+      const s = [...vals].sort((a,b)=>a-b);
+      const m = Math.floor(s.length/2);
+      return s.length%2 ? s[m] : (s[m-1]+s[m])/2;
+    }
+    const anomalias = combos.filter(c=>{
+      const outrasLojas = porArtigoTodasLojas[c.artigo];
+      if(outrasLojas.length<3) return false; // precisa de pelo menos 3 lojas a comparar
+      const med = mediana(outrasLojas);
+      return Math.abs(c.valor) >= Math.max(med*3, 15);
+    }).sort((a,b)=>Math.abs(b.valor)-Math.abs(a.valor));
+
+    // top artigos por valor absoluto (agregado, todas as lojas do filtro)
+    const porArtigoAgregado = {};
+    registos.forEach(r=>{
+      porArtigoAgregado[r.artigo] ||= {artigo:r.artigo, valor:0};
+      porArtigoAgregado[r.artigo].valor += Number(r.valor)||0;
+    });
+    const topArtigos = Object.values(porArtigoAgregado).sort((a,b)=>Math.abs(b.valor)-Math.abs(a.valor)).slice(0,20);
+
+    const totalGeral = registos.reduce((s,r)=>s+(Number(r.valor)||0),0);
+
+    // criar tarefas automaticas para as anomalias (uma vez por loja+artigo+mes)
+    let tarefasCriadas = 0;
+    for(const a of anomalias){
+      const tituloTarefa = `Rever plano de produção — ${a.loja} — ${a.artigo} (${mesEscolhido})`;
+      const jaExiste = await api(`cj_tarefas_pessoais?select=id&titulo=eq.${encodeURIComponent(tituloTarefa)}`, "GET");
+      if(jaExiste.length===0){
+        await api("cj_tarefas_pessoais", "POST", {
+          titulo: tituloTarefa,
+          descricao: `Quebra/ajuste de ${a.valor.toFixed(2)}€ (${a.quantidade} un) neste mês, bem acima do normal comparado com as outras lojas para este artigo. Confirmar se é erro pontual ou se o plano de produção precisa de ajuste.`,
+          atribuido_a: "CG", criado_por: "Sistema (deteção automática)", feita: false, vista: false,
+        });
+        tarefasCriadas++;
+      }
+    }
+
+    const cabecalho = (txt, align)=>`<th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:${align}; padding:3px 6px; border-bottom:2px solid #C1622D;">${txt}</th>`;
+    const linhasAnomalias = anomalias.slice(0,15).map(a=>`<tr>
+      <td style="font-weight:700; font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${a.loja}</td>
+      <td style="font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${a.artigo}</td>
+      <td style="font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:800; color:#b0432f; white-space:nowrap;">${a.valor.toFixed(2)}€</td>
+    </tr>`).join("");
+    const linhasTop = topArtigos.map(a=>`<tr>
+      <td style="font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${a.artigo}</td>
+      <td style="font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:800; color:${a.valor<0?'#b0432f':'#2e7d32'}; white-space:nowrap;">${a.valor.toFixed(2)}€</td>
+    </tr>`).join("");
+
+    conteudo.innerHTML = `
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:8px;">${registos.length} registo(s) · Total: <b style="color:${totalGeral<0?'#b0432f':'#2e7d32'};">${totalGeral.toFixed(2)}€</b></div>
+      ${anomalias.length>0 ? `
+        <div style="font-size:11px; font-weight:800; color:#b0432f; text-transform:uppercase; padding:8px 2px 4px; border-bottom:2px solid #b0432f;">⚠ Fora do normal (${anomalias.length}) — ${tarefasCriadas>0?tarefasCriadas+' tarefa(s) nova(s) criada(s)':'já com tarefa criada'}</div>
+        <table style="border-collapse:collapse; width:100%; margin-bottom:12px;">
+          <thead><tr>${cabecalho("Loja","left")}${cabecalho("Artigo","left")}${cabecalho("Valor","right")}</tr></thead>
+          <tbody>${linhasAnomalias}</tbody>
+        </table>` : `<div style="text-align:center; padding:10px 0; color:#2e7d32; font-size:.82rem; font-weight:700;">✔ Nada fora do normal neste mês.</div>`}
+      <div style="font-size:11px; font-weight:800; color:#C1622D; text-transform:uppercase; padding:8px 2px 4px; border-bottom:2px solid #C1622D;">Top 20 artigos (valor)</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>${cabecalho("Artigo","left")}${cabecalho("Valor","right")}</tr></thead>
+        <tbody>${linhasTop}</tbody>
+      </table>
+    `;
+
+    const antigo = document.getElementById("quebrasArtigosCapturaEscondida");
+    if(antigo) antigo.remove();
+    const capturaWrap = document.createElement("div");
+    capturaWrap.id = "quebrasArtigosCapturaEscondida";
+    capturaWrap.style.cssText = "background:#fff; padding:4px;";
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Quebras e ajustes por artigo</div>
+      <div style="font-size:10px; color:#777; margin-bottom:10px;">${mesSel.options[mesSel.selectedIndex].textContent} · ${registos.length} registo(s) · Total ${totalGeral.toFixed(2)}€</div>
+      ${anomalias.length>0 ? `
+        <div style="font-weight:800; font-size:11px; color:#b0432f; margin-bottom:4px;">Fora do normal</div>
+        <table style="border-collapse:collapse; width:100%; margin-bottom:10px;">
+          <thead><tr>${cabecalho("Loja","left")}${cabecalho("Artigo","left")}${cabecalho("Valor","right")}</tr></thead>
+          <tbody>${linhasAnomalias}</tbody>
+        </table>` : ''}
+      <div style="font-weight:800; font-size:11px; color:#C1622D; margin-bottom:4px;">Top 20 artigos</div>
+      <table style="border-collapse:collapse; width:100%;">
+        <thead><tr>${cabecalho("Artigo","left")}${cabecalho("Valor","right")}</tr></thead>
+        <tbody>${linhasTop}</tbody>
+      </table>
+    `;
+    document.body.appendChild(capturaWrap);
+    capturaWrap.style.position = "absolute";
+    capturaWrap.style.left = "-9999px";
+    criarBotoesPartilhaHub(document.getElementById("quebrasArtigosPartilhaBtnsHub"), capturaWrap, "CoreJoint_quebras_artigos", "CoreJoint · Quebras e ajustes por artigo");
+  }
+  mesSel.onchange = renderRelatorio;
+  document.getElementById("qaIncluirForaRede").onchange = renderRelatorio;
+  document.getElementById("qaLojaSel").onchange = renderRelatorio;
+  renderRelatorio();
 }
 
 async function abrirConferenciaFornecedoresHub(){
