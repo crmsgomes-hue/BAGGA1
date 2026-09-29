@@ -4347,29 +4347,36 @@ async function abrirQuebrasArtigosHub(){
       return;
     }
 
-    // total por loja+artigo, para deteção de anomalia (comparação entre lojas do mesmo artigo)
-    const porLojaArtigo = {};
+    // valor por dia, por loja+artigo — para saber exatamente QUANDO aconteceu a quebra grande
+    const porLojaArtigoDia = {};
     registos.forEach(r=>{
-      const k = `${r.loja}|${r.artigo}`;
-      porLojaArtigo[k] ||= {loja:r.loja, artigo:r.artigo, valor:0, quantidade:0};
-      porLojaArtigo[k].valor += Number(r.valor)||0;
-      porLojaArtigo[k].quantidade += Number(r.quantidade)||0;
+      const kDia = `${r.loja}|${r.artigo}|${r.data}`;
+      porLojaArtigoDia[kDia] ||= {loja:r.loja, artigo:r.artigo, data:r.data, valor:0, quantidade:0};
+      porLojaArtigoDia[kDia].valor += Number(r.valor)||0;
+      porLojaArtigoDia[kDia].quantidade += Number(r.quantidade)||0;
     });
-    const combos = Object.values(porLojaArtigo);
-
-    const porArtigoTodasLojas = {};
-    combos.forEach(c=>{ (porArtigoTodasLojas[c.artigo] ||= []).push(Math.abs(c.valor)); });
+    const diasPorCombo = {}; // loja|artigo -> [dias]
+    Object.values(porLojaArtigoDia).forEach(d=>{
+      const k = `${d.loja}|${d.artigo}`;
+      (diasPorCombo[k] ||= []).push(d);
+    });
     function mediana(vals){
       const s = [...vals].sort((a,b)=>a-b);
       const m = Math.floor(s.length/2);
       return s.length%2 ? s[m] : (s[m-1]+s[m])/2;
     }
-    const anomalias = combos.filter(c=>{
-      const outrasLojas = porArtigoTodasLojas[c.artigo];
-      if(outrasLojas.length<3) return false; // precisa de pelo menos 3 lojas a comparar
-      const med = mediana(outrasLojas);
-      return Math.abs(c.valor) >= Math.max(med*3, 15);
-    }).sort((a,b)=>Math.abs(b.valor)-Math.abs(a.valor));
+    const anomalias = [];
+    Object.values(diasPorCombo).forEach(dias=>{
+      if(dias.length<3) return; // precisa de pelo menos 3 dias com este artigo nesta loja, para haver "normal" com que comparar
+      dias.forEach(d=>{
+        const outrosValores = dias.filter(x=>x.data!==d.data).map(x=>Math.abs(x.valor));
+        const med = mediana(outrosValores);
+        if(Math.abs(d.valor) >= Math.max(med*3, 15)){
+          anomalias.push(d);
+        }
+      });
+    });
+    anomalias.sort((a,b)=>Math.abs(b.valor)-Math.abs(a.valor));
 
     // top artigos por valor absoluto (agregado, todas as lojas do filtro)
     const porArtigoAgregado = {};
@@ -4381,15 +4388,16 @@ async function abrirQuebrasArtigosHub(){
 
     const totalGeral = registos.reduce((s,r)=>s+(Number(r.valor)||0),0);
 
-    // criar tarefas automaticas para as anomalias (uma vez por loja+artigo+mes)
+    // criar tarefas automaticas para as anomalias (uma vez por loja+artigo+dia)
     let tarefasCriadas = 0;
     for(const a of anomalias){
-      const tituloTarefa = `Rever plano de produção — ${a.loja} — ${a.artigo} (${mesEscolhido})`;
+      const dataFmt = new Date(a.data+"T00:00:00").toLocaleDateString('pt-PT');
+      const tituloTarefa = `Rever plano de produção — ${a.loja} — ${a.artigo} (${dataFmt})`;
       const jaExiste = await api(`cj_tarefas_pessoais?select=id&titulo=eq.${encodeURIComponent(tituloTarefa)}`, "GET");
       if(jaExiste.length===0){
         await api("cj_tarefas_pessoais", "POST", {
           titulo: tituloTarefa,
-          descricao: `Quebra/ajuste de ${a.valor.toFixed(2)}€ (${a.quantidade} un) neste mês, bem acima do normal comparado com as outras lojas para este artigo. Confirmar se é erro pontual ou se o plano de produção precisa de ajuste.`,
+          descricao: `Quebra/ajuste de ${a.valor.toFixed(2)}€ (${a.quantidade} un) no dia ${dataFmt}, bem acima do normal comparado com os outros dias deste artigo nesta loja. Confirmar se é erro pontual ou se o plano de produção precisa de ajuste.`,
           atribuido_a: "CG", criado_por: "Sistema (deteção automática)", feita: false, vista: false,
         });
         tarefasCriadas++;
@@ -4397,9 +4405,10 @@ async function abrirQuebrasArtigosHub(){
     }
 
     const cabecalho = (txt, align)=>`<th style="font-size:8.5px; color:#9c4d23; text-transform:uppercase; text-align:${align}; padding:3px 6px; border-bottom:2px solid #C1622D;">${txt}</th>`;
-    const linhasAnomalias = anomalias.slice(0,15).map(a=>`<tr>
+    const linhasAnomalias = anomalias.slice(0,20).map(a=>`<tr>
       <td style="font-weight:700; font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${a.loja}</td>
       <td style="font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${a.artigo}</td>
+      <td style="font-size:9.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${new Date(a.data+"T00:00:00").toLocaleDateString('pt-PT')}</td>
       <td style="font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:800; color:#b0432f; white-space:nowrap;">${a.valor.toFixed(2)}€</td>
     </tr>`).join("");
     const linhasTop = topArtigos.map(a=>`<tr>
@@ -4412,7 +4421,7 @@ async function abrirQuebrasArtigosHub(){
       ${anomalias.length>0 ? `
         <div style="font-size:11px; font-weight:800; color:#b0432f; text-transform:uppercase; padding:8px 2px 4px; border-bottom:2px solid #b0432f;">⚠ Fora do normal (${anomalias.length}) — ${tarefasCriadas>0?tarefasCriadas+' tarefa(s) nova(s) criada(s)':'já com tarefa criada'}</div>
         <table style="border-collapse:collapse; width:100%; margin-bottom:12px;">
-          <thead><tr>${cabecalho("Loja","left")}${cabecalho("Artigo","left")}${cabecalho("Valor","right")}</tr></thead>
+          <thead><tr>${cabecalho("Loja","left")}${cabecalho("Artigo","left")}${cabecalho("Dia","left")}${cabecalho("Valor","right")}</tr></thead>
           <tbody>${linhasAnomalias}</tbody>
         </table>` : `<div style="text-align:center; padding:10px 0; color:#2e7d32; font-size:.82rem; font-weight:700;">✔ Nada fora do normal neste mês.</div>`}
       <div style="font-size:11px; font-weight:800; color:#C1622D; text-transform:uppercase; padding:8px 2px 4px; border-bottom:2px solid #C1622D;">Top 20 artigos (valor)</div>
@@ -4433,7 +4442,7 @@ async function abrirQuebrasArtigosHub(){
       ${anomalias.length>0 ? `
         <div style="font-weight:800; font-size:11px; color:#b0432f; margin-bottom:4px;">Fora do normal</div>
         <table style="border-collapse:collapse; width:100%; margin-bottom:10px;">
-          <thead><tr>${cabecalho("Loja","left")}${cabecalho("Artigo","left")}${cabecalho("Valor","right")}</tr></thead>
+          <thead><tr>${cabecalho("Loja","left")}${cabecalho("Artigo","left")}${cabecalho("Dia","left")}${cabecalho("Valor","right")}</tr></thead>
           <tbody>${linhasAnomalias}</tbody>
         </table>` : ''}
       <div style="font-weight:800; font-size:11px; color:#C1622D; margin-bottom:4px;">Top 20 artigos</div>
