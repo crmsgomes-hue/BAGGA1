@@ -4289,30 +4289,56 @@ async function abrirQuebrasArtigosHub(){
     fecharEcraHub();
   };
 
-  const registosOriginais = await api(`cj_quebras_artigos?select=loja,data,artigo,valor,quantidade`, "GET");
+  const soDatas = [];
+  {
+    let offset = 0;
+    while(true){
+      const pagina = await api(`cj_quebras_artigos?select=data&order=data.asc&limit=1000&offset=${offset}`, "GET");
+      soDatas.push(...pagina);
+      if(pagina.length<1000) break;
+      offset += 1000;
+    }
+  }
   const lojasForaRede = new Set((await api(`cj_lojas_fora_rede?select=loja`, "GET")).map(r=>r.loja));
 
-  if(registosOriginais.length===0){
+  if(soDatas.length===0){
     document.getElementById("quebrasArtigosConteudoHub").innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">Ainda não há nada importado.</div>`;
     return;
   }
 
-  const meses = [...new Set(registosOriginais.map(r=>r.data.slice(0,7)))].sort().reverse();
+  const meses = [...new Set(soDatas.map(r=>r.data.slice(0,7)))].sort().reverse();
   const mesSel = document.getElementById("qaMesSel");
   mesSel.innerHTML = meses.map(m=>`<option value="${m}">${new Date(m+"-01T00:00:00").toLocaleDateString('pt-PT',{month:'long',year:'numeric'})}</option>`).join("");
 
-  const lojasTodas = [...new Set(registosOriginais.map(r=>r.loja))].sort();
-  document.getElementById("qaLojaSel").innerHTML = `<option value="">Todas as lojas</option>` + lojasTodas.map(l=>`<option value="${l}">${l}${lojasForaRede.has(l)?' (fora de rede)':''}</option>`).join("");
+  document.getElementById("qaLojaSel").innerHTML = `<option value="">Todas as lojas</option>`;
 
   async function renderRelatorio(){
     const mesEscolhido = mesSel.value;
     const incluirForaRede = document.getElementById("qaIncluirForaRede").checked;
     const lojaEscolhida = document.getElementById("qaLojaSel").value;
     const conteudo = document.getElementById("quebrasArtigosConteudoHub");
-    conteudo.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">A calcular...</div>`;
+    conteudo.innerHTML = `<div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">A carregar...</div>`;
 
-    let registos = registosOriginais.filter(r=>r.data.slice(0,7)===mesEscolhido);
+    const inicioMes = mesEscolhido+"-01";
+    const fimMesDate = new Date(mesEscolhido+"-01T00:00:00"); fimMesDate.setMonth(fimMesDate.getMonth()+1);
+    const fimMes = isoDate(fimMesDate);
+    let registos = [];
+    {
+      let offset = 0;
+      while(true){
+        const pagina = await api(`cj_quebras_artigos?select=loja,data,artigo,valor,quantidade&data=gte.${inicioMes}&data=lt.${fimMes}&order=id.asc&limit=1000&offset=${offset}`, "GET");
+        registos.push(...pagina);
+        if(pagina.length<1000) break;
+        offset += 1000;
+      }
+    }
     if(!incluirForaRede) registos = registos.filter(r=>!lojasForaRede.has(r.loja));
+
+    const lojasDoMes = [...new Set(registos.map(r=>r.loja))].sort();
+    const lojaSelAntes = document.getElementById("qaLojaSel").value;
+    document.getElementById("qaLojaSel").innerHTML = `<option value="">Todas as lojas</option>` + lojasDoMes.map(l=>`<option value="${l}">${l}${lojasForaRede.has(l)?' (fora de rede)':''}</option>`).join("");
+    document.getElementById("qaLojaSel").value = lojaSelAntes;
+
     if(lojaEscolhida) registos = registos.filter(r=>r.loja===lojaEscolhida);
 
     if(registos.length===0){
