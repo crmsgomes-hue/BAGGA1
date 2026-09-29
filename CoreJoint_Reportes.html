@@ -4522,6 +4522,121 @@ function renderQuebrasPreview(totalLinhas){
   if(btnConfirmar) btnConfirmar.onclick = confirmarImportarQuebras;
 }
 
+function openImportarQuebrasArtigos(){
+  currentView = openImportarQuebrasArtigos;
+  window._formEmEdicao = true;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <div class="card-title" style="margin-bottom:6px;">📤 Importar quebras e ajustes por artigo</div>
+    <div class="card-sub" style="margin-bottom:12px;">Colunas esperadas: Armazém (loja), Data, Código, Cód. Artigo, Artigo, Motivo, Qnt., Unidade, Total. Cobre por agora todas as lojas do ficheiro, incluindo as fora da rede DOP — podes retirá-las depois.</div>
+    <label style="display:block; width:100%; text-align:center; background:var(--terracotta); color:#fff; font-weight:700; padding:14px; border-radius:10px; cursor:pointer;">📁 Escolher ficheiro Excel<input type="file" id="quebrasArtigosFile" accept=".xlsx,.xls,.csv" style="display:none;"></label>
+    <div id="quebrasArtigosPreview" style="margin-top:14px;"></div>
+  `;
+  main.appendChild(card);
+  document.getElementById("quebrasArtigosFile").addEventListener("change", handleQuebrasArtigosFile);
+}
+
+let quebrasArtigosParaImportar = [];
+function handleQuebrasArtigosFile(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  lerFicheiroTabular(file, (rows)=>{
+    if(!rows || rows.length===0){ toast("Ficheiro vazio"); return; }
+    const headers = Object.keys(rows[0]);
+    abrirMapeamentoColunas("Quebras e ajustes por artigo", headers, [
+      {key:"loja", label:"Armazém (loja)", sinonimos:["armazem","armazém","loja"], obrigatorio:true},
+      {key:"data", label:"Data", sinonimos:["data"], obrigatorio:true},
+      {key:"codigo", label:"Código (tipo de movimento)", sinonimos:["codigo","código"], obrigatorio:false},
+      {key:"codArtigo", label:"Cód. Artigo", sinonimos:["cod. artigo","cód. artigo","codigo artigo"], obrigatorio:false},
+      {key:"artigo", label:"Artigo", sinonimos:["artigo"], obrigatorio:true},
+      {key:"motivo", label:"Motivo", sinonimos:["motivo"], obrigatorio:false},
+      {key:"quantidade", label:"Qnt.", sinonimos:["qnt.","qnt","quantidade"], obrigatorio:false},
+      {key:"unidade", label:"Unidade", sinonimos:["unidade"], obrigatorio:false},
+      {key:"valor", label:"Total (valor em €)", sinonimos:["total","valor"], obrigatorio:true},
+    ], rows, (mapa)=>{
+      const linhas = rows.map(r=>{
+        const lojaOriginal = String(r[mapa.loja]||"").trim();
+        const lojaCanonica = encontrarLojaCorrespondente(lojaOriginal);
+        const loja = lojaCanonica || lojaOriginal;
+        const dataStr = parseDataExcel(r[mapa.data]);
+        return {
+          loja, lojaOriginal, foraDop: !lojaCanonica,
+          data: dataStr,
+          codigo: mapa.codigo ? String(r[mapa.codigo]||"").trim() : "",
+          cod_artigo: mapa.codArtigo ? String(r[mapa.codArtigo]||"").trim() : null,
+          artigo: String(r[mapa.artigo]||"").trim(),
+          motivo: mapa.motivo ? String(r[mapa.motivo]||"").trim() : null,
+          quantidade: mapa.quantidade ? lerNumeroCelula(r[mapa.quantidade]) : null,
+          unidade: mapa.unidade ? String(r[mapa.unidade]||"").trim() : null,
+          valor: lerNumeroCelula(r[mapa.valor]),
+        };
+      }).filter(r=>r.loja && r.data && r.artigo && r.valor!=null);
+      quebrasArtigosParaImportar = linhas;
+      window._formEmEdicao = true;
+      const main = document.getElementById("main");
+      main.innerHTML = "";
+      const back = document.createElement("button");
+      back.className = "cambtn secondary";
+      back.style.marginBottom = "14px";
+      back.textContent = "← Voltar ao painel";
+      back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+      main.appendChild(back);
+      const card = document.createElement("div");
+      card.className = "card";
+      const lojasForaDop = [...new Set(linhas.filter(l=>l.foraDop).map(l=>l.loja))];
+      const lojasNaRede = [...new Set(linhas.filter(l=>!l.foraDop).map(l=>l.loja))];
+      const totalValor = linhas.reduce((s,l)=>s+l.valor,0);
+      card.innerHTML = `
+        <div class="card-title" style="margin-bottom:6px;">${linhas.length} linha(s) prontas a importar</div>
+        <div class="card-sub" style="margin-bottom:10px;">Total: <b style="color:var(--red);">${totalValor.toFixed(2)} €</b> · ${lojasNaRede.length} loja(s) da rede DOP, ${lojasForaDop.length} fora da rede.</div>
+        ${lojasForaDop.length>0 ? `<div style="background:var(--amber); color:#fff; border-radius:10px; padding:10px 12px; margin-bottom:12px; font-size:12.5px;"><b>Fora da rede:</b> ${lojasForaDop.join(", ")}. Ficam marcadas — podes retirá-las depois em "Lojas fora de rede".</div>` : ''}
+        <button class="cambtn" style="width:100%; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-weight:700;" id="confirmarImportarQuebrasArtigosBtn">✔ Importar ${linhas.length} linha(s)</button>
+      `;
+      main.appendChild(card);
+      document.getElementById("confirmarImportarQuebrasArtigosBtn").onclick = confirmarImportarQuebrasArtigos;
+    });
+  });
+}
+
+async function confirmarImportarQuebrasArtigos(){
+  const btn = document.getElementById("confirmarImportarQuebrasArtigosBtn");
+  btn.disabled = true; btn.textContent = "A importar...";
+  const linhas = quebrasArtigosParaImportar;
+  const lojasForaDop = [...new Set(linhas.filter(l=>l.foraDop).map(l=>l.loja))];
+  try{
+    const payload = linhas.map(l=>({
+      loja: l.loja, data: l.data, codigo: l.codigo||"DESP", cod_artigo: l.cod_artigo,
+      artigo: l.artigo, motivo: l.motivo, quantidade: l.quantidade, unidade: l.unidade,
+      valor: l.valor, importado_por: currentUser,
+    }));
+    const TAMANHO_LOTE = 500;
+    for(let i=0; i<payload.length; i+=TAMANHO_LOTE){
+      await api("POST", "cj_quebras_artigos", payload.slice(i, i+TAMANHO_LOTE));
+    }
+    for(const l of lojasForaDop){
+      await api("POST", "cj_lojas_fora_rede", {loja:l, marcado_por: currentUser}).catch(()=>{});
+    }
+  }catch(e){
+    toast("Erro ao importar: " + (e.message||e).slice(0,150));
+    btn.disabled = false; btn.textContent = `✔ Importar ${linhas.length} linha(s)`;
+    return;
+  }
+  mostrarSucesso(`${linhas.length} linha(s) importada(s)`);
+  quebrasArtigosParaImportar = [];
+  window._formEmEdicao = false;
+  const v = previousView; previousView = null; (v||render)();
+}
+
 function openImportarTrocas(){
   currentView = openImportarTrocas;
   window._formEmEdicao = true;
@@ -8940,7 +9055,7 @@ function renderGestao(){
     importarFormacoes: openImportarFormacoes, visualFormacoes: abrirRelatorioVisualFormacoes,
     importarHorarios: openImportarHorarios, relatorioHorarios: abrirRelatorioHorarios,
     importarColaboradores: openImportarColaboradores,
-    importarInventarioArtigos: openImportarInventarioArtigos,
+    importarInventarioArtigos: openImportarInventarioArtigos, importarQuebrasArtigos: openImportarQuebrasArtigos,
     rankingLojas: openRankingLojas,
     visaoPorCategoria: abrirVisaoPorCategoria,
     registoAtividade: openRegistoAtividade,
