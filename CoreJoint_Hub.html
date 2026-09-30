@@ -425,7 +425,7 @@ async function renderPanoramaGeral(){
 
     const invPorLoja = {};
     invSemanaPg.forEach(r=>{ invPorLoja[r.loja]=(invPorLoja[r.loja]||0)+Number(r.valor_inventario||0); });
-    const invLinhas = LOJAS.map(l=>[l, invPorLoja[l]||0]).sort((a,b)=>b[1]-a[1]);
+    const invLinhas = minhasLojas().map(l=>[l, invPorLoja[l]||0]).sort((a,b)=>b[1]-a[1]);
     const valorInvTotal = invSemanaPg.reduce((s,r)=>s+Number(r.valor_inventario||0),0);
 
     const porLojaAdendas = {};
@@ -717,9 +717,9 @@ async function renderPanoramaGeral(){
 
     document.querySelector('[data-topico="vendas"]').onclick = ()=>{
       const corpo = `
-        <div style="font-size:.75rem; color:var(--t2); margin-bottom:10px;">Vendas de hoje — ${vendasFeitas.size}/${LOJAS.length} lojas já enviaram</div>
+        <div style="font-size:.75rem; color:var(--t2); margin-bottom:10px;">Vendas de hoje — ${vendasFeitas.size}/${minhasLojas().length} lojas já enviaram</div>
         <div style="display:flex; flex-wrap:wrap; gap:5px;">
-          ${LOJAS.map(l=>`<a href="CoreJoint_Foto.html?loja=${encodeURIComponent(l)}" style="text-decoration:none; background:${vendasFeitas.has(l)?'var(--grn)':'var(--sf2)'}; color:${vendasFeitas.has(l)?'#fff':'var(--t2)'}; border-radius:99px; padding:5px 10px; font-size:.72rem; font-weight:700;">${vendasFeitas.has(l)?'✔ ':''}${l}</a>`).join("")}
+          ${minhasLojas().map(l=>`<a href="CoreJoint_Foto.html?loja=${encodeURIComponent(l)}" style="text-decoration:none; background:${vendasFeitas.has(l)?'var(--grn)':'var(--sf2)'}; color:${vendasFeitas.has(l)?'#fff':'var(--t2)'}; border-radius:99px; padding:5px 10px; font-size:.72rem; font-weight:700;">${vendasFeitas.has(l)?'✔ ':''}${l}</a>`).join("")}
         </div>
         <div style="font-size:.72rem; color:var(--t2); margin-top:14px;">Relatórios de vendas: toca em 📊 Relatórios.</div>
       `;
@@ -6778,7 +6778,7 @@ function semanaKey(d){
       let htmlConf = `<div class="sec-label">Fotos recentes</div>
         <div style="font-size:.72rem; color:var(--t2); margin-bottom:6px;">Confirmação de hoje — de relance</div>
         <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">`;
-      LOJAS.forEach(l=>{
+      LOJAS.filter(l=>minhasLojas().includes(l)).forEach(l=>{
         const enviouHoje = (porLoja[l]||[]).some(s=>s.data===hojeStr);
         htmlConf += `<button data-chip-loja="${l}" style="background:${enviouHoje?'var(--grn)':'var(--sf2)'}; color:${enviouHoje?'#fff':'var(--t2)'}; border:none; border-radius:99px; padding:4px 10px; font-size:.68rem; font-weight:700; cursor:${enviouHoje?'pointer':'default'};">${enviouHoje?'✔ ':''}${l}</button>`;
       });
@@ -6915,7 +6915,7 @@ function semanaKey(d){
     }
 
     const lojasComEnvio = new Set(invComValor.map(r=>r.loja));
-    const lojasSemEnvio = LOJAS.filter(l=>!lojasComEnvio.has(l));
+    const lojasSemEnvio = LOJAS.filter(l=>!lojasComEnvio.has(l) && minhasLojas().includes(l));
     if(invComValor.length>0 && lojasSemEnvio.length>0){
       htmlInv += `<div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--red); font-weight:700; margin:12px 0 6px;">⚠ Sem nenhum valor enviado esta semana (${lojasSemEnvio.length})</div>
         <div class="card" style="flex-direction:column; align-items:stretch; gap:0;">`;
@@ -6954,7 +6954,7 @@ function semanaKey(d){
       </div>
       <div style="font-size:.72rem; color:var(--t2); margin-bottom:10px;">O nome da loja fica verde quando envia. Toca num nome verde para ver o que puseram.</div>`;
     [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
-      const lojasAplic = LOJAS.filter(l=>!naoAplicaveisCat.some(n=>n.loja===l && n.categoria===cat.key) && (INV_CATS.includes(cat) ? categoriasParaLoja(l).some(c=>c.key===cat.key) : true));
+      const lojasAplic = LOJAS.filter(l=>minhasLojas().includes(l) && !naoAplicaveisCat.some(n=>n.loja===l && n.categoria===cat.key) && (INV_CATS.includes(cat) ? categoriasParaLoja(l).some(c=>c.key===cat.key) : true));
       if(lojasAplic.length===0) return;
       const statusPorLoja = lojasAplic.map(l=>({l, st: statusCatLoja(l, cat)}));
       const feitas = statusPorLoja.filter(x=>x.st.feito).length;
@@ -6970,7 +6970,7 @@ function semanaKey(d){
     [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
       const wrap = document.querySelector(`[data-chips-cat="${cat.key}"]`);
       if(!wrap) return;
-      const lojasAplic = LOJAS.filter(l=>!naoAplicaveisCat.some(n=>n.loja===l && n.categoria===cat.key) && (INV_CATS.includes(cat) ? categoriasParaLoja(l).some(c=>c.key===cat.key) : true));
+      const lojasAplic = LOJAS.filter(l=>minhasLojas().includes(l) && !naoAplicaveisCat.some(n=>n.loja===l && n.categoria===cat.key) && (INV_CATS.includes(cat) ? categoriasParaLoja(l).some(c=>c.key===cat.key) : true));
       const pendentesCat = [];
       lojasAplic.forEach(l=>{
         const st = statusCatLoja(l, cat);
@@ -7014,45 +7014,36 @@ function semanaKey(d){
       const registosTurno = todayVitrine.filter(r=>r.turno===t.key);
       const enviaram = new Set(registosTurno.map(r=>r.loja));
       htmlVit += `<div style="margin-bottom:8px;">
-        <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:4px;">${t.label} (${enviaram.size}/${LOJAS.length})</div>
+        <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:4px;">${t.label} (${[...enviaram].filter(l=>minhasLojas().includes(l)).length}/${minhasLojas().length})</div>
         <div style="display:flex; flex-wrap:wrap; gap:6px;">`;
-      [["Cristina",LOJAS_CG],["João",LOJAS_JM]].forEach(([nomeGestor, lojasGestor])=>{
-        htmlVit += `<span style="width:100%; font-size:.95rem; font-weight:800; color:#000; margin-top:6px; margin-bottom:2px;">${nomeGestor}</span>`;
-        lojasGestor.forEach(l=>{
-          const feito = enviaram.has(l);
-          htmlVit += `<span data-vit-loja="${l}" data-vit-turno="${t.key}" style="background:${feito?'var(--grn)':'var(--sf2)'}; color:${feito?'#fff':'var(--t2)'}; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700; cursor:${feito?'pointer':'default'};">${feito?'✔ ':''}${l}</span>`;
-        });
+      minhasLojas().forEach(l=>{
+        const feito = enviaram.has(l);
+        htmlVit += `<span data-vit-loja="${l}" data-vit-turno="${t.key}" style="background:${feito?'var(--grn)':'var(--sf2)'}; color:${feito?'#fff':'var(--t2)'}; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700; cursor:${feito?'pointer':'default'};">${feito?'✔ ':''}${l}</span>`;
       });
       htmlVit += `</div></div>`;
     });
     [{tipo:"laranjas_maquina", label:"Laranjas na máquina"}, {tipo:"expositor_tabaco", label:"Expositor do tabaco"}].forEach(x=>{
       const registos = todayLaranjaTabaco.filter(r=>r.tipo===x.tipo);
       htmlVit += `<div style="margin-bottom:8px;">
-        <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:4px;">${x.label} (${registos.length}/${LOJAS.length})</div>
+        <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:4px;">${x.label} (${registos.filter(r=>minhasLojas().includes(r.loja)).length}/${minhasLojas().length})</div>
         <div style="display:flex; flex-wrap:wrap; gap:6px;" data-lt-row="${x.tipo}">`;
-      [["Cristina",LOJAS_CG],["João",LOJAS_JM]].forEach(([nomeGestor, lojasGestor])=>{
-        htmlVit += `<span style="width:100%; font-size:.95rem; font-weight:800; color:#000; margin-top:6px; margin-bottom:2px;">${nomeGestor}</span>`;
-        lojasGestor.forEach(l=>{
-          const reg = registos.find(r=>r.loja===l);
-          const semStock = reg && reg.nota && (!reg.fotos || reg.fotos.length===0);
-          const feito = !!reg;
-          const bg = !feito ? 'var(--sf2)' : (semStock ? 'var(--org,#c17817)' : 'var(--grn)');
-          const fg = !feito ? 'var(--t2)' : '#fff';
-          htmlVit += `<span data-lt-loja="${l}" data-lt-tipo="${x.tipo}" data-lt-nota="${semStock?(reg.nota||'').replace(/"/g,'&quot;'):''}" style="background:${bg}; color:${fg}; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700; cursor:${feito?'pointer':'default'};">${feito?(semStock?'❌ ':'✔ '):''}${l}</span>`;
-        });
+      minhasLojas().forEach(l=>{
+        const reg = registos.find(r=>r.loja===l);
+        const semStock = reg && reg.nota && (!reg.fotos || reg.fotos.length===0);
+        const feito = !!reg;
+        const bg = !feito ? 'var(--sf2)' : (semStock ? 'var(--org,#c17817)' : 'var(--grn)');
+        const fg = !feito ? 'var(--t2)' : '#fff';
+        htmlVit += `<span data-lt-loja="${l}" data-lt-tipo="${x.tipo}" data-lt-nota="${semStock?(reg.nota||'').replace(/"/g,'&quot;'):''}" style="background:${bg}; color:${fg}; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700; cursor:${feito?'pointer':'default'};">${feito?(semStock?'❌ ':'✔ '):''}${l}</span>`;
       });
       htmlVit += `</div></div>`;
     });
     htmlVit += `<div style="margin-bottom:2px;">
-      <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:4px;">🧾 Vendas (${todayVendas.length}/${LOJAS.length})</div>
+      <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:4px;">🧾 Vendas (${todayVendas.filter(r=>minhasLojas().includes(r.loja)).length}/${minhasLojas().length})</div>
       <div style="display:flex; flex-wrap:wrap; gap:6px;" data-vendas-row="1">`;
-    [["Cristina",LOJAS_CG],["João",LOJAS_JM]].forEach(([nomeGestor, lojasGestor])=>{
-      htmlVit += `<span style="width:100%; font-size:.95rem; font-weight:800; color:#000; margin-top:6px; margin-bottom:2px;">${nomeGestor}</span>`;
-      lojasGestor.forEach(l=>{
-        const reg = todayVendas.find(r=>r.loja===l);
-        const feito = !!reg;
-        htmlVit += `<span data-vendas-loja="${l}" style="background:${feito?'var(--grn)':'var(--sf2)'}; color:${feito?'#fff':'var(--t2)'}; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700; cursor:${feito?'pointer':'default'};">${feito?'✔ ':''}${l}</span>`;
-      });
+    minhasLojas().forEach(l=>{
+      const reg = todayVendas.find(r=>r.loja===l);
+      const feito = !!reg;
+      htmlVit += `<span data-vendas-loja="${l}" style="background:${feito?'var(--grn)':'var(--sf2)'}; color:${feito?'#fff':'var(--t2)'}; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700; cursor:${feito?'pointer':'default'};">${feito?'✔ ':''}${l}</span>`;
     });
     htmlVit += `</div></div>`;
     htmlVit += `</div>`;
