@@ -4378,13 +4378,8 @@ async function abrirQuebrasArtigosHub(){
     });
     anomalias.sort((a,b)=>Math.abs(b.valor)-Math.abs(a.valor));
 
-    // top artigos por valor absoluto (agregado, todas as lojas do filtro)
-    const porArtigoAgregado = {};
-    registos.forEach(r=>{
-      porArtigoAgregado[r.artigo] ||= {artigo:r.artigo, valor:0};
-      porArtigoAgregado[r.artigo].valor += Number(r.valor)||0;
-    });
-    const topArtigos = Object.values(porArtigoAgregado).sort((a,b)=>Math.abs(b.valor)-Math.abs(a.valor)).slice(0,20);
+    // top 20 maiores quebras num único dia (não o total do mês) - para saberes sempre QUANDO
+    const topDias = Object.values(porLojaArtigoDia).sort((a,b)=>Math.abs(b.valor)-Math.abs(a.valor)).slice(0,20);
 
     const totalGeral = registos.reduce((s,r)=>s+(Number(r.valor)||0),0);
 
@@ -4411,8 +4406,10 @@ async function abrirQuebrasArtigosHub(){
       <td style="font-size:9.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${new Date(a.data+"T00:00:00").toLocaleDateString('pt-PT')}</td>
       <td style="font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:800; color:#b0432f; white-space:nowrap;">${a.valor.toFixed(2)}€</td>
     </tr>`).join("");
-    const linhasTop = topArtigos.map(a=>`<tr>
-      <td style="font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${a.artigo}</td>
+    const linhasTop = topDias.map(a=>`<tr>
+      <td style="font-weight:700; font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${a.loja}</td>
+      <td style="font-size:10px; padding:5px 6px; border-bottom:1px solid #f0ebe3;">${a.artigo}</td>
+      <td style="font-size:9.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; color:#777; white-space:nowrap;">${new Date(a.data+"T00:00:00").toLocaleDateString('pt-PT')}</td>
       <td style="font-size:10.5px; padding:5px 6px; border-bottom:1px solid #f0ebe3; text-align:right; font-weight:800; color:${a.valor<0?'#b0432f':'#2e7d32'}; white-space:nowrap;">${a.valor.toFixed(2)}€</td>
     </tr>`).join("");
 
@@ -4424,9 +4421,9 @@ async function abrirQuebrasArtigosHub(){
           <thead><tr>${cabecalho("Loja","left")}${cabecalho("Artigo","left")}${cabecalho("Dia","left")}${cabecalho("Valor","right")}</tr></thead>
           <tbody>${linhasAnomalias}</tbody>
         </table>` : `<div style="text-align:center; padding:10px 0; color:#2e7d32; font-size:.82rem; font-weight:700;">✔ Nada fora do normal neste mês.</div>`}
-      <div style="font-size:11px; font-weight:800; color:#C1622D; text-transform:uppercase; padding:8px 2px 4px; border-bottom:2px solid #C1622D;">Top 20 artigos (valor)</div>
+      <div style="font-size:11px; font-weight:800; color:#C1622D; text-transform:uppercase; padding:8px 2px 4px; border-bottom:2px solid #C1622D;">Top 20 maiores quebras (dia a dia)</div>
       <table style="border-collapse:collapse; width:100%;">
-        <thead><tr>${cabecalho("Artigo","left")}${cabecalho("Valor","right")}</tr></thead>
+        <thead><tr>${cabecalho("Loja","left")}${cabecalho("Artigo","left")}${cabecalho("Dia","left")}${cabecalho("Valor","right")}</tr></thead>
         <tbody>${linhasTop}</tbody>
       </table>
     `;
@@ -4445,9 +4442,9 @@ async function abrirQuebrasArtigosHub(){
           <thead><tr>${cabecalho("Loja","left")}${cabecalho("Artigo","left")}${cabecalho("Dia","left")}${cabecalho("Valor","right")}</tr></thead>
           <tbody>${linhasAnomalias}</tbody>
         </table>` : ''}
-      <div style="font-weight:800; font-size:11px; color:#C1622D; margin-bottom:4px;">Top 20 artigos</div>
+      <div style="font-weight:800; font-size:11px; color:#C1622D; margin-bottom:4px;">Top 20 maiores quebras (dia a dia)</div>
       <table style="border-collapse:collapse; width:100%;">
-        <thead><tr>${cabecalho("Artigo","left")}${cabecalho("Valor","right")}</tr></thead>
+        <thead><tr>${cabecalho("Loja","left")}${cabecalho("Artigo","left")}${cabecalho("Dia","left")}${cabecalho("Valor","right")}</tr></thead>
         <tbody>${linhasTop}</tbody>
       </table>
     `;
