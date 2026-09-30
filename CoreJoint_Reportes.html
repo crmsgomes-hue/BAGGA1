@@ -209,10 +209,9 @@ const SUPA_URL = "https://isdaegejkxgtzjcpzstr.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZGFlZ2Vqa3hndHpqY3B6c3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDMzNDMsImV4cCI6MjA5NTk3OTM0M30.M7WZQXo-okNFaYhqF3WMxIB0KO7MsM1OH-JnBPWQ54k";
 const BUCKET = "cj_reportes_fotos";
 
-const LOJAS = [
-  "Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim",
-  "Carregado","Ponte de Sor","Torres MCH","Torres MH"
-];
+const LOJAS_CG = ["Bombarral","Peniche","Caldas da Rainha","Ponte de Sor","Almeirim","Torres MH","Santarém","Rio Maior","Torres MCH","Torres Vedras"];
+const LOJAS_JM = ["Alverca","Malveira","Belas","Montelavar","Cacém","Sintra","Tapada das Mercês","Nem Martins","Mafra MH","Mafra MCH"];
+const LOJAS = [...LOJAS_CG, ...LOJAS_JM];
 function lojasAlvoDe(obj){
   if(obj.lojas_alvo && Array.isArray(obj.lojas_alvo) && obj.lojas_alvo.length>0) return obj.lojas_alvo;
   if(obj.loja_alvo) return [obj.loja_alvo];
