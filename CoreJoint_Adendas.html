@@ -202,10 +202,9 @@ const STAGES = [
   {key:"enviada", label:"Entregar ao RH", verb:"Marcar como entregue ao RH", nextField:"enviada_em", personField:"enviada_por"}
 ];
 
-const LOJAS = [
-  "Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim",
-  "Carregado","Ponte de Sor","Torres MCH","Torres MH"
-];
+const LOJAS_CG = ["Bombarral","Peniche","Caldas da Rainha","Ponte de Sor","Almeirim","Torres MH","Santarém","Rio Maior","Torres MCH","Torres Vedras"];
+const LOJAS_JM = ["Alverca","Malveira","Belas","Montelavar","Cacém","Sintra","Tapada das Mercês","Nem Martins","Mafra MH","Mafra MCH"];
+const LOJAS = [...LOJAS_CG, ...LOJAS_JM];
 
 let rows = [];
 let selectedColab = "";
