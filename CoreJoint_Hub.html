@@ -157,7 +157,9 @@ function alternarPerfilHub(){
     renderListaLembretes();
   }
   verificarBannerTarefas();
-  toast(`Espaço trocado para ${NOMES_PERFIS[currentUser]}`);
+  renderPanoramaGeral();
+  renderSemaforoLojas();
+  toast(`Espaço trocado para ${NOMES_PERFIS[currentUser]} — já a ver as lojas dele/dela`);
 }
 function _logErro(app, mensagem, contexto){
   try{
