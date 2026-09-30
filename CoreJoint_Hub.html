@@ -136,6 +136,7 @@ function ficheiroParaDataUrl(file){
 // Mesmo mecanismo de perfil do Reportes.html (mesma chave de localStorage, para ficar consistente
 // no mesmo aparelho entre as duas apps). CG = Cristina, JM = Joao - cada um ve so os seus lembretes.
 let currentUser = localStorage.getItem("cj_rep_user") || "CG";
+function minhasLojas(){ return currentUser==="JM" ? LOJAS_JM : LOJAS_CG; }
 const PERFIS = ["CG", "JM"];
 const NOMES_PERFIS = {CG:"Cristina", JM:"João"};
 function alternarPerfilHub(){
@@ -277,11 +278,7 @@ async function renderSemaforoLojas(){
     const avariasPorLojaSf = {};
     avariasSf.forEach(a=>{ const dias=Math.floor((Date.now()-new Date(a.data_pedido+"T00:00:00").getTime())/86400000); (avariasPorLojaSf[a.loja] ||= []).push(dias); });
 
-    const linhas = LOJAS.map(l=>{
-      const semEnvio3dias = !lojasAtivasSf.has(l);
-      const quebrasLoja = quebrasPorLojaSf[l] || [];
-      const temQuebraAlta = quebrasLoja.some(v=>Math.abs(v)>=200);
-      const semVendasHoje = !vendasFeitasSf.has(l);
+    const linhas = minhasLojas().map(l=>{
       const reclamacoesLoja = reclamacoesPorLojaSf[l] || [];
       const avariasLoja = avariasPorLojaSf[l] || [];
       const reclamacaoAntiga = reclamacoesLoja.some(d=>d>=3);
@@ -406,8 +403,8 @@ async function renderPanoramaGeral(){
       if(!info.temAbertura || !info.temFecho) horariosAlertas++;
     });
 
-    const vendasFeitas = new Set(todayVendasPg.map(r=>r.loja));
-    const vendasFaltam = LOJAS.filter(l=>!vendasFeitas.has(l));
+    const vendasFeitas = new Set(todayVendasPg.map(r=>r.loja).filter(l=>minhasLojas().includes(l)));
+    const vendasFaltam = minhasLojas().filter(l=>!vendasFeitas.has(l));
 
     const quebrasPorLoja = {};
     quebrasPendentesPg.forEach(r=>{ const l=r.loja||"⚠ Sem loja (verificar)"; quebrasPorLoja[l]=(quebrasPorLoja[l]||0)+Number(r.valor_quebra||0); });
@@ -487,7 +484,7 @@ async function renderPanoramaGeral(){
       <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
         ${tileLink("CoreJoint_Reportes.html?abrir=calendario","📅","Calendário","")}
         ${tile("espaco","🌿","O Meu Espaço", lembretesPendentes>0?`${lembretesPendentes}`:'vazio', lembretesPendentes>0?'var(--terracotta,#C1622D)':'var(--t2)')}
-        ${tile("vendas","🧾","Vendas", `${vendasFeitas.size}/${LOJAS.length}`, vendasFaltam.length>0?'var(--red)':'var(--grn)')}
+        ${tile("vendas","🧾","Vendas", `${vendasFeitas.size}/${minhasLojas().length}`, vendasFaltam.length>0?'var(--red)':'var(--grn)')}
         ${tile("quebras","💸","Quebras", `${valorQuebrasTotal.toFixed(0)}€`, valorQuebrasTotal>0?'var(--red)':'var(--grn)')}
         ${tile("inventario","📦","Inventário", `${valorInvTotal.toFixed(0)}€`)}
         ${tile("rh","📋","RH", `${adendasAtivasPg.length}`, adendasAtivasPg.length>0?'var(--org,#c17817)':'var(--grn)')}
@@ -6249,7 +6246,9 @@ async function renderListaLembretes(){
   });
 }
 
-const LOJAS = ["Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim","Carregado","Ponte de Sor","Torres MCH","Torres MH"];
+const LOJAS_CG = ["Bombarral","Peniche","Caldas da Rainha","Ponte de Sor","Almeirim","Torres MH","Santarém","Rio Maior","Torres MCH","Torres Vedras"];
+const LOJAS_JM = ["Alverca","Malveira","Belas","Montelavar","Cacém","Sintra","Tapada das Mercês","Nem Martins","Mafra MH","Mafra MCH"];
+const LOJAS = [...LOJAS_CG, ...LOJAS_JM];
 const INV_CATS = [
   { key: "raspadinhas", label: "JSC", freq: "semanal" },
   { key: "laranja", label: "Laranja", freq: "semanal" },
