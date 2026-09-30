@@ -141,6 +141,9 @@ const GESTOR_FIXO = (_gestorDoLink === "CG" || _gestorDoLink === "JM");
 if(GESTOR_FIXO) localStorage.setItem("cj_rep_user", _gestorDoLink);
 let currentUser = GESTOR_FIXO ? _gestorDoLink : (localStorage.getItem("cj_rep_user") || "CG");
 function minhasLojas(){ return currentUser==="JM" ? LOJAS_JM : LOJAS_CG; }
+function filtroMinhasLojas(){
+  return "&loja=in.(" + minhasLojas().map(l=>`%22${encodeURIComponent(l)}%22`).join(",") + ")";
+}
 const PERFIS = ["CG", "JM"];
 const NOMES_PERFIS = {CG:"Cristina", JM:"João"};
 function alternarPerfilHub(){
@@ -340,30 +343,30 @@ async function renderPanoramaGeral(){
 
     const inicioMesAtual = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
     const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, erros7diasPg, lembretesPg, stockNegPendentesPg, stockNegComProdutoPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg, reclamacoesPendentesPg, avariasPendentesPg, pedidosMaterialPendentesPg, validadesLotesPg, depuradorAguaPg, segurancaEquipPg] = await Promise.all([
-      api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}`),
-      api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null`),
-      api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null`),
+      api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}${filtroMinhasLojas()}`),
+      api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null${filtroMinhasLojas()}`),
+      api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null${filtroMinhasLojas()}`),
       api(`cj_fardamento_stock?select=*&quantidade=lt.5&polo=eq.Santarém`),
       api(`cj_fardamento_devolucoes?select=*&recolhido=eq.false`),
-      api(`cj_adendas?select=*&arquivada=eq.false`),
+      api(`cj_adendas?select=*&arquivada=eq.false${filtroMinhasLojas()}`),
       api(`cj_error_log?select=app&criado_em=gte.${new Date(Date.now()-24*3600*1000).toISOString()}`),
       api(`cj_error_log?select=loja,mensagem&criado_em=gte.${new Date(Date.now()-7*24*3600*1000).toISOString()}`),
       api(`cj_lembretes_pessoais?select=id&feito=eq.false&criado_por=eq.${currentUser}`),
-      api(`cj_stock_negativo?select=loja&justificacao=is.null&loja=not.is.null`),
-      api(`cj_stock_negativo?select=loja,produto&justificacao=is.null&loja=not.is.null`),
-      api(`cj_formacoes?select=loja&justificacao=is.null&loja=not.is.null`),
-      api(`cj_horarios?select=loja,data,colaborador,hora_inicio,hora_fim&data=gte.${inicioMesAtual}&data=lte.${todayStr}`),
-      api(`cj_trocas?select=loja&estado=eq.pendente`),
+      api(`cj_stock_negativo?select=loja&justificacao=is.null&loja=not.is.null${filtroMinhasLojas()}`),
+      api(`cj_stock_negativo?select=loja,produto&justificacao=is.null&loja=not.is.null${filtroMinhasLojas()}`),
+      api(`cj_formacoes?select=loja&justificacao=is.null&loja=not.is.null${filtroMinhasLojas()}`),
+      api(`cj_horarios?select=loja,data,colaborador,hora_inicio,hora_fim&data=gte.${inicioMesAtual}&data=lte.${todayStr}${filtroMinhasLojas()}`),
+      api(`cj_trocas?select=loja&estado=eq.pendente${filtroMinhasLojas()}`),
       api(`cj_fardamento_rececoes?select=id&recolhido=eq.false`),
       api(`cj_fardamento_rececoes?select=data_rececao&order=data_rececao.desc&limit=1`),
-      api(`cj_certificados_oleo?select=loja,data_validade`),
-      api(`cj_calibracoes_oleo?select=loja,data_validade`),
-      api(`cj_reclamacoes?select=id,data_hora&estado=eq.pendente`),
-      api(`cj_avarias_bagga?select=id,data_pedido&estado=eq.pendente`),
-      api(`cj_pedidos_material?select=id,criado_em&estado=eq.pendente`),
-      api(`cj_validades_lotes?select=id,loja,produto,lote,data_validade&resolvido=eq.false`),
-      api(`cj_depurador_agua?select=loja,proxima_substituicao&order=proxima_substituicao.desc`),
-      api(`cj_seguranca_equipamento?select=id,loja,tipo,local,data_validade&order=data_validade.asc`)
+      api(`cj_certificados_oleo?select=loja,data_validade${filtroMinhasLojas()}`),
+      api(`cj_calibracoes_oleo?select=loja,data_validade${filtroMinhasLojas()}`),
+      api(`cj_reclamacoes?select=id,data_hora&estado=eq.pendente${filtroMinhasLojas()}`),
+      api(`cj_avarias_bagga?select=id,data_pedido&estado=eq.pendente${filtroMinhasLojas()}`),
+      api(`cj_pedidos_material?select=id,criado_em&estado=eq.pendente${filtroMinhasLojas()}`),
+      api(`cj_validades_lotes?select=id,loja,produto,lote,data_validade&resolvido=eq.false${filtroMinhasLojas()}`),
+      api(`cj_depurador_agua?select=loja,proxima_substituicao&order=proxima_substituicao.desc${filtroMinhasLojas()}`),
+      api(`cj_seguranca_equipamento?select=id,loja,tipo,local,data_validade&order=data_validade.asc${filtroMinhasLojas()}`)
     ]);
     const fardRececoesPendentesPg = fardRececoesPg.length;
     const em30diasPg = isoDate(new Date(Date.now()+30*24*3600*1000));
