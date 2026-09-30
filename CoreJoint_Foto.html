@@ -144,7 +144,9 @@ const MARKETING_CATS = [
   {key:"aps", label:"APS", freq:"mensal_dia20", semFoto:true}
 ];
 // Exceções conhecidas por loja (ajustar à medida que se confirma mais informação)
-const LOJAS = ["Caldas da Rainha","Bombarral","Peniche","Rio Maior","Santarém","Almeirim","Carregado","Ponte de Sor","Torres MCH","Torres MH"];
+const LOJAS_CG = ["Bombarral","Peniche","Caldas da Rainha","Ponte de Sor","Almeirim","Torres MH","Santarém","Rio Maior","Torres MCH","Torres Vedras"];
+const LOJAS_JM = ["Alverca","Malveira","Belas","Montelavar","Cacém","Sintra","Tapada das Mercês","Nem Martins","Mafra MH","Mafra MCH"];
+const LOJAS = [...LOJAS_CG, ...LOJAS_JM];
 function lojasAlvoDeF(obj){
   if(obj.lojas_alvo && Array.isArray(obj.lojas_alvo) && obj.lojas_alvo.length>0) return obj.lojas_alvo;
   if(obj.loja_alvo) return [obj.loja_alvo];
