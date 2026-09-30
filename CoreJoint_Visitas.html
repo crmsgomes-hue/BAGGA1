@@ -5155,6 +5155,7 @@ function backV(){
         equip_lista:JSON.stringify(vEquip),
         fotos_chegada:vChegadaPhoto||null,
         fotos_cafe:JSON.stringify(vPhotos.cafe||[]),
+        tipo_visita:vTipoVisita||'normal',
       };
       localStorage.setItem(getAutoSaveKey(vStore), JSON.stringify(snap));
     }catch(e){ console.warn('backV localStorage save error:', e); }
@@ -7728,6 +7729,7 @@ async function doAutoSave(){
       fotos_chegada: vChegadaPhoto||null,
       fotos_cafe: JSON.stringify(vPhotos.cafe||[]),
       equip_lista: JSON.stringify(vEquip),
+      tipo_visita: vTipoVisita || 'normal',
     };
 
     // Guardar localmente (cache rápida no mesmo dispositivo) — NUNCA deve bloquear o Supabase,
@@ -7931,8 +7933,14 @@ async function restoreAutoSave(store){
     if(d.fotos_chegada) vChegadaPhoto = d.fotos_chegada;
     if(d.fotos_cafe) try{ vPhotos.cafe = JSON.parse(d.fotos_cafe||'[]'); }catch(e){ vPhotos.cafe = []; }
 
+    // Restaurar tipo de visita (Express/Normal) ANTES de startV
+    vTipoVisita = d.tipo_visita || 'normal';
+
     // Iniciar visita sem reset (dados já carregados)
     await startV(store, true);
+
+    // Aplicar modo Express/Normal após renderizar o formulário
+    applyTipoVisita();
 
     // Restaurar campos de texto
     if(el('v-hinicio')) el('v-hinicio').value = d.hora_inicio||'';
