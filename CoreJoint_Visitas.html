@@ -7788,6 +7788,7 @@ async function doAutoSave(){
         fotos_chegada: snapshot.fotos_chegada,
         fotos_cafe: snapshot.fotos_cafe,
         equip_lista: snapshot.equip_lista,
+        tipo_visita: snapshot.tipo_visita || 'normal',
         saved_by: who()
       };
       // Usar PATCH→POST em vez de on_conflict upsert (evita duplicate key silencioso)
@@ -7878,7 +7879,8 @@ async function restoreAutoSave(store){
           rh_ftes_real: row.rh_ftes_real,
           fotos_chegada: row.fotos_chegada,
           fotos_cafe: row.fotos_cafe,
-          equip_lista: row.equip_lista
+          equip_lista: row.equip_lista,
+          tipo_visita: row.tipo_visita || 'normal'
         };
         } // fim do else guard loja
       }
@@ -7938,9 +7940,6 @@ async function restoreAutoSave(store){
 
     // Iniciar visita sem reset (dados já carregados)
     await startV(store, true);
-
-    // Aplicar modo Express/Normal após renderizar o formulário
-    applyTipoVisita();
 
     // Restaurar campos de texto
     if(el('v-hinicio')) el('v-hinicio').value = d.hora_inicio||'';
@@ -8013,6 +8012,9 @@ async function restoreAutoSave(store){
     updateRutCounter();
     renderProcVisita();
     try{ renderPhotos('cafe'); }catch(e){}
+
+    // Aplicar Express/Normal AQUI (último passo — depois de toda a renderização)
+    setTimeout(()=>{ vTipoVisita = d.tipo_visita||'normal'; applyTipoVisita(); }, 50);
 
     toast('▶ Visita em curso restaurada!');
   }catch(e){
