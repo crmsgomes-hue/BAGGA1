@@ -135,11 +135,16 @@ function ficheiroParaDataUrl(file){
 }
 // Mesmo mecanismo de perfil do Reportes.html (mesma chave de localStorage, para ficar consistente
 // no mesmo aparelho entre as duas apps). CG = Cristina, JM = Joao - cada um ve so os seus lembretes.
-let currentUser = localStorage.getItem("cj_rep_user") || "CG";
+const _paramsGestorHub = new URLSearchParams(location.search);
+const _gestorDoLink = _paramsGestorHub.get("gestor");
+const GESTOR_FIXO = (_gestorDoLink === "CG" || _gestorDoLink === "JM");
+if(GESTOR_FIXO) localStorage.setItem("cj_rep_user", _gestorDoLink);
+let currentUser = GESTOR_FIXO ? _gestorDoLink : (localStorage.getItem("cj_rep_user") || "CG");
 function minhasLojas(){ return currentUser==="JM" ? LOJAS_JM : LOJAS_CG; }
 const PERFIS = ["CG", "JM"];
 const NOMES_PERFIS = {CG:"Cristina", JM:"João"};
 function alternarPerfilHub(){
+  if(GESTOR_FIXO){ toast("Esta página é fixa para " + NOMES_PERFIS[currentUser] + "."); return; }
   const idx = PERFIS.indexOf(currentUser);
   currentUser = PERFIS[(idx+1) % PERFIS.length];
   localStorage.setItem("cj_rep_user", currentUser);
