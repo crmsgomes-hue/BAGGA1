@@ -4514,8 +4514,9 @@ function renderQuebrasPreview(totalLinhas){
   if(quebrasParaImportar.length>0){
     html += `<div style="font-weight:700; margin-bottom:8px;">${quebrasParaImportar.length} quebra(s) ≥ 20€ na tua rede (de ${totalLinhas} linhas):</div>`;
     quebrasParaImportar.forEach(q=>{
+      const gestorQ = LOJAS_CG.includes(q.loja) ? "Cristina" : (LOJAS_JM.includes(q.loja) ? "João" : "");
       html += `<div style="padding:8px 0; border-bottom:1px solid var(--line); font-size:13px;">
-        <b>${q.loja}</b> — ${q.data} — ${q.operador||'—'} — <span style="color:var(--red); font-weight:700;">${q.valor_quebra} €</span>${q.safebag?' · Safebag: '+q.safebag:''}
+        <b>${q.loja}</b>${gestorQ?` <span style="font-size:10px; font-weight:800; color:#9c4d23;">(${gestorQ})</span>`:''} — ${q.data} — ${q.operador||'—'} — <span style="color:var(--red); font-weight:700;">${q.valor_quebra} €</span>${q.safebag?' · Safebag: '+q.safebag:''}
       </div>`;
     });
   }
@@ -4599,10 +4600,16 @@ function handleQuebrasArtigosFile(ev){
       card.className = "card";
       const lojasForaDop = [...new Set(linhas.filter(l=>l.foraDop).map(l=>l.loja))];
       const lojasNaRede = [...new Set(linhas.filter(l=>!l.foraDop).map(l=>l.loja))];
+      const lojasCGnesta = lojasNaRede.filter(l=>LOJAS_CG.includes(l));
+      const lojasJMnesta = lojasNaRede.filter(l=>LOJAS_JM.includes(l));
       const totalValor = linhas.reduce((s,l)=>s+l.valor,0);
       card.innerHTML = `
         <div class="card-title" style="margin-bottom:6px;">${linhas.length} linha(s) prontas a importar</div>
         <div class="card-sub" style="margin-bottom:10px;">Total: <b style="color:var(--red);">${totalValor.toFixed(2)} €</b> · ${lojasNaRede.length} loja(s) da rede DOP, ${lojasForaDop.length} fora da rede.</div>
+        <div style="background:var(--sf2,#f5f0e6); border-radius:10px; padding:10px 12px; margin-bottom:12px; font-size:12px;">
+          <div style="margin-bottom:4px;"><b style="color:#000;">Cristina</b> (${lojasCGnesta.length}): ${lojasCGnesta.join(", ")||"—"}</div>
+          <div><b style="color:#000;">João</b> (${lojasJMnesta.length}): ${lojasJMnesta.join(", ")||"—"}</div>
+        </div>
         ${lojasForaDop.length>0 ? `<div style="background:var(--amber); color:#fff; border-radius:10px; padding:10px 12px; margin-bottom:12px; font-size:12.5px;"><b>Fora da rede:</b> ${lojasForaDop.join(", ")}. Ficam marcadas — podes retirá-las depois em "Lojas fora de rede".</div>` : ''}
         <button class="cambtn" style="width:100%; background:var(--terracotta); color:#fff; border:none; padding:12px; border-radius:10px; font-weight:700;" id="confirmarImportarQuebrasArtigosBtn">✔ Importar ${linhas.length} linha(s)</button>
       `;
@@ -5128,12 +5135,15 @@ function openImportarInventarioArtigos(){
   window._invArtigosPorLoja = {};
 
   const linhasEl = document.getElementById("invArtigosLinhasLojas");
-  linhasEl.innerHTML = LOJAS.map(l=>`
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 0; border-bottom:1px solid var(--line);">
-      <div style="font-size:13px; font-weight:700; flex:1;">${l}</div>
-      <div id="invArtigosStatus_${l.replace(/\s+/g,"_")}" style="font-size:11px; color:var(--ink-soft); flex:1; text-align:right;">por escolher</div>
-      <label style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:7px 12px; font-size:11px; font-weight:700; color:var(--terracotta,#C1622E); cursor:pointer; white-space:nowrap;">📁 Escolher<input type="file" accept=".xlsx,.xls,.csv" style="display:none;" data-loja-invartigos="${l}"></label>
-    </div>
+  linhasEl.innerHTML = [["Cristina",LOJAS_CG],["João",LOJAS_JM]].map(([nomeGestor, lojasGestor])=>`
+    <div style="font-size:13px; font-weight:800; color:#000; margin:10px 0 2px;">${nomeGestor}</div>
+    ${lojasGestor.map(l=>`
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 0; border-bottom:1px solid var(--line);">
+        <div style="font-size:13px; font-weight:700; flex:1;">${l}</div>
+        <div id="invArtigosStatus_${l.replace(/\s+/g,"_")}" style="font-size:11px; color:var(--ink-soft); flex:1; text-align:right;">por escolher</div>
+        <label style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:7px 12px; font-size:11px; font-weight:700; color:var(--terracotta,#C1622E); cursor:pointer; white-space:nowrap;">📁 Escolher<input type="file" accept=".xlsx,.xls,.csv" style="display:none;" data-loja-invartigos="${l}"></label>
+      </div>
+    `).join("")}
   `).join("");
 
   linhasEl.querySelectorAll("[data-loja-invartigos]").forEach(input=>{
@@ -5255,12 +5265,15 @@ function openImportarColaboradores(){
   window._colaboradoresPorLoja = {};
 
   const linhasEl = document.getElementById("colaboradoresLinhasLojas");
-  linhasEl.innerHTML = LOJAS.map(l=>`
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 0; border-bottom:1px solid var(--line);">
-      <div style="font-size:13px; font-weight:700; flex:1;">${l}</div>
-      <div id="colaboradoresStatus_${l.replace(/\s+/g,"_")}" style="font-size:11px; color:var(--ink-soft); flex:1; text-align:right;">por escolher</div>
-      <label style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:7px 12px; font-size:11px; font-weight:700; color:var(--terracotta,#C1622E); cursor:pointer; white-space:nowrap;">📁 Escolher<input type="file" accept=".xlsx,.xls,.csv" style="display:none;" data-loja-colaborador="${l}"></label>
-    </div>
+  linhasEl.innerHTML = [["Cristina",LOJAS_CG],["João",LOJAS_JM]].map(([nomeGestor, lojasGestor])=>`
+    <div style="font-size:13px; font-weight:800; color:#000; margin:10px 0 2px;">${nomeGestor}</div>
+    ${lojasGestor.map(l=>`
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 0; border-bottom:1px solid var(--line);">
+        <div style="font-size:13px; font-weight:700; flex:1;">${l}</div>
+        <div id="colaboradoresStatus_${l.replace(/\s+/g,"_")}" style="font-size:11px; color:var(--ink-soft); flex:1; text-align:right;">por escolher</div>
+        <label style="background:var(--sf2,#f5f0e6); border-radius:8px; padding:7px 12px; font-size:11px; font-weight:700; color:var(--terracotta,#C1622E); cursor:pointer; white-space:nowrap;">📁 Escolher<input type="file" accept=".xlsx,.xls,.csv" style="display:none;" data-loja-colaborador="${l}"></label>
+      </div>
+    `).join("")}
   `).join("");
 
   linhasEl.querySelectorAll("[data-loja-colaborador]").forEach(input=>{
