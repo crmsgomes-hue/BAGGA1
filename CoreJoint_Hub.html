@@ -7017,7 +7017,7 @@ function semanaKey(d){
         <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:4px;">${t.label} (${enviaram.size}/${LOJAS.length})</div>
         <div style="display:flex; flex-wrap:wrap; gap:6px;">`;
       [["Cristina",LOJAS_CG],["João",LOJAS_JM]].forEach(([nomeGestor, lojasGestor])=>{
-        htmlVit += `<span style="width:100%; font-size:.62rem; font-weight:800; color:#9c4d23; text-transform:uppercase; margin-top:2px;">${nomeGestor}</span>`;
+        htmlVit += `<span style="width:100%; font-size:.95rem; font-weight:800; color:#000; margin-top:6px; margin-bottom:2px;">${nomeGestor}</span>`;
         lojasGestor.forEach(l=>{
           const feito = enviaram.has(l);
           htmlVit += `<span data-vit-loja="${l}" data-vit-turno="${t.key}" style="background:${feito?'var(--grn)':'var(--sf2)'}; color:${feito?'#fff':'var(--t2)'}; border-radius:99px; padding:5px 11px; font-size:.72rem; font-weight:700; cursor:${feito?'pointer':'default'};">${feito?'✔ ':''}${l}</span>`;
@@ -7031,7 +7031,7 @@ function semanaKey(d){
         <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:4px;">${x.label} (${registos.length}/${LOJAS.length})</div>
         <div style="display:flex; flex-wrap:wrap; gap:6px;" data-lt-row="${x.tipo}">`;
       [["Cristina",LOJAS_CG],["João",LOJAS_JM]].forEach(([nomeGestor, lojasGestor])=>{
-        htmlVit += `<span style="width:100%; font-size:.62rem; font-weight:800; color:#9c4d23; text-transform:uppercase; margin-top:2px;">${nomeGestor}</span>`;
+        htmlVit += `<span style="width:100%; font-size:.95rem; font-weight:800; color:#000; margin-top:6px; margin-bottom:2px;">${nomeGestor}</span>`;
         lojasGestor.forEach(l=>{
           const reg = registos.find(r=>r.loja===l);
           const semStock = reg && reg.nota && (!reg.fotos || reg.fotos.length===0);
@@ -7047,7 +7047,7 @@ function semanaKey(d){
       <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:4px;">🧾 Vendas (${todayVendas.length}/${LOJAS.length})</div>
       <div style="display:flex; flex-wrap:wrap; gap:6px;" data-vendas-row="1">`;
     [["Cristina",LOJAS_CG],["João",LOJAS_JM]].forEach(([nomeGestor, lojasGestor])=>{
-      htmlVit += `<span style="width:100%; font-size:.62rem; font-weight:800; color:#9c4d23; text-transform:uppercase; margin-top:2px;">${nomeGestor}</span>`;
+      htmlVit += `<span style="width:100%; font-size:.95rem; font-weight:800; color:#000; margin-top:6px; margin-bottom:2px;">${nomeGestor}</span>`;
       lojasGestor.forEach(l=>{
         const reg = todayVendas.find(r=>r.loja===l);
         const feito = !!reg;
