@@ -113,6 +113,8 @@ async function carregarAuditoria(){
     btnPerfil.textContent = "👤 " + NOMES_PERFIS_AUD[currentUser];
     btnPerfil.style.opacity = GESTOR_FIXO ? "0.6" : "1";
     btnPerfil.style.cursor = GESTOR_FIXO ? "default" : "pointer";
+    btnPerfil.style.background = currentUser==="JM" ? "#2e6bb0" : "var(--ac,#C1622D)";
+    btnPerfil.style.color = "#fff";
   }
   const main = document.getElementById("main");
   main.innerHTML = `<div class="spin-wrap"><div class="spin"></div></div>`;
