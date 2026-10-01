@@ -68,7 +68,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
 </div>
 <div id="tarefasBannerWrap"></div>
 <div id="MN">
-  <div class="pt">Dashboard</div>
+  <div class="pt" id="dashboardTituloComPerfil">Dashboard</div>
   <div class="ps">As tuas ferramentas de gestão, num só sítio.</div>
 
   <div id="panoramaGeralSection" style="margin-bottom:14px;"></div>
@@ -154,6 +154,10 @@ function atualizarBotaoPerfilTopo(){
   btn.textContent = "👤 " + NOMES_PERFIS[currentUser];
   btn.style.opacity = GESTOR_FIXO ? "0.6" : "1";
   btn.style.cursor = GESTOR_FIXO ? "default" : "pointer";
+  btn.style.background = currentUser==="JM" ? "#2e6bb0" : "var(--terracotta,#C1622D)";
+  btn.style.color = "#fff";
+  const titulo = document.getElementById("dashboardTituloComPerfil");
+  if(titulo) titulo.textContent = `Dashboard — ${NOMES_PERFIS[currentUser]}`;
 }
 function alternarPerfilHub(){
   if(GESTOR_FIXO){ toast("Esta página é fixa para " + NOMES_PERFIS[currentUser] + "."); return; }
