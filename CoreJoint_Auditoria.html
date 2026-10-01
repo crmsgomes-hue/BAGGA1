@@ -28,7 +28,7 @@ html,body{font-family:'DM Sans',sans-serif;background:#d8d0c2;color:var(--tx);fo
 </style>
 </head>
 <body>
-<div id="HD"><div class="hlog">CoreJoint · Auditoria</div></div>
+<div id="HD"><div class="hlog">CoreJoint · Auditoria</div><div style="flex:1;"></div><button id="btnPerfilAud" onclick="alternarPerfilAuditoria()" style="background:var(--sf2); border:none; border-radius:99px; padding:7px 13px; font-size:.78rem; font-weight:700; color:var(--tx); cursor:pointer;">👤 ...</button></div>
 <div id="MN">
   <div class="pt">Quem fez o quê</div>
   <div class="ps">Só consulta — fotos enviadas, inventário/marketing feito, e quebras por justificar.</div>
@@ -45,6 +45,19 @@ async function api(path){
 const LOJAS_CG = ["Bombarral","Peniche","Caldas da Rainha","Ponte de Sor","Almeirim","Torres MH","Santarém","Rio Maior","Torres MCH","Torres Vedras"];
 const LOJAS_JM = ["Alverca","Malveira","Belas","Montelavar","Cacém","Sintra","Tapada das Mercês","Nem Martins","Mafra MH","Mafra MCH"];
 const LOJAS = [...LOJAS_CG, ...LOJAS_JM];
+const _paramsGestorAud = new URLSearchParams(location.search);
+const _gestorDoLinkAud = _paramsGestorAud.get("gestor");
+const GESTOR_FIXO = (_gestorDoLinkAud === "CG" || _gestorDoLinkAud === "JM");
+if(GESTOR_FIXO) localStorage.setItem("cj_rep_user", _gestorDoLinkAud);
+let currentUser = GESTOR_FIXO ? _gestorDoLinkAud : (localStorage.getItem("cj_rep_user") || "CG");
+function minhasLojas(){ return currentUser==="JM" ? LOJAS_JM : LOJAS_CG; }
+const NOMES_PERFIS_AUD = {CG:"Cristina", JM:"João"};
+function alternarPerfilAuditoria(){
+  if(GESTOR_FIXO){ return; }
+  currentUser = currentUser==="CG" ? "JM" : "CG";
+  localStorage.setItem("cj_rep_user", currentUser);
+  carregarAuditoria();
+}
 const INV_CATS = [
   { key:"raspadinhas", label:"JSC", freq:"semanal" },
   { key:"laranja", label:"Laranja", freq:"semanal" },
@@ -94,8 +107,15 @@ function findWeekdayInRange(start,end,dow){
   return d>end ? end : d;
 }
 
-(async function(){
+async function carregarAuditoria(){
+  const btnPerfil = document.getElementById("btnPerfilAud");
+  if(btnPerfil){
+    btnPerfil.textContent = "👤 " + NOMES_PERFIS_AUD[currentUser];
+    btnPerfil.style.opacity = GESTOR_FIXO ? "0.6" : "1";
+    btnPerfil.style.cursor = GESTOR_FIXO ? "default" : "pointer";
+  }
   const main = document.getElementById("main");
+  main.innerHTML = `<div class="spin-wrap"><div class="spin"></div></div>`;
   const today = new Date();
   const todayStr = isoDate(today);
 
@@ -128,26 +148,27 @@ function findWeekdayInRange(start,end,dow){
   }
 
   let html = "";
+  const minhas = minhasLojas();
 
   // Vitrine + Vendas hoje
   const TURNOS = [{key:"manha",label:"Manhã"},{key:"almoco",label:"Almoço"},{key:"lanche",label:"Lanche"}];
   html += `<div class="sec-label">🌇 Vitrine e Vendas — hoje</div><div class="card">`;
   TURNOS.forEach(t=>{
     const feitas = new Set(dailyRows.filter(r=>r.tipo==="vitrine"&&r.turno===t.key).map(r=>r.loja));
-    html += `<div style="margin-bottom:10px;"><div style="font-size:.72rem; color:var(--t2); font-weight:700; margin-bottom:5px;">${t.label} (${feitas.size}/${LOJAS.length})</div><div style="display:flex; flex-wrap:wrap; gap:6px;">`;
-    LOJAS.forEach(l=>{ html += `<span class="chip ${feitas.has(l)?'ok':''}">${feitas.has(l)?'✔ ':''}${l}</span>`; });
+    html += `<div style="margin-bottom:10px;"><div style="font-size:.72rem; color:var(--t2); font-weight:700; margin-bottom:5px;">${t.label} (${minhas.filter(l=>feitas.has(l)).length}/${minhas.length})</div><div style="display:flex; flex-wrap:wrap; gap:6px;">`;
+    minhas.forEach(l=>{ html += `<span class="chip ${feitas.has(l)?'ok':''}">${feitas.has(l)?'✔ ':''}${l}</span>`; });
     html += `</div></div>`;
   });
   const vendasFeitas = new Set(dailyRows.filter(r=>r.tipo==="vendas").map(r=>r.loja));
-  html += `<div><div style="font-size:.72rem; color:var(--t2); font-weight:700; margin-bottom:5px;">Vendas (${vendasFeitas.size}/${LOJAS.length})</div><div style="display:flex; flex-wrap:wrap; gap:6px;">`;
-  LOJAS.forEach(l=>{ html += `<span class="chip ${vendasFeitas.has(l)?'ok':''}">${vendasFeitas.has(l)?'✔ ':''}${l}</span>`; });
+  html += `<div><div style="font-size:.72rem; color:var(--t2); font-weight:700; margin-bottom:5px;">Vendas (${minhas.filter(l=>vendasFeitas.has(l)).length}/${minhas.length})</div><div style="display:flex; flex-wrap:wrap; gap:6px;">`;
+  minhas.forEach(l=>{ html += `<span class="chip ${vendasFeitas.has(l)?'ok':''}">${vendasFeitas.has(l)?'✔ ':''}${l}</span>`; });
   html += `</div></div></div>`;
 
   // Laranjas/Tabaco hoje
   const ltFeitas = {laranjas_maquina:new Set(dailyRows.filter(r=>r.tipo==="laranjas_maquina").map(r=>r.loja)), expositor_tabaco:new Set(dailyRows.filter(r=>r.tipo==="expositor_tabaco").map(r=>r.loja))};
   html += `<div class="sec-label">🍊🚬 Laranjas e Tabaco — hoje</div><div class="card">`;
   [{key:"laranjas_maquina",label:"Laranjas na máquina"},{key:"expositor_tabaco",label:"Expositor do tabaco"}].forEach(x=>{
-    const lojasAplicaveis = LOJAS.filter(l=>!naoAplicaveis.some(n=>n.loja===l&&n.categoria===x.key));
+    const lojasAplicaveis = minhas.filter(l=>!naoAplicaveis.some(n=>n.loja===l&&n.categoria===x.key));
     html += `<div style="margin-bottom:10px;"><div style="font-size:.72rem; color:var(--t2); font-weight:700; margin-bottom:5px;">${x.label} (${lojasAplicaveis.filter(l=>ltFeitas[x.key].has(l)).length}/${lojasAplicaveis.length})</div><div style="display:flex; flex-wrap:wrap; gap:6px;">`;
     lojasAplicaveis.forEach(l=>{ html += `<span class="chip ${ltFeitas[x.key].has(l)?'ok':''}">${ltFeitas[x.key].has(l)?'✔ ':''}${l}</span>`; });
     html += `</div></div>`;
@@ -157,7 +178,7 @@ function findWeekdayInRange(start,end,dow){
   // Inventário e Marketing (janelas próprias)
   html += `<div class="sec-label">📦 Inventário e Marketing</div>`;
   [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
-    const lojasAplicaveis = LOJAS.filter(l=>!naoAplicaveis.some(n=>n.loja===l&&n.categoria===cat.key));
+    const lojasAplicaveis = minhas.filter(l=>!naoAplicaveis.some(n=>n.loja===l&&n.categoria===cat.key));
     if(lojasAplicaveis.length===0) return;
     const feitos = lojasAplicaveis.filter(l=>invStatus(l,cat.key,cat.freq));
     html += `<div class="card"><div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.85rem; margin-bottom:8px;">${cat.label} <span style="color:var(--t2); font-weight:600; font-size:.75rem;">(${feitos.length}/${lojasAplicaveis.length})</span></div><div style="display:flex; flex-wrap:wrap; gap:6px;">`;
@@ -166,11 +187,12 @@ function findWeekdayInRange(start,end,dow){
   });
 
   // Quebras por justificar
+  const quebrasMinhas = quebras.filter(q=>minhas.includes(q.loja));
   html += `<div class="sec-label">💸 Quebras por justificar</div>`;
-  if(quebras.length===0){
+  if(quebrasMinhas.length===0){
     html += `<div class="card" style="text-align:center; color:var(--grn); font-weight:700;">✔ Nenhuma quebra por justificar.</div>`;
   } else {
-    quebras.forEach(q=>{
+    quebrasMinhas.forEach(q=>{
       html += `<div class="card" style="padding:11px 14px;">
         <div style="font-weight:700; font-size:.86rem;">${q.loja||'(loja não identificada)'}</div>
         <div style="font-size:.78rem; color:var(--t2); margin-top:2px;">${new Date(q.data+"T00:00:00").toLocaleDateString('pt-PT')} · ${q.operador||'—'} · <span style="color:var(--red); font-weight:700;">${Number(q.valor_quebra).toFixed(2)}€</span></div>
@@ -179,7 +201,8 @@ function findWeekdayInRange(start,end,dow){
   }
 
   main.innerHTML = html;
-})().catch(e=>{
+}
+carregarAuditoria().catch(e=>{
   document.getElementById("main").innerHTML = `<div class="card" style="color:var(--red);">Erro a carregar: ${e.message}</div>`;
 });
 </script>
