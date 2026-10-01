@@ -62,6 +62,8 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
 <body>
 <div id="HD">
   <div class="hlog">CoreJoint</div>
+  <div style="flex:1;"></div>
+  <button id="btnPerfilTopoHub" onclick="alternarPerfilHub()" style="background:var(--sf2); border:none; border-radius:99px; padding:7px 14px; font-size:.8rem; font-weight:700; color:var(--tx); cursor:pointer; margin-right:6px;">👤 ...</button>
   <button class="hbtn" id="darkToggle" onclick="toggleDark()" style="display:none;">🌙</button>
 </div>
 <div id="tarefasBannerWrap"></div>
@@ -146,11 +148,19 @@ function filtroMinhasLojas(){
 }
 const PERFIS = ["CG", "JM"];
 const NOMES_PERFIS = {CG:"Cristina", JM:"João"};
+function atualizarBotaoPerfilTopo(){
+  const btn = document.getElementById("btnPerfilTopoHub");
+  if(!btn) return;
+  btn.textContent = "👤 " + NOMES_PERFIS[currentUser];
+  btn.style.opacity = GESTOR_FIXO ? "0.6" : "1";
+  btn.style.cursor = GESTOR_FIXO ? "default" : "pointer";
+}
 function alternarPerfilHub(){
   if(GESTOR_FIXO){ toast("Esta página é fixa para " + NOMES_PERFIS[currentUser] + "."); return; }
   const idx = PERFIS.indexOf(currentUser);
   currentUser = PERFIS[(idx+1) % PERFIS.length];
   localStorage.setItem("cj_rep_user", currentUser);
+  atualizarBotaoPerfilTopo();
   const overlay = document.getElementById("lembretesOverlay");
   if(overlay){
     document.getElementById("perfilLembretesLabel").textContent = `👤 ${NOMES_PERFIS[currentUser]}`;
@@ -6667,6 +6677,7 @@ function semanaKey(d){
 }
 
 (async ()=>{
+  atualizarBotaoPerfilTopo();
   renderPanoramaGeral();
   renderSemaforoLojas();
   verificarBannerTarefas();
