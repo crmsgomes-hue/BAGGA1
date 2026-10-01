@@ -173,6 +173,7 @@ function alternarPerfilHub(){
   verificarBannerTarefas();
   renderPanoramaGeral();
   renderSemaforoLojas();
+  carregarDashboardCompleto().catch(e=>console.error("Erro ao recarregar dashboard:", e));
   toast(`Espaço trocado para ${NOMES_PERFIS[currentUser]} — já a ver as lojas dele/dela`);
 }
 function _logErro(app, mensagem, contexto){
@@ -6680,7 +6681,7 @@ function semanaKey(d){
   return `${dt.getUTCFullYear()}-W${String(semana).padStart(2,'0')}`;
 }
 
-(async ()=>{
+async function carregarDashboardCompleto(){
   atualizarBotaoPerfilTopo();
   renderPanoramaGeral();
   renderSemaforoLojas();
@@ -7388,7 +7389,8 @@ function semanaKey(d){
   });
 
   document.getElementById("attnSection").innerHTML = "";
-})();
+}
+carregarDashboardCompleto().catch(e=>console.error("Erro no carregarDashboardCompleto:", e));
 
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js', {scope: './'}).catch(e=>console.warn('sw.js falhou', e));
