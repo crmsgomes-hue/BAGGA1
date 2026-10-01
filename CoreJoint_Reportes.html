@@ -469,9 +469,12 @@ const GESTOR_FIXO = (_gestorDoLinkRep === "CG" || _gestorDoLinkRep === "JM");
 if(GESTOR_FIXO) localStorage.setItem("cj_rep_user", _gestorDoLinkRep);
 let currentUser = GESTOR_FIXO ? _gestorDoLinkRep : (localStorage.getItem("cj_rep_user") || "CG");
 const PERFIS = ["CG", "JM"];
+const NOMES_PERFIS_REP = {CG:"Cristina", JM:"João"};
 function atualizarBotaoPerfil(){
   const btn = document.getElementById("perfilBtn");
-  if(btn) btn.textContent = `👤 ${currentUser}`;
+  if(!btn) return;
+  btn.textContent = `👤 ${NOMES_PERFIS_REP[currentUser]}`;
+  btn.style.background = currentUser==="JM" ? "#2e6bb0" : "var(--terracotta)";
 }
 function alternarPerfil(){
   if(GESTOR_FIXO){ toast("Esta página é fixa para " + currentUser + "."); return; }
@@ -479,7 +482,7 @@ function alternarPerfil(){
   currentUser = PERFIS[(idx+1) % PERFIS.length];
   localStorage.setItem("cj_rep_user", currentUser);
   atualizarBotaoPerfil();
-  toast(`Perfil alterado para ${currentUser}`);
+  toast(`Perfil alterado para ${NOMES_PERFIS_REP[currentUser]}`);
 }
 let currentTab = "hoje";
 let dailyRows = [];
