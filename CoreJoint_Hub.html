@@ -488,6 +488,15 @@ async function renderPanoramaGeral(){
       const maisAntigoPm = Math.max(0,...pedidosMaterialPendentesPg.map(p=>Math.floor((Date.now()-new Date(p.criado_em).getTime())/86400000)));
       listaAtencao.push({acao:abrirPedidosMaterialHub, texto:`📦 ${pedidosMaterialPendentesPg.length} pedido(s) de material por tratar${maisAntigoPm>=3?` (o mais antigo há ${maisAntigoPm} dias)`:''}`, urgente: maisAntigoPm>=3});
     }
+    try{
+      const seteDiasAtrasTarefas = new Date(Date.now()-7*86400000).toISOString();
+      const tarefasAutoSemana = await api(`cj_tarefas_pessoais?select=atribuido_a&criado_por=like.Sistema*&criado_em=gte.${seteDiasAtrasTarefas}`, "GET");
+      if(tarefasAutoSemana.length>0){
+        const porCG = tarefasAutoSemana.filter(t=>t.atribuido_a==="CG").length;
+        const porJM = tarefasAutoSemana.filter(t=>t.atribuido_a==="JM").length;
+        listaAtencao.push({acao:abrirTarefasPessoais, texto:`🤖 ${tarefasAutoSemana.length} tarefa(s) criada(s) sozinha(s) esta semana (${porCG} da Cristina, ${porJM} do João)`, urgente:false});
+      }
+    }catch(e){ console.error(e); }
     listaAtencao.sort((a,b)=>(b.urgente?1:0)-(a.urgente?1:0));
     const LIMITE_ATENCAO_VISIVEL = 4;
     const escondidos = listaAtencao.length - LIMITE_ATENCAO_VISIVEL;
@@ -717,19 +726,83 @@ async function renderPanoramaGeral(){
       cat.wire();
     }
 
-    document.querySelector('[data-topico="partilhar"]').onclick = ()=>{
+    const indiceRelatoriosBusca = [
+      {termo:"PINs das lojas", chave:"admin"}, {termo:"Reset de categoria", chave:"admin"},
+      {termo:"Vitrine Vendas Laranjas Tabaco", chave:"diario"}, {termo:"Resumo de ontem", chave:"diario"}, {termo:"Relatório semanal de vendas", chave:"diario"},
+      {termo:"Registos e justificações quebras", chave:"quebrasrel"}, {termo:"Preencher Excel da empresa quebras", chave:"quebrasrel"}, {termo:"Importar Excel de quebras", chave:"quebrasrel"}, {termo:"Relatório semanal de quebras", chave:"quebrasrel"},
+      {termo:"Fotos por categoria inventário", chave:"inventariorel"}, {termo:"Ver relatório de inventário", chave:"inventariorel"}, {termo:"Preencher Excel da empresa inventário", chave:"inventariorel"},
+      {termo:"Inscrições Formação Horários", chave:"formacaomkt"}, {termo:"APS e Preventiva Delta", chave:"formacaomkt"}, {termo:"Forms Legionela", chave:"formacaomkt"},
+      {termo:"Stock negativo cruzado", chave:"stockartigo"}, {termo:"Stock negativo lista detalhada artigo a artigo", chave:"stockartigo"}, {termo:"Artigos de inventário por justificar", chave:"stockartigo"}, {termo:"Validades de lotes", chave:"stockartigo"},
+      {termo:"Colaboradores nomes número mecanográfico", chave:"pessoas"}, {termo:"Empréstimo de pessoal mobilidade", chave:"pessoas"}, {termo:"Elogios", chave:"pessoas"},
+      {termo:"Equipamentos avariados avarias", chave:"equipamentos"}, {termo:"Sintomas de equipamento", chave:"equipamentos"}, {termo:"Depurador de água", chave:"equipamentos"}, {termo:"Extintores e lâmpadas segurança", chave:"equipamentos"}, {termo:"Conferência de fornecedores", chave:"equipamentos"},
+      {termo:"Reclamações", chave:"comunicacao"}, {termo:"Pedidos de material", chave:"comunicacao"}, {termo:"Manuais e fichas técnicas", chave:"comunicacao"}, {termo:"Códigos das portas", chave:"comunicacao"}, {termo:"Fotos pontuais", chave:"comunicacao"}, {termo:"Sondagens e Formulários", chave:"comunicacao"}, {termo:"Formações", chave:"comunicacao"}, {termo:"Horários", chave:"comunicacao"}, {termo:"Trocas de horário", chave:"comunicacao"}, {termo:"Global datas marcadas agendamento", chave:"comunicacao"},
+      {termo:"Criar sondagem formulário", chave:"ferramentas"}, {termo:"Histórico 12 meses", chave:"ferramentas"}, {termo:"Calendário", chave:"ferramentas"}, {termo:"Relatório de Integridade", chave:"ferramentas"}, {termo:"Galeria de fotos", chave:"ferramentas"}, {termo:"CNVs Global", chave:"ferramentas"}, {termo:"Importar Colaboradores", chave:"ferramentas"}, {termo:"Importar Inventário por Artigo", chave:"ferramentas"}, {termo:"Importar Quebras e Ajustes por Artigo", chave:"ferramentas"}, {termo:"Quebras e ajustes por artigo relatório", chave:"ferramentas"}, {termo:"Informações das lojas centro custo morada tlm", chave:"ferramentas"}, {termo:"Lojas fora de rede", chave:"ferramentas"},
+    ];
+
+    document.querySelector('[data-topico="partilhar"]').onclick = async ()=>{
       const corpo = `
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-          ${relatoriosCategorias.map(c=>`<button data-cat-relatorio="${c.chave}" style="text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px 10px; font-size:.8rem; font-weight:700; color:var(--tx); cursor:pointer;">${c.icon} ${c.nome}</button>`).join("")}
+        <input id="buscaRelatoriosHub" placeholder="🔎 Pesquisar (ex: válid, PIN, elogio...)" style="width:100%; padding:10px; border-radius:10px; border:1px solid var(--br); font-size:.85rem; margin-bottom:10px; box-sizing:border-box;">
+        <div id="buscaRelatoriosResultados" style="margin-bottom:10px;"></div>
+        <div id="gridCategoriasRelatorios" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          ${relatoriosCategorias.map(c=>`<button data-cat-relatorio="${c.chave}" style="text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px 10px; font-size:.8rem; font-weight:700; color:var(--tx); cursor:pointer; position:relative;">${c.icon} ${c.nome}<span data-badge-cat="${c.chave}"></span></button>`).join("")}
         </div>
       `;
       abrirModalTopico("📊 Relatórios", corpo);
-      document.querySelectorAll("[data-cat-relatorio]").forEach(btn=>{
-        btn.onclick = ()=>{
-          const cat = relatoriosCategorias.find(c=>c.chave===btn.dataset.catRelatorio);
-          abrirCategoriaRelatorios(cat);
-        };
+      const wireCategoriaBtns = ()=>{
+        document.querySelectorAll("[data-cat-relatorio]").forEach(btn=>{
+          btn.onclick = ()=>{
+            const cat = relatoriosCategorias.find(c=>c.chave===btn.dataset.catRelatorio);
+            abrirCategoriaRelatorios(cat);
+          };
+        });
+      };
+      wireCategoriaBtns();
+
+      const inputBusca = document.getElementById("buscaRelatoriosHub");
+      const resultadosBusca = document.getElementById("buscaRelatoriosResultados");
+      const gridCategorias = document.getElementById("gridCategoriasRelatorios");
+      inputBusca.addEventListener("input", ()=>{
+        const termo = inputBusca.value.trim().toLowerCase();
+        if(termo.length < 2){
+          resultadosBusca.innerHTML = "";
+          gridCategorias.style.display = "grid";
+          return;
+        }
+        gridCategorias.style.display = "none";
+        const encontrados = indiceRelatoriosBusca.filter(i=>i.termo.toLowerCase().includes(termo));
+        const chavesUnicas = [...new Map(encontrados.map(i=>[i.chave+"|"+i.termo, i])).values()];
+        if(chavesUnicas.length===0){
+          resultadosBusca.innerHTML = `<div style="text-align:center; color:var(--t2); font-size:.82rem; padding:10px 0;">Nada encontrado.</div>`;
+          return;
+        }
+        resultadosBusca.innerHTML = chavesUnicas.map(i=>{
+          const cat = relatoriosCategorias.find(c=>c.chave===i.chave);
+          return `<button data-busca-item="${i.chave}" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:8px; padding:9px 11px; margin-bottom:5px; font-size:.8rem; font-weight:700; color:var(--tx); cursor:pointer;">${cat.icon} ${i.termo} <span style="color:var(--t2); font-weight:600; font-size:.7rem;">— ${cat.nome}</span></button>`;
+        }).join("");
+        resultadosBusca.querySelectorAll("[data-busca-item]").forEach(btn=>{
+          btn.onclick = ()=>{
+            const cat = relatoriosCategorias.find(c=>c.chave===btn.dataset.buscaItem);
+            abrirCategoriaRelatorios(cat);
+          };
+        });
       });
+
+      // números de pendências por categoria
+      try{
+        const [avariasPg, reclamacoesPg, pedidosMatPg, stockNegPg] = await Promise.all([
+          api(`cj_avarias_bagga?select=id&estado=eq.pendente${filtroMinhasLojas()}`, "GET"),
+          api(`cj_reclamacoes?select=id&estado=eq.pendente${filtroMinhasLojas()}`, "GET"),
+          api(`cj_pedidos_material?select=id&estado=eq.pendente${filtroMinhasLojas()}`, "GET"),
+          api(`cj_stock_negativo?select=id&justificacao=is.null&loja=not.is.null${filtroMinhasLojas()}`, "GET"),
+        ]);
+        const badge = (n)=> n>0 ? `<span style="position:absolute; top:6px; right:6px; background:#b0432f; color:#fff; border-radius:99px; min-width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; font-size:.65rem; font-weight:800; padding:0 4px;">${n}</span>` : '';
+        const elEquip = document.querySelector('[data-badge-cat="equipamentos"]');
+        if(elEquip) elEquip.outerHTML = badge(avariasPg.length);
+        const elComu = document.querySelector('[data-badge-cat="comunicacao"]');
+        if(elComu) elComu.outerHTML = badge(reclamacoesPg.length + pedidosMatPg.length);
+        const elStock = document.querySelector('[data-badge-cat="stockartigo"]');
+        if(elStock) elStock.outerHTML = badge(stockNegPg.length);
+      }catch(e){ console.error(e); }
     };
 
     document.querySelector('[data-topico="vendas"]').onclick = ()=>{
