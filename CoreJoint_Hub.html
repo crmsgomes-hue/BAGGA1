@@ -494,7 +494,7 @@ async function renderPanoramaGeral(){
       if(tarefasAutoSemana.length>0){
         const porCG = tarefasAutoSemana.filter(t=>t.atribuido_a==="CG").length;
         const porJM = tarefasAutoSemana.filter(t=>t.atribuido_a==="JM").length;
-        listaAtencao.push({acao:abrirTarefasPessoais, texto:`🤖 ${tarefasAutoSemana.length} tarefa(s) criada(s) sozinha(s) esta semana (${porCG} da Cristina, ${porJM} do João)`, urgente:false});
+        listaAtencao.push({acao:abrirTarefasAutomaticasHub, texto:`🤖 ${tarefasAutoSemana.length} tarefa(s) criada(s) sozinha(s) esta semana (${porCG} da Cristina, ${porJM} do João)`, urgente:false});
       }
     }catch(e){ console.error(e); }
     listaAtencao.sort((a,b)=>(b.urgente?1:0)-(a.urgente?1:0));
@@ -703,6 +703,7 @@ async function renderPanoramaGeral(){
         <button id="btnCriarSondagemFormHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">➕ Criar sondagem/formulário</button>
         <button id="btnQuebrasArtigosHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; text-align:left;">📦 Quebras e ajustes por artigo (relatório)</button>
         <button id="btnLojasInfoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🏬 Informações das lojas (centro custo, morada, tlm)</button>
+        <button id="btnTarefasAutoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🤖 Tarefas automáticas (ver/arquivar em bloco)</button>
         <button id="btnLojasForaRedeHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🚫 Lojas fora de rede</button>
         ${botoesAcao([
           ["📅 Histórico 12 meses","CoreJoint_Reportes.html?abrir=historico12m"],
@@ -717,6 +718,7 @@ async function renderPanoramaGeral(){
         document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
         document.getElementById("btnQuebrasArtigosHub").onclick = abrirQuebrasArtigosHub;
         document.getElementById("btnLojasInfoHub").onclick = abrirLojasInfoHub;
+        document.getElementById("btnTarefasAutoHub").onclick = abrirTarefasAutomaticasHub;
         document.getElementById("btnLojasForaRedeHub").onclick = abrirLojasForaRedeHub;
       }},
     ];
@@ -4358,6 +4360,87 @@ async function abrirLojasForaRedeHub(){
   renderListaForaRede();
 }
 
+async function abrirTarefasAutomaticasHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "tarefasAutoOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; margin-top:30px; max-height:90vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">🤖 Tarefas automáticas</div>
+      <div style="font-size:.78rem; color:var(--t2); margin-bottom:14px;">Quebras/ajustes fora do normal, detetadas sozinhas. Agrupadas por loja.</div>
+      <button id="marcarTodasVistasAutoBtn" style="width:100%; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700; margin-bottom:12px;">✔ Marcar todas como vistas</button>
+      <div id="tarefasAutoListaHub"><div style="text-align:center; padding:16px 0; color:var(--t2); font-size:.85rem;">A carregar...</div></div>
+      <button id="fecharTarefasAutoHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharTarefasAutoHubBtn").onclick = ()=>fecharEcraHub();
+
+  let tarefasAtuais = [];
+  async function renderTarefasAuto(){
+    tarefasAtuais = await api(`cj_tarefas_pessoais?select=id,titulo,descricao,criado_em&criado_por=like.Sistema*&feita=eq.false&atribuido_a=eq.${currentUser}&order=criado_em.desc`, "GET");
+    const lista = document.getElementById("tarefasAutoListaHub");
+    if(tarefasAtuais.length===0){
+      lista.innerHTML = `<div style="text-align:center; padding:16px 0; color:#2e7d32; font-size:.85rem; font-weight:700;">✔ Sem tarefas automáticas pendentes.</div>`;
+      document.getElementById("marcarTodasVistasAutoBtn").style.display = "none";
+      return;
+    }
+    document.getElementById("marcarTodasVistasAutoBtn").style.display = "block";
+    const porLoja = {};
+    tarefasAtuais.forEach(t=>{
+      const partes = t.titulo.split(" — ");
+      const loja = partes.length>=2 ? partes[1] : "Outra";
+      (porLoja[loja] ||= []).push(t);
+    });
+    const lojasOrdenadas = Object.keys(porLoja).sort((a,b)=>porLoja[b].length-porLoja[a].length);
+    lista.innerHTML = `<div style="font-size:.78rem; color:var(--t2); margin-bottom:10px;">${tarefasAtuais.length} tarefa(s) pendente(s), em ${lojasOrdenadas.length} loja(s)</div>` +
+      lojasOrdenadas.map(loja=>`
+        <div style="margin-bottom:10px; border:1px solid var(--br); border-radius:10px; overflow:hidden;">
+          <div style="display:flex; justify-content:space-between; align-items:center; background:var(--sf2,#f5f0e6); padding:9px 11px;">
+            <b style="font-size:12.5px;">${loja}</b>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:11px; color:var(--t2);">${porLoja[loja].length}</span>
+              <button data-marcar-loja="${loja}" style="background:#2e7d32; color:#fff; border:none; border-radius:7px; padding:5px 9px; font-size:.68rem; font-weight:700;">✔ loja toda</button>
+            </div>
+          </div>
+          <div>
+            ${porLoja[loja].map(t=>{
+              const partes = t.titulo.split(" — ");
+              const resto = partes.slice(2).join(" — ") || t.titulo;
+              return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 11px; border-top:1px solid var(--br); gap:8px;">
+                <span style="font-size:11.5px; flex:1;">${resto}</span>
+                <button data-marcar-id="${t.id}" style="background:none; border:1.5px solid var(--br); border-radius:7px; padding:4px 8px; font-size:.68rem; font-weight:700; color:var(--t2); white-space:nowrap;">✔</button>
+              </div>`;
+            }).join("")}
+          </div>
+        </div>
+      `).join("");
+
+    lista.querySelectorAll("[data-marcar-id]").forEach(btn=>{
+      btn.onclick = async ()=>{
+        await api(`cj_tarefas_pessoais?id=eq.${btn.dataset.marcarId}`, "PATCH", {feita:true});
+        renderTarefasAuto();
+      };
+    });
+    lista.querySelectorAll("[data-marcar-loja]").forEach(btn=>{
+      btn.onclick = async ()=>{
+        const ids = porLoja[btn.dataset.marcarLoja].map(t=>t.id);
+        await api(`cj_tarefas_pessoais?id=in.(${ids.join(",")})`, "PATCH", {feita:true});
+        renderTarefasAuto();
+      };
+    });
+  }
+  document.getElementById("marcarTodasVistasAutoBtn").onclick = async ()=>{
+    const ids = tarefasAtuais.map(t=>t.id);
+    if(ids.length===0) return;
+    await api(`cj_tarefas_pessoais?id=in.(${ids.join(",")})`, "PATCH", {feita:true});
+    mostrarSucesso("Todas marcadas");
+    renderTarefasAuto();
+  };
+  renderTarefasAuto();
+}
+
 async function abrirLojasInfoHub(){
   const overlay = document.createElement("div");
   overlay.id = "lojasInfoOverlayHub";
@@ -4604,7 +4687,7 @@ async function abrirQuebrasArtigosHub(){
       dias.forEach(d=>{
         const outrosValores = dias.filter(x=>x.data!==d.data).map(x=>Math.abs(x.valor));
         const med = mediana(outrosValores);
-        if(Math.abs(d.valor) >= Math.max(med*3, 15)){
+        if(Math.abs(d.valor) >= Math.max(med*5, 25)){
           anomalias.push(d);
         }
       });
