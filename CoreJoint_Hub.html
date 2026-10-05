@@ -245,6 +245,43 @@ window.addEventListener("popstate", ()=>{
   }
 });
 
+let rondaFila = [];
+function removerFlutuanteRonda(){
+  const f = document.getElementById("rondaFlutuante");
+  if(f) f.remove();
+}
+function mostrarFlutuanteRonda(){
+  removerFlutuanteRonda();
+  const flutuante = document.createElement("div");
+  flutuante.id = "rondaFlutuante";
+  flutuante.style.cssText = "position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:9999999; display:flex; gap:8px; align-items:center; background:#1a1a1a; color:#fff; border-radius:99px; padding:9px 9px 9px 16px; box-shadow:0 3px 14px rgba(0,0,0,.35);";
+  flutuante.innerHTML = `
+    <span style="font-size:.78rem; font-weight:700;">${rondaFila.length} restante${rondaFila.length===1?'':'s'}</span>
+    <button id="rondaProximoBtn" style="background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:99px; padding:7px 13px; font-size:.78rem; font-weight:800; cursor:pointer;">➡️ Próximo</button>
+    <button id="rondaSairBtn" style="background:none; color:#fff; border:none; font-size:.9rem; cursor:pointer; padding:5px;">✕</button>
+  `;
+  document.body.appendChild(flutuante);
+  document.getElementById("rondaProximoBtn").onclick = ()=>{
+    removerFlutuanteRonda();
+    fecharEcraHub();
+    setTimeout(proximaParagemRonda, 120);
+  };
+  document.getElementById("rondaSairBtn").onclick = ()=>{
+    rondaFila = [];
+    removerFlutuanteRonda();
+  };
+}
+function proximaParagemRonda(){
+  if(rondaFila.length===0){
+    removerFlutuanteRonda();
+    toast("✔ Ronda completa!");
+    return;
+  }
+  const paragem = rondaFila.shift();
+  paragem.acao();
+  setTimeout(mostrarFlutuanteRonda, 150);
+}
+
 function abrirModalTopico(titulo, corpoHtml){
   const overlay = document.createElement("div");
   overlay.id = "modalTopicoOverlay";
@@ -505,7 +542,10 @@ async function renderPanoramaGeral(){
       <div style="margin-bottom:14px;">
         ${listaAtencao.length===0
           ? `<div style="text-align:center; padding:14px; background:var(--sf2); border-radius:12px; font-size:.85rem; font-weight:700; color:var(--grn);">✔ Tudo em dia — nada precisa da tua atenção agora.</div>`
-          : `<div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700; margin-bottom:6px;">Precisa da tua atenção${listaAtencao.length>0?` (${listaAtencao.length})`:''}</div>
+          : `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+               <div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700;">Precisa da tua atenção${listaAtencao.length>0?` (${listaAtencao.length})`:''}</div>
+               ${listaAtencao.some(a=>a.acao) ? `<button id="btnFazerRondaHub" style="background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:99px; padding:5px 11px; font-size:.7rem; font-weight:800; cursor:pointer;">🚶 Fazer a ronda</button>` : ''}
+             </div>
              <div style="display:flex; flex-direction:column; gap:1px; border-radius:12px; overflow:hidden; border:1px solid var(--br);">
                ${listaAtencao.map((a,i)=>`<button data-atencao-idx="${i}" ${i>=LIMITE_ATENCAO_VISIVEL?'data-atencao-extra="1" style="display:none;"':''} class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:${i>=LIMITE_ATENCAO_VISIVEL?'none':'flex'}; justify-content:space-between; align-items:center; padding:11px 12px; background:${a.urgente?'#fdf1ee':'var(--sf2)'};">
                  <span style="font-size:.82rem; font-weight:700; color:${a.urgente?'var(--red)':'var(--tx)'};">${a.texto}</span>
@@ -939,6 +979,13 @@ async function renderPanoramaGeral(){
         if(alvo) alvo.click();
       };
     });
+    const btnFazerRonda = document.getElementById("btnFazerRondaHub");
+    if(btnFazerRonda){
+      btnFazerRonda.onclick = ()=>{
+        rondaFila = listaAtencao.filter(i=>i.acao).map(i=>({acao:i.acao, texto:i.texto}));
+        proximaParagemRonda();
+      };
+    }
     const btnVerMaisAtencao = document.getElementById("btnVerMaisAtencaoHub");
     if(btnVerMaisAtencao){
       btnVerMaisAtencao.onclick = ()=>{
@@ -2849,6 +2896,11 @@ async function abrirInventarioArtigosJustificarHub(){
         <option value="">— Todas as lojas —</option>
         ${LOJAS.map(l=>`<option value="${l}">${l}</option>`).join("")}
       </select>
+      <div id="invArtigosJustBarraLoteHub" style="display:none; background:var(--terracotta,#C1622D); border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+        <div style="color:#fff; font-size:.78rem; font-weight:700; margin-bottom:6px;" id="invArtigosJustLoteTexto"></div>
+        <textarea id="invArtigosJustLoteTexto2" placeholder="Justificação a aplicar a todos os selecionados..." style="width:100%; padding:7px 9px; border-radius:6px; border:none; font-size:.78rem; box-sizing:border-box; min-height:40px; margin-bottom:6px;"></textarea>
+        <button id="invArtigosJustAplicarLoteBtn" style="width:100%; background:#fff; color:var(--terracotta,#C1622D); border:none; border-radius:7px; padding:7px; font-size:.78rem; font-weight:800;">✔ Aplicar aos selecionados</button>
+      </div>
       <div id="invArtigosJustListaHub"></div>
       <button id="btnVerRelInvArtigosHub" style="width:100%; margin-top:10px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700;">📤 Ver relatório partilhável (para email)</button>
       <button id="fecharInvArtigosJustHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
@@ -2884,6 +2936,9 @@ async function abrirInventarioArtigosJustificarHub(){
         <tbody>
           ${grupos[g].map(a=>`
             <tr class="linhaArtJust" data-id="${a.id}" style="cursor:pointer;">
+              <td style="padding:7px 6px; border-bottom:1px solid #f0ebe3; width:24px;" onclick="event.stopPropagation();">
+                <input type="checkbox" class="iaCheckSelecao" data-id="${a.id}" style="width:16px; height:16px;">
+              </td>
               <td style="padding:7px 6px; border-bottom:1px solid #f0ebe3;">
                 <div style="font-size:11.5px; font-weight:700;">${a.artigo}</div>
                 <div style="font-size:9px; color:#777;">${!lojaFiltro?a.loja+' · ':''}${a.subcategoria||''}${a.diferenca_qtd!=null?' · '+a.diferenca_qtd+' un':''}</div>
@@ -2927,6 +2982,36 @@ async function abrirInventarioArtigosJustificarHub(){
         }
       };
     });
+
+    function atualizarBarraLoteIa(){
+      const marcadas = container.querySelectorAll(".iaCheckSelecao:checked");
+      const barra = document.getElementById("invArtigosJustBarraLoteHub");
+      if(marcadas.length>0){
+        barra.style.display = "block";
+        document.getElementById("invArtigosJustLoteTexto").textContent = `${marcadas.length} artigo(s) selecionado(s)`;
+      } else {
+        barra.style.display = "none";
+      }
+    }
+    container.querySelectorAll(".iaCheckSelecao").forEach(chk=>{ chk.onchange = atualizarBarraLoteIa; });
+    document.getElementById("invArtigosJustAplicarLoteBtn").onclick = async ()=>{
+      const ids = [...container.querySelectorAll(".iaCheckSelecao:checked")].map(c=>c.dataset.id);
+      const texto = document.getElementById("invArtigosJustLoteTexto2").value.trim();
+      if(ids.length===0) return;
+      if(!texto){ toast("Escreve a justificação a aplicar"); return; }
+      const btnLote = document.getElementById("invArtigosJustAplicarLoteBtn");
+      btnLote.disabled = true; btnLote.textContent = "A guardar...";
+      try{
+        await api(`cj_inventario_artigos?id=in.(${ids.join(",")})`, "PATCH", {justificacao: texto, justificado_por: currentUser, justificado_em: new Date().toISOString()});
+        todos = todos.filter(a=>!ids.includes(String(a.id)));
+        document.getElementById("invArtigosJustLoteTexto2").value = "";
+        mostrarSucesso(`${ids.length} justificado(s)`);
+        render();
+      }catch(e){
+        toast("Erro: " + (e.message||e).slice(0,100));
+        btnLote.disabled = false; btnLote.textContent = "✔ Aplicar aos selecionados";
+      }
+    };
   }
   render();
   document.getElementById("invArtigosJustLojaSel").onchange = render;
@@ -3096,6 +3181,10 @@ async function abrirAvariasHub(){
         </select>
       </div>
 
+      <div id="avariasBarraLoteHub" style="display:none; align-items:center; justify-content:space-between; background:var(--terracotta,#C1622D); color:#fff; border-radius:10px; padding:9px 12px; margin-bottom:8px;">
+        <span id="avariasLoteTexto" style="font-size:.78rem; font-weight:700;"></span>
+        <button id="avariasResolverLoteBtn" style="background:#fff; color:var(--terracotta,#C1622D); border:none; border-radius:7px; padding:6px 10px; font-size:.75rem; font-weight:800;">✔ Resolver selecionados</button>
+      </div>
       <div id="avariasListaHub"></div>
       <div id="avariasPartilhaBtnsHub" style="margin-top:12px;"></div>
       <button id="fecharAvariasHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
@@ -3159,7 +3248,9 @@ async function abrirAvariasHub(){
       const diasPendente = a.estado!=='resolvido' ? Math.floor((Date.now()-new Date(a.data_pedido+"T00:00:00").getTime())/86400000) : 0;
       const muitoAtrasada = diasPendente>=3;
       return `
-      <div style="background:${muitoAtrasada?'#fdeceb':'var(--sf2,#f5f0e6)'}; border-radius:10px; padding:10px 12px; margin-bottom:8px; ${muitoAtrasada?'border:1.5px solid #b0432f;':''}">
+      <div style="background:${muitoAtrasada?'#fdeceb':'var(--sf2,#f5f0e6)'}; border-radius:10px; padding:10px 12px; margin-bottom:8px; ${muitoAtrasada?'border:1.5px solid #b0432f;':''} display:flex; gap:8px;">
+        ${a.estado!=='resolvido' ? `<input type="checkbox" class="avCheckSelecao" data-id="${a.id}" style="margin-top:3px; width:17px; height:17px; flex-shrink:0;">` : '<div style="width:17px;"></div>'}
+        <div style="flex:1; min-width:0;">
         <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
           <b style="font-size:12px;">${a.loja} — ${a.equipamento}</b>
           <span style="font-size:10px; font-weight:800; padding:3px 8px; border-radius:99px; white-space:nowrap; background:${a.estado==='resolvido'?'#2e7d32':(muitoAtrasada?'#b0432f':'#c17817')}; color:#fff;">${a.estado==='resolvido'?'✔ Resolvido':(muitoAtrasada?`🔥 Pendente há ${diasPendente} dias`:'⏳ Pendente')}</span>
@@ -3168,8 +3259,35 @@ async function abrirAvariasHub(){
         <div style="font-size:9.5px; color:#777; margin-top:3px;">${a.fornecedor?'Fornecedor: '+a.fornecedor+' · ':''}Pedido: ${new Date(a.data_pedido+"T00:00:00").toLocaleDateString('pt-PT')}${a.custo?' · '+Number(a.custo).toFixed(2).replace('.',',')+'€':''}</div>
         ${a.data_resolucao?`<div style="font-size:9.5px; color:#2e7d32; margin-top:2px;">Resolvido em ${new Date(a.data_resolucao+"T00:00:00").toLocaleDateString('pt-PT')}</div>`:''}
         ${a.estado!=='resolvido' ? `<button data-id="${a.id}" class="btnResolverAvariaHub" style="width:100%; margin-top:7px; background:#2e7d32; color:#fff; border:none; border-radius:8px; padding:7px; font-size:.76rem; font-weight:700;">✔ Marcar como resolvido</button>` : ''}
+        </div>
       </div>
     `;}).join("");
+
+    function atualizarBarraLoteAv(){
+      const marcadas = lista.querySelectorAll(".avCheckSelecao:checked");
+      const barra = document.getElementById("avariasBarraLoteHub");
+      if(marcadas.length>0){
+        barra.style.display = "flex";
+        document.getElementById("avariasLoteTexto").textContent = `${marcadas.length} selecionado(s)`;
+      } else {
+        barra.style.display = "none";
+      }
+    }
+    lista.querySelectorAll(".avCheckSelecao").forEach(chk=>{ chk.onchange = atualizarBarraLoteAv; });
+    document.getElementById("avariasResolverLoteBtn").onclick = async ()=>{
+      const ids = [...lista.querySelectorAll(".avCheckSelecao:checked")].map(c=>c.dataset.id);
+      if(ids.length===0) return;
+      const btnLote = document.getElementById("avariasResolverLoteBtn");
+      btnLote.disabled = true; btnLote.textContent = "A resolver...";
+      try{
+        await api(`cj_avarias_bagga?id=in.(${ids.join(",")})`, "PATCH", {estado:"resolvido", data_resolucao: todayStrHub(), atualizado_em: new Date().toISOString()});
+        mostrarSucesso(`${ids.length} resolvido(s)`);
+        renderListaAvarias();
+      }catch(e){
+        toast("Erro: " + (e.message||e).slice(0,100));
+        btnLote.disabled = false; btnLote.textContent = "✔ Resolver selecionados";
+      }
+    };
 
     lista.querySelectorAll(".btnResolverAvariaHub").forEach(btn=>{
       btn.onclick = async ()=>{
@@ -3277,6 +3395,10 @@ async function abrirReclamacoesHub(){
         </select>
       </div>
 
+      <div id="reclamacoesBarraLoteHub" style="display:none; align-items:center; justify-content:space-between; background:var(--terracotta,#C1622D); color:#fff; border-radius:10px; padding:9px 12px; margin-bottom:8px;">
+        <span id="reclamacoesLoteTexto" style="font-size:.78rem; font-weight:700;"></span>
+        <button id="reclamacoesResolverLoteBtn" style="background:#fff; color:var(--terracotta,#C1622D); border:none; border-radius:7px; padding:6px 10px; font-size:.75rem; font-weight:800;">✔ Resolver selecionadas</button>
+      </div>
       <div id="reclamacoesListaHub"></div>
       <div id="reclamacoesPartilhaBtnsHub" style="margin-top:12px;"></div>
       <button id="fecharReclamacoesHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
@@ -3376,7 +3498,9 @@ async function abrirReclamacoesHub(){
       const diasPendente = r.estado!=='resolvido' ? Math.floor((Date.now()-new Date(r.data_hora).getTime())/86400000) : 0;
       const muitoAtrasada = diasPendente>=3;
       return `
-      <div style="background:${muitoAtrasada?'#fdeceb':'var(--sf2,#f5f0e6)'}; border-radius:10px; padding:10px 12px; margin-bottom:8px; ${muitoAtrasada?'border:1.5px solid #b0432f;':''}">
+      <div style="background:${muitoAtrasada?'#fdeceb':'var(--sf2,#f5f0e6)'}; border-radius:10px; padding:10px 12px; margin-bottom:8px; ${muitoAtrasada?'border:1.5px solid #b0432f;':''} display:flex; gap:8px;">
+        ${r.estado!=='resolvido' ? `<input type="checkbox" class="rcCheckSelecao" data-id="${r.id}" style="margin-top:3px; width:17px; height:17px; flex-shrink:0;">` : '<div style="width:17px;"></div>'}
+        <div style="flex:1; min-width:0;">
         <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
           <b style="font-size:12px;">${r.loja}</b>
           <span style="font-size:10px; font-weight:800; padding:3px 8px; border-radius:99px; white-space:nowrap; background:${r.estado==='resolvido'?'#2e7d32':(muitoAtrasada?'#b0432f':'#c17817')}; color:#fff;">${r.estado==='resolvido'?'✔ Resolvida':(muitoAtrasada?`🔥 Pendente há ${diasPendente} dias`:'⏳ Pendente')}</span>
@@ -3386,8 +3510,35 @@ async function abrirReclamacoesHub(){
         ${fotosHtml}
         ${r.resposta?`<div style="font-size:10px; color:#2e7d32; background:#e8f3e9; border-radius:6px; padding:5px 7px; margin-top:6px;"><b>Resposta:</b> ${r.resposta}</div>`:''}
         ${r.estado!=='resolvido' ? `<button data-id="${r.id}" class="btnResolverReclamacaoHub" style="width:100%; margin-top:7px; background:#2e7d32; color:#fff; border:none; border-radius:8px; padding:7px; font-size:.76rem; font-weight:700;">✔ Marcar como resolvida</button>` : ''}
+        </div>
       </div>
     `;}).join("");
+
+    function atualizarBarraLoteRc(){
+      const marcadas = lista.querySelectorAll(".rcCheckSelecao:checked");
+      const barra = document.getElementById("reclamacoesBarraLoteHub");
+      if(marcadas.length>0){
+        barra.style.display = "flex";
+        document.getElementById("reclamacoesLoteTexto").textContent = `${marcadas.length} selecionada(s)`;
+      } else {
+        barra.style.display = "none";
+      }
+    }
+    lista.querySelectorAll(".rcCheckSelecao").forEach(chk=>{ chk.onchange = atualizarBarraLoteRc; });
+    document.getElementById("reclamacoesResolverLoteBtn").onclick = async ()=>{
+      const ids = [...lista.querySelectorAll(".rcCheckSelecao:checked")].map(c=>c.dataset.id);
+      if(ids.length===0) return;
+      const btnLote = document.getElementById("reclamacoesResolverLoteBtn");
+      btnLote.disabled = true; btnLote.textContent = "A resolver...";
+      try{
+        await api(`cj_reclamacoes?id=in.(${ids.join(",")})`, "PATCH", {estado:"resolvido", data_resposta: new Date().toISOString()});
+        mostrarSucesso(`${ids.length} resolvida(s)`);
+        renderListaReclamacoes();
+      }catch(e){
+        toast("Erro: " + (e.message||e).slice(0,100));
+        btnLote.disabled = false; btnLote.textContent = "✔ Resolver selecionadas";
+      }
+    };
 
     lista.querySelectorAll(".rcFotoAmpliar").forEach(img=>{
       img.onclick = ()=>{
