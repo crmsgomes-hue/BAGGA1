@@ -261,7 +261,13 @@ function biweekWindow(d){
   const end = day<=15 ? new Date(d.getFullYear(),d.getMonth(),15) : new Date(d.getFullYear(),d.getMonth()+1,0);
   return {start, end};
 }
+let PERIODO_GLOBAL_EXCECOES = {};
 function month3Window(d){
+  const mesKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+  const excecao = PERIODO_GLOBAL_EXCECOES[mesKey];
+  if(excecao){
+    return {start: new Date(d.getFullYear(), d.getMonth(), excecao.inicio), end: new Date(d.getFullYear(), d.getMonth(), excecao.fim)};
+  }
   const start = new Date(d.getFullYear(), d.getMonth(), 15);
   const end = new Date(d.getFullYear(), d.getMonth(), 21);
   return {start, end};
@@ -480,6 +486,9 @@ async function ativarNotificacoesLoja(){
 
 async function loadAll(){
   try{
+    const excecoesRaw = await api("GET", `cj_periodo_global_excecoes?select=*`);
+    PERIODO_GLOBAL_EXCECOES = {};
+    (excecoesRaw||[]).forEach(e=>{ PERIODO_GLOBAL_EXCECOES[e.mes] = {inicio: e.dia_inicio, fim: e.dia_fim}; });
     const f = `&loja=eq.${encodeURIComponent(currentLoja)}`;
     dailyRows = await api("GET", `cj_daily_reportes?select=*${f}&order=data.desc`);
     invRows = await api("GET", `cj_inventario_reportes?select=*${f}&order=data.desc`);
@@ -3150,14 +3159,19 @@ function renderMiniCalendar(containerId, mes, onSelect){
   // sempre segunda a quinta DESSA semana - nao um intervalo fixo de dias do mes, porque o dia 15
   // cai num dia da semana diferente todos os meses (ex: em setembro/2026 a 3a semana e 14-20,
   // logo 2a a 5a e 14-17, nao 15-18 nem 15-21).
-  const dia15 = new Date(ano, mesNum-1, 15);
-  const offsetDia15 = (dia15.getDay()+6)%7; // 0=Segunda ... 6=Domingo
-  const segundaDaSemana = new Date(ano, mesNum-1, 15 - offsetDia15);
   const elegiveis = new Set();
-  for(let i=0;i<4;i++){
-    const d = new Date(segundaDaSemana);
-    d.setDate(d.getDate()+i);
-    if(d.getMonth()===mesNum-1) elegiveis.add(d.getDate());
+  const excecaoMes = PERIODO_GLOBAL_EXCECOES[mes];
+  if(excecaoMes){
+    for(let dia=excecaoMes.inicio; dia<=excecaoMes.fim; dia++) elegiveis.add(dia);
+  } else {
+    const dia15 = new Date(ano, mesNum-1, 15);
+    const offsetDia15 = (dia15.getDay()+6)%7; // 0=Segunda ... 6=Domingo
+    const segundaDaSemana = new Date(ano, mesNum-1, 15 - offsetDia15);
+    for(let i=0;i<4;i++){
+      const d = new Date(segundaDaSemana);
+      d.setDate(d.getDate()+i);
+      if(d.getMonth()===mesNum-1) elegiveis.add(d.getDate());
+    }
   }
 
   let html = `<div style="background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,.06);">
