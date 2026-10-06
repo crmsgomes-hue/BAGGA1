@@ -6834,7 +6834,13 @@ function categoriasParaLoja(loja){
 }
 function weekWindow(d){ const day=(d.getDay()+6)%7; const start=new Date(d.getFullYear(), d.getMonth(), d.getDate()-day); const end=new Date(start.getFullYear(), start.getMonth(), start.getDate()+6, 23,59,59,999); return {start,end}; }
 function biweekWindow(d){ const day=d.getDate(); const start = day<=15 ? new Date(d.getFullYear(),d.getMonth(),1) : new Date(d.getFullYear(),d.getMonth(),16); const end = day<=15 ? new Date(d.getFullYear(),d.getMonth(),15) : new Date(d.getFullYear(),d.getMonth()+1,0); return {start,end}; }
-function month3Window(d){ return {start:new Date(d.getFullYear(),d.getMonth(),15), end:new Date(d.getFullYear(),d.getMonth(),21)}; }
+let PERIODO_GLOBAL_EXCECOES = {};
+function month3Window(d){
+  const mesKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+  const excecao = PERIODO_GLOBAL_EXCECOES[mesKey];
+  if(excecao) return {start:new Date(d.getFullYear(),d.getMonth(),excecao.inicio), end:new Date(d.getFullYear(),d.getMonth(),excecao.fim)};
+  return {start:new Date(d.getFullYear(),d.getMonth(),15), end:new Date(d.getFullYear(),d.getMonth(),21)};
+}
 function monthWindow(d){ return {start:new Date(d.getFullYear(),d.getMonth(),1), end:new Date(d.getFullYear(),d.getMonth()+1,0)}; }
 function semestreWindow(d){ const mes=d.getMonth(); const inicioMes = mes<6?0:6; return {start:new Date(d.getFullYear(),inicioMes,1), end:new Date(d.getFullYear(),inicioMes+6,0)}; }
 function monthStartWindow(d){ return {start:new Date(d.getFullYear(),d.getMonth(),1), end:new Date(d.getFullYear(),d.getMonth(),3)}; }
@@ -7128,6 +7134,11 @@ function semanaKey(d){
 
 async function carregarDashboardCompleto(){
   atualizarBotaoPerfilTopo();
+  try{
+    const excecoesRaw = await api(`cj_periodo_global_excecoes?select=*`, "GET");
+    PERIODO_GLOBAL_EXCECOES = {};
+    (excecoesRaw||[]).forEach(e=>{ PERIODO_GLOBAL_EXCECOES[e.mes] = {inicio: e.dia_inicio, fim: e.dia_fim}; });
+  }catch(e){ console.error(e); }
   renderPanoramaGeral();
   renderSemaforoLojas();
   verificarBannerTarefas();
