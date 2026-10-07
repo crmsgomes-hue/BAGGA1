@@ -817,6 +817,17 @@ async function renderInterno(){
       hojeSquares.push({icon:t.icon, label:t.label, done:tudoFeito, rec:recVitrine, tipo:"vitrine", turno:"manha", ehAbertura:true, faltam, onclick:()=>abrirCapturaAbertura()});
       return;
     }
+    if(t.key==="almoco"){
+      const recVitrineAlmoco = dailyStatus("vitrine", today, "almoco");
+      const sopaAplicavel = !naoAplicaveis.includes("sopa");
+      const recSopa = sopaAplicavel ? dailyStatus("sopa", today, "unico") : true;
+      const faltam = [];
+      if(!recVitrineAlmoco) faltam.push("Foto da vitrine");
+      if(sopaAplicavel && !recSopa) faltam.push("Sopa");
+      const tudoFeito = faltam.length===0;
+      hojeSquares.push({icon:t.icon, label:t.label, done:tudoFeito, rec:recVitrineAlmoco, tipo:"vitrine", turno:"almoco", ehAbertura:true, faltam, onclick:()=>abrirCapturaAlmoco()});
+      return;
+    }
     const rec = dailyStatus("vitrine", today, t.key);
     hojeSquares.push({icon:t.icon, label:t.label, done:!!rec, rec, tipo:"vitrine", turno:t.key, onclick:()=>openCapture("daily","vitrine","Vitrine — "+t.label,t.key)});
   });
@@ -844,7 +855,7 @@ async function renderInterno(){
     const iconeMostrar = s.done ? '✅' : (s.bloqueado ? '🔒' : s.icon);
     const subLabel = s.done ? 'Ver/editar' : (s.bloqueado ? 'A partir das 21h' : (s.ehAbertura ? `Falta: ${(s.faltam||[]).join(', ')}` : 'Diário'));
     tile.innerHTML = `<span style="font-size:20px;">${iconeMostrar}</span><span style="font-size:11px; font-weight:700;">${s.label}</span><span style="font-size:8.5px; color:var(--ink-soft);">${subLabel}</span>`;
-    tile.onclick = s.done ? (s.ehAbertura ? ()=>abrirCapturaAbertura() : ()=>verEditarFotosSubmissao(s.rec, s.label)) : s.onclick;
+    tile.onclick = s.done ? (s.ehAbertura ? (s.turno==="almoco" ? ()=>abrirCapturaAlmoco() : ()=>abrirCapturaAbertura()) : ()=>verEditarFotosSubmissao(s.rec, s.label)) : s.onclick;
     hojeGrid.appendChild(tile);
   });
   hojeWrap.appendChild(hojeGrid);
@@ -1333,6 +1344,58 @@ function abrirCapturaAbertura(estadoRestaurado){
       }
       salvarEstadoAbertura();
     };
+  });
+
+  document.getElementById("aberturaEnviarBtn").onclick = ()=>enviarAbertura(itens);
+}
+function abrirCapturaAlmoco(estadoRestaurado){
+  const naoAplic = naoAplicaveis || [];
+  const itens = [
+    {tipo:"vitrine", turno:"almoco", label:"Vitrine — Almoço", icon:"🌞", jaFeito: dailyStatus("vitrine", todayStr(), "almoco")},
+    {tipo:"sopa", turno:"unico", label:"Sopa", icon:"🍲", jaFeito: dailyStatus("sopa", todayStr(), "unico")}
+  ].filter(it=>it.tipo==="vitrine" || !naoAplic.includes(it.tipo));
+
+  if(estadoRestaurado){
+    window._abertura = estadoRestaurado;
+  } else {
+    window._abertura = {};
+    itens.forEach(it=>{ window._abertura[it.tipo] = {fotos: [], semStock: false, motivo: ""}; });
+  }
+
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.id = "aberturaOverlay";
+  overlay.innerHTML = `
+    <div class="modal" style="max-height:90vh; overflow-y:auto;">
+      <h2>🌞 Almoço</h2>
+      <div class="sub">${currentLoja} · ${new Date().toLocaleDateString('pt-PT')} — tira as fotos das duas coisas de uma vez.</div>
+      ${itens.map(it=>`
+        <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
+          <div style="font-weight:700; font-size:14px; margin-bottom:8px;">${it.icon} ${it.label}${it.jaFeito?' <span style="color:var(--green); font-size:12px;">✔ já feito hoje</span>':''}</div>
+          ${it.jaFeito ? `<div style="font-size:12.5px; color:var(--ink-soft);">Já enviaste isto hoje — toca no quadrado "Ver/editar" se precisares de alterar.</div>` : `
+          <div id="abThumbs_${it.tipo}" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;"></div>
+          <div id="abBotoes_${it.tipo}" style="display:flex; gap:8px;">
+            <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" data-ab-input="${it.tipo}" style="display:none;"></label>
+            <label class="filebtn" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);">🖼️ Galeria<input type="file" accept="image/*" data-ab-input="${it.tipo}" style="display:none;"></label>
+          </div>
+          `}
+        </div>
+      `).join("")}
+      <div class="modal-actions" style="margin-top:16px;">
+        <button class="btn-cancel" onclick="document.getElementById('aberturaOverlay').remove()">Fechar</button>
+        <button class="btn-save" id="aberturaEnviarBtn" style="width:100%;">Enviar tudo</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelectorAll("[data-ab-input]").forEach(inp=>{
+    inp.addEventListener("change", (ev)=>adicionarFotoAbertura(inp.dataset.abInput, ev.target.files[0]));
+  });
+  itens.forEach(it=>{
+    if(it.jaFeito) return;
+    const estado = window._abertura[it.tipo];
+    if(estado && estado.fotos && estado.fotos.length) renderAberturaThumbs(it.tipo);
   });
 
   document.getElementById("aberturaEnviarBtn").onclick = ()=>enviarAbertura(itens);
