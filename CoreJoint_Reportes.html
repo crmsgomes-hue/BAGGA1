@@ -1480,6 +1480,126 @@ function monthLabel(d){ return d.toLocaleDateString('pt-PT',{month:'short'}).rep
 let sondagemOpcoes = [];
 let sondagemLojaAlvo = "";
 
+async function abrirListaRespostasSondagensForms(){
+  currentView = abrirListaRespostasSondagensForms;
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar ao painel";
+  back.onclick = ()=>{ const v = previousView; previousView = null; (v||render)(); };
+  main.appendChild(back);
+
+  const titulo = document.createElement("h2");
+  titulo.textContent = "👁️ Ver respostas";
+  main.appendChild(titulo);
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  sub.style.marginBottom = "14px";
+  sub.textContent = "Toca numa sondagem ou formulário para ver o detalhe de quem respondeu o quê.";
+  main.appendChild(sub);
+
+  const lista = document.createElement("div");
+  main.appendChild(lista);
+  lista.innerHTML = `<div class="empty">A carregar...</div>`;
+
+  const [sondagens, respostasSond, formularios, respostasForm] = await Promise.all([
+    api("GET", "cj_sondagens?select=*&order=criado_em.desc&limit=40"),
+    api("GET", "cj_sondagens_respostas?select=sondagem_id"),
+    api("GET", "cj_formularios?select=*&order=criado_em.desc&limit=40"),
+    api("GET", "cj_formularios_respostas?select=formulario_id"),
+  ]);
+
+  const itens = [
+    ...sondagens.map(s=>({tipo:"sondagem", id:s.id, titulo:s.pergunta, ativa:s.ativa, criado_em:s.criado_em, alvo:lojasAlvoDe(s).length, n:respostasSond.filter(r=>r.sondagem_id===s.id).length})),
+    ...formularios.map(f=>({tipo:"formulario", id:f.id, titulo:f.titulo, ativa:f.ativa, criado_em:f.criado_em, alvo:lojasAlvoDe(f).length, n:respostasForm.filter(r=>r.formulario_id===f.id).length})),
+  ].sort((a,b)=> new Date(b.criado_em)-new Date(a.criado_em));
+
+  if(itens.length===0){
+    lista.innerHTML = `<div class="empty">Ainda não há nenhuma sondagem ou formulário criado.</div>`;
+    return;
+  }
+
+  lista.innerHTML = itens.map(it=>`
+    <button data-item-resp="${it.tipo}:${it.id}" class="card" style="width:100%; text-align:left; display:block; cursor:pointer; margin-bottom:8px;">
+      <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
+        <div style="font-weight:700; font-size:14px;">${it.tipo==="sondagem"?"📊":"📝"} ${it.titulo}</div>
+        <span style="font-size:10px; font-weight:800; padding:3px 8px; border-radius:99px; white-space:nowrap; background:${it.ativa?'#2e7d32':'#999'}; color:#fff;">${it.ativa?'Ativa':'Fechada'}</span>
+      </div>
+      <div style="font-size:12px; color:var(--ink-soft); margin-top:3px;">${it.n}/${it.alvo} loja(s) responderam · ${new Date(it.criado_em).toLocaleDateString('pt-PT')}</div>
+    </button>
+  `).join("");
+
+  lista.querySelectorAll("[data-item-resp]").forEach(btn=>{
+    btn.onclick = ()=>{
+      const [tipo, id] = btn.dataset.itemResp.split(":");
+      abrirDetalheRespostasItem(tipo, Number(id));
+    };
+  });
+}
+
+async function abrirDetalheRespostasItem(tipo, id){
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const back = document.createElement("button");
+  back.className = "cambtn secondary";
+  back.style.marginBottom = "14px";
+  back.textContent = "← Voltar à lista";
+  back.onclick = ()=>abrirListaRespostasSondagensForms();
+  main.appendChild(back);
+
+  const capturaWrap = document.createElement("div");
+  capturaWrap.id = "capturaDetalheResp";
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:14px; border:1px solid var(--line);";
+  capturaWrap.innerHTML = `<div class="empty">A carregar...</div>`;
+  main.appendChild(capturaWrap);
+  criarBotoesPartilha(main, capturaWrap, "CoreJoint_respostas", "CoreJoint · Respostas");
+
+  if(tipo==="sondagem"){
+    const [item, respostas] = await Promise.all([
+      api("GET", `cj_sondagens?select=*&id=eq.${id}`),
+      api("GET", `cj_sondagens_respostas?select=*&sondagem_id=eq.${id}&order=respondido_em.asc`),
+    ]);
+    const s = item[0];
+    if(!s){ capturaWrap.innerHTML = `<div class="empty">Não encontrada.</div>`; return; }
+    const alvo = lojasAlvoDe(s);
+    const semResposta = alvo.filter(l=>!respostas.some(r=>r.loja===l));
+    const contagem = {};
+    respostas.forEach(r=>{ contagem[r.opcao] = (contagem[r.opcao]||0)+1; });
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:2px;">📊 ${s.pergunta}</div>
+      <div style="font-size:11px; color:#777; margin-bottom:12px;">${new Date(s.criado_em).toLocaleDateString('pt-PT')} · ${respostas.length}/${alvo.length} responderam</div>
+      <div style="font-weight:700; font-size:12px; margin-bottom:6px; text-transform:uppercase; color:#9c4d23;">Por opção</div>
+      ${Object.entries(contagem).map(([op,n])=>`<div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #f0ebe3; font-size:13px;"><span>${op}</span><b>${n}</b></div>`).join("") || '<div style="font-size:12px; color:#999;">Ainda sem respostas.</div>'}
+      <div style="font-weight:700; font-size:12px; margin:14px 0 6px; text-transform:uppercase; color:#9c4d23;">Por loja</div>
+      ${respostas.map(r=>`<div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #f0ebe3; font-size:13px;"><span>${r.loja}</span><span style="color:#2e7d32; font-weight:700;">${r.opcao}</span></div>`).join("")}
+      ${semResposta.length>0 ? `<div style="font-weight:700; font-size:12px; margin:14px 0 6px; text-transform:uppercase; color:#b0432f;">Ainda não responderam</div><div style="font-size:13px; color:#b0432f;">${semResposta.join(", ")}</div>` : ''}
+    `;
+  } else {
+    const [item, respostas] = await Promise.all([
+      api("GET", `cj_formularios?select=*&id=eq.${id}`),
+      api("GET", `cj_formularios_respostas?select=*&formulario_id=eq.${id}&order=respondido_em.asc`),
+    ]);
+    const f = item[0];
+    if(!f){ capturaWrap.innerHTML = `<div class="empty">Não encontrado.</div>`; return; }
+    const alvo = lojasAlvoDe(f);
+    const semResposta = alvo.filter(l=>!respostas.some(r=>r.loja===l));
+    const perguntas = f.perguntas || [];
+    capturaWrap.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:2px;">📝 ${f.titulo}</div>
+      <div style="font-size:11px; color:#777; margin-bottom:12px;">${new Date(f.criado_em).toLocaleDateString('pt-PT')} · ${respostas.length}/${alvo.length} responderam</div>
+      ${respostas.map(r=>`
+        <div style="border:1px solid #f0ebe3; border-radius:8px; padding:9px 11px; margin-bottom:8px;">
+          <div style="font-weight:700; font-size:13px; margin-bottom:4px;">${r.loja} <span style="font-weight:400; font-size:10px; color:#999;">· ${new Date(r.respondido_em).toLocaleDateString('pt-PT')}</span></div>
+          ${perguntas.map(p=>`<div style="font-size:12px; margin-bottom:2px;"><span style="color:#777;">${p.texto}:</span> <b>${(r.respostas&&r.respostas[p.id])||'—'}</b></div>`).join("")}
+        </div>
+      `).join("") || '<div style="font-size:12px; color:#999;">Ainda sem respostas.</div>'}
+      ${semResposta.length>0 ? `<div style="font-weight:700; font-size:12px; margin:14px 0 6px; text-transform:uppercase; color:#b0432f;">Ainda não responderam</div><div style="font-size:13px; color:#b0432f;">${semResposta.join(", ")}</div>` : ''}
+    `;
+  }
+}
+
 async function abrirGrelhaSondagensForms(){
   currentView = abrirGrelhaSondagensForms;
   pararAutoAtualizacao();
@@ -1497,6 +1617,13 @@ async function abrirGrelhaSondagensForms(){
   sub.style.marginBottom = "14px";
   sub.innerHTML = `Quem já respondeu, num relance. <span style="color:var(--green); font-weight:700;">🔄 Atualiza-se sozinha</span>`;
   main.appendChild(sub);
+
+  const linkRespostas = document.createElement("a");
+  linkRespostas.href = "javascript:void(0)";
+  linkRespostas.style.cssText = "display:block; text-align:center; margin-bottom:14px; font-size:13px; color:var(--terracotta); text-decoration:underline; cursor:pointer;";
+  linkRespostas.textContent = "👁️ Ver o detalhe de cada resposta";
+  linkRespostas.onclick = ()=>{ pararAutoAtualizacao(); abrirListaRespostasSondagensForms(); };
+  main.appendChild(linkRespostas);
 
   const tableWrap = document.createElement("div");
   tableWrap.id = "capturaSondagensGrelha";
@@ -9075,7 +9202,7 @@ function renderGestao(){
   const mapaFerramentasPorChave = {
     diario: generateDailyReport, diarioVisual: abrirRelatorioVisualDiario, semanal: generateWeeklyReport, invSemanal: generateWeeklyInventoryReport, mensal: generateMonthlyReport,
     compliance: generateComplianceReport, excel: exportarExcel, historico12m: openHistoricoAnual,
-    whatsapp: partilharResumoWhatsApp, avisosLista: openAvisos, sondagem: openSondagens, formulario: openFormularios, grelhaSondagensForms: abrirGrelhaSondagensForms,
+    whatsapp: partilharResumoWhatsApp, avisosLista: openAvisos, sondagem: openSondagens, formulario: openFormularios, grelhaSondagensForms: abrirGrelhaSondagensForms, respostasSondagensForms: abrirListaRespostasSondagensForms,
     visualInventario: abrirRelatorioVisualInventario, visualQuebras: abrirRelatorioVisualQuebras, visualFotosPontuais: abrirRelatorioVisualFotosPontuais,
     importarTrocas: openImportarTrocas, pivotTrocas: abrirPivotTrocas, corrigirLojasQuebras: abrirCorrigirLojasQuebras,
     corrigirLojasStockNeg: abrirCorrigirLojasStockNeg,
