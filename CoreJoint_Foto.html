@@ -810,9 +810,11 @@ async function renderInterno(){
   VITRINE_TURNOS.forEach(t=>{
     if(t.key==="manha"){
       const recVitrine = dailyStatus("vitrine", today, "manha");
-      const recsAbertura = itensAbertura.map(x=>dailyStatus(x.tipo, today, "unico"));
-      const tudoFeito = !!recVitrine && recsAbertura.every(r=>!!r);
-      hojeSquares.push({icon:t.icon, label:t.label, done:tudoFeito, rec:recVitrine, tipo:"vitrine", turno:"manha", ehAbertura:true, onclick:()=>abrirCapturaAbertura()});
+      const faltam = [];
+      if(!recVitrine) faltam.push("Foto da vitrine");
+      itensAbertura.forEach(x=>{ if(!dailyStatus(x.tipo, today, "unico")) faltam.push(x.label); });
+      const tudoFeito = faltam.length===0;
+      hojeSquares.push({icon:t.icon, label:t.label, done:tudoFeito, rec:recVitrine, tipo:"vitrine", turno:"manha", ehAbertura:true, faltam, onclick:()=>abrirCapturaAbertura()});
       return;
     }
     const rec = dailyStatus("vitrine", today, t.key);
@@ -840,7 +842,7 @@ async function renderInterno(){
     const corBorda = s.done ? 'var(--green)' : (s.bloqueado ? 'var(--line)' : 'var(--line)');
     tile.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; background:${corFundo}; border:1.5px solid ${corBorda}; border-radius:12px; padding:12px 4px; text-align:center; ${s.bloqueado?'opacity:.6;':''}`;
     const iconeMostrar = s.done ? '✅' : (s.bloqueado ? '🔒' : s.icon);
-    const subLabel = s.done ? 'Ver/editar' : (s.bloqueado ? 'A partir das 21h' : (s.ehAbertura ? '+ Laranjas/Tabaco' : 'Diário'));
+    const subLabel = s.done ? 'Ver/editar' : (s.bloqueado ? 'A partir das 21h' : (s.ehAbertura ? `Falta: ${(s.faltam||[]).join(', ')}` : 'Diário'));
     tile.innerHTML = `<span style="font-size:20px;">${iconeMostrar}</span><span style="font-size:11px; font-weight:700;">${s.label}</span><span style="font-size:8.5px; color:var(--ink-soft);">${subLabel}</span>`;
     tile.onclick = s.done ? (s.ehAbertura ? ()=>abrirCapturaAbertura() : ()=>verEditarFotosSubmissao(s.rec, s.label)) : s.onclick;
     hojeGrid.appendChild(tile);
