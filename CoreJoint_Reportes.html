@@ -241,7 +241,7 @@ function complianceSectionHtml(){
     const cat = [...INV_CATS, ...MARKETING_CATS].find(c=>c.key===k);
     return `<th>${cat?cat.label:k}</th>`;
   }).join("")}</tr>`;
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     const aplicaveis = categoriasCompliance(l).map(c=>c.key);
     const cells = COMPLIANCE_KEYS.map(k=>{
       if(!aplicaveis.includes(k)) return "—";
@@ -471,6 +471,7 @@ let currentUser = GESTOR_FIXO ? _gestorDoLinkRep : (localStorage.getItem("cj_rep
 const PERFIS = ["CG", "JM"];
 const NOMES_PERFIS_REP = {CG:"Cristina", JM:"João"};
 let PERIODO_GLOBAL_EXCECOES = {};
+function minhasLojas(){ return currentUser==="JM" ? LOJAS_JM : LOJAS_CG; }
 (async ()=>{
   try{
     const excecoesRaw = await api("GET", `cj_periodo_global_excecoes?select=*`);
@@ -890,7 +891,7 @@ async function uploadPhoto(dataUrl, path){
 function buildLojaGrid(){
   const g = document.getElementById("lojaGrid");
   g.innerHTML = "";
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     const b = document.createElement("button");
     b.className = "loja-btn";
     b.textContent = l;
@@ -1679,7 +1680,7 @@ async function abrirGrelhaSondagensForms(){
     }
 
     const headerHtml = colunas.map((c,i)=>`<th style="font-size:11px; color:var(--terracotta); padding:3px 1px; border-bottom:2px solid var(--terracotta); white-space:nowrap;">${c.tipo==="sondagem"?"📊":"📝"}${i+1}</th>`).join("");
-    const linhasHtml = LOJAS.map(l=>{
+    const linhasHtml = minhasLojas().map(l=>{
       const cols = colunas.map(c=>respostaCelula(c, l)).join("");
       return `<tr><td style="font-weight:700; font-size:10.5px; padding:4px 3px; border-bottom:1px solid var(--line); white-space:nowrap;">${abreviarLoja(l)}</td>${cols}</tr>`;
     }).join("");
@@ -2239,7 +2240,7 @@ function openRankingLojas(){
   const days = [];
   for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days.push(isoDate(d)); }
 
-  const ranking = LOJAS.map(l=>{
+  const ranking = minhasLojas().map(l=>{
     let vitOk = 0, vendOk = 0;
     days.forEach(ds=>{
       if(VITRINE_TURNOS.every(t=>dailyStatus(l,"vitrine",ds,t.key))) vitOk++;
@@ -2402,7 +2403,7 @@ async function partilharResumoWhatsApp(){
   const vendasJaAbriu = new Date().getHours() >= 21;
   const missingVendas = vendasJaAbriu ? LOJAS.filter(l=>!dailyStatus(l,"vendas",today,"unico")) : [];
   let atrasados = 0;
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     [...categoriasParaLoja(l), ...marketingCatsParaLoja(l)].forEach(c=>{
       if(invStatus(l,c.key,c.freq).state==="late") atrasados++;
     });
@@ -2640,7 +2641,7 @@ function openChecklistMensal(){
   const contagem = {}; colunas.forEach(c=>contagem[c.key]=0);
   const checklistData = {};
 
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     checklistData[l] = {};
     html += `<tr><td data-loja-cell="${l}" style="padding:6px 8px; font-weight:600; position:sticky; left:0; background:var(--card); white-space:nowrap; cursor:pointer; text-decoration:underline;">${l}</td>`;
     colunas.forEach(c=>{
@@ -2672,7 +2673,7 @@ function openChecklistMensal(){
 
 async function exportarChecklistExcel(mes, colunas, dados){
   const wb = XLSX.utils.book_new();
-  const rows = LOJAS.map(l=>{
+  const rows = minhasLojas().map(l=>{
     const row = {Loja: l};
     colunas.forEach(c=>{ row[c.label] = dados[l][c.key]; });
     return row;
@@ -2686,7 +2687,7 @@ async function exportarChecklistExcel(mes, colunas, dados){
 function exportarChecklistPDF(mesLabel, colunas, dados){
   let html = `<h1>CoreJoint · Checklist Mensal</h1><div style="font-size:8px; color:#555; margin-bottom:6px; text-transform:capitalize;">${mesLabel} · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
   html += `<table><tr><th style="text-align:left;">Loja</th>${colunas.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     html += `<tr><td class="name">${l}</td>${colunas.map(c=>`<td>${dados[l][c.key]}</td>`).join("")}</tr>`;
   });
   html += `</table>`;
@@ -2743,7 +2744,7 @@ async function openChecklistHistorico(){
     criarBotoesPartilha(main, captura, `CoreJoint_checklist_${a.mes}`, `CoreJoint · Checklist ${mesLabel}`);
 
     const headerHtml = colunas.map(c=>`<th style="font-size:8px; color:#9c4d23; text-transform:uppercase; padding:2px 1px; border-bottom:2px solid #C1622D; white-space:nowrap;">${c.label}</th>`).join("");
-    const linhasHtml = LOJAS.map(l=>{
+    const linhasHtml = minhasLojas().map(l=>{
       const lojaDados = a.dados[l] || {};
       const cols = colunas.map(c=>{
         const v = lojaDados[c.key]||'—';
@@ -3151,7 +3152,7 @@ function openAgendamentosGlobal(){
   title.textContent = `Inventário Global — ${mesLabel}`;
   main.appendChild(title);
 
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     const ag = agendamentos.find(a=>a.loja===l && a.mes===mes);
     const jaEnviado = invRows.some(r=>r.loja===l && r.categoria==="global" && r.data && r.data.slice(0,7)===mes);
     const card = document.createElement("div");
@@ -3186,7 +3187,7 @@ function openModoApresentacao(){
   const grid = document.createElement("div");
   grid.style.cssText = "display:grid; gap:14px;";
   const today = todayStr();
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     const items = [];
     VITRINE_TURNOS.forEach(t=>{
       const done = !!dailyStatus(l,"vitrine",today,t.key);
@@ -3241,7 +3242,7 @@ function openGaleria(){
     return;
   }
 
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     const rowsLoja = recentes.filter(r=>r.loja===l);
     const rowsInvLoja = recentesInv.filter(r=>r.loja===l);
     if(rowsLoja.length===0 && rowsInvLoja.length===0) return;
@@ -3352,7 +3353,7 @@ function openEvolucaoCnvs(){
     const mk = mesSel.value;
     const mesLabel = mesSel.options[mesSel.selectedIndex].textContent;
     subImg.textContent = `Valor do Global e de CNVs — data, quem enviou — ${mesLabel}`;
-    const linhasHtml = LOJAS.map(l=>{
+    const linhasHtml = minhasLojas().map(l=>{
       const entradas = invRows.filter(r=>r.loja===l && r.categoria==="global" && r.data && r.data.slice(0,7)===mk);
       if(entradas.length===0) return "";
       return entradas.map((r,i)=>`
@@ -3402,7 +3403,7 @@ function openHistoricoAnual(){
   const yoyCard = document.createElement("div");
   yoyCard.className = "card";
   let yoyHtml = `<div class="card-title" style="margin-bottom:8px; text-transform:capitalize;">📊 ${mesAtualLabel} — este ano vs. ano passado</div>`;
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     const nEste = invRows.filter(r=>r.loja===l && r.data && new Date(r.data).getFullYear()===anoAtual && new Date(r.data).getMonth()===hoje.getMonth()).length;
     const nAno = invRows.filter(r=>r.loja===l && r.data && new Date(r.data).getFullYear()===anoAtual-1 && new Date(r.data).getMonth()===hoje.getMonth()).length;
     const seta = nAno===0 ? "" : nEste>nAno ? " 🔼" : nEste<nAno ? " 🔽" : " ➡";
@@ -3436,7 +3437,7 @@ function openHistoricoAnual(){
   capturaWrap.appendChild(title);
   main.appendChild(capturaWrap);
 
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     const semanais = categoriasParaLoja(l).filter(c=>c.freq==="semanal");
     const outros = categoriasParaLoja(l).filter(c=>c.freq!=="semanal");
     const card = document.createElement("div");
@@ -3546,7 +3547,7 @@ async function generateMonthlyReport(){
   let html = `<h1>CoreJoint · Relatório Mensal</h1><div style="font-size:8px; color:#555; margin-bottom:6px; text-transform:capitalize;">${mesLabel} · Gerado em ${hoje.toLocaleDateString('pt-PT')}</div>`;
 
   html += `<h2>Vitrine e Vendas — % de dias completos no mês</h2><table><tr><th style="text-align:left;">Loja</th><th>Vitrine completa</th><th>Vendas</th></tr>`;
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     const vitOk = diasNoMes.filter(ds=>VITRINE_TURNOS.every(t=>dailyStatus(l,"vitrine",ds,t.key))).length;
     const vendOk = diasNoMes.filter(ds=>dailyStatus(l,"vendas",ds,"unico")).length;
     const pctVit = Math.round(vitOk/diasNoMes.length*100);
@@ -3557,7 +3558,7 @@ async function generateMonthlyReport(){
 
   const semanais = INV_CATS.filter(c=>c.freq==="semanal");
   html += `<h2>Inventário semanal — quantas vezes enviado no mês (JSC/Café/Laranja)</h2><table><tr><th style="text-align:left;">Loja</th>${semanais.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     const aplicaveis = categoriasParaLoja(l).map(c=>c.key);
     const cells = semanais.map(c=>{
       if(!aplicaveis.includes(c.key)) return "—";
@@ -3570,7 +3571,7 @@ async function generateMonthlyReport(){
 
   const outros = INV_CATS.filter(c=>c.freq!=="semanal");
   html += `<h2>Tabaco / Global — feito este mês?</h2><table><tr><th style="text-align:left;">Loja</th>${outros.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     const aplicaveis = categoriasParaLoja(l).map(c=>c.key);
     const cells = outros.map(c=>{
       if(!aplicaveis.includes(c.key)) return "—";
@@ -3582,7 +3583,7 @@ async function generateMonthlyReport(){
   html += `</table>`;
 
   html += `<h2>Marketing — feito nos primeiros 3 dias do mês?</h2><table><tr><th style="text-align:left;">Loja</th>${MARKETING_CATS.map(c=>`<th>${c.label}</th>`).join("")}</tr>`;
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     const cells = MARKETING_CATS.map(c=>{
       if(categoriaNaoAplicavel(l, c.key)) return "—";
       const feito = invRows.some(r=>r.loja===l && r.categoria===c.key && r.data>=isoDate(inicioMes) && r.data<=isoDate(fimMes));
@@ -3607,7 +3608,7 @@ async function gerarRelatorioFormsLegionela(){
 
   let html = `<h1>CoreJoint · Formulário Legionela (semanal)</h1><div style="font-size:8px; color:#555; margin-bottom:8px;">Semana ${semana} (2ª a domingo) · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
   html += `<table><tr><th style="text-align:left;">Loja</th><th>Estado</th><th>Preenchido em</th></tr>`;
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     const registo = feitos.find(r=>r.loja===l);
     html += `<tr><td class="name">${l}</td><td>${registo?'✔ Feito':'✕ Falta'}</td><td>${registo?new Date(registo.criado_em).toLocaleString('pt-PT'):'—'}</td></tr>`;
   });
@@ -3645,7 +3646,7 @@ async function gerarRelatorioFormsExterno(){
 
   let html = `<h1>CoreJoint · Formulário da empresa (semanal)</h1><div style="font-size:8px; color:#555; margin-bottom:8px;">Semana ${semana} (2ª a domingo) · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
   html += `<table><tr><th style="text-align:left;">Loja</th><th>Estado</th><th>Preenchido em</th></tr>`;
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     const registo = feitos.find(r=>r.loja===l);
     html += `<tr><td class="name">${l}</td><td>${registo?'✔ Feito':'✕ Falta'}</td><td>${registo?new Date(registo.criado_em).toLocaleString('pt-PT'):'—'}</td></tr>`;
   });
@@ -3682,7 +3683,7 @@ async function generateWeeklyInventoryReport(){
 
   let html = `<h1>CoreJoint · Relatório de Inventário (semanal)</h1><div style="font-size:8px; color:#555; margin-bottom:8px;">Semana de ${new Date(inicioSemana+"T00:00:00").toLocaleDateString('pt-PT')} a ${new Date(fimSemana+"T00:00:00").toLocaleDateString('pt-PT')} · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
 
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     const cats = categoriasParaLoja(l);
     if(cats.length===0) return;
     const feitos = [], naoEnviados = [];
@@ -3716,21 +3717,21 @@ async function generateDailyReport(){
 
   const vendasJaAbriu = today.getHours() >= 21;
   const linhasPorLoja = {};
-  LOJAS.forEach(l=>{ linhasPorLoja[l] = []; });
+  minhasLojas().forEach(l=>{ linhasPorLoja[l] = []; });
 
   ["manha","almoco","lanche"].forEach(t=>{
     const label = t==="manha"?"Manhã":t==="almoco"?"Almoço":"Lanche";
-    LOJAS.forEach(l=>{
+    minhasLojas().forEach(l=>{
       if(!dailyStatus(l,"vitrine",ds,t)) linhasPorLoja[l].push(`Vitrine — ${label}`);
     });
   });
   if(vendasJaAbriu){
-    LOJAS.forEach(l=>{
+    minhasLojas().forEach(l=>{
       if(!dailyStatus(l,"vendas",ds,"unico")) linhasPorLoja[l].push("Vendas");
     });
   }
   [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
-    LOJAS.forEach(l=>{
+    minhasLojas().forEach(l=>{
       const st = invStatus(l, cat.key, cat.freq);
       if(st.state==="late") linhasPorLoja[l].push(`${cat.label} (atrasado)`);
     });
@@ -3901,7 +3902,7 @@ async function abrirRelatorioVisualInventario(){
     }
     const FREQS = {raspadinhas:"semanal", laranja:"semanal", cafe:"semanal", tabaco:"semanal", global:"mensal3"};
     const headerHtml = COLS.map(([,label])=>`<th style="font-size:9.5px; color:#9c4d23; text-transform:uppercase; padding:3px 2px; border-bottom:2px solid #C1622D; white-space:nowrap;">${label}</th>`).join("");
-    const linhasHtml = LOJAS.map(l=>{
+    const linhasHtml = minhasLojas().map(l=>{
       const cols = COLS.map(([key])=>cell(key, FREQS[key], l)).join("");
       return `<tr><td style="font-weight:700; font-size:11px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;" title="${l}">${abreviarLoja(l)}</td>${cols}</tr>`;
     }).join("");
@@ -3969,9 +3970,9 @@ async function abrirRelatorioVisualQuebras(){
 
     // Tabela 1: as tuas lojas
     const porLoja = {};
-    LOJAS.forEach(l=>porLoja[l]={n:0, total:0});
+    minhasLojas().forEach(l=>porLoja[l]={n:0, total:0});
     pendentesRede.forEach(r=>{ if(porLoja[r.loja]){ porLoja[r.loja].n++; porLoja[r.loja].total += Number(r.valor_quebra||0); } });
-    const linhasRedeHtml = LOJAS.map(l=>{
+    const linhasRedeHtml = minhasLojas().map(l=>{
       const d = porLoja[l];
       const ok = d.n===0;
       const cor = ok ? "#2e7d32" : "#b0432f";
@@ -4089,9 +4090,9 @@ function criarTabelaMensal(main, titulo, pontos, checkFn, nomeFicheiro){
   main.appendChild(bloco);
   criarBotoesPartilha(bloco, captura, nomeFicheiro, `CoreJoint · ${titulo}`);
 
-  const headerHtml = LOJAS.map(l=>`<th style="font-size:8px; color:#9c4d23; padding:2px 1px; border-bottom:2px solid #C1622D; white-space:nowrap;" title="${l}">${abreviarLoja(l).slice(0,4)}</th>`).join("");
+  const headerHtml = minhasLojas().map(l=>`<th style="font-size:8px; color:#9c4d23; padding:2px 1px; border-bottom:2px solid #C1622D; white-space:nowrap;" title="${l}">${abreviarLoja(l).slice(0,4)}</th>`).join("");
   const linhasHtml = pontos.map(p=>{
-    const cols = LOJAS.map(l=>{
+    const cols = minhasLojas().map(l=>{
       const ok = checkFn(l, p.data);
       if(ok===null) return `<td style="text-align:center; color:#ccc; padding:2px 1px; border-bottom:1px solid #f0ebe3; font-size:9px;">—</td>`;
       const cor = ok ? "#2e7d32" : "#b0432f";
@@ -4216,7 +4217,7 @@ async function abrirRelatorioVisualFotosPontuais(){
     }
 
     const headerHtml = pedidos.map((p,i)=>`<th style="font-size:11px; color:#9c4d23; padding:3px 1px; border-bottom:2px solid #C1622D; white-space:nowrap;">📸${i+1}</th>`).join("");
-    const linhasHtml = LOJAS.map(l=>{
+    const linhasHtml = minhasLojas().map(l=>{
       const cols = pedidos.map(p=>{
         const alvo = (p.lojas && p.lojas.length>0) ? p.lojas : LOJAS;
         if(!alvo.includes(l)) return `<td style="text-align:center; color:#ccc; padding:4px 1px; border-bottom:1px solid #f0ebe3;">—</td>`;
@@ -4273,7 +4274,7 @@ async function abrirRelatorioVisualDiario(){
     const dataFmt = today.toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
     const horaFmt = today.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
 
-    const linhas = LOJAS.map(l=>{
+    const linhas = minhasLojas().map(l=>{
       const vendas = dailyStatus(l,"vendas",ds,"unico");
       const manha = dailyStatus(l,"vitrine",ds,"manha");
       const almoco = dailyStatus(l,"vitrine",ds,"almoco");
@@ -4325,7 +4326,7 @@ async function generateWeeklyReport(){
   let html = `<h1>CoreJoint · Relatório Semanal</h1><div style="font-size:8px; color:#555; margin-bottom:6px;">Período: ${rangeTxt} · Gerado em ${new Date().toLocaleDateString('pt-PT')}</div>`;
 
   html += `<h2>Vendas — % de dias enviados</h2>`;
-  LOJAS.forEach(l=>{
+  minhasLojas().forEach(l=>{
     const cells = days.map(d=>{
       const ds = isoDate(d);
       return {dia: d.getDate(), ok: dailyStatus(l,"vendas",ds,"unico")};
@@ -6082,7 +6083,7 @@ async function abrirRelatorioEstivaLaranjas(){
     const respostas = await api("GET", `cj_formularios_respostas?select=loja,respostas&formulario_id=eq.${form.id}`);
     const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
 
-    const linhasHtml = LOJAS.map(l=>{
+    const linhasHtml = minhasLojas().map(l=>{
       const r = respostas.find(x=>x.loja===l);
       const cols = form.perguntas.map(p=>{
         const v = r ? (r.respostas[p.id] ?? '—') : '—';
@@ -6134,7 +6135,7 @@ async function abrirRelatorioGlobalAgendamento(){
     const agendamentos = await api("GET", `cj_global_agendamento?select=loja,mes,data_agendada&mes=in.(${meses.join(",")})`);
     const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
 
-    const linhasHtml = LOJAS.map(l=>{
+    const linhasHtml = minhasLojas().map(l=>{
       const cols = meses.map(m=>{
         const ag = agendamentos.find(a=>a.loja===l && a.mes===m);
         if(ag) return `<td style="text-align:center; color:#2e7d32; font-weight:800; padding:4px 2px; border-bottom:1px solid #f0ebe3; font-size:10.5px;">${new Date(ag.data_agendada+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}</td>`;
@@ -6198,7 +6199,7 @@ async function abrirPainelMonitorizacao(){
       return vendasOk && vitrineOk;
     }
 
-    const dadosLojas = LOJAS.map(l=>{
+    const dadosLojas = minhasLojas().map(l=>{
       // % cumprimento nos ultimos 30 dias
       let diasOk = 0;
       const dias30 = [];
@@ -6346,7 +6347,7 @@ async function renderRelatorioHorarios(capturaWrap){
   const alertasAbertura = [], alertasFecho = [];
   for(let d=new Date(inicioMes); d<=fimMes; d.setDate(d.getDate()+1)){
     const ds = isoDate(d);
-    LOJAS.forEach(l=>{
+    minhasLojas().forEach(l=>{
       const chave = `${ds}|${l}`;
       const temColaboradores = (porDiaLoja[chave]||new Set()).size > 0;
       if(!temColaboradores) return; // dia sem ninguem no horario todo - nao e um problema de cobertura, e falta de importacao
@@ -6507,9 +6508,9 @@ async function abrirRelatorioVisualFormacoes(){
     const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
 
     const porLoja = {};
-    LOJAS.forEach(l=>porLoja[l]=0);
+    minhasLojas().forEach(l=>porLoja[l]=0);
     pendentesRede.forEach(r=>{ if(porLoja[r.loja]!==undefined) porLoja[r.loja]++; });
-    const linhasRedeHtml = LOJAS.map(l=>{
+    const linhasRedeHtml = minhasLojas().map(l=>{
       const n = porLoja[l];
       const ok = n===0;
       const cor = ok ? "#2e7d32" : "#b0432f";
@@ -6642,9 +6643,9 @@ async function abrirRelatorioVisualStockNegativo(){
     const dataFmt = new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
 
     const porLoja = {};
-    LOJAS.forEach(l=>porLoja[l]={n:0, total:0});
+    minhasLojas().forEach(l=>porLoja[l]={n:0, total:0});
     pendentesRede.forEach(r=>{ if(porLoja[r.loja]){ porLoja[r.loja].n++; porLoja[r.loja].total += Number(r.valor_stock||0); } });
-    const linhasRedeHtml = LOJAS.map(l=>{
+    const linhasRedeHtml = minhasLojas().map(l=>{
       const d = porLoja[l];
       const ok = d.n===0;
       const cor = ok ? "#2e7d32" : "#b0432f";
@@ -9285,7 +9286,7 @@ function renderGestao(){
   const today = todayStr();
   const aindaNaoComecouResumo = new Date() < RESET_GRACE_UNTIL;
   const vitrineTurnosDone = (l,ds)=>VITRINE_TURNOS.filter(t=>dailyStatus(l,"vitrine",ds,t.key)).length;
-  const missingVitrineList = aindaNaoComecouResumo ? [] : LOJAS.map(l=>{
+  const missingVitrineList = aindaNaoComecouResumo ? [] : minhasLojas().map(l=>{
     const turnoFalta = VITRINE_TURNOS.find(t=>!dailyStatus(l,"vitrine",today,t.key));
     return turnoFalta ? {loja:l, label:"Falta "+turnoFalta.label, tipo:"vitrine_"+turnoFalta.key} : null;
   }).filter(Boolean);
@@ -9294,7 +9295,7 @@ function renderGestao(){
   const missingVendasList = (aindaNaoComecouResumo || !vendasJaAbriu) ? [] : LOJAS.filter(l=>!dailyStatus(l,"vendas",today,"unico")).map(l=>({loja:l, label:"Vendas por registar", tipo:"vendas"}));
   const lateInvList = [];
   if(!aindaNaoComecouResumo){
-    LOJAS.forEach(l=>{
+    minhasLojas().forEach(l=>{
       categoriasParaLoja(l).forEach(c=>{
         if(invStatus(l,c.key,c.freq).state==="late") lateInvList.push({loja:l, label:c.label, tipo:"inv_"+c.key});
       });
