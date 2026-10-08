@@ -642,36 +642,29 @@ async function renderPanoramaGeral(){
     document.querySelector('[data-topico="vencimentos"]').onclick = ()=>abrirVencimentosHub();
 
     const relatoriosCategorias = [
-      {chave:"admin", icon:"🔑", nome:"Acessos", corpo:()=>`
-        <div style="display:flex; gap:8px;">
-          <button id="btnAbrirPinsLojasHub" style="flex:1; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.76rem; font-weight:700; cursor:pointer;">🔑 PINs das lojas</button>
-          <button id="btnAbrirResetCategoriaHub" style="flex:1; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.76rem; font-weight:700; cursor:pointer;">🔄 Reset de categoria</button>
-        </div>`, wire:()=>{
-        document.getElementById("btnAbrirPinsLojasHub").onclick = abrirPinsLojasHub;
-        document.getElementById("btnAbrirResetCategoriaHub").onclick = abrirResetCategoriaHub;
-      }},
-      {chave:"diario", icon:"📸", nome:"Diário", corpo:()=>`
-        <button id="btnAbrirDiarioVisualHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📸 Vitrine, Vendas, Laranjas e Tabaco (imagem p/ WhatsApp)</button>
-        <button id="btnAbrirResumoOntemModal" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📅 Resumo de ontem</button>
-        <button id="btnAbrirSemanalHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🖨️ Relatório semanal de vendas</button>`, wire:()=>{
+      {chave:"sempre", icon:"📊", nome:"O que acompanho sempre", corpo:()=>`
+        <button id="btnAbrirDiarioVisualHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; text-align:left;">📸 Vitrine, Vendas, Laranjas e Tabaco</button>
+        <button id="btnAbrirRegistosQuebrasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">💸 Quebras de caixa — registos e justificações</button>
+        <button id="btnAbrirExportQuebrasEmpresaHub" style="width:100%; margin-bottom:6px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; text-align:left;">💸 Quebras de caixa — Excel da empresa</button>
+        <button id="btnAbrirVisualInventarioHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📦 Inventário — ver relatório</button>
+        <button id="btnAbrirFotosCategoriaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📷 Inventário — fotos por categoria</button>
+        <button id="btnStockNegDetalhadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📉 Stock negativo</button>
+        <button id="btnQuebrasArtigosHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📦 Quebras e ajustes por artigo</button>
+        <button id="btnAbrirGrelhaSondFormsHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📊 Sondagens e Formulários</button>
+        <button id="btnAbrirRespostasSondFormsHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">👁️ Ver respostas</button>
+        <button id="btnAbrirGlobalAgendamentoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🗓️ Global — datas marcadas</button>
+        <button id="btnCertOleoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left; display:flex; justify-content:space-between; align-items:center;">
+          <span>🛢️ Certificado do óleo</span>${certOleoExpirandoPg>0?`<span style="background:var(--red); color:#fff; border-radius:99px; padding:2px 9px; font-size:.72rem;">${certOleoExpirandoPg}</span>`:''}
+        </button>
+        <button id="btnCalibOleoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left; display:flex; justify-content:space-between; align-items:center;">
+          <span>📏 Calibração do medidor do óleo</span>${calibOleoExpirandoPg>0?`<span style="background:var(--red); color:#fff; border-radius:99px; padding:2px 9px; font-size:.72rem;">${calibOleoExpirandoPg}</span>`:''}
+        </button>
+        <button id="btnReclamacoesHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📣 Reclamações</button>
+        <button id="btnAbrirCnvsHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📈 CNVs Global</button>`, wire:()=>{
         document.getElementById("btnAbrirDiarioVisualHub").onclick = abrirDiarioVisualHub;
-        document.getElementById("btnAbrirResumoOntemModal").onclick = ()=>{ abrirResumoOntem(); };
-        document.getElementById("btnAbrirSemanalHub").onclick = abrirRelatorioSemanalHub;
-      }},
-      {chave:"quebrasrel", icon:"💸", nome:"Quebras", corpo:()=>`
-        <button id="btnAbrirRegistosQuebrasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔎 Registos e justificações</button>
-        <button id="btnAbrirExportQuebrasEmpresaHub" style="width:100%; margin-bottom:6px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📋 Preencher Excel da empresa</button>
-        ${botoesAcao([
-          ["📤 Importar Excel de quebras","CoreJoint_Reportes.html?abrir=importarQuebras"],
-          ["🖨️ Relatório semanal de quebras","CoreJoint_Reportes.html?abrir=quebrasSemanal"]
-        ])}`, wire:()=>{
         document.getElementById("btnAbrirRegistosQuebrasHub").onclick = abrirRegistosQuebrasHub;
         document.getElementById("btnAbrirExportQuebrasEmpresaHub").onclick = abrirExportQuebrasEmpresaHub;
-      }},
-      {chave:"inventariorel", icon:"📷", nome:"Inventário", corpo:()=>`
-        <button id="btnAbrirFotosCategoriaHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📷 Fotos por categoria (datas de cada envio)</button>
-        <button id="btnAbrirExportInvEmpresaHub" style="width:100%; margin-bottom:6px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">📋 Preencher Excel da empresa</button>
-        ${botoesAcao([["📦 Ver relatório de inventário","CoreJoint_Reportes.html?abrir=visualInventario"]])}`, wire:()=>{
+        document.getElementById("btnAbrirVisualInventarioHub").onclick = ()=>{ window.location.href = "CoreJoint_Reportes.html?abrir=visualInventario"; };
         document.getElementById("btnAbrirFotosCategoriaHub").onclick = ()=>{
           fecharEcraHub();
           const secao = document.getElementById("categoriaLojasSection");
@@ -680,89 +673,100 @@ async function renderPanoramaGeral(){
           }
           setTimeout(()=>{ secao?.scrollIntoView({behavior:"smooth"}); }, 50);
         };
-        document.getElementById("btnAbrirExportInvEmpresaHub").onclick = abrirExportInventarioEmpresaHub;
-      }},
-      {chave:"formacaomkt", icon:"🎓", nome:"Formação e marketing", corpo:()=>`
-        <button id="btnInscricoesFormacaoHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700;">🎓 Inscrições — Formação Horários</button>
-        <button id="btnApsPreventivaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📋 APS e Preventiva Delta</button>
-        <button id="btnLegionelaHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚿 Forms Legionela — histórico semanal</button>`, wire:()=>{
-        document.getElementById("btnInscricoesFormacaoHub").onclick = ()=>abrirDetalheFormularioHub(8);
-        document.getElementById("btnApsPreventivaHub").onclick = abrirRelatorioApsPreventivaHub;
-        document.getElementById("btnLegionelaHub").onclick = ()=>abrirRelatorioSondagemRecorrenteHub("Forms Leggionela", "Forms Legionela — histórico semanal");
-      }},
-      {chave:"stockartigo", icon:"📉", nome:"Stock e inventário por artigo", corpo:()=>`
-        <button id="btnStockNegCruzadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo cruzado (mesmo artigo, 4+ lojas)</button>
-        <button id="btnStockNegDetalhadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📉 Stock negativo (lista detalhada, artigo a artigo)</button>
-        <button id="btnInvArtigosJustHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Artigos de inventário por justificar</button>
-        <button id="btnValidadesHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📅 Validades de lotes</button>`, wire:()=>{
-        document.getElementById("btnStockNegCruzadoHub").onclick = abrirRelatorioStockNegCruzadoHub;
         document.getElementById("btnStockNegDetalhadoHub").onclick = abrirRelatorioStockNegDetalhadoHub;
-        document.getElementById("btnInvArtigosJustHub").onclick = abrirInventarioArtigosJustificarHub;
-        document.getElementById("btnValidadesHub").onclick = abrirValidadesLotesHub;
-      }},
-      {chave:"pessoas", icon:"👥", nome:"Pessoas", corpo:()=>`
-        <button id="btnColaboradoresHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">👥 Colaboradores (nomes e nº mecanográfico)</button>
-        <button id="btnMobilidadeHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔀 Empréstimo de pessoal</button>
-        <button id="btnElogiosHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🌟 Elogios</button>`, wire:()=>{
-        document.getElementById("btnColaboradoresHub").onclick = abrirColaboradoresHub;
-        document.getElementById("btnMobilidadeHub").onclick = abrirMobilidadePessoalHub;
-        document.getElementById("btnElogiosHub").onclick = abrirElogiosHub;
-      }},
-      {chave:"equipamentos", icon:"🔧", nome:"Equipamentos e manutenção", corpo:()=>`
-        <button id="btnAvariasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🔧 Equipamentos avariados</button>
-        <button id="btnSintomasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🩺 Sintomas de equipamento</button>
-        <button id="btnDepuradorHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">💧 Depurador de água</button>
-        <button id="btnSegurancaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🧯 Extintores e lâmpadas</button>
-        <button id="btnConferenciaHub" style="width:100%; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚚 Conferência de fornecedores</button>`, wire:()=>{
-        document.getElementById("btnAvariasHub").onclick = abrirAvariasHub;
-        document.getElementById("btnSintomasHub").onclick = abrirSintomasEquipamentoHub;
-        document.getElementById("btnDepuradorHub").onclick = abrirDepuradorAguaHub;
-        document.getElementById("btnSegurancaHub").onclick = abrirSegurancaEquipamentoHub;
-        document.getElementById("btnConferenciaHub").onclick = abrirConferenciaFornecedoresHub;
-      }},
-      {chave:"comunicacao", icon:"📣", nome:"Comunicação e loja", corpo:()=>`
-        <button id="btnReclamacoesHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📣 Reclamações</button>
-        <button id="btnPedidosMaterialHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📦 Pedidos de material</button>
-        <button id="btnManuaisHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">📚 Manuais e fichas técnicas</button>
-        <button id="btnCodigosPortasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx);">🚪 Códigos das portas</button>
-        ${botoesAcao([
-          ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
-          ["📊 Sondagens e Formulários","CoreJoint_Reportes.html?abrir=grelhaSondagensForms"],
-          ["👁️ Ver respostas (sondagens/formulários)","CoreJoint_Reportes.html?abrir=respostasSondagensForms"],
-          ["📉 Stock negativo","CoreJoint_Reportes.html?abrir=visualStockNeg"],
-          ["🎓 Formações","CoreJoint_Reportes.html?abrir=visualFormacoes"],
-          ["👥 Horários","CoreJoint_Reportes.html?abrir=relatorioHorarios"],
-          ["🔁 Trocas de horário","CoreJoint_Reportes.html?abrir=pivotTrocas"],
-          ["🗓️ Global — datas marcadas (Set/Out)","CoreJoint_Reportes.html?abrir=relatorioGlobalAgendamento"],
-        ])}`, wire:()=>{
+        document.getElementById("btnQuebrasArtigosHub").onclick = abrirQuebrasArtigosHub;
+        document.getElementById("btnAbrirGrelhaSondFormsHub").onclick = ()=>{ window.location.href = "CoreJoint_Reportes.html?abrir=grelhaSondagensForms"; };
+        document.getElementById("btnAbrirRespostasSondFormsHub").onclick = ()=>{ window.location.href = "CoreJoint_Reportes.html?abrir=respostasSondagensForms"; };
+        document.getElementById("btnAbrirGlobalAgendamentoHub").onclick = ()=>{ window.location.href = "CoreJoint_Reportes.html?abrir=relatorioGlobalAgendamento"; };
+        document.getElementById("btnCertOleoHub").onclick = abrirCertificadosOleoHub;
+        document.getElementById("btnCalibOleoHub").onclick = abrirCalibracoesOleoHub;
         document.getElementById("btnReclamacoesHub").onclick = abrirReclamacoesHub;
-        document.getElementById("btnPedidosMaterialHub").onclick = abrirPedidosMaterialHub;
-        document.getElementById("btnManuaisHub").onclick = abrirManuaisHub;
-        document.getElementById("btnCodigosPortasHub").onclick = abrirCodigosPortasHub;
+        document.getElementById("btnAbrirCnvsHub").onclick = ()=>{ window.location.href = "CoreJoint_Reportes.html?abrir=cnvs"; };
       }},
-      {chave:"ferramentas", icon:"🛠️", nome:"Ferramentas", corpo:()=>`
+      {chave:"importar", icon:"📥", nome:"Importar / Criar", corpo:()=>`
         <button id="btnCriarSondagemFormHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">➕ Criar sondagem/formulário</button>
-        <button id="btnQuebrasArtigosHub" style="width:100%; margin-bottom:6px; background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; text-align:left;">📦 Quebras e ajustes por artigo (relatório)</button>
-        <button id="btnLojasInfoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🏬 Informações das lojas (centro custo, morada, tlm)</button>
-        <button id="btnTarefasAutoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🤖 Tarefas automáticas (ver/arquivar em bloco)</button>
+        ${botoesAcao([
+          ["📤 Importar Excel de quebras","CoreJoint_Reportes.html?abrir=importarQuebras"],
+          ["📤 Importar Inventário por Artigo","CoreJoint_Reportes.html?abrir=importarInventarioArtigos"],
+          ["📤 Importar Quebras e Ajustes por Artigo","CoreJoint_Reportes.html?abrir=importarQuebrasArtigos"],
+          ["📤 Importar Colaboradores","CoreJoint_Reportes.html?abrir=importarColaboradores"],
+        ])}`, wire:()=>{
+        document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
+      }},
+      {chave:"resto", icon:"🗂️", nome:"Tudo o resto", corpo:()=>`
+        <button id="btnAbrirResumoOntemModal" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📅 Resumo de ontem</button>
+        <button id="btnAbrirSemanalHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🖨️ Relatório semanal de vendas</button>
+        <button id="btnAbrirResetCategoriaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🔄 Reset de categoria</button>
+        <button id="btnAbrirPinsLojasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🔑 PINs das lojas</button>
+        <button id="btnInscricoesFormacaoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🎓 Inscrições — Formação Horários</button>
+        <button id="btnApsPreventivaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📋 APS e Preventiva Delta</button>
+        <button id="btnLegionelaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🚿 Forms Legionela</button>
+        <button id="btnStockNegCruzadoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📉 Stock negativo cruzado</button>
+        <button id="btnInvArtigosJustHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📦 Artigos de inventário por justificar</button>
+        <button id="btnValidadesHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📅 Validades de lotes</button>
+        <button id="btnColaboradoresHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">👥 Colaboradores</button>
+        <button id="btnMobilidadeHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🔀 Empréstimo de pessoal</button>
+        <button id="btnElogiosHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🌟 Elogios</button>
+        <button id="btnAvariasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🔧 Equipamentos avariados</button>
+        <button id="btnSintomasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🩺 Sintomas de equipamento</button>
+        <button id="btnDepuradorHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">💧 Depurador de água</button>
+        <button id="btnSegurancaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🧯 Extintores e lâmpadas</button>
+        <button id="btnConferenciaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🚚 Conferência de fornecedores</button>
+        <button id="btnPedidosMaterialHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📦 Pedidos de material</button>
+        <button id="btnManuaisHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📚 Manuais e fichas técnicas</button>
+        <button id="btnCodigosPortasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🚪 Códigos das portas</button>
+        <button id="btnGerenteLojaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🔒 Área do gerente (por loja, sem PIN)</button>
+        <button id="btnTarefasEntreNosHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📌 Tarefas entre nós</button>
+        <button id="btnLojasInfoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🏬 Informações das lojas</button>
+        <button id="btnTarefasAutoHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🤖 Tarefas automáticas</button>
         <button id="btnLojasForaRedeHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🚫 Lojas fora de rede</button>
         ${botoesAcao([
           ["📅 Histórico 12 meses","CoreJoint_Reportes.html?abrir=historico12m"],
           ["📅 Calendário","CoreJoint_Reportes.html?abrir=calendario"],
           ["🕵️ Relatório de Integridade","CoreJoint_Reportes.html?abrir=integridade"],
           ["🖼️ Galeria de fotos","CoreJoint_Reportes.html?abrir=galeria"],
-          ["📈 CNVs Global","CoreJoint_Reportes.html?abrir=cnvs"],
-          ["📤 Importar Colaboradores","CoreJoint_Reportes.html?abrir=importarColaboradores"],
-          ["📤 Importar Inventário por Artigo","CoreJoint_Reportes.html?abrir=importarInventarioArtigos"],
-          ["📤 Importar Quebras e Ajustes por Artigo","CoreJoint_Reportes.html?abrir=importarQuebrasArtigos"],
+          ["📸 Fotos pontuais","CoreJoint_Reportes.html?abrir=visualFotosPontuais"],
+          ["🎓 Formações","CoreJoint_Reportes.html?abrir=visualFormacoes"],
+          ["👥 Horários","CoreJoint_Reportes.html?abrir=relatorioHorarios"],
+          ["🔁 Trocas de horário","CoreJoint_Reportes.html?abrir=pivotTrocas"],
         ])}`, wire:()=>{
-        document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
-        document.getElementById("btnQuebrasArtigosHub").onclick = abrirQuebrasArtigosHub;
+        document.getElementById("btnAbrirResumoOntemModal").onclick = ()=>{ abrirResumoOntem(); };
+        document.getElementById("btnAbrirSemanalHub").onclick = abrirRelatorioSemanalHub;
+        document.getElementById("btnAbrirResetCategoriaHub").onclick = abrirResetCategoriaHub;
+        document.getElementById("btnAbrirPinsLojasHub").onclick = abrirPinsLojasHub;
+        document.getElementById("btnInscricoesFormacaoHub").onclick = ()=>abrirDetalheFormularioHub(8);
+        document.getElementById("btnApsPreventivaHub").onclick = abrirRelatorioApsPreventivaHub;
+        document.getElementById("btnLegionelaHub").onclick = ()=>abrirRelatorioSondagemRecorrenteHub("Forms Leggionela", "Forms Legionela — histórico semanal");
+        document.getElementById("btnStockNegCruzadoHub").onclick = abrirRelatorioStockNegCruzadoHub;
+        document.getElementById("btnInvArtigosJustHub").onclick = abrirInventarioArtigosJustificarHub;
+        document.getElementById("btnValidadesHub").onclick = abrirValidadesLotesHub;
+        document.getElementById("btnColaboradoresHub").onclick = abrirColaboradoresHub;
+        document.getElementById("btnMobilidadeHub").onclick = abrirMobilidadePessoalHub;
+        document.getElementById("btnElogiosHub").onclick = abrirElogiosHub;
+        document.getElementById("btnAvariasHub").onclick = abrirAvariasHub;
+        document.getElementById("btnSintomasHub").onclick = abrirSintomasEquipamentoHub;
+        document.getElementById("btnDepuradorHub").onclick = abrirDepuradorAguaHub;
+        document.getElementById("btnSegurancaHub").onclick = abrirSegurancaEquipamentoHub;
+        document.getElementById("btnConferenciaHub").onclick = abrirConferenciaFornecedoresHub;
+        document.getElementById("btnPedidosMaterialHub").onclick = abrirPedidosMaterialHub;
+        document.getElementById("btnManuaisHub").onclick = abrirManuaisHub;
+        document.getElementById("btnCodigosPortasHub").onclick = abrirCodigosPortasHub;
+        document.getElementById("btnGerenteLojaHub").onclick = ()=>{
+          const corpo2 = `
+            <div class="sub" style="margin-bottom:10px;">Escolhe a loja para entrar direto na área do gerente/RT (sem PIN, já estás na gestão).</div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              ${LOJAS.map(l=>`<a href="CoreJoint_Foto.html?loja=${encodeURIComponent(l)}&gestao=1" style="text-decoration:none; background:var(--sf2); color:var(--tx); border-radius:99px; padding:7px 12px; font-size:.78rem; font-weight:700;">${l}</a>`).join("")}
+            </div>
+          `;
+          abrirModalTopico("🔒 Área do gerente", corpo2);
+        };
+        document.getElementById("btnTarefasEntreNosHub").onclick = abrirTarefasPessoais;
         document.getElementById("btnLojasInfoHub").onclick = abrirLojasInfoHub;
         document.getElementById("btnTarefasAutoHub").onclick = abrirTarefasAutomaticasHub;
         document.getElementById("btnLojasForaRedeHub").onclick = abrirLojasForaRedeHub;
       }},
     ];
+
 
     function abrirCategoriaRelatorios(cat){
       abrirModalTopico(`${cat.icon} ${cat.nome}`, cat.corpo());
@@ -770,16 +774,9 @@ async function renderPanoramaGeral(){
     }
 
     const indiceRelatoriosBusca = [
-      {termo:"PINs das lojas", chave:"admin"}, {termo:"Reset de categoria", chave:"admin"},
-      {termo:"Vitrine Vendas Laranjas Tabaco", chave:"diario"}, {termo:"Resumo de ontem", chave:"diario"}, {termo:"Relatório semanal de vendas", chave:"diario"},
-      {termo:"Registos e justificações quebras", chave:"quebrasrel"}, {termo:"Preencher Excel da empresa quebras", chave:"quebrasrel"}, {termo:"Importar Excel de quebras", chave:"quebrasrel"}, {termo:"Relatório semanal de quebras", chave:"quebrasrel"},
-      {termo:"Fotos por categoria inventário", chave:"inventariorel"}, {termo:"Ver relatório de inventário", chave:"inventariorel"}, {termo:"Preencher Excel da empresa inventário", chave:"inventariorel"},
-      {termo:"Inscrições Formação Horários", chave:"formacaomkt"}, {termo:"APS e Preventiva Delta", chave:"formacaomkt"}, {termo:"Forms Legionela", chave:"formacaomkt"},
-      {termo:"Stock negativo cruzado", chave:"stockartigo"}, {termo:"Stock negativo lista detalhada artigo a artigo", chave:"stockartigo"}, {termo:"Artigos de inventário por justificar", chave:"stockartigo"}, {termo:"Validades de lotes", chave:"stockartigo"},
-      {termo:"Colaboradores nomes número mecanográfico", chave:"pessoas"}, {termo:"Empréstimo de pessoal mobilidade", chave:"pessoas"}, {termo:"Elogios", chave:"pessoas"},
-      {termo:"Equipamentos avariados avarias", chave:"equipamentos"}, {termo:"Sintomas de equipamento", chave:"equipamentos"}, {termo:"Depurador de água", chave:"equipamentos"}, {termo:"Extintores e lâmpadas segurança", chave:"equipamentos"}, {termo:"Conferência de fornecedores", chave:"equipamentos"},
-      {termo:"Reclamações", chave:"comunicacao"}, {termo:"Pedidos de material", chave:"comunicacao"}, {termo:"Manuais e fichas técnicas", chave:"comunicacao"}, {termo:"Códigos das portas", chave:"comunicacao"}, {termo:"Fotos pontuais", chave:"comunicacao"}, {termo:"Sondagens e Formulários", chave:"comunicacao"}, {termo:"Ver respostas", chave:"comunicacao"}, {termo:"Formações", chave:"comunicacao"}, {termo:"Horários", chave:"comunicacao"}, {termo:"Trocas de horário", chave:"comunicacao"}, {termo:"Global datas marcadas agendamento", chave:"comunicacao"},
-      {termo:"Criar sondagem formulário", chave:"ferramentas"}, {termo:"Histórico 12 meses", chave:"ferramentas"}, {termo:"Calendário", chave:"ferramentas"}, {termo:"Relatório de Integridade", chave:"ferramentas"}, {termo:"Galeria de fotos", chave:"ferramentas"}, {termo:"CNVs Global", chave:"ferramentas"}, {termo:"Importar Colaboradores", chave:"ferramentas"}, {termo:"Importar Inventário por Artigo", chave:"ferramentas"}, {termo:"Importar Quebras e Ajustes por Artigo", chave:"ferramentas"}, {termo:"Quebras e ajustes por artigo relatório", chave:"ferramentas"}, {termo:"Informações das lojas centro custo morada tlm", chave:"ferramentas"}, {termo:"Lojas fora de rede", chave:"ferramentas"},
+      {termo:"Vitrine Vendas Laranjas Tabaco", chave:"sempre"}, {termo:"Quebras de caixa registos justificações", chave:"sempre"}, {termo:"Quebras de caixa Excel da empresa", chave:"sempre"}, {termo:"Inventário ver relatório", chave:"sempre"}, {termo:"Inventário fotos por categoria", chave:"sempre"}, {termo:"Stock negativo", chave:"sempre"}, {termo:"Quebras e ajustes por artigo", chave:"sempre"}, {termo:"Sondagens e Formulários", chave:"sempre"}, {termo:"Ver respostas", chave:"sempre"}, {termo:"Global datas marcadas", chave:"sempre"}, {termo:"Certificado do óleo", chave:"sempre"}, {termo:"Calibração do medidor óleo", chave:"sempre"}, {termo:"Reclamações", chave:"sempre"}, {termo:"CNVs Global", chave:"sempre"},
+      {termo:"Criar sondagem formulário", chave:"importar"}, {termo:"Importar Excel de quebras", chave:"importar"}, {termo:"Importar Inventário por Artigo", chave:"importar"}, {termo:"Importar Quebras e Ajustes por Artigo", chave:"importar"}, {termo:"Importar Colaboradores", chave:"importar"},
+      {termo:"Resumo de ontem", chave:"resto"}, {termo:"Relatório semanal de vendas", chave:"resto"}, {termo:"Reset de categoria", chave:"resto"}, {termo:"PINs das lojas", chave:"resto"}, {termo:"Inscrições Formação Horários", chave:"resto"}, {termo:"APS e Preventiva Delta", chave:"resto"}, {termo:"Forms Legionela", chave:"resto"}, {termo:"Stock negativo cruzado", chave:"resto"}, {termo:"Artigos de inventário por justificar", chave:"resto"}, {termo:"Validades de lotes", chave:"resto"}, {termo:"Colaboradores nomes número mecanográfico", chave:"resto"}, {termo:"Empréstimo de pessoal mobilidade", chave:"resto"}, {termo:"Elogios", chave:"resto"}, {termo:"Equipamentos avariados avarias", chave:"resto"}, {termo:"Sintomas de equipamento", chave:"resto"}, {termo:"Depurador de água", chave:"resto"}, {termo:"Extintores e lâmpadas segurança", chave:"resto"}, {termo:"Conferência de fornecedores", chave:"resto"}, {termo:"Pedidos de material", chave:"resto"}, {termo:"Manuais e fichas técnicas", chave:"resto"}, {termo:"Códigos das portas", chave:"resto"}, {termo:"Área do gerente por loja sem PIN", chave:"resto"}, {termo:"Tarefas entre nós", chave:"resto"}, {termo:"Informações das lojas centro custo morada tlm", chave:"resto"}, {termo:"Tarefas automáticas", chave:"resto"}, {termo:"Lojas fora de rede", chave:"resto"}, {termo:"Histórico 12 meses", chave:"resto"}, {termo:"Calendário", chave:"resto"}, {termo:"Relatório de Integridade", chave:"resto"}, {termo:"Galeria de fotos", chave:"resto"}, {termo:"Fotos pontuais", chave:"resto"}, {termo:"Formações", chave:"resto"}, {termo:"Horários", chave:"resto"}, {termo:"Trocas de horário", chave:"resto"},
     ];
 
     document.querySelector('[data-topico="partilhar"]').onclick = async ()=>{
