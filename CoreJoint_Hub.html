@@ -568,7 +568,6 @@ async function renderPanoramaGeral(){
         ${tile("formacoes","🎓","Formações", `${formacoesPendentesPg.length}`, formacoesPendentesPg.length>0?'var(--org,#c17817)':'var(--grn)')}
         ${tile("horarios","👥","Horários", horariosAlertas>0?`${horariosAlertas}`:'✔', horariosAlertas>0?'var(--red)':'var(--grn)')}
         ${tile("trocas","🔁","Trocas", `${trocasPendentesPg.length}`, trocasPendentesPg.length>0?'var(--org,#c17817)':'var(--grn)')}
-        ${tile("mais","🔧","Mais", maisAlertasPg>0?`${maisAlertasPg}`:'', maisAlertasPg>0?'var(--red)':'var(--t2)')}
         ${tile("vencimentos","⏰","A vencer", vencimentosTotalPg>0?`${vencimentosTotalPg}`:'✔', vencimentosTotalPg>0?'var(--red)':'var(--grn)')}
         ${tile("partilhar","📊","Relatórios", "", 'var(--t2)')}
       </div>
@@ -609,34 +608,6 @@ async function renderPanoramaGeral(){
         ${botoesAcao([["🔁 Ver relatório","CoreJoint_Reportes.html?abrir=pivotTrocas"],["📤 Importar Excel","CoreJoint_Reportes.html?abrir=importarTrocas"]])}
       `;
       abrirModalTopico("🔁 Trocas de horário", corpo);
-    };
-
-    document.querySelector('[data-topico="mais"]').onclick = ()=>{
-      const corpo = `
-        <button id="btnMaisGerenteLoja" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; margin-bottom:8px; font-size:.85rem; font-weight:700; cursor:pointer;">🔒 Área do gerente</button>
-        <button id="btnMaisFotosPontuais" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; margin-bottom:8px; font-size:.85rem; font-weight:700; cursor:pointer;">📸 Fotos pontuais</button>
-        <button id="btnMaisCertOleo" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; margin-bottom:8px; font-size:.85rem; font-weight:700; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
-          <span>🛢️ Certificado do óleo</span>${certOleoExpirandoPg>0?`<span style="background:var(--red); color:#fff; border-radius:99px; padding:2px 9px; font-size:.72rem;">${certOleoExpirandoPg}</span>`:''}
-        </button>
-        <button id="btnMaisCalibOleo" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; margin-bottom:8px; font-size:.85rem; font-weight:700; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
-          <span>📏 Calibração do medidor</span>${calibOleoExpirandoPg>0?`<span style="background:var(--red); color:#fff; border-radius:99px; padding:2px 9px; font-size:.72rem;">${calibOleoExpirandoPg}</span>`:''}
-        </button>
-        <button id="btnMaisTarefas" style="width:100%; text-align:left; background:var(--sf2); border:none; border-radius:10px; padding:12px; font-size:.85rem; font-weight:700; cursor:pointer;">📌 Tarefas entre nós</button>
-      `;
-      abrirModalTopico("🔧 Mais", corpo);
-      document.getElementById("btnMaisGerenteLoja").onclick = ()=>{
-        const corpo2 = `
-          <div class="sub" style="margin-bottom:10px;">Escolhe a loja para entrar direto na área do gerente/RT (sem PIN, já estás na gestão).</div>
-          <div style="display:flex; flex-wrap:wrap; gap:6px;">
-            ${LOJAS.map(l=>`<a href="CoreJoint_Foto.html?loja=${encodeURIComponent(l)}&gestao=1" style="text-decoration:none; background:var(--sf2); color:var(--tx); border-radius:99px; padding:7px 12px; font-size:.78rem; font-weight:700;">${l}</a>`).join("")}
-          </div>
-        `;
-        abrirModalTopico("🔒 Área do gerente", corpo2);
-      };
-      document.getElementById("btnMaisFotosPontuais").onclick = abrirFotosPontuaisHub;
-      document.getElementById("btnMaisCertOleo").onclick = abrirCertificadosOleoHub;
-      document.getElementById("btnMaisCalibOleo").onclick = abrirCalibracoesOleoHub;
-      document.getElementById("btnMaisTarefas").onclick = abrirTarefasPessoais;
     };
 
     document.querySelector('[data-topico="vencimentos"]').onclick = ()=>abrirVencimentosHub();
@@ -2421,7 +2392,7 @@ async function abrirDiarioVisualHub(){
     function dailyStatusHub(loja, tipo, turno){ return dailyHoje.some(r=>r.loja===loja && r.tipo===tipo && r.turno===turno); }
     function naoAplicavel(loja, cat){ return naoAplic.some(n=>n.loja===loja && n.categoria===cat); }
 
-    const linhas = LOJAS.map(l=>{
+    const linhas = minhasLojas().map(l=>{
       const vendas = dailyStatusHub(l,"vendas","unico");
       const manha = dailyStatusHub(l,"vitrine","manha");
       const almoco = dailyStatusHub(l,"vitrine","almoco");
