@@ -221,7 +221,7 @@ const INV_CATS = [
   {key:"raspadinhas", label:"JSC", freq:"semanal"},
   {key:"laranja", label:"Laranja", freq:"semanal"},
   {key:"cafe", label:"Café", freq:"semanal"},
-  {key:"tabaco", label:"Tabaco (inventário)", freq:"quinzenal"},
+  {key:"tabaco", label:"Tabaco (inventário)", freq:"semanal"},
   {key:"global", label:"Global", freq:"mensal3"}
 ];
 const MARKETING_CATS = [
@@ -3899,7 +3899,7 @@ async function abrirRelatorioVisualInventario(){
       const cor = ok ? "#2e7d32" : "#b0432f";
       return `<td style="text-align:center; color:${cor}; font-weight:800; padding:4px 2px; border-bottom:1px solid #f0ebe3; font-size:12px;">${ok?'✔':'✕'}</td>`;
     }
-    const FREQS = {raspadinhas:"semanal", laranja:"semanal", cafe:"semanal", tabaco:"quinzenal", global:"mensal3"};
+    const FREQS = {raspadinhas:"semanal", laranja:"semanal", cafe:"semanal", tabaco:"semanal", global:"mensal3"};
     const headerHtml = COLS.map(([,label])=>`<th style="font-size:9.5px; color:#9c4d23; text-transform:uppercase; padding:3px 2px; border-bottom:2px solid #C1622D; white-space:nowrap;">${label}</th>`).join("");
     const linhasHtml = LOJAS.map(l=>{
       const cols = COLS.map(([key])=>cell(key, FREQS[key], l)).join("");
@@ -4174,7 +4174,7 @@ function renderRelatorioMensal(){
   criarTabelaMensal(corpo, "JSC — semana a semana", pontosDoMes("raspadinhas","semanal",mesRef), checkPeriodica("raspadinhas","semanal"), `CoreJoint_mensal_jsc_${sufixo}`);
   criarTabelaMensal(corpo, "Laranja — semana a semana", pontosDoMes("laranja","semanal",mesRef), checkPeriodica("laranja","semanal"), `CoreJoint_mensal_laranja_${sufixo}`);
   criarTabelaMensal(corpo, "Café — semana a semana", pontosDoMes("cafe","semanal",mesRef), checkPeriodica("cafe","semanal"), `CoreJoint_mensal_cafe_${sufixo}`);
-  criarTabelaMensal(corpo, "Tabaco — por quinzena", pontosDoMes("tabaco","quinzenal",mesRef), checkPeriodica("tabaco","quinzenal"), `CoreJoint_mensal_tabaco_${sufixo}`);
+  criarTabelaMensal(corpo, "Tabaco — semana a semana", pontosDoMes("tabaco","semanal",mesRef), checkPeriodica("tabaco","semanal"), `CoreJoint_mensal_tabaco_${sufixo}`);
 }
 
 async function abrirRelatorioVisualFotosPontuais(){
