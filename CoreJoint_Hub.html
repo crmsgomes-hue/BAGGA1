@@ -7015,7 +7015,7 @@ async function enviarAvisoTodos(){
   }
 }
 
-function bigPhoto(urls, indice){
+function bigPhoto(urls, indice, labels){
   const old = document.getElementById('_lb');
   if(old) document.body.removeChild(old);
   if(!urls || urls.length===0) return;
@@ -7029,7 +7029,7 @@ function bigPhoto(urls, indice){
   img.style.cssText = 'position:absolute;top:50%;left:50%;max-width:none;max-height:none;width:96vw;transform-origin:0 0;will-change:transform;border-radius:6px;';
 
   const contador = document.createElement('div');
-  contador.style.cssText = 'position:absolute;top:16px;left:50%;transform:translateX(-50%);color:#fff;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.15);padding:4px 12px;border-radius:99px;z-index:2;';
+  contador.style.cssText = 'position:absolute;top:16px;left:50%;transform:translateX(-50%);color:#fff;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.15);padding:4px 12px;border-radius:99px;z-index:2; text-align:center; white-space:nowrap;';
 
   const dica = document.createElement('div');
   dica.style.cssText = 'position:absolute;bottom:14px;left:0;right:0;text-align:center;color:rgba(255,255,255,.6);font-size:11px;z-index:2;';
@@ -7047,7 +7047,10 @@ function bigPhoto(urls, indice){
 
   function atualizar(){
     img.src = urls[idx];
-    contador.textContent = urls.length>1 ? `${idx+1} / ${urls.length}` : '';
+    const legenda = (labels && labels[idx]) ? labels[idx] : '';
+    contador.innerHTML = urls.length>1
+      ? `${idx+1} / ${urls.length}${legenda?`<br><span style="font-weight:800; font-size:13px;">${legenda}</span>`:''}`
+      : (legenda ? `<span style="font-weight:800; font-size:13px;">${legenda}</span>` : '');
     img.onload = ()=>{ imgW = img.clientWidth; imgH = img.clientHeight; resetZoom(); };
   }
   atualizar();
@@ -7487,7 +7490,7 @@ async function carregarDashboardCompleto(){
       const registosTurno = todayVitrine.filter(r=>r.turno===t.key);
       const enviaram = new Set(registosTurno.map(r=>r.loja));
       htmlVit += `<div style="margin-bottom:8px;">
-        <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:4px;">${t.label} (${[...enviaram].filter(l=>minhasLojas().includes(l)).length}/${minhasLojas().length})</div>
+        <div data-galeria-turno="${t.key}" style="font-size:.7rem; color:var(--terracotta,#C1622D); font-weight:700; margin-bottom:4px; text-decoration:underline; cursor:pointer;">🔍 ${t.label} (${[...enviaram].filter(l=>minhasLojas().includes(l)).length}/${minhasLojas().length})</div>
         <div style="display:flex; flex-wrap:wrap; gap:6px;">`;
       minhasLojas().forEach(l=>{
         const feito = enviaram.has(l);
@@ -7498,7 +7501,7 @@ async function carregarDashboardCompleto(){
     [{tipo:"laranjas_maquina", label:"Laranjas na máquina"}, {tipo:"expositor_tabaco", label:"Expositor do tabaco"}].forEach(x=>{
       const registos = todayLaranjaTabaco.filter(r=>r.tipo===x.tipo);
       htmlVit += `<div style="margin-bottom:8px;">
-        <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:4px;">${x.label} (${registos.filter(r=>minhasLojas().includes(r.loja)).length}/${minhasLojas().length})</div>
+        <div data-galeria-lt="${x.tipo}" style="font-size:.7rem; color:var(--terracotta,#C1622D); font-weight:700; margin-bottom:4px; text-decoration:underline; cursor:pointer;">🔍 ${x.label} (${registos.filter(r=>minhasLojas().includes(r.loja)).length}/${minhasLojas().length})</div>
         <div style="display:flex; flex-wrap:wrap; gap:6px;" data-lt-row="${x.tipo}">`;
       minhasLojas().forEach(l=>{
         const reg = registos.find(r=>r.loja===l);
@@ -7511,7 +7514,7 @@ async function carregarDashboardCompleto(){
       htmlVit += `</div></div>`;
     });
     htmlVit += `<div style="margin-bottom:2px;">
-      <div style="font-size:.7rem; color:var(--t2); font-weight:700; margin-bottom:4px;">🧾 Vendas (${todayVendas.filter(r=>minhasLojas().includes(r.loja)).length}/${minhasLojas().length})</div>
+      <div data-galeria-vendas="1" style="font-size:.7rem; color:var(--terracotta,#C1622D); font-weight:700; margin-bottom:4px; text-decoration:underline; cursor:pointer;">🔍 🧾 Vendas (${todayVendas.filter(r=>minhasLojas().includes(r.loja)).length}/${minhasLojas().length})</div>
       <div style="display:flex; flex-wrap:wrap; gap:6px;" data-vendas-row="1">`;
     minhasLojas().forEach(l=>{
       const reg = todayVendas.find(r=>r.loja===l);
@@ -7527,8 +7530,33 @@ async function carregarDashboardCompleto(){
       const fotos = (reg.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
       const horaLbl = reg.criado_em ? new Date(reg.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : "";
       chip.onclick = ()=>{
-        if(fotos.length){ bigPhoto(fotos, 0); }
+        if(fotos.length){ bigPhoto(fotos, 0, fotos.map(()=>chip.dataset.vitLoja)); }
         else alert(`${chip.dataset.vitLoja} — enviado${horaLbl?' às '+horaLbl:''}\n(sem foto anexada)`);
+      };
+    });
+    document.querySelectorAll("[data-galeria-turno]").forEach(titulo=>{
+      titulo.onclick = ()=>{
+        const turno = titulo.dataset.galeriaTurno;
+        const regsOrdenados = todayVitrine.filter(r=>r.turno===turno && minhasLojas().includes(r.loja)).sort((a,b)=>a.loja.localeCompare(b.loja));
+        const urls = [], labels = [];
+        regsOrdenados.forEach(r=>{
+          const fs = (r.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
+          fs.forEach(u=>{ urls.push(u); labels.push(r.loja); });
+        });
+        if(urls.length===0){ toast("Ainda sem fotos nesta categoria hoje."); return; }
+        bigPhoto(urls, 0, labels);
+      };
+    });
+    document.querySelectorAll("[data-galeria-vendas]").forEach(titulo=>{
+      titulo.onclick = ()=>{
+        const regsOrdenados = todayVendas.filter(r=>minhasLojas().includes(r.loja)).sort((a,b)=>a.loja.localeCompare(b.loja));
+        const urls = [], labels = [];
+        regsOrdenados.forEach(r=>{
+          const fs = (r.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
+          fs.forEach(u=>{ urls.push(u); labels.push(r.loja); });
+        });
+        if(urls.length===0){ toast("Ainda sem fotos de vendas hoje."); return; }
+        bigPhoto(urls, 0, labels);
       };
     });
     document.querySelectorAll("[data-lt-loja]").forEach(chip=>{
@@ -7541,8 +7569,21 @@ async function carregarDashboardCompleto(){
       }
       const fotos = (reg.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
       chip.onclick = ()=>{
-        if(fotos.length){ bigPhoto(fotos, 0); }
+        if(fotos.length){ bigPhoto(fotos, 0, fotos.map(()=>chip.dataset.ltLoja)); }
         else alert(`${chip.dataset.ltLoja} — enviado (sem foto anexada)`);
+      };
+    });
+    document.querySelectorAll("[data-galeria-lt]").forEach(titulo=>{
+      titulo.onclick = ()=>{
+        const tipo = titulo.dataset.galeriaLt;
+        const regsOrdenados = todayLaranjaTabaco.filter(r=>r.tipo===tipo && minhasLojas().includes(r.loja)).sort((a,b)=>a.loja.localeCompare(b.loja));
+        const urls = [], labels = [];
+        regsOrdenados.forEach(r=>{
+          const fs = (r.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
+          fs.forEach(u=>{ urls.push(u); labels.push(r.loja); });
+        });
+        if(urls.length===0){ toast("Ainda sem fotos nesta categoria hoje."); return; }
+        bigPhoto(urls, 0, labels);
       };
     });
     document.querySelectorAll("[data-vendas-loja]").forEach(chip=>{
@@ -7551,7 +7592,7 @@ async function carregarDashboardCompleto(){
       const fotos = (reg.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
       const horaLbl = reg.criado_em ? new Date(reg.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : "";
       chip.onclick = ()=>{
-        if(fotos.length){ bigPhoto(fotos, 0); }
+        if(fotos.length){ bigPhoto(fotos, 0, fotos.map(()=>chip.dataset.vendasLoja)); }
         else alert(`${chip.dataset.vendasLoja} — Vendas enviadas${horaLbl?' às '+horaLbl:''}\n(sem foto anexada)`);
       };
     });
