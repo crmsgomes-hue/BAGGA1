@@ -1378,6 +1378,7 @@ function abrirCapturaAlmoco(estadoRestaurado){
             <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" data-ab-input="${it.tipo}" style="display:none;"></label>
             <label class="filebtn" style="flex:1; text-align:center; background:none; border:1.5px solid var(--terracotta,#C1622E); color:var(--terracotta,#C1622E);">🖼️ Galeria<input type="file" accept="image/*" data-ab-input="${it.tipo}" style="display:none;"></label>
           </div>
+          ${it.tipo==="sopa" ? `<div style="text-align:center; margin-top:8px;"><span data-ab-semstock="${it.tipo}" data-ab-label="${it.label}" style="font-size:12px; text-decoration:underline; color:var(--ink-soft); cursor:pointer;">❌ Não tenho sopa hoje</span></div>` : ``}
           `}
         </div>
       `).join("")}
@@ -1396,6 +1397,33 @@ function abrirCapturaAlmoco(estadoRestaurado){
     if(it.jaFeito) return;
     const estado = window._abertura[it.tipo];
     if(estado && estado.fotos && estado.fotos.length) renderAberturaThumbs(it.tipo);
+    if(estado && estado.semStock){
+      const el = overlay.querySelector(`[data-ab-semstock="${it.tipo}"]`);
+      if(el) el.click();
+      const ta = document.querySelector(`[data-ab-motivo="${it.tipo}"]`);
+      if(ta) ta.value = estado.motivo || "";
+    }
+  });
+  overlay.querySelectorAll("[data-ab-semstock]").forEach(el=>{
+    el.onclick = ()=>{
+      const tipo = el.dataset.abSemstock;
+      window._abertura[tipo].semStock = !window._abertura[tipo].semStock;
+      const botoes = document.getElementById(`abBotoes_${tipo}`);
+      const thumbs = document.getElementById(`abThumbs_${tipo}`);
+      if(window._abertura[tipo].semStock){
+        el.textContent = `✔ Marcado sem stock — toca para tirar foto em vez disso`;
+        botoes.style.display = "none";
+        thumbs.innerHTML = `<textarea data-ab-motivo="${tipo}" placeholder="Motivo (ex: não sobrou sopa)" style="width:100%; min-height:60px; padding:8px; border-radius:8px; border:1px solid var(--line); font-size:13px;"></textarea>`;
+        const ta = thumbs.querySelector(`[data-ab-motivo]`);
+        ta.value = window._abertura[tipo].motivo || "";
+        ta.addEventListener("input", (ev)=>{ window._abertura[tipo].motivo = ev.target.value; salvarEstadoAbertura(); });
+      } else {
+        el.textContent = `❌ Não tenho ${el.dataset.abLabel.toLowerCase()} hoje`;
+        botoes.style.display = "flex";
+        thumbs.innerHTML = "";
+      }
+      salvarEstadoAbertura();
+    };
   });
 
   document.getElementById("aberturaEnviarBtn").onclick = ()=>enviarAbertura(itens);
