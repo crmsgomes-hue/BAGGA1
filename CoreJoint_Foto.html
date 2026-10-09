@@ -919,9 +919,10 @@ async function renderInterno(){
     secInventario.body.appendChild(w);
   });
 
-  const linkCorrigir = document.createElement("div");
-  linkCorrigir.style.cssText = "text-align:center;";
-  linkCorrigir.innerHTML = `<span style="font-size:12.5px; color:var(--ink-soft); text-decoration:underline; cursor:pointer;" id="verEnviosRecentesLink">✏️ Ver/corrigir envios recentes de inventário</span>`;
+  const linkCorrigir = document.createElement("button");
+  linkCorrigir.id = "verEnviosRecentesLink";
+  linkCorrigir.style.cssText = "width:100%; background:var(--terracotta,#C1622E); color:#fff; border:none; border-radius:12px; padding:14px; font-size:14.5px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;";
+  linkCorrigir.innerHTML = `✏️ Corrigir um envio de inventário já feito`;
   secInventario.body.appendChild(linkCorrigir);
   document.getElementById("verEnviosRecentesLink")?.addEventListener("click", abrirEnviosRecentesInventario);
 
