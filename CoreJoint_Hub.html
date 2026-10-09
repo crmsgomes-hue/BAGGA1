@@ -2397,15 +2397,17 @@ async function abrirDiarioVisualHub(){
       const manha = dailyStatusHub(l,"vitrine","manha");
       const almoco = dailyStatusHub(l,"vitrine","almoco");
       const lanche = dailyStatusHub(l,"vitrine","lanche");
+      const sopaAplicavel = !naoAplicavel(l, "sopa");
+      const sopa = sopaAplicavel ? dailyHoje.some(r=>r.loja===l && r.tipo==="sopa") : null;
       const laranjas = dailyHoje.some(r=>r.loja===l && r.tipo==="laranjas_maquina");
       const tabacoAplicavel = !naoAplicavel(l, "expositor_tabaco");
       const tabaco = dailyHoje.some(r=>r.loja===l && r.tipo==="expositor_tabaco");
       const jscAplicavel = !naoAplicavel(l, "raspadinhas");
       const jsc = jscAplicavel ? invSemana.some(r=>r.loja===l && r.categoria==="raspadinhas") : null;
-      return {loja:l, vendas, manha, almoco, lanche, laranjas, tabacoAplicavel, tabaco, jscAplicavel, jsc};
+      return {loja:l, vendas, manha, almoco, sopaAplicavel, sopa, lanche, laranjas, tabacoAplicavel, tabaco, jscAplicavel, jsc};
     });
 
-    const COLS = [["vendas","Vd"],["manha","Mã"],["almoco","Al"],["lanche","Ln"],["laranjas","Lj"],["tabaco","Tb"],["jsc","JSC"]];
+    const COLS = [["vendas","Vd"],["manha","Mã"],["almoco","Al"],["sopa","Sp"],["lanche","Ln"],["laranjas","Lj"],["tabaco","Tb"],["jsc","JSC"]];
     function cell(ok){
       if(ok===null) return `<td style="text-align:center; color:#ccc; padding:4px 1px; border-bottom:1px solid #f0ebe3;">—</td>`;
       const cor = ok ? "#2e7d32" : "#b0432f";
@@ -2416,6 +2418,7 @@ async function abrirDiarioVisualHub(){
       const colsHtml = COLS.map(([key])=>{
         if(key==="tabaco" && !r.tabacoAplicavel) return cell(null);
         if(key==="jsc" && !r.jscAplicavel) return cell(null);
+        if(key==="sopa" && !r.sopaAplicavel) return cell(null);
         return cell(r[key]);
       }).join("");
       return `<tr><td style="font-weight:700; font-size:10.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(r.loja)}</td>${colsHtml}</tr>`;
@@ -7203,7 +7206,7 @@ async function carregarDashboardCompleto(){
     function fotoUrlH(f){ return typeof f === "string" ? f : (f && f.url) || ""; }
     function fotoLegendaH(f){ return (f && typeof f === "object" && f.legenda) || ""; }
 
-    const TITULOS_DAILY_H = {vendas:"Vendas", laranjas_maquina:"Laranjas na máquina", expositor_tabaco:"Expositor do tabaco"};
+    const TITULOS_DAILY_H = {vendas:"Vendas", laranjas_maquina:"Laranjas na máquina", expositor_tabaco:"Expositor do tabaco", sopa:"Sopa"};
     const submissoes = [];
     dailyFotos.forEach(r=>{
       if(!(r.fotos||[]).length) return;
@@ -7449,7 +7452,7 @@ async function carregarDashboardCompleto(){
 
     // Vitrine — trazida de volta a pedido da Cristina, mas só aqui (dá noção de quem envia, sem poluir o Painel de gestão)
     const todayVitrine = await api(`cj_daily_reportes?select=loja,turno,fotos,criado_em&tipo=eq.vitrine&data=eq.${todayStr}`);
-    const todayLaranjaTabaco = await api(`cj_daily_reportes?select=loja,tipo,nota,fotos&tipo=in.(laranjas_maquina,expositor_tabaco)&data=eq.${todayStr}`);
+    const todayLaranjaTabaco = await api(`cj_daily_reportes?select=loja,tipo,nota,fotos&tipo=in.(laranjas_maquina,expositor_tabaco,sopa)&data=eq.${todayStr}`);
     const todayVendas = await api(`cj_daily_reportes?select=loja,fotos,criado_em&tipo=eq.vendas&data=eq.${todayStr}`);
     const TURNOS_VIT = [{key:"manha", label:"Manhã"}, {key:"almoco", label:"Almoço"}, {key:"lanche", label:"Lanche"}];
     let htmlVit = `<div class="card" style="flex-direction:column; align-items:stretch; gap:0; margin-bottom:10px;">
@@ -7466,7 +7469,7 @@ async function carregarDashboardCompleto(){
       });
       htmlVit += `</div></div>`;
     });
-    [{tipo:"laranjas_maquina", label:"Laranjas na máquina"}, {tipo:"expositor_tabaco", label:"Expositor do tabaco"}].forEach(x=>{
+    [{tipo:"laranjas_maquina", label:"Laranjas na máquina"}, {tipo:"expositor_tabaco", label:"Expositor do tabaco"}, {tipo:"sopa", label:"Sopa"}].forEach(x=>{
       const registos = todayLaranjaTabaco.filter(r=>r.tipo===x.tipo);
       htmlVit += `<div style="margin-bottom:8px;">
         <div data-galeria-lt="${x.tipo}" style="font-size:.7rem; color:var(--terracotta,#C1622D); font-weight:700; margin-bottom:4px; text-decoration:underline; cursor:pointer;">🔍 ${x.label} (${registos.filter(r=>minhasLojas().includes(r.loja)).length}/${minhasLojas().length})</div>
