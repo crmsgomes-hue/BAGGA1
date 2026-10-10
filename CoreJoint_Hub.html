@@ -7563,25 +7563,29 @@ async function carregarDashboardCompleto(){
       }
       return {feito:false, diaErrado:false, latest:null};
     }
-    let htmlCat = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
+    let htmlCatHeader = `<div class="sec-label" style="display:flex; justify-content:space-between; align-items:center;">
         <span>📦 Inventário por categoria</span>
         <span style="font-size:.72rem; font-weight:700; color:${statAtrasados>0?'var(--red)':'var(--grn)'};">${statAtrasados} atrasado${statAtrasados===1?'':'s'}</span>
       </div>
-      <div style="font-size:.72rem; color:var(--t2); margin-bottom:10px;">O nome da loja fica verde quando envia. Toca num nome verde para ver o que puseram.</div>`;
+      <div style="font-size:.72rem; color:var(--t2); margin-bottom:10px;">O nome da loja fica verde quando envia. Toca num nome verde para ver o que puseram. Cada categoria tem o seu botão de partilhar.</div>`;
+    let htmlCat = "";
     [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
       const lojasAplic = LOJAS.filter(l=>minhasLojas().includes(l) && !naoAplicaveisCat.some(n=>n.loja===l && n.categoria===cat.key) && (INV_CATS.includes(cat) ? categoriasParaLoja(l).some(c=>c.key===cat.key) : true));
       if(lojasAplic.length===0) return;
       const statusPorLoja = lojasAplic.map(l=>({l, st: statusCatLoja(l, cat)}));
       const feitas = statusPorLoja.filter(x=>x.st.feito).length;
-      htmlCat += `<div class="card" style="flex-direction:column; align-items:stretch; gap:0; margin-bottom:10px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:9px;">
-          <span style="font-family:'Syne',sans-serif; font-weight:700; font-size:.88rem;">${cat.label}</span>
-          <span style="font-size:.72rem; font-weight:700; color:${feitas===statusPorLoja.length?'var(--grn)':'var(--t2)'};">${feitas}/${statusPorLoja.length} feito</span>
+      htmlCat += `<div style="margin-bottom:14px;">
+        <div id="catCapturaWrap_${cat.key}" class="card" style="flex-direction:column; align-items:stretch; gap:0; background:#fff;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:9px;">
+            <span style="font-family:'Syne',sans-serif; font-weight:700; font-size:.88rem;">${cat.label}</span>
+            <span style="font-size:.72rem; font-weight:700; color:${feitas===statusPorLoja.length?'var(--grn)':'var(--t2)'};">${feitas}/${statusPorLoja.length} feito</span>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:6px;" data-chips-cat="${cat.key}"></div>
         </div>
-        <div style="display:flex; flex-wrap:wrap; gap:6px;" data-chips-cat="${cat.key}"></div>
+        <div id="catPartilhaBtns_${cat.key}" style="margin-top:6px;"></div>
       </div>`;
     });
-    document.getElementById("categoriaLojasSection").innerHTML = `<div id="categoriaLojasCapturaWrap" style="background:#fff;">${htmlCat}</div><div id="categoriaLojasPartilhaBtns" style="margin-top:10px;"></div>`;
+    document.getElementById("categoriaLojasSection").innerHTML = htmlCatHeader + htmlCat;
     [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
       const wrap = document.querySelector(`[data-chips-cat="${cat.key}"]`);
       if(!wrap) return;
@@ -7616,6 +7620,9 @@ async function carregarDashboardCompleto(){
         nota.textContent = `Ainda por enviar: ${pendentesCat.join(", ")}`;
         wrap.appendChild(nota);
       }
+      const capturaWrapCat = document.getElementById(`catCapturaWrap_${cat.key}`);
+      const btnsCat = document.getElementById(`catPartilhaBtns_${cat.key}`);
+      if(capturaWrapCat && btnsCat) criarBotoesPartilhaHub(btnsCat, capturaWrapCat, `CoreJoint_${cat.key}`, `CoreJoint · ${cat.label}`);
     });
 
     // Vitrine — trazida de volta a pedido da Cristina, mas só aqui (dá noção de quem envia, sem poluir o Painel de gestão)
