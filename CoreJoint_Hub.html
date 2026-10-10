@@ -78,6 +78,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
     <button onclick="abrirAvisarTodos()" style="background:var(--sf2); border:none; border-radius:99px; padding:6px 12px; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">📢 Avisar todas</button>
     <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="background:var(--sf2); border:none; border-radius:99px; padding:6px 12px; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">🔔 Lembrar atrasos</button>
     <button onclick="abrirResumoOntem()" style="background:var(--sf2); border:none; border-radius:99px; padding:6px 12px; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">📅 Resumo de ontem</button>
+    <button onclick="abrirResumoDiarioAvisosHub()" style="background:var(--terracotta,#C1622D); border:none; border-radius:99px; padding:6px 12px; color:#fff; font-weight:700; font-size:.76rem; cursor:pointer; font-family:inherit;">📋 Resumo do dia (partilhar)</button>
     <a href="CoreJoint_Reportes.html?ferramentas=1" style="background:var(--sf2); border-radius:99px; padding:6px 12px; color:var(--t2); text-decoration:none; font-weight:600; font-size:.76rem;">🛠️ Mais ferramentas</a>
   </div>
 
@@ -768,7 +769,7 @@ async function renderPanoramaGeral(){
     const indiceRelatoriosBusca = [
       {termo:"Vitrine Vendas Laranjas Tabaco", chave:"sempre"}, {termo:"Quebras de caixa registos justificações", chave:"sempre"}, {termo:"Quebras de caixa Excel da empresa", chave:"sempre"}, {termo:"Inventário ver relatório", chave:"sempre"}, {termo:"Inventário fotos por categoria", chave:"sempre"}, {termo:"Stock negativo", chave:"sempre"}, {termo:"Quebras e ajustes por artigo", chave:"sempre"}, {termo:"Sondagens e Formulários", chave:"sempre"}, {termo:"Ver respostas", chave:"sempre"}, {termo:"Global datas marcadas", chave:"sempre"}, {termo:"Certificado do óleo", chave:"sempre"}, {termo:"Calibração do medidor óleo", chave:"sempre"}, {termo:"Reclamações", chave:"sempre"}, {termo:"CNVs Global", chave:"sempre"},
       {termo:"Criar sondagem formulário", chave:"importar"}, {termo:"Importar Excel de quebras", chave:"importar"}, {termo:"Importar Inventário por Artigo", chave:"importar"}, {termo:"Importar Quebras e Ajustes por Artigo", chave:"importar"}, {termo:"Importar Colaboradores", chave:"importar"},
-      {termo:"Resumo de ontem", chave:"resto"}, {termo:"Relatório semanal de vendas", chave:"resto"}, {termo:"Reset de categoria", chave:"resto"}, {termo:"PINs das lojas", chave:"resto"}, {termo:"Inscrições Formação Horários", chave:"resto"}, {termo:"APS e Preventiva Delta", chave:"resto"}, {termo:"Forms Legionela", chave:"resto"}, {termo:"Stock negativo cruzado", chave:"resto"}, {termo:"Artigos de inventário por justificar", chave:"resto"}, {termo:"Validades de lotes", chave:"resto"}, {termo:"Colaboradores nomes número mecanográfico", chave:"resto"}, {termo:"Empréstimo de pessoal mobilidade", chave:"resto"}, {termo:"Elogios", chave:"resto"}, {termo:"Equipamentos avariados avarias", chave:"resto"}, {termo:"Sintomas de equipamento", chave:"resto"}, {termo:"Depurador de água", chave:"resto"}, {termo:"Extintores e lâmpadas segurança", chave:"resto"}, {termo:"Conferência de fornecedores", chave:"resto"}, {termo:"Pedidos de material", chave:"resto"}, {termo:"Manuais e fichas técnicas", chave:"resto"}, {termo:"Códigos das portas", chave:"resto"}, {termo:"Área do gerente por loja sem PIN", chave:"resto"}, {termo:"Tarefas entre nós", chave:"resto"}, {termo:"Informações das lojas centro custo morada tlm", chave:"resto"}, {termo:"Tarefas automáticas", chave:"resto"}, {termo:"Lojas fora de rede", chave:"resto"}, {termo:"Histórico 12 meses", chave:"resto"}, {termo:"Calendário", chave:"resto"}, {termo:"Relatório de Integridade", chave:"resto"}, {termo:"Galeria de fotos", chave:"resto"}, {termo:"Fotos pontuais", chave:"resto"}, {termo:"Formações", chave:"resto"}, {termo:"Horários", chave:"resto"}, {termo:"Trocas de horário", chave:"resto"},
+      {termo:"Resumo de ontem", chave:"resto"}, {termo:"Resumo do dia partilhar pendências", chave:"resto"}, {termo:"Relatório semanal de vendas", chave:"resto"}, {termo:"Reset de categoria", chave:"resto"}, {termo:"PINs das lojas", chave:"resto"}, {termo:"Inscrições Formação Horários", chave:"resto"}, {termo:"APS e Preventiva Delta", chave:"resto"}, {termo:"Forms Legionela", chave:"resto"}, {termo:"Stock negativo cruzado", chave:"resto"}, {termo:"Artigos de inventário por justificar", chave:"resto"}, {termo:"Validades de lotes", chave:"resto"}, {termo:"Colaboradores nomes número mecanográfico", chave:"resto"}, {termo:"Empréstimo de pessoal mobilidade", chave:"resto"}, {termo:"Elogios", chave:"resto"}, {termo:"Equipamentos avariados avarias", chave:"resto"}, {termo:"Sintomas de equipamento", chave:"resto"}, {termo:"Depurador de água", chave:"resto"}, {termo:"Extintores e lâmpadas segurança", chave:"resto"}, {termo:"Conferência de fornecedores", chave:"resto"}, {termo:"Pedidos de material", chave:"resto"}, {termo:"Manuais e fichas técnicas", chave:"resto"}, {termo:"Códigos das portas", chave:"resto"}, {termo:"Área do gerente por loja sem PIN", chave:"resto"}, {termo:"Tarefas entre nós", chave:"resto"}, {termo:"Informações das lojas centro custo morada tlm", chave:"resto"}, {termo:"Tarefas automáticas", chave:"resto"}, {termo:"Lojas fora de rede", chave:"resto"}, {termo:"Histórico 12 meses", chave:"resto"}, {termo:"Calendário", chave:"resto"}, {termo:"Relatório de Integridade", chave:"resto"}, {termo:"Galeria de fotos", chave:"resto"}, {termo:"Fotos pontuais", chave:"resto"}, {termo:"Formações", chave:"resto"}, {termo:"Horários", chave:"resto"}, {termo:"Trocas de horário", chave:"resto"},
     ];
 
     document.querySelector('[data-topico="partilhar"]').onclick = async ()=>{
@@ -2378,6 +2379,89 @@ async function abrirRelatorioSemanalHub(){
     </table>
   `;
   criarBotoesPartilhaHub(document.getElementById("semanalPartilhaBtnsHub"), capturaWrap, `CoreJoint_semanal`, "CoreJoint · Vendas — últimos 7 dias");
+}
+
+async function abrirResumoDiarioAvisosHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "resumoDiarioAvisosOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">📋 Resumo do dia — o que falta</div>
+      <div class="sub" style="margin-bottom:12px;">Tudo o que está pendente nas tuas lojas, pronto a partilhar. O que já foi avisado antes aparece marcado.</div>
+      <div id="resumoDiarioAvisosCapturaWrapHub"></div>
+      <div id="resumoDiarioAvisosPartilhaBtnsHub"></div>
+      <button id="fecharResumoDiarioAvisosHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharResumoDiarioAvisosHubBtn").onclick = ()=>fecharEcraHub();
+
+  const capturaWrap = document.getElementById("resumoDiarioAvisosCapturaWrapHub");
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+  capturaWrap.innerHTML = `<div class="empty">A carregar...</div>`;
+
+  const today = new Date();
+  const ds = isoDate(today);
+  const dataFmt = today.toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+  const minhas = minhasLojas();
+  const filtroL = `&loja=in.(${minhas.map(encodeURIComponent).join(",")})`;
+
+  const [reclamacoes, avarias, pedidos, quebras, stockNeg, dailyHoje] = await Promise.all([
+    api(`cj_reclamacoes?select=loja,data_hora,alerta_urgente_enviado&estado=eq.pendente${filtroL}`, "GET"),
+    api(`cj_avarias_bagga?select=loja,data_pedido,alerta_urgente_enviado&estado=eq.pendente${filtroL}`, "GET"),
+    api(`cj_pedidos_material?select=loja,criado_em,alerta_urgente_enviado&estado=eq.pendente${filtroL}`, "GET"),
+    api(`cj_quebras_reportes?select=loja,data,valor_quebra&justificacao=is.null${filtroL}`, "GET"),
+    api(`cj_stock_negativo?select=loja,valor_stock&justificacao=is.null${filtroL}`, "GET"),
+    api(`cj_daily_reportes?select=loja,tipo,turno&data=eq.${ds}${filtroL}`, "GET"),
+  ]);
+
+  function diasDesde(dataStr){ return Math.floor((Date.now() - new Date(dataStr).getTime())/86400000); }
+  function jaAvisado(item){ return !!item.alerta_urgente_enviado; }
+
+  const porLoja = {};
+  minhas.forEach(l=>{ porLoja[l] = []; });
+
+  reclamacoes.forEach(r=>{
+    porLoja[r.loja]?.push(`📣 Reclamação (${diasDesde(r.data_hora)}d)${jaAvisado(r)?' ⚠️ já avisado':''}`);
+  });
+  avarias.forEach(a=>{
+    porLoja[a.loja]?.push(`🔧 Avaria (${diasDesde(a.data_pedido)}d)${jaAvisado(a)?' ⚠️ já avisado':''}`);
+  });
+  pedidos.forEach(p=>{
+    porLoja[p.loja]?.push(`📦 Pedido de material (${diasDesde(p.criado_em)}d)${jaAvisado(p)?' ⚠️ já avisado':''}`);
+  });
+  quebras.forEach(q=>{
+    porLoja[q.loja]?.push(`💸 Quebra por justificar: ${Number(q.valor_quebra).toFixed(2)}€`);
+  });
+  const stockPorLoja = {};
+  stockNeg.forEach(s=>{ stockPorLoja[s.loja] = (stockPorLoja[s.loja]||0) + Number(s.valor_stock||0); });
+  Object.entries(stockPorLoja).forEach(([l,v])=>{
+    if(porLoja[l]) porLoja[l].push(`📉 Stock negativo por justificar: ${v.toFixed(2)}€`);
+  });
+  minhas.forEach(l=>{
+    const turnosOk = ["manha","almoco","lanche"].every(t=>dailyHoje.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t));
+    if(!turnosOk) porLoja[l].push(`📸 Vitrine de hoje incompleta`);
+  });
+
+  const lojasComPendencias = minhas.filter(l=>porLoja[l].length>0);
+
+  const corpoHtml = lojasComPendencias.length===0
+    ? `<div style="text-align:center; padding:20px; color:var(--green,#2e7d32); font-weight:700;">✔ Sem nada pendente — tudo em dia!</div>`
+    : lojasComPendencias.map(l=>`
+        <div style="margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #f0ebe3;">
+          <div style="font-weight:800; font-size:13px; color:#2b2118; margin-bottom:4px;">${l}</div>
+          ${porLoja[l].map(item=>`<div style="font-size:12px; color:#555; margin-bottom:2px;">${item}</div>`).join("")}
+        </div>
+      `).join("");
+
+  capturaWrap.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Resumo do dia</div>
+    <div style="font-size:9px; color:#777; margin-bottom:10px; text-transform:capitalize;">${dataFmt}</div>
+    ${corpoHtml}
+  `;
+  criarBotoesPartilhaHub(document.getElementById("resumoDiarioAvisosPartilhaBtnsHub"), capturaWrap, `CoreJoint_resumo_dia`, "CoreJoint · Resumo do dia");
 }
 
 async function abrirDiarioVisualHub(){
