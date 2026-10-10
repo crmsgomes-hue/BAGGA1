@@ -2477,6 +2477,30 @@ async function abrirResumoDiarioAvisosHub(){
     `;
   }
 
+  function gerarTextoResumo(lojaSel){
+    const lojasAMostrar = lojaSel ? [lojaSel] : minhas;
+    let txt = `*CoreJoint · Resumo do dia*${lojaSel?` — ${lojaSel}`:''}\n${dataFmt}\n`;
+    let semNada = true;
+    lojasAMostrar.forEach(l=>{
+      const d = dadosPorLoja[l];
+      const itens = [];
+      d.rc.forEach(r=>itens.push(`📣 Reclamação (${diasDesde(r.data_hora)}d)${r.alerta_urgente_enviado?' ⚠️ já avisado':''}`));
+      d.av.forEach(a=>itens.push(`🔧 Avaria (${diasDesde(a.data_pedido)}d)${a.alerta_urgente_enviado?' ⚠️ já avisado':''}`));
+      d.qb.sort((a,b)=>new Date(a.data)-new Date(b.data)).forEach(q=>{
+        const dataFmtQ = new Date(q.data+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'});
+        itens.push(`💸 Quebra de ${dataFmtQ} (há ${diasDesde(q.data+"T00:00:00")}d): ${Number(q.valor_quebra).toFixed(2)}€`);
+      });
+      if(d.sn<0) itens.push(`📉 Stock negativo: ${d.sn.toFixed(2)}€`);
+      if(!d.vitrineOk) itens.push(`📸 Vitrine de hoje incompleta`);
+      if(itens.length>0){
+        semNada = false;
+        txt += `\n*${l}*\n${itens.map(i=>`- ${i}`).join("\n")}\n`;
+      }
+    });
+    if(semNada) txt += `\n✔ Sem nada pendente — tudo em dia!\n`;
+    return txt;
+  }
+
   function render(){
     const lojaSel = document.getElementById("resumoDiarioAvisosLojaSel").value;
     capturaWrap.innerHTML = lojaSel ? renderDetalheLoja(lojaSel) : renderTabelaTodas();
@@ -2484,6 +2508,20 @@ async function abrirResumoDiarioAvisosHub(){
     const titulo = lojaSel ? `CoreJoint · Resumo do dia — ${lojaSel}` : "CoreJoint · Resumo do dia";
     document.getElementById("resumoDiarioAvisosPartilhaBtnsHub").innerHTML = "";
     criarBotoesPartilhaHub(document.getElementById("resumoDiarioAvisosPartilhaBtnsHub"), capturaWrap, nomeFich, titulo);
+    const btnTexto = document.createElement("button");
+    btnTexto.style.cssText = "width:100%; margin-top:8px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:10px; font-weight:700; cursor:pointer;";
+    btnTexto.textContent = "📋 Copiar como texto (WhatsApp)";
+    btnTexto.onclick = async ()=>{
+      const texto = gerarTextoResumo(lojaSel);
+      try{
+        await navigator.clipboard.writeText(texto);
+        btnTexto.textContent = "✔ Copiado!";
+        setTimeout(()=>{ btnTexto.textContent = "📋 Copiar como texto (WhatsApp)"; }, 1800);
+      }catch(e){
+        alert(texto);
+      }
+    };
+    document.getElementById("resumoDiarioAvisosPartilhaBtnsHub").appendChild(btnTexto);
   }
   document.getElementById("resumoDiarioAvisosLojaSel").onchange = render;
   render();
@@ -7990,6 +8028,12 @@ async function carregarDashboardCompleto(){
   document.getElementById("attnSection").innerHTML = "";
 }
 carregarDashboardCompleto().catch(e=>console.error("Erro no carregarDashboardCompleto:", e));
+(function(){
+  const p = new URLSearchParams(window.location.search);
+  if(p.get("abrir")==="resumo"){
+    setTimeout(()=>{ abrirResumoDiarioAvisosHub(); }, 600);
+  }
+})();
 
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js', {scope: './'}).catch(e=>console.warn('sw.js falhou', e));
