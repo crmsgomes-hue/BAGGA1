@@ -7575,12 +7575,12 @@ async function carregarDashboardCompleto(){
       const statusPorLoja = lojasAplic.map(l=>({l, st: statusCatLoja(l, cat)}));
       const feitas = statusPorLoja.filter(x=>x.st.feito).length;
       htmlCat += `<div style="margin-bottom:14px;">
-        <div id="catCapturaWrap_${cat.key}" class="card" style="flex-direction:column; align-items:stretch; gap:0; background:#fff;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:9px;">
+        <div id="catCapturaWrap_${cat.key}" class="card" style="flex-direction:column; align-items:stretch; gap:0; background:#fff; width:100%; max-width:420px; box-sizing:border-box;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:9px; min-width:0;">
             <span style="font-family:'Syne',sans-serif; font-weight:700; font-size:.88rem;">${cat.label}</span>
             <span style="font-size:.72rem; font-weight:700; color:${feitas===statusPorLoja.length?'var(--grn)':'var(--t2)'};">${feitas}/${statusPorLoja.length} feito</span>
           </div>
-          <div style="display:flex; flex-wrap:wrap; gap:6px;" data-chips-cat="${cat.key}"></div>
+          <div style="display:flex; flex-wrap:wrap; gap:6px; min-width:0;" data-chips-cat="${cat.key}"></div>
         </div>
         <div id="catPartilhaBtns_${cat.key}" style="margin-top:6px;"></div>
       </div>`;
