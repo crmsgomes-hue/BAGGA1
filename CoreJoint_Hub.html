@@ -396,7 +396,7 @@ async function renderPanoramaGeral(){
     const inicioSemana = isoDate(weekWindow(today).start);
 
     const inicioMesAtual = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, erros7diasPg, lembretesPg, stockNegPendentesPg, stockNegComProdutoPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg, reclamacoesPendentesPg, avariasPendentesPg, pedidosMaterialPendentesPg, validadesLotesPg, depuradorAguaPg, segurancaEquipPg] = await Promise.all([
+    const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, erros7diasPg, lembretesPg, stockNegPendentesPg, stockNegComProdutoPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg, reclamacoesPendentesPg, avariasPendentesPg, pedidosMaterialPendentesPg, validadesLotesPg, depuradorAguaPg, segurancaEquipPg, sondagensAtivasPg, sondagensRespostasPg, formulariosAtivosPg, formulariosRespostasPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}${filtroMinhasLojas()}`),
       api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null${filtroMinhasLojas()}`),
       api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null${filtroMinhasLojas()}`),
@@ -420,8 +420,28 @@ async function renderPanoramaGeral(){
       api(`cj_pedidos_material?select=id,criado_em&estado=eq.pendente${filtroMinhasLojas()}`),
       api(`cj_validades_lotes?select=id,loja,produto,lote,data_validade&resolvido=eq.false${filtroMinhasLojas()}`),
       api(`cj_depurador_agua?select=loja,proxima_substituicao&order=proxima_substituicao.desc${filtroMinhasLojas()}`),
-      api(`cj_seguranca_equipamento?select=id,loja,tipo,local,data_validade&order=data_validade.asc${filtroMinhasLojas()}`)
+      api(`cj_seguranca_equipamento?select=id,loja,tipo,local,data_validade&order=data_validade.asc${filtroMinhasLojas()}`),
+      api(`cj_sondagens?select=id,pergunta,lojas_alvo,loja_alvo&ativa=eq.true`),
+      api(`cj_sondagens_respostas?select=sondagem_id,loja`),
+      api(`cj_formularios?select=id,titulo,lojas_alvo,loja_alvo&ativa=eq.true`),
+      api(`cj_formularios_respostas?select=formulario_id,loja`)
     ]);
+    function lojasAlvoDeLocal(obj){
+      if(obj.lojas_alvo && Array.isArray(obj.lojas_alvo) && obj.lojas_alvo.length>0) return obj.lojas_alvo;
+      if(obj.loja_alvo) return [obj.loja_alvo];
+      return LOJAS;
+    }
+    let sondFormsPendentesPg = 0;
+    (sondagensAtivasPg||[]).forEach(s=>{
+      const alvo = lojasAlvoDeLocal(s).filter(l=>minhasLojas().includes(l));
+      const responderam = new Set((sondagensRespostasPg||[]).filter(r=>r.sondagem_id===s.id).map(r=>r.loja));
+      sondFormsPendentesPg += alvo.filter(l=>!responderam.has(l)).length;
+    });
+    (formulariosAtivosPg||[]).forEach(f=>{
+      const alvo = lojasAlvoDeLocal(f).filter(l=>minhasLojas().includes(l));
+      const responderam = new Set((formulariosRespostasPg||[]).filter(r=>r.formulario_id===f.id).map(r=>r.loja));
+      sondFormsPendentesPg += alvo.filter(l=>!responderam.has(l)).length;
+    });
     const fardRececoesPendentesPg = fardRececoesPg.length;
     const em30diasPg = isoDate(new Date(Date.now()+30*24*3600*1000));
     const certOleoExpirandoPg = (certOleoPg||[]).filter(c=>c.data_validade && c.data_validade<=em30diasPg).length;
@@ -510,7 +530,8 @@ async function renderPanoramaGeral(){
     if(formacoesPendentesPg.length>0) listaAtencao.push({topico:"formacoes", texto:`🎓 ${formacoesPendentesPg.length} formação/ões por justificar`, urgente:false});
     if(horariosAlertas>0) listaAtencao.push({topico:"horarios", texto:`👥 ${horariosAlertas} dia(s)/loja(s) sem cobertura de horário`, urgente:false});
     if(trocasPendentesPg.length>0) listaAtencao.push({topico:"trocas", texto:`🔁 ${trocasPendentesPg.length} troca(s) de horário pendente(s)`, urgente:false});
-    if(maisAlertasPg>0) listaAtencao.push({topico:"mais", texto:`🔧 ${maisAlertasPg} certificado/calibração do óleo a expirar em 30 dias`, urgente:true});
+    if(maisAlertasPg>0) listaAtencao.push({acao:abrirCertificadosOleoHub, texto:`🛢️ ${maisAlertasPg} certificado/calibração do óleo a expirar em 30 dias`, urgente:true});
+    if(sondFormsPendentesPg>0) listaAtencao.push({acao:()=>{ window.location.href="CoreJoint_Reportes.html?abrir=respostasSondagensForms"; }, texto:`📊 ${sondFormsPendentesPg} loja(s) por responder a sondagens/formulários`, urgente:false});
     if(fardStockLowPg.length+fardDevPg.length+fardRececoesPendentesPg>0) listaAtencao.push({topico:"fardamento", texto:`👕 ${fardStockLowPg.length+fardDevPg.length+fardRececoesPendentesPg} pendência(s) de fardamento`, urgente:false});
     if(adendasAtivasPg.length>0) listaAtencao.push({topico:"rh", texto:`📋 ${adendasAtivasPg.length} adenda(s) em curso`, urgente:false});
     if(reclamacoesPendentesPg.length>0){
