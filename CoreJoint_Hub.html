@@ -2412,10 +2412,9 @@ async function abrirResumoDiarioAvisosHub(){
   const minhas = minhasLojas();
   const filtroL = `&loja=in.(${minhas.map(encodeURIComponent).join(",")})`;
 
-  const [reclamacoes, avarias, pedidos, quebras, stockNeg, dailyHoje] = await Promise.all([
+  const [reclamacoes, avarias, quebras, stockNeg, dailyHoje] = await Promise.all([
     api(`cj_reclamacoes?select=loja,data_hora,alerta_urgente_enviado&estado=eq.pendente${filtroL}`, "GET"),
     api(`cj_avarias_bagga?select=loja,data_pedido,alerta_urgente_enviado&estado=eq.pendente${filtroL}`, "GET"),
-    api(`cj_pedidos_material?select=loja,criado_em,alerta_urgente_enviado&estado=eq.pendente${filtroL}`, "GET"),
     api(`cj_quebras_reportes?select=loja,data,valor_quebra&justificacao=is.null${filtroL}`, "GET"),
     api(`cj_stock_negativo?select=loja,valor_stock&justificacao=is.null${filtroL}`, "GET"),
     api(`cj_daily_reportes?select=loja,tipo,turno&data=eq.${ds}${filtroL}`, "GET"),
@@ -2424,12 +2423,11 @@ async function abrirResumoDiarioAvisosHub(){
   function diasDesde(dataStr){ return Math.floor((Date.now() - new Date(dataStr).getTime())/86400000); }
 
   const dadosPorLoja = {};
-  minhas.forEach(l=>{ dadosPorLoja[l] = {rc:[], av:[], pm:[], qb:0, sn:0, vitrineOk:true}; });
+  minhas.forEach(l=>{ dadosPorLoja[l] = {rc:[], av:[], qb:[], sn:0, vitrineOk:true}; });
 
   reclamacoes.forEach(r=>{ dadosPorLoja[r.loja]?.rc.push(r); });
   avarias.forEach(a=>{ dadosPorLoja[a.loja]?.av.push(a); });
-  pedidos.forEach(p=>{ dadosPorLoja[p.loja]?.pm.push(p); });
-  quebras.forEach(q=>{ if(dadosPorLoja[q.loja]) dadosPorLoja[q.loja].qb += Number(q.valor_quebra||0); });
+  quebras.forEach(q=>{ dadosPorLoja[q.loja]?.qb.push(q); });
   stockNeg.forEach(s=>{ if(dadosPorLoja[s.loja]) dadosPorLoja[s.loja].sn += Number(s.valor_stock||0); });
   minhas.forEach(l=>{
     dadosPorLoja[l].vitrineOk = ["manha","almoco","lanche"].every(t=>dailyHoje.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t));
@@ -2448,15 +2446,15 @@ async function abrirResumoDiarioAvisosHub(){
   }
 
   function renderTabelaTodas(){
-    const COLS = [["rc","Rc"],["av","Av"],["pm","PM"],["qb","Qb"],["sn","SN"],["vt","Vt"]];
+    const COLS = [["rc","Rc"],["av","Av"],["qb","Qb"],["sn","SN"],["vt","Vt"]];
     const headerHtml = COLS.map(([,label])=>`<th style="font-size:9px; color:#9c4d23; text-transform:uppercase; padding:3px 1px; border-bottom:2px solid #C1622D; white-space:nowrap;">${label}</th>`).join("");
     const linhasHtml = minhas.map(l=>{
       const d = dadosPorLoja[l];
-      return `<tr><td style="font-weight:700; font-size:10.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>${cellCount(d.rc.length)}${cellCount(d.av.length)}${cellCount(d.pm.length)}${cellEuro(d.qb)}${cellEuro(d.sn)}${cellVitrine(d.vitrineOk)}</tr>`;
+      return `<tr><td style="font-weight:700; font-size:10.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>${cellCount(d.rc.length)}${cellCount(d.av.length)}${cellCount(d.qb.length)}${cellEuro(d.sn)}${cellVitrine(d.vitrineOk)}</tr>`;
     }).join("");
     return `
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Resumo do dia</div>
-      <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} · Rc Reclamações · Av Avarias · PM Pedidos material · Qb Quebras · SN Stock neg. · Vt Vitrine</div>
+      <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} · Rc Reclamações · Av Avarias · Qb Quebras por justificar · SN Stock neg. · Vt Vitrine</div>
       <table style="border-collapse:collapse; width:100%;"><thead><tr><th></th>${headerHtml}</tr></thead><tbody>${linhasHtml}</tbody></table>
     `;
   }
@@ -2466,8 +2464,10 @@ async function abrirResumoDiarioAvisosHub(){
     const linhas = [];
     d.rc.forEach(r=>linhas.push(`📣 Reclamação (${diasDesde(r.data_hora)}d)${r.alerta_urgente_enviado?' ⚠️ já avisado':''}`));
     d.av.forEach(a=>linhas.push(`🔧 Avaria (${diasDesde(a.data_pedido)}d)${a.alerta_urgente_enviado?' ⚠️ já avisado':''}`));
-    d.pm.forEach(p=>linhas.push(`📦 Pedido de material (${diasDesde(p.criado_em)}d)${p.alerta_urgente_enviado?' ⚠️ já avisado':''}`));
-    if(d.qb<0) linhas.push(`💸 Quebra por justificar: ${d.qb.toFixed(2)}€`);
+    d.qb.sort((a,b)=>new Date(a.data)-new Date(b.data)).forEach(q=>{
+      const dataFmtQ = new Date(q.data+"T00:00:00").toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'});
+      linhas.push(`💸 Quebra de ${dataFmtQ} (há ${diasDesde(q.data+"T00:00:00")}d) por justificar: ${Number(q.valor_quebra).toFixed(2)}€`);
+    });
     if(d.sn<0) linhas.push(`📉 Stock negativo por justificar: ${d.sn.toFixed(2)}€`);
     if(!d.vitrineOk) linhas.push(`📸 Vitrine de hoje incompleta`);
     return `
