@@ -246,41 +246,95 @@ window.addEventListener("popstate", ()=>{
   }
 });
 
-let rondaFila = [];
+let rondaItens = [];
+let rondaIndice = 0;
 function removerFlutuanteRonda(){
   const f = document.getElementById("rondaFlutuante");
   if(f) f.remove();
 }
 function mostrarFlutuanteRonda(){
   removerFlutuanteRonda();
+  const restantes = rondaItens.length - rondaIndice - 1;
   const flutuante = document.createElement("div");
   flutuante.id = "rondaFlutuante";
-  flutuante.style.cssText = "position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:9999999; display:flex; gap:8px; align-items:center; background:#1a1a1a; color:#fff; border-radius:99px; padding:9px 9px 9px 16px; box-shadow:0 3px 14px rgba(0,0,0,.35);";
+  flutuante.style.cssText = "position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:9999999; display:flex; gap:6px; align-items:center; background:#1a1a1a; color:#fff; border-radius:99px; padding:9px 9px 9px 14px; box-shadow:0 3px 14px rgba(0,0,0,.35);";
   flutuante.innerHTML = `
-    <span style="font-size:.78rem; font-weight:700;">${rondaFila.length} restante${rondaFila.length===1?'':'s'}</span>
-    <button id="rondaProximoBtn" style="background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:99px; padding:7px 13px; font-size:.78rem; font-weight:800; cursor:pointer;">➡️ Próximo</button>
+    <span style="font-size:.74rem; font-weight:700; white-space:nowrap;">${rondaIndice+1}/${rondaItens.length}</span>
+    ${rondaIndice>0 ? `<button id="rondaAnteriorBtn" style="background:none; color:#fff; border:1.5px solid rgba(255,255,255,.4); border-radius:99px; padding:7px 11px; font-size:.78rem; font-weight:800; cursor:pointer;">⬅️</button>` : ''}
+    <button id="rondaProximoBtn" style="background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:99px; padding:7px 13px; font-size:.78rem; font-weight:800; cursor:pointer; white-space:nowrap;">${restantes>0?'➡️ Próximo':'✔ Terminar'}</button>
     <button id="rondaSairBtn" style="background:none; color:#fff; border:none; font-size:.9rem; cursor:pointer; padding:5px;">✕</button>
   `;
   document.body.appendChild(flutuante);
+  const anteriorBtn = document.getElementById("rondaAnteriorBtn");
+  if(anteriorBtn) anteriorBtn.onclick = ()=>{
+    removerFlutuanteRonda();
+    fecharEcraHub();
+    rondaIndice--;
+    setTimeout(()=>abrirParagemRondaAtual(), 120);
+  };
   document.getElementById("rondaProximoBtn").onclick = ()=>{
     removerFlutuanteRonda();
     fecharEcraHub();
-    setTimeout(proximaParagemRonda, 120);
+    if(rondaIndice >= rondaItens.length-1){
+      rondaItens = [];
+      toast("✔ Ronda completa!");
+      return;
+    }
+    rondaIndice++;
+    setTimeout(()=>abrirParagemRondaAtual(), 120);
   };
   document.getElementById("rondaSairBtn").onclick = ()=>{
-    rondaFila = [];
+    rondaItens = [];
     removerFlutuanteRonda();
   };
 }
-function proximaParagemRonda(){
-  if(rondaFila.length===0){
-    removerFlutuanteRonda();
-    toast("✔ Ronda completa!");
-    return;
-  }
-  const paragem = rondaFila.shift();
-  paragem.acao();
+function abrirParagemRondaAtual(){
+  const item = rondaItens[rondaIndice];
+  if(!item) return;
+  if(item.tipo==="acao") item.acao();
+  else if(item.tipo==="foto") abrirParagemFotoRonda(item);
   setTimeout(mostrarFlutuanteRonda, 150);
+}
+function abrirParagemFotoRonda(item){
+  const overlay = document.createElement("div");
+  overlay.id = "paragemFotoRondaOverlay";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:18px; max-width:420px; width:100%; margin-top:40px; max-height:80vh; overflow-y:auto;">
+      <div id="rondaFotoCapturaWrap" style="background:#fff; border-radius:12px; width:100%; box-sizing:border-box;">
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:1px;">CoreJoint · ${item.label}</div>
+        <div style="font-size:11px; color:#777; margin-bottom:8px;">${item.loja}</div>
+        <img id="rondaFotoImg" src="${item.foto}" style="width:100%; border-radius:8px; display:block; cursor:zoom-in;">
+      </div>
+      <div id="rondaFotoPartilhaBtns" style="margin-top:8px;"></div>
+      <button onclick="document.getElementById('paragemFotoRondaOverlay').remove()" style="width:100%; margin-top:10px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("rondaFotoImg").onclick = ()=>bigPhoto([item.foto], 0, [item.loja]);
+  criarBotoesPartilhaHub(document.getElementById("rondaFotoPartilhaBtns"), document.getElementById("rondaFotoCapturaWrap"), `CoreJoint_ronda_${item.loja}`.replace(/\s+/g,'_'), `CoreJoint · ${item.label} — ${item.loja}`);
+}
+async function construirParagensFotoRonda(){
+  const ds = todayStr();
+  const minhas = minhasLojas();
+  const filtroL = `&loja=in.(${minhas.map(encodeURIComponent).join(",")})`;
+  const [vitrineHoje, ltsHoje] = await Promise.all([
+    api(`cj_daily_reportes?select=loja,turno,fotos&tipo=eq.vitrine&data=eq.${ds}${filtroL}`, "GET"),
+    api(`cj_daily_reportes?select=loja,tipo,fotos&tipo=in.(laranjas_maquina,expositor_tabaco,sopa)&data=eq.${ds}${filtroL}`, "GET"),
+  ]);
+  const paragens = [];
+  const TURNO_LBL = {manha:"Vitrine — Manhã", almoco:"Vitrine — Almoço", lanche:"Vitrine — Lanche"};
+  const TIPO_LBL = {laranjas_maquina:"Laranjas na máquina", expositor_tabaco:"Expositor do tabaco", sopa:"Sopa"};
+  vitrineHoje.forEach(r=>{
+    const fotos = (r.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
+    if(fotos.length>0) paragens.push({tipo:"foto", loja:r.loja, label:TURNO_LBL[r.turno]||r.turno, foto:fotos[0]});
+  });
+  ltsHoje.forEach(r=>{
+    const fotos = (r.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
+    if(fotos.length>0) paragens.push({tipo:"foto", loja:r.loja, label:TIPO_LBL[r.tipo]||r.tipo, foto:fotos[0]});
+  });
+  return paragens;
 }
 
 function abrirModalTopico(titulo, corpoHtml){
@@ -566,7 +620,7 @@ async function renderPanoramaGeral(){
           ? `<div style="text-align:center; padding:14px; background:var(--sf2); border-radius:12px; font-size:.85rem; font-weight:700; color:var(--grn);">✔ Tudo em dia — nada precisa da tua atenção agora.</div>`
           : `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                <div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--t2); font-weight:700;">Precisa da tua atenção${listaAtencao.length>0?` (${listaAtencao.length})`:''}</div>
-               ${listaAtencao.some(a=>a.acao) ? `<button id="btnFazerRondaHub" style="background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:99px; padding:5px 11px; font-size:.7rem; font-weight:800; cursor:pointer;">🚶 Fazer a ronda</button>` : ''}
+               <button id="btnFazerRondaHub" style="background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:99px; padding:5px 11px; font-size:.7rem; font-weight:800; cursor:pointer;">🚶 Fazer a ronda</button>
              </div>
              <div style="display:flex; flex-direction:column; gap:1px; border-radius:12px; overflow:hidden; border:1px solid var(--br);">
                ${listaAtencao.map((a,i)=>`<button data-atencao-idx="${i}" ${i>=LIMITE_ATENCAO_VISIVEL?'data-atencao-extra="1" style="display:none;"':''} class="sc" style="text-align:left; border:none; cursor:pointer; width:100%; font:inherit; -webkit-appearance:none; display:${i>=LIMITE_ATENCAO_VISIVEL?'none':'flex'}; justify-content:space-between; align-items:center; padding:11px 12px; background:${a.urgente?'#fdf1ee':'var(--sf2)'};">
@@ -972,9 +1026,15 @@ async function renderPanoramaGeral(){
     });
     const btnFazerRonda = document.getElementById("btnFazerRondaHub");
     if(btnFazerRonda){
-      btnFazerRonda.onclick = ()=>{
-        rondaFila = listaAtencao.filter(i=>i.acao).map(i=>({acao:i.acao, texto:i.texto}));
-        proximaParagemRonda();
+      btnFazerRonda.onclick = async ()=>{
+        btnFazerRonda.textContent = "A preparar...";
+        const acoes = listaAtencao.filter(i=>i.acao).map(i=>({tipo:"acao", acao:i.acao, texto:i.texto}));
+        let fotos = [];
+        try{ fotos = await construirParagensFotoRonda(); }catch(e){ console.error(e); }
+        rondaItens = [...acoes, ...fotos];
+        rondaIndice = 0;
+        if(rondaItens.length===0){ toast("Nada para rever agora."); btnFazerRonda.textContent = "🚶 Fazer a ronda"; return; }
+        abrirParagemRondaAtual();
       };
     }
     const btnVerMaisAtencao = document.getElementById("btnVerMaisAtencaoHub");
