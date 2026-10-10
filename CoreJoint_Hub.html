@@ -79,6 +79,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
     <button onclick="enviarLembretesAtrasos()" id="lembretesAtrasosBtn" style="background:var(--sf2); border:none; border-radius:99px; padding:6px 12px; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">🔔 Lembrar atrasos</button>
     <button onclick="abrirResumoOntem()" style="background:var(--sf2); border:none; border-radius:99px; padding:6px 12px; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">📅 Resumo de ontem</button>
     <button onclick="abrirResumoDiarioAvisosHub()" style="background:var(--terracotta,#C1622D); border:none; border-radius:99px; padding:6px 12px; color:#fff; font-weight:700; font-size:.76rem; cursor:pointer; font-family:inherit;">📋 Resumo do dia (partilhar)</button>
+    <button onclick="abrirResumoSemanalPartilhavelHub()" style="background:var(--terracotta,#C1622D); border:none; border-radius:99px; padding:6px 12px; color:#fff; font-weight:700; font-size:.76rem; cursor:pointer; font-family:inherit;">📅 Resumo semanal (partilhar)</button>
     <a href="CoreJoint_Reportes.html?ferramentas=1" style="background:var(--sf2); border-radius:99px; padding:6px 12px; color:var(--t2); text-decoration:none; font-weight:600; font-size:.76rem;">🛠️ Mais ferramentas</a>
   </div>
 
@@ -307,7 +308,7 @@ function abrirParagemFotoRonda(item){
         ${item.valor!=null && item.valor!=="" ? `<div style="font-weight:700; font-size:13px; margin-bottom:6px; color:${parseFloat(item.valor)<0?'#b0432f':'#2e7d32'};">${item.valor} €${item.valorCnvs!=null && item.valorCnvs!=="" ? ` · CNVs: ${item.valorCnvs} €` : ''}</div>` : ''}
         ${item.justificacao ? `<div style="font-size:12px; color:#555; background:#faf0e6; border-radius:8px; padding:7px 9px; margin-bottom:6px;">📝 ${item.justificacao}</div>` : ''}
         ${item.nota ? `<div style="font-size:12px; color:#555; background:#faf0e6; border-radius:8px; padding:7px 9px; margin-bottom:6px;">📝 Sem stock: ${item.nota}</div>` : ''}
-        <img id="rondaFotoImg" src="${item.foto}" style="width:100%; border-radius:8px; display:block; cursor:zoom-in;">
+        ${item.foto ? `<img id="rondaFotoImg" src="${item.foto}" style="width:100%; border-radius:8px; display:block; cursor:zoom-in;">` : `<div style="font-size:12px; color:#999; padding:10px 0;">Sem foto anexada</div>`}
       </div>
       <div id="rondaFotoPartilhaBtns" style="margin-top:8px;"></div>
       <button onclick="document.getElementById('paragemFotoRondaOverlay').remove()" style="width:100%; margin-top:10px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
@@ -315,7 +316,8 @@ function abrirParagemFotoRonda(item){
   `;
   document.body.appendChild(overlay);
   empilharEcraHub(overlay);
-  document.getElementById("rondaFotoImg").onclick = ()=>bigPhoto([item.foto], 0, [item.loja]);
+  const rondaFotoImgEl = document.getElementById("rondaFotoImg");
+  if(rondaFotoImgEl) rondaFotoImgEl.onclick = ()=>bigPhoto([item.foto], 0, [item.loja]);
   criarBotoesPartilhaHub(document.getElementById("rondaFotoPartilhaBtns"), document.getElementById("rondaFotoCapturaWrap"), `CoreJoint_ronda_${item.loja}`.replace(/\s+/g,'_'), `CoreJoint · ${item.label} — ${item.loja}`);
 }
 async function construirParagensFotoRonda(){
@@ -493,7 +495,7 @@ async function renderPanoramaGeral(){
       api(`cj_fardamento_rececoes?select=data_rececao&order=data_rececao.desc&limit=1`),
       api(`cj_certificados_oleo?select=loja,data_validade${filtroMinhasLojas()}`),
       api(`cj_calibracoes_oleo?select=loja,data_validade${filtroMinhasLojas()}`),
-      api(`cj_reclamacoes?select=id,data_hora&estado=eq.pendente${filtroMinhasLojas()}`),
+      api(`cj_reclamacoes?select=id,loja,data_hora,descricao,fotos,cliente_nome&estado=eq.pendente${filtroMinhasLojas()}`),
       api(`cj_avarias_bagga?select=id,data_pedido&estado=eq.pendente${filtroMinhasLojas()}`),
       api(`cj_pedidos_material?select=id,criado_em&estado=eq.pendente${filtroMinhasLojas()}`),
       api(`cj_validades_lotes?select=id,loja,produto,lote,data_validade&resolvido=eq.false${filtroMinhasLojas()}`),
@@ -846,7 +848,7 @@ async function renderPanoramaGeral(){
     const indiceRelatoriosBusca = [
       {termo:"Vitrine Vendas Laranjas Tabaco", chave:"sempre"}, {termo:"Quebras de caixa registos justificações", chave:"sempre"}, {termo:"Quebras de caixa Excel da empresa", chave:"sempre"}, {termo:"Inventário ver relatório", chave:"sempre"}, {termo:"Inventário fotos por categoria", chave:"sempre"}, {termo:"Stock negativo", chave:"sempre"}, {termo:"Quebras e ajustes por artigo", chave:"sempre"}, {termo:"Sondagens e Formulários", chave:"sempre"}, {termo:"Ver respostas", chave:"sempre"}, {termo:"Global datas marcadas", chave:"sempre"}, {termo:"Certificado do óleo", chave:"sempre"}, {termo:"Calibração do medidor óleo", chave:"sempre"}, {termo:"Reclamações", chave:"sempre"}, {termo:"CNVs Global", chave:"sempre"},
       {termo:"Criar sondagem formulário", chave:"importar"}, {termo:"Importar Excel de quebras", chave:"importar"}, {termo:"Importar Inventário por Artigo", chave:"importar"}, {termo:"Importar Quebras e Ajustes por Artigo", chave:"importar"}, {termo:"Importar Colaboradores", chave:"importar"},
-      {termo:"Resumo de ontem", chave:"resto"}, {termo:"Resumo do dia partilhar pendências", chave:"resto"}, {termo:"Relatório semanal de vendas", chave:"resto"}, {termo:"Reset de categoria", chave:"resto"}, {termo:"PINs das lojas", chave:"resto"}, {termo:"Inscrições Formação Horários", chave:"resto"}, {termo:"APS e Preventiva Delta", chave:"resto"}, {termo:"Forms Legionela", chave:"resto"}, {termo:"Stock negativo cruzado", chave:"resto"}, {termo:"Artigos de inventário por justificar", chave:"resto"}, {termo:"Validades de lotes", chave:"resto"}, {termo:"Colaboradores nomes número mecanográfico", chave:"resto"}, {termo:"Empréstimo de pessoal mobilidade", chave:"resto"}, {termo:"Elogios", chave:"resto"}, {termo:"Equipamentos avariados avarias", chave:"resto"}, {termo:"Sintomas de equipamento", chave:"resto"}, {termo:"Depurador de água", chave:"resto"}, {termo:"Extintores e lâmpadas segurança", chave:"resto"}, {termo:"Conferência de fornecedores", chave:"resto"}, {termo:"Pedidos de material", chave:"resto"}, {termo:"Manuais e fichas técnicas", chave:"resto"}, {termo:"Códigos das portas", chave:"resto"}, {termo:"Área do gerente por loja sem PIN", chave:"resto"}, {termo:"Tarefas entre nós", chave:"resto"}, {termo:"Informações das lojas centro custo morada tlm", chave:"resto"}, {termo:"Tarefas automáticas", chave:"resto"}, {termo:"Lojas fora de rede", chave:"resto"}, {termo:"Histórico 12 meses", chave:"resto"}, {termo:"Calendário", chave:"resto"}, {termo:"Relatório de Integridade", chave:"resto"}, {termo:"Galeria de fotos", chave:"resto"}, {termo:"Fotos pontuais", chave:"resto"}, {termo:"Formações", chave:"resto"}, {termo:"Horários", chave:"resto"}, {termo:"Trocas de horário", chave:"resto"},
+      {termo:"Resumo de ontem", chave:"resto"}, {termo:"Resumo do dia partilhar pendências", chave:"resto"}, {termo:"Resumo semanal partilhar", chave:"resto"}, {termo:"Relatório semanal de vendas", chave:"resto"}, {termo:"Reset de categoria", chave:"resto"}, {termo:"PINs das lojas", chave:"resto"}, {termo:"Inscrições Formação Horários", chave:"resto"}, {termo:"APS e Preventiva Delta", chave:"resto"}, {termo:"Forms Legionela", chave:"resto"}, {termo:"Stock negativo cruzado", chave:"resto"}, {termo:"Artigos de inventário por justificar", chave:"resto"}, {termo:"Validades de lotes", chave:"resto"}, {termo:"Colaboradores nomes número mecanográfico", chave:"resto"}, {termo:"Empréstimo de pessoal mobilidade", chave:"resto"}, {termo:"Elogios", chave:"resto"}, {termo:"Equipamentos avariados avarias", chave:"resto"}, {termo:"Sintomas de equipamento", chave:"resto"}, {termo:"Depurador de água", chave:"resto"}, {termo:"Extintores e lâmpadas segurança", chave:"resto"}, {termo:"Conferência de fornecedores", chave:"resto"}, {termo:"Pedidos de material", chave:"resto"}, {termo:"Manuais e fichas técnicas", chave:"resto"}, {termo:"Códigos das portas", chave:"resto"}, {termo:"Área do gerente por loja sem PIN", chave:"resto"}, {termo:"Tarefas entre nós", chave:"resto"}, {termo:"Informações das lojas centro custo morada tlm", chave:"resto"}, {termo:"Tarefas automáticas", chave:"resto"}, {termo:"Lojas fora de rede", chave:"resto"}, {termo:"Histórico 12 meses", chave:"resto"}, {termo:"Calendário", chave:"resto"}, {termo:"Relatório de Integridade", chave:"resto"}, {termo:"Galeria de fotos", chave:"resto"}, {termo:"Fotos pontuais", chave:"resto"}, {termo:"Formações", chave:"resto"}, {termo:"Horários", chave:"resto"}, {termo:"Trocas de horário", chave:"resto"},
     ];
 
     document.querySelector('[data-topico="partilhar"]').onclick = async ()=>{
@@ -1051,10 +1053,15 @@ async function renderPanoramaGeral(){
     if(btnFazerRonda){
       btnFazerRonda.onclick = async ()=>{
         btnFazerRonda.textContent = "A preparar...";
-        const acoes = listaAtencao.filter(i=>i.acao).map(i=>({tipo:"acao", acao:i.acao, texto:i.texto}));
+        const acoes = listaAtencao.filter(i=>i.acao && i.acao!==abrirReclamacoesHub).map(i=>({tipo:"acao", acao:i.acao, texto:i.texto}));
+        const reclamacoesParagens = (reclamacoesPendentesPg||[]).map(r=>{
+          const fotos = (r.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
+          const dias = Math.floor((Date.now()-new Date(r.data_hora).getTime())/86400000);
+          return {tipo:"foto", loja:r.loja, label:"📣 Reclamação", foto:fotos[0]||null, data:isoDate(new Date(r.data_hora)), justificacao: `${r.cliente_nome?r.cliente_nome+': ':''}${r.descricao||''} (há ${dias}d)`};
+        });
         let fotos = [];
         try{ fotos = await construirParagensFotoRonda(); }catch(e){ console.error(e); }
-        rondaItens = [...acoes, ...fotos];
+        rondaItens = [...acoes, ...reclamacoesParagens, ...fotos];
         rondaIndice = 0;
         if(rondaItens.length===0){ toast("Nada para rever agora."); btnFazerRonda.textContent = "🚶 Fazer a ronda"; return; }
         abrirParagemRondaAtual();
@@ -2610,6 +2617,78 @@ async function abrirResumoDiarioAvisosHub(){
   render();
 }
 
+async function abrirResumoSemanalPartilhavelHub(){
+  const overlay = document.createElement("div");
+  overlay.id = "resumoSemanalPartilhavelOverlayHub";
+  overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,.5); z-index:99999; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;";
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">📅 Resumo semanal</div>
+      <div class="sub" style="margin-bottom:12px;">Vitrine, Vendas, Laranjas, Tabaco e Sopa dos últimos 7 dias, pronto a partilhar.</div>
+      <div id="resumoSemanalCapturaWrapHub" style="background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--br); width:100%; box-sizing:border-box;"></div>
+      <div id="resumoSemanalPartilhaBtnsHub"></div>
+      <button id="fecharResumoSemanalHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  empilharEcraHub(overlay);
+  document.getElementById("fecharResumoSemanalHubBtn").onclick = ()=>fecharEcraHub();
+
+  const capturaWrap = document.getElementById("resumoSemanalCapturaWrapHub");
+  capturaWrap.innerHTML = `<div class="empty">A carregar...</div>`;
+
+  const days7 = [];
+  for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days7.push(isoDate(d)); }
+  const rangeTxt = `${new Date(days7[0]+"T00:00:00").toLocaleDateString('pt-PT')} a ${new Date(days7[6]+"T00:00:00").toLocaleDateString('pt-PT')}`;
+  const minhas = minhasLojas();
+  const filtroL = `&loja=in.(${minhas.map(encodeURIComponent).join(",")})`;
+  const weekDaily = await api(`cj_daily_reportes?select=loja,tipo,turno,data,fotos&data=gte.${days7[0]}${filtroL}`, "GET");
+
+  const VITRINE_TURNOS_W = ["manha","almoco","lanche"];
+  function feito(r){ return r.tipo==="vendas" || (r.fotos||[]).length>0; }
+  const dadosPorLoja = minhas.map(l=>{
+    let vitDone=0, vendasDone=0, laranjasDone=0, tabacoDone=0, sopaDone=0;
+    days7.forEach(ds=>{
+      const okV = VITRINE_TURNOS_W.every(t=>weekDaily.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t && r.data===ds && feito(r)));
+      if(okV) vitDone++;
+      if(weekDaily.some(r=>r.loja===l && r.tipo==="vendas" && r.data===ds)) vendasDone++;
+      if(weekDaily.some(r=>r.loja===l && r.tipo==="laranjas_maquina" && r.data===ds && feito(r))) laranjasDone++;
+      if(weekDaily.some(r=>r.loja===l && r.tipo==="expositor_tabaco" && r.data===ds && feito(r))) tabacoDone++;
+      if(weekDaily.some(r=>r.loja===l && r.tipo==="sopa" && r.data===ds && feito(r))) sopaDone++;
+    });
+    return {loja:l, vitDone, vendasDone, laranjasDone, tabacoDone, sopaDone};
+  });
+
+  function cellCount(n){
+    const cor = n===7 ? "#2e7d32" : (n===0 ? "#b0432f" : "#9c4d23");
+    return `<td style="text-align:center; color:${cor}; font-weight:800; padding:5px 2px; border-bottom:1px solid #f0ebe3; font-size:12px;">${n}/7</td>`;
+  }
+  const headerHtml = ["Vt","Vd","Lj","Tb","Sp"].map(l=>`<th style="font-size:9px; color:#9c4d23; text-transform:uppercase; padding:3px 1px; border-bottom:2px solid #C1622D;">${l}</th>`).join("");
+  const linhasHtml = dadosPorLoja.map(d=>`<tr><td style="font-weight:700; font-size:10.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(d.loja)}</td>${cellCount(d.vitDone)}${cellCount(d.vendasDone)}${cellCount(d.laranjasDone)}${cellCount(d.tabacoDone)}${cellCount(d.sopaDone)}</tr>`).join("");
+
+  capturaWrap.innerHTML = `
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Resumo semanal</div>
+    <div style="font-size:9px; color:#777; margin-bottom:8px;">${rangeTxt} · Vt Vitrine completa · Vd Vendas · Lj Laranjas · Tb Tabaco · Sp Sopa</div>
+    <table style="border-collapse:collapse; width:100%;"><thead><tr><th></th>${headerHtml}</tr></thead><tbody>${linhasHtml}</tbody></table>
+  `;
+  criarBotoesPartilhaHub(document.getElementById("resumoSemanalPartilhaBtnsHub"), capturaWrap, `CoreJoint_resumo_semanal`, "CoreJoint · Resumo semanal");
+
+  const btnTexto = document.createElement("button");
+  btnTexto.style.cssText = "width:100%; margin-top:8px; background:none; border:1.5px solid var(--terracotta,#C1622D); color:var(--terracotta,#C1622D); border-radius:10px; padding:10px; font-weight:700; cursor:pointer;";
+  btnTexto.textContent = "📋 Copiar como texto (WhatsApp)";
+  btnTexto.onclick = async ()=>{
+    let texto = `*CoreJoint · Resumo semanal*\n${rangeTxt}\n\n`;
+    dadosPorLoja.forEach(d=>{
+      texto += `*${d.loja}*: Vitrine ${d.vitDone}/7 · Vendas ${d.vendasDone}/7 · Laranjas ${d.laranjasDone}/7 · Tabaco ${d.tabacoDone}/7 · Sopa ${d.sopaDone}/7\n`;
+    });
+    try{
+      await navigator.clipboard.writeText(texto);
+      btnTexto.textContent = "✔ Copiado!";
+      setTimeout(()=>{ btnTexto.textContent = "📋 Copiar como texto (WhatsApp)"; }, 1800);
+    }catch(e){ alert(texto); }
+  };
+  document.getElementById("resumoSemanalPartilhaBtnsHub").appendChild(btnTexto);
+}
 async function abrirDiarioVisualHub(){
   const overlay = document.createElement("div");
   overlay.id = "diarioVisualOverlayHub";
