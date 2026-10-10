@@ -2388,7 +2388,11 @@ async function abrirResumoDiarioAvisosHub(){
   overlay.innerHTML = `
     <div style="background:#fff; border-radius:14px; padding:20px; max-width:420px; width:100%; margin-top:40px; max-height:85vh; overflow-y:auto;">
       <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:17px; margin-bottom:4px;">📋 Resumo do dia — o que falta</div>
-      <div class="sub" style="margin-bottom:12px;">Tudo o que está pendente nas tuas lojas, pronto a partilhar. O que já foi avisado antes aparece marcado.</div>
+      <div class="sub" style="margin-bottom:10px;">O que está pendente, pronto a partilhar. O que já foi avisado antes aparece marcado.</div>
+      <select id="resumoDiarioAvisosLojaSel" style="width:100%; padding:9px; border-radius:10px; border:1px solid var(--br); margin-bottom:12px; font-size:13px; font-family:inherit;">
+        <option value="">Todas as lojas</option>
+        ${minhasLojas().map(l=>`<option value="${l}">${l}</option>`).join("")}
+      </select>
       <div id="resumoDiarioAvisosCapturaWrapHub"></div>
       <div id="resumoDiarioAvisosPartilhaBtnsHub"></div>
       <button id="fecharResumoDiarioAvisosHubBtn" style="width:100%; margin-top:14px; background:none; border:1.5px solid var(--br); border-radius:10px; padding:11px; font-weight:700; color:var(--t2);">Fechar</button>
@@ -2399,7 +2403,7 @@ async function abrirResumoDiarioAvisosHub(){
   document.getElementById("fecharResumoDiarioAvisosHubBtn").onclick = ()=>fecharEcraHub();
 
   const capturaWrap = document.getElementById("resumoDiarioAvisosCapturaWrapHub");
-  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
+  capturaWrap.style.cssText = "background:#fff; border-radius:14px; padding:12px 8px; border:1px solid var(--br); width:100%; box-sizing:border-box;";
   capturaWrap.innerHTML = `<div class="empty">A carregar...</div>`;
 
   const today = new Date();
@@ -2418,50 +2422,71 @@ async function abrirResumoDiarioAvisosHub(){
   ]);
 
   function diasDesde(dataStr){ return Math.floor((Date.now() - new Date(dataStr).getTime())/86400000); }
-  function jaAvisado(item){ return !!item.alerta_urgente_enviado; }
 
-  const porLoja = {};
-  minhas.forEach(l=>{ porLoja[l] = []; });
+  const dadosPorLoja = {};
+  minhas.forEach(l=>{ dadosPorLoja[l] = {rc:[], av:[], pm:[], qb:0, sn:0, vitrineOk:true}; });
 
-  reclamacoes.forEach(r=>{
-    porLoja[r.loja]?.push(`📣 Reclamação (${diasDesde(r.data_hora)}d)${jaAvisado(r)?' ⚠️ já avisado':''}`);
-  });
-  avarias.forEach(a=>{
-    porLoja[a.loja]?.push(`🔧 Avaria (${diasDesde(a.data_pedido)}d)${jaAvisado(a)?' ⚠️ já avisado':''}`);
-  });
-  pedidos.forEach(p=>{
-    porLoja[p.loja]?.push(`📦 Pedido de material (${diasDesde(p.criado_em)}d)${jaAvisado(p)?' ⚠️ já avisado':''}`);
-  });
-  quebras.forEach(q=>{
-    porLoja[q.loja]?.push(`💸 Quebra por justificar: ${Number(q.valor_quebra).toFixed(2)}€`);
-  });
-  const stockPorLoja = {};
-  stockNeg.forEach(s=>{ stockPorLoja[s.loja] = (stockPorLoja[s.loja]||0) + Number(s.valor_stock||0); });
-  Object.entries(stockPorLoja).forEach(([l,v])=>{
-    if(porLoja[l]) porLoja[l].push(`📉 Stock negativo por justificar: ${v.toFixed(2)}€`);
-  });
+  reclamacoes.forEach(r=>{ dadosPorLoja[r.loja]?.rc.push(r); });
+  avarias.forEach(a=>{ dadosPorLoja[a.loja]?.av.push(a); });
+  pedidos.forEach(p=>{ dadosPorLoja[p.loja]?.pm.push(p); });
+  quebras.forEach(q=>{ if(dadosPorLoja[q.loja]) dadosPorLoja[q.loja].qb += Number(q.valor_quebra||0); });
+  stockNeg.forEach(s=>{ if(dadosPorLoja[s.loja]) dadosPorLoja[s.loja].sn += Number(s.valor_stock||0); });
   minhas.forEach(l=>{
-    const turnosOk = ["manha","almoco","lanche"].every(t=>dailyHoje.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t));
-    if(!turnosOk) porLoja[l].push(`📸 Vitrine de hoje incompleta`);
+    dadosPorLoja[l].vitrineOk = ["manha","almoco","lanche"].every(t=>dailyHoje.some(r=>r.loja===l && r.tipo==="vitrine" && r.turno===t));
   });
 
-  const lojasComPendencias = minhas.filter(l=>porLoja[l].length>0);
+  function cellCount(n){
+    if(n===0) return `<td style="text-align:center; color:#2e7d32; font-weight:800; padding:5px 2px; border-bottom:1px solid #f0ebe3; font-size:12px;">✔</td>`;
+    return `<td style="text-align:center; color:#b0432f; font-weight:800; padding:5px 2px; border-bottom:1px solid #f0ebe3; font-size:12px;">${n}</td>`;
+  }
+  function cellEuro(v){
+    if(v>=0) return `<td style="text-align:center; color:#2e7d32; font-weight:800; padding:5px 2px; border-bottom:1px solid #f0ebe3; font-size:12px;">✔</td>`;
+    return `<td style="text-align:center; color:#b0432f; font-weight:800; padding:5px 2px; border-bottom:1px solid #f0ebe3; font-size:11px;">${v.toFixed(0)}€</td>`;
+  }
+  function cellVitrine(ok){
+    return `<td style="text-align:center; color:${ok?'#2e7d32':'#b0432f'}; font-weight:800; padding:5px 2px; border-bottom:1px solid #f0ebe3; font-size:12px;">${ok?'✔':'✕'}</td>`;
+  }
 
-  const corpoHtml = lojasComPendencias.length===0
-    ? `<div style="text-align:center; padding:20px; color:var(--green,#2e7d32); font-weight:700;">✔ Sem nada pendente — tudo em dia!</div>`
-    : lojasComPendencias.map(l=>`
-        <div style="margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #f0ebe3;">
-          <div style="font-weight:800; font-size:13px; color:#2b2118; margin-bottom:4px;">${l}</div>
-          ${porLoja[l].map(item=>`<div style="font-size:12px; color:#555; margin-bottom:2px;">${item}</div>`).join("")}
-        </div>
-      `).join("");
+  function renderTabelaTodas(){
+    const COLS = [["rc","Rc"],["av","Av"],["pm","PM"],["qb","Qb"],["sn","SN"],["vt","Vt"]];
+    const headerHtml = COLS.map(([,label])=>`<th style="font-size:9px; color:#9c4d23; text-transform:uppercase; padding:3px 1px; border-bottom:2px solid #C1622D; white-space:nowrap;">${label}</th>`).join("");
+    const linhasHtml = minhas.map(l=>{
+      const d = dadosPorLoja[l];
+      return `<tr><td style="font-weight:700; font-size:10.5px; padding:4px 3px; border-bottom:1px solid #f0ebe3; white-space:nowrap;">${abreviarLoja(l)}</td>${cellCount(d.rc.length)}${cellCount(d.av.length)}${cellCount(d.pm.length)}${cellEuro(d.qb)}${cellEuro(d.sn)}${cellVitrine(d.vitrineOk)}</tr>`;
+    }).join("");
+    return `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Resumo do dia</div>
+      <div style="font-size:9px; color:#777; margin-bottom:8px; text-transform:capitalize;">${dataFmt} · Rc Reclamações · Av Avarias · PM Pedidos material · Qb Quebras · SN Stock neg. · Vt Vitrine</div>
+      <table style="border-collapse:collapse; width:100%;"><thead><tr><th></th>${headerHtml}</tr></thead><tbody>${linhasHtml}</tbody></table>
+    `;
+  }
 
-  capturaWrap.innerHTML = `
-    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Resumo do dia</div>
-    <div style="font-size:9px; color:#777; margin-bottom:10px; text-transform:capitalize;">${dataFmt}</div>
-    ${corpoHtml}
-  `;
-  criarBotoesPartilhaHub(document.getElementById("resumoDiarioAvisosPartilhaBtnsHub"), capturaWrap, `CoreJoint_resumo_dia`, "CoreJoint · Resumo do dia");
+  function renderDetalheLoja(loja){
+    const d = dadosPorLoja[loja];
+    const linhas = [];
+    d.rc.forEach(r=>linhas.push(`📣 Reclamação (${diasDesde(r.data_hora)}d)${r.alerta_urgente_enviado?' ⚠️ já avisado':''}`));
+    d.av.forEach(a=>linhas.push(`🔧 Avaria (${diasDesde(a.data_pedido)}d)${a.alerta_urgente_enviado?' ⚠️ já avisado':''}`));
+    d.pm.forEach(p=>linhas.push(`📦 Pedido de material (${diasDesde(p.criado_em)}d)${p.alerta_urgente_enviado?' ⚠️ já avisado':''}`));
+    if(d.qb<0) linhas.push(`💸 Quebra por justificar: ${d.qb.toFixed(2)}€`);
+    if(d.sn<0) linhas.push(`📉 Stock negativo por justificar: ${d.sn.toFixed(2)}€`);
+    if(!d.vitrineOk) linhas.push(`📸 Vitrine de hoje incompleta`);
+    return `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · Resumo do dia — ${loja}</div>
+      <div style="font-size:9px; color:#777; margin-bottom:10px; text-transform:capitalize;">${dataFmt}</div>
+      ${linhas.length===0 ? `<div style="text-align:center; padding:16px; color:#2e7d32; font-weight:700; font-size:13px;">✔ Sem nada pendente — tudo em dia!</div>` : linhas.map(item=>`<div style="font-size:13px; color:#555; margin-bottom:5px; padding-bottom:5px; border-bottom:1px solid #f7f2ea;">${item}</div>`).join("")}
+    `;
+  }
+
+  function render(){
+    const lojaSel = document.getElementById("resumoDiarioAvisosLojaSel").value;
+    capturaWrap.innerHTML = lojaSel ? renderDetalheLoja(lojaSel) : renderTabelaTodas();
+    const nomeFich = lojaSel ? `CoreJoint_resumo_dia_${lojaSel.replace(/\s+/g,'_')}` : `CoreJoint_resumo_dia`;
+    const titulo = lojaSel ? `CoreJoint · Resumo do dia — ${lojaSel}` : "CoreJoint · Resumo do dia";
+    document.getElementById("resumoDiarioAvisosPartilhaBtnsHub").innerHTML = "";
+    criarBotoesPartilhaHub(document.getElementById("resumoDiarioAvisosPartilhaBtnsHub"), capturaWrap, nomeFich, titulo);
+  }
+  document.getElementById("resumoDiarioAvisosLojaSel").onchange = render;
+  render();
 }
 
 async function abrirDiarioVisualHub(){
