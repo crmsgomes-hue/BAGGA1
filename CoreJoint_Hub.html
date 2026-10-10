@@ -478,7 +478,7 @@ async function renderPanoramaGeral(){
     const inicioMesAtual = isoDate(new Date(today.getFullYear(), today.getMonth(), 1));
     const [todayVendasPg, quebrasPendentesPg, invSemanaPg, fardStockLowPg, fardDevPg, adendasAtivasPg, errosPg, erros7diasPg, lembretesPg, stockNegPendentesPg, stockNegComProdutoPg, formacoesPendentesPg, horariosMesPg, trocasPendentesPg, fardRececoesPg, ultimaRececaoPg, certOleoPg, calibOleoPg, reclamacoesPendentesPg, avariasPendentesPg, pedidosMaterialPendentesPg, validadesLotesPg, depuradorAguaPg, segurancaEquipPg, sondagensAtivasPg, sondagensRespostasPg, formulariosAtivosPg, formulariosRespostasPg] = await Promise.all([
       api(`cj_daily_reportes?select=loja&tipo=eq.vendas&data=eq.${todayStr}${filtroMinhasLojas()}`),
-      api(`cj_quebras_reportes?select=loja,valor_quebra&justificacao=is.null${filtroMinhasLojas()}`),
+      api(`cj_quebras_reportes?select=id,loja,data,valor_quebra,operador&justificacao=is.null${filtroMinhasLojas()}`),
       api(`cj_inventario_reportes?select=loja,valor_inventario&data=gte.${inicioSemana}&valor_inventario=not.is.null${filtroMinhasLojas()}`),
       api(`cj_fardamento_stock?select=*&quantidade=lt.5&polo=eq.Santarém`),
       api(`cj_fardamento_devolucoes?select=*&recolhido=eq.false`),
@@ -487,17 +487,17 @@ async function renderPanoramaGeral(){
       api(`cj_error_log?select=loja,mensagem&criado_em=gte.${new Date(Date.now()-7*24*3600*1000).toISOString()}`),
       api(`cj_lembretes_pessoais?select=id&feito=eq.false&criado_por=eq.${currentUser}`),
       api(`cj_stock_negativo?select=loja&justificacao=is.null&loja=not.is.null${filtroMinhasLojas()}`),
-      api(`cj_stock_negativo?select=loja,produto&justificacao=is.null&loja=not.is.null${filtroMinhasLojas()}`),
-      api(`cj_formacoes?select=loja&justificacao=is.null&loja=not.is.null${filtroMinhasLojas()}`),
+      api(`cj_stock_negativo?select=id,loja,produto,valor_stock,data&justificacao=is.null&loja=not.is.null${filtroMinhasLojas()}`),
+      api(`cj_formacoes?select=id,loja,data,colaborador,formacao&justificacao=is.null&loja=not.is.null${filtroMinhasLojas()}`),
       api(`cj_horarios?select=loja,data,colaborador,hora_inicio,hora_fim&data=gte.${inicioMesAtual}&data=lte.${todayStr}${filtroMinhasLojas()}`),
-      api(`cj_trocas?select=loja&estado=eq.pendente${filtroMinhasLojas()}`),
+      api(`cj_trocas?select=id,loja,tipo,descricao,data&estado=eq.pendente${filtroMinhasLojas()}`),
       api(`cj_fardamento_rececoes?select=id&recolhido=eq.false`),
       api(`cj_fardamento_rececoes?select=data_rececao&order=data_rececao.desc&limit=1`),
       api(`cj_certificados_oleo?select=loja,data_validade${filtroMinhasLojas()}`),
       api(`cj_calibracoes_oleo?select=loja,data_validade${filtroMinhasLojas()}`),
       api(`cj_reclamacoes?select=id,loja,data_hora,descricao,fotos,cliente_nome&estado=eq.pendente${filtroMinhasLojas()}`),
-      api(`cj_avarias_bagga?select=id,data_pedido&estado=eq.pendente${filtroMinhasLojas()}`),
-      api(`cj_pedidos_material?select=id,criado_em&estado=eq.pendente${filtroMinhasLojas()}`),
+      api(`cj_avarias_bagga?select=id,loja,equipamento,descricao_problema,data_pedido&estado=eq.pendente${filtroMinhasLojas()}`),
+      api(`cj_pedidos_material?select=id,loja,categoria,artigo,quantidade,criado_em&estado=eq.pendente${filtroMinhasLojas()}`),
       api(`cj_validades_lotes?select=id,loja,produto,lote,data_validade&resolvido=eq.false${filtroMinhasLojas()}`),
       api(`cj_depurador_agua?select=loja,proxima_substituicao&order=proxima_substituicao.desc${filtroMinhasLojas()}`),
       api(`cj_seguranca_equipamento?select=id,loja,tipo,local,data_validade&order=data_validade.asc${filtroMinhasLojas()}`),
@@ -1053,15 +1053,27 @@ async function renderPanoramaGeral(){
     if(btnFazerRonda){
       btnFazerRonda.onclick = async ()=>{
         btnFazerRonda.textContent = "A preparar...";
-        const acoes = listaAtencao.filter(i=>i.acao && i.acao!==abrirReclamacoesHub).map(i=>({tipo:"acao", acao:i.acao, texto:i.texto}));
+        const excluidas = [abrirReclamacoesHub, abrirAvariasHub, abrirPedidosMaterialHub];
+        const acoes = listaAtencao.filter(i=>i.acao && !excluidas.includes(i.acao)).map(i=>({tipo:"acao", acao:i.acao, texto:i.texto}));
+
         const reclamacoesParagens = (reclamacoesPendentesPg||[]).map(r=>{
           const fotos = (r.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
           const dias = Math.floor((Date.now()-new Date(r.data_hora).getTime())/86400000);
           return {tipo:"foto", loja:r.loja, label:"📣 Reclamação", foto:fotos[0]||null, data:isoDate(new Date(r.data_hora)), justificacao: `${r.cliente_nome?r.cliente_nome+': ':''}${r.descricao||''} (há ${dias}d)`};
         });
+        const quebrasParagens = (quebrasPendentesPg||[]).map(q=>({tipo:"foto", loja:q.loja, label:"💸 Quebra de caixa por justificar", foto:null, data:q.data, valor:q.valor_quebra, justificacao: q.operador?`Operador: ${q.operador}`:null}));
+        const trocasParagens = (trocasPendentesPg||[]).map(t=>({tipo:"foto", loja:t.loja, label:"🔁 Troca de horário pendente", foto:null, data:t.data, justificacao: t.descricao || t.tipo || null}));
+        const formacoesParagens = (formacoesPendentesPg||[]).map(f=>({tipo:"foto", loja:f.loja, label:"🎓 Formação por justificar", foto:null, data:f.data, justificacao: `${f.colaborador||''}${f.formacao?' — '+f.formacao:''}` || null}));
+        const avariasParagens = (avariasPendentesPg||[]).map(a=>{
+          const dias = Math.floor((Date.now()-new Date(a.data_pedido+"T00:00:00").getTime())/86400000);
+          return {tipo:"foto", loja:a.loja, label:"🔧 Equipamento avariado", foto:null, data:a.data_pedido, justificacao: `${a.equipamento||''}${a.descricao_problema?': '+a.descricao_problema:''} (há ${dias}d)`};
+        });
+        const pedidosParagens = (pedidosMaterialPendentesPg||[]).map(p=>({tipo:"foto", loja:p.loja, label:"📦 Pedido de material", foto:null, data:isoDate(new Date(p.criado_em)), justificacao: `${p.artigo||p.categoria||''}${p.quantidade?' · qtd '+p.quantidade:''}` || null}));
+        const stockNegParagens = (stockNegComProdutoPg||[]).map(s=>({tipo:"foto", loja:s.loja, label:"📉 Stock negativo por justificar", foto:null, data:s.data, valor:s.valor_stock, justificacao: s.produto || null}));
+
         let fotos = [];
         try{ fotos = await construirParagensFotoRonda(); }catch(e){ console.error(e); }
-        rondaItens = [...acoes, ...reclamacoesParagens, ...fotos];
+        rondaItens = [...acoes, ...reclamacoesParagens, ...quebrasParagens, ...trocasParagens, ...formacoesParagens, ...avariasParagens, ...pedidosParagens, ...stockNegParagens, ...fotos];
         rondaIndice = 0;
         if(rondaItens.length===0){ toast("Nada para rever agora."); btnFazerRonda.textContent = "🚶 Fazer a ronda"; return; }
         abrirParagemRondaAtual();
