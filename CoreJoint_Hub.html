@@ -303,7 +303,10 @@ function abrirParagemFotoRonda(item){
     <div style="background:#fff; border-radius:14px; padding:18px; max-width:420px; width:100%; margin-top:40px; max-height:80vh; overflow-y:auto;">
       <div id="rondaFotoCapturaWrap" style="background:#fff; border-radius:12px; width:100%; box-sizing:border-box;">
         <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:#C1622D; margin-bottom:1px;">CoreJoint · ${item.label}</div>
-        <div style="font-size:11px; color:#777; margin-bottom:8px;">${item.loja}</div>
+        <div style="font-size:11px; color:#777; margin-bottom:6px;">${item.loja}${item.data?` · ${new Date(item.data+"T00:00:00").toLocaleDateString('pt-PT')}`:''}${item.hora?` · ${item.hora}`:''}</div>
+        ${item.valor!=null && item.valor!=="" ? `<div style="font-weight:700; font-size:13px; margin-bottom:6px; color:${parseFloat(item.valor)<0?'#b0432f':'#2e7d32'};">${item.valor} €${item.valorCnvs!=null && item.valorCnvs!=="" ? ` · CNVs: ${item.valorCnvs} €` : ''}</div>` : ''}
+        ${item.justificacao ? `<div style="font-size:12px; color:#555; background:#faf0e6; border-radius:8px; padding:7px 9px; margin-bottom:6px;">📝 ${item.justificacao}</div>` : ''}
+        ${item.nota ? `<div style="font-size:12px; color:#555; background:#faf0e6; border-radius:8px; padding:7px 9px; margin-bottom:6px;">📝 Sem stock: ${item.nota}</div>` : ''}
         <img id="rondaFotoImg" src="${item.foto}" style="width:100%; border-radius:8px; display:block; cursor:zoom-in;">
       </div>
       <div id="rondaFotoPartilhaBtns" style="margin-top:8px;"></div>
@@ -320,24 +323,24 @@ async function construirParagensFotoRonda(){
   const minhas = minhasLojas();
   const filtroL = `&loja=in.(${minhas.map(encodeURIComponent).join(",")})`;
   const [vitrineHoje, ltsHoje] = await Promise.all([
-    api(`cj_daily_reportes?select=loja,turno,fotos&tipo=eq.vitrine&data=eq.${ds}${filtroL}`, "GET"),
-    api(`cj_daily_reportes?select=loja,tipo,fotos&tipo=in.(laranjas_maquina,expositor_tabaco,sopa)&data=eq.${ds}${filtroL}`, "GET"),
+    api(`cj_daily_reportes?select=loja,turno,fotos,data,criado_em&tipo=eq.vitrine&data=eq.${ds}${filtroL}`, "GET"),
+    api(`cj_daily_reportes?select=loja,tipo,fotos,data,criado_em,nota&tipo=in.(laranjas_maquina,expositor_tabaco,sopa)&data=eq.${ds}${filtroL}`, "GET"),
   ]);
   const paragens = [];
   const TURNO_LBL = {manha:"Vitrine — Manhã", almoco:"Vitrine — Almoço", lanche:"Vitrine — Lanche"};
   const TIPO_LBL = {laranjas_maquina:"Laranjas na máquina", expositor_tabaco:"Expositor do tabaco", sopa:"Sopa"};
   vitrineHoje.forEach(r=>{
     const fotos = (r.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
-    if(fotos.length>0) paragens.push({tipo:"foto", loja:r.loja, label:TURNO_LBL[r.turno]||r.turno, foto:fotos[0]});
+    if(fotos.length>0) paragens.push({tipo:"foto", loja:r.loja, label:TURNO_LBL[r.turno]||r.turno, foto:fotos[0], data:r.data, hora: r.criado_em ? new Date(r.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : null});
   });
   ltsHoje.forEach(r=>{
     const fotos = (r.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
-    if(fotos.length>0) paragens.push({tipo:"foto", loja:r.loja, label:TIPO_LBL[r.tipo]||r.tipo, foto:fotos[0]});
+    if(fotos.length>0) paragens.push({tipo:"foto", loja:r.loja, label:TIPO_LBL[r.tipo]||r.tipo, foto:fotos[0], data:r.data, hora: r.criado_em ? new Date(r.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : null, nota:r.nota});
   });
 
   try{
     const naoAplicaveisCat = await api("cj_categoria_nao_aplicavel?select=loja,categoria", "GET");
-    const invCatRowsRonda = await aplicarCorteCategoria(await api(`cj_inventario_reportes?select=loja,categoria,data,fotos${filtroL}`, "GET"));
+    const invCatRowsRonda = await aplicarCorteCategoria(await api(`cj_inventario_reportes?select=loja,categoria,data,fotos,valor_inventario,valor_cnvs,justificacao${filtroL}`, "GET"));
     [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
       minhas.forEach(l=>{
         if(naoAplicaveisCat.some(n=>n.loja===l && n.categoria===cat.key)) return;
@@ -349,7 +352,7 @@ async function construirParagensFotoRonda(){
         }
         if(rows.length===0) return;
         const fotos = (rows[0].fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
-        if(fotos.length>0) paragens.push({tipo:"foto", loja:l, label:cat.label, foto:fotos[0]});
+        if(fotos.length>0) paragens.push({tipo:"foto", loja:l, label:cat.label, foto:fotos[0], data:rows[0].data, valor:rows[0].valor_inventario, valorCnvs:rows[0].valor_cnvs, justificacao:rows[0].justificacao});
       });
     });
   }catch(e){ console.error(e); }
