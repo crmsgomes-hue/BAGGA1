@@ -8,6 +8,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, user-scalable=yes">
 <title>Foto do dia</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#C1622E">
@@ -181,6 +182,68 @@ function toast(msg){
   t.textContent = msg; t.classList.add("show");
   clearTimeout(window.__toastTimer);
   window.__toastTimer = setTimeout(()=>t.classList.remove("show"), dur);
+}
+function criarBotoesPartilha(main, capturaWrap, nomeFicheiro, tituloPartilha){
+  main.innerHTML = "";
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex; gap:8px; margin:10px 0;";
+  row.innerHTML = `
+    <button class="btn-save" id="btnPartilhar_${nomeFicheiro}" style="flex:1;">📤 Partilhar</button>
+    <button class="btn-cancel" id="btnCopiar_${nomeFicheiro}" style="flex:1;">📸 Copiar</button>
+  `;
+  main.appendChild(row);
+  const btnPartilhar = row.querySelector(`#btnPartilhar_${nomeFicheiro}`);
+  const btnCopiar = row.querySelector(`#btnCopiar_${nomeFicheiro}`);
+
+  function gerarImagem(){ return html2canvas(capturaWrap, {scale:2, backgroundColor:"#ffffff"}).then(canvas=>new Promise(res=>canvas.toBlob(res, "image/png"))); }
+
+  btnPartilhar.onclick = async ()=>{
+    if(btnPartilhar.disabled) return;
+    btnPartilhar.disabled = true;
+    const original = btnPartilhar.textContent;
+    btnPartilhar.textContent = "A gerar imagem...";
+    try{
+      const blob = await gerarImagem();
+      const ficheiro = new File([blob], `${nomeFicheiro}_${todayStr()}.png`, {type:"image/png"});
+      if(navigator.share && navigator.canShare && navigator.canShare({files:[ficheiro]})){
+        try{ await navigator.share({files:[ficheiro], title:tituloPartilha}); }catch(e){ /* cancelado */ }
+        btnPartilhar.textContent = original;
+        btnPartilhar.disabled = false;
+      } else {
+        btnPartilhar.textContent = "A copiar...";
+        try{
+          await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
+          btnPartilhar.textContent = "✔ Copiado! Cola no WhatsApp";
+        }catch(e2){
+          const link = document.createElement("a");
+          link.download = `${nomeFicheiro}_${todayStr()}.png`;
+          link.href = URL.createObjectURL(blob);
+          link.click();
+          btnPartilhar.textContent = "📥 Descarregada";
+        }
+        setTimeout(()=>{ btnPartilhar.textContent = original; btnPartilhar.disabled = false; }, 2500);
+      }
+    }catch(e){
+      console.error(e);
+      toast("Erro ao gerar imagem: " + (e.message||e).slice(0,100));
+      btnPartilhar.textContent = original;
+      btnPartilhar.disabled = false;
+    }
+  };
+  btnCopiar.onclick = async ()=>{
+    if(btnCopiar.disabled) return;
+    btnCopiar.disabled = true;
+    const original = btnCopiar.textContent;
+    btnCopiar.textContent = "A copiar...";
+    try{
+      await navigator.clipboard.write([new ClipboardItem({"image/png": gerarImagem()})]);
+      btnCopiar.textContent = "✔ Copiado!";
+    }catch(e){
+      console.error(e);
+      toast("Não foi possível copiar a imagem.");
+    }
+    setTimeout(()=>{ btnCopiar.textContent = original; btnCopiar.disabled = false; }, 2000);
+  };
 }
 // Impede duplo-clique/duplo-toque em botoes que gravam dados - desativa e mostra "A processar..." ate terminar
 function protegerClique(btn, fn, textoDurante){
@@ -1702,10 +1765,17 @@ function verEditarFotosSubmissao(rec, label){
   const overlay = document.createElement("div");
   overlay.className = "overlay";
   overlay.id = "editFotosOverlay";
+  const fotosRec = (rec.fotos||[]).map(f=>fotoUrl(f)).filter(Boolean);
   overlay.innerHTML = `
     <div class="modal">
       <h2>${label}</h2>
       <div class="sub">Enviado às ${new Date(rec.criado_em).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}. Toca no ✕ para apagar uma foto que ficou mal ou foi enganada.</div>
+      <div id="editFotosPartilhaWrap" style="background:#fff; border-radius:12px; padding:12px; border:1px solid var(--line); margin-top:10px;">
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · ${label}</div>
+        <div style="font-size:10px; color:#777; margin-bottom:8px;">${currentLoja} · ${new Date(rec.criado_em).toLocaleDateString('pt-PT')}</div>
+        ${fotosRec.length>0 ? `<img src="${fotosRec[0]}" style="width:100%; border-radius:8px; display:block;">` : '<div style="font-size:12px; color:#999;">Sem foto</div>'}
+      </div>
+      <div id="editFotosPartilhaBtns"></div>
       <div id="editFotosGrid" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:12px;"></div>
       <div style="display:flex; gap:8px; margin-top:14px;">
         <label class="filebtn" style="flex:1; text-align:center;">📷 Câmara<input type="file" accept="image/*" capture="environment" id="editAddFotoCamara" style="display:none;"></label>
@@ -1717,6 +1787,7 @@ function verEditarFotosSubmissao(rec, label){
     </div>
   `;
   document.body.appendChild(overlay);
+  criarBotoesPartilha(document.getElementById("editFotosPartilhaBtns"), document.getElementById("editFotosPartilhaWrap"), `CoreJoint_${label.replace(/\s+/g,'_')}`, `CoreJoint · ${label}`);
   renderEditFotosGrid(rec);
   const handler = (ev)=>adicionarFotoSubmissao(rec, ev.target.files[0]);
   document.getElementById("editAddFotoCamara").addEventListener("change", handler);
@@ -1908,10 +1979,18 @@ function corrigirValorEnvio(r){
   const overlay = document.createElement("div");
   overlay.className = "overlay";
   overlay.id = "corrigirValorOverlay";
+  const fotosR = (r.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
   overlay.innerHTML = `
     <div class="modal">
       <h2>${todasCatsLabelFoto2[r.categoria]||r.categoria}</h2>
       <div class="sub">${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</div>
+      <div id="corrigirPartilhaWrap" style="background:#fff; border-radius:12px; padding:12px; border:1px solid var(--line); margin-top:10px;">
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:14px; color:#C1622D; margin-bottom:1px;">CoreJoint · ${todasCatsLabelFoto2[r.categoria]||r.categoria}</div>
+        <div style="font-size:10px; color:#777; margin-bottom:8px;">${currentLoja} · ${new Date(r.data+"T00:00:00").toLocaleDateString('pt-PT')}</div>
+        ${r.valor_inventario!=null && r.valor_inventario!=="" ? `<div style="font-weight:700; font-size:13px; margin-bottom:6px; color:${parseFloat(r.valor_inventario)<0?'#b0432f':'#2e7d32'};">${r.categoria==="global"?'Global: ':''}${r.valor_inventario} €${r.categoria==="global" && r.valor_cnvs!=null && r.valor_cnvs!=="" ? ` · CNVs: ${r.valor_cnvs} €` : ''}</div>` : ''}
+        ${fotosR.length>0 ? `<img src="${fotosR[0]}" style="width:100%; border-radius:8px; display:block;">` : ''}
+      </div>
+      <div id="corrigirPartilhaBtns"></div>
       <div class="field" style="margin-top:14px;">
         <label>${r.categoria==="global" ? "Valor do Global (€)" : "Valor do inventário (€)"}</label>
         <div style="display:flex; gap:8px;">
@@ -1942,6 +2021,7 @@ function corrigirValorEnvio(r){
     </div>
   `;
   document.body.appendChild(overlay);
+  criarBotoesPartilha(document.getElementById("corrigirPartilhaBtns"), document.getElementById("corrigirPartilhaWrap"), `CoreJoint_${r.categoria}`, `CoreJoint · ${todasCatsLabelFoto2[r.categoria]||r.categoria}`);
   renderCorrigirFotosGrid(r);
   {
     const btn = document.getElementById("corrigirValorSinal");
