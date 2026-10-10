@@ -334,6 +334,26 @@ async function construirParagensFotoRonda(){
     const fotos = (r.fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
     if(fotos.length>0) paragens.push({tipo:"foto", loja:r.loja, label:TIPO_LBL[r.tipo]||r.tipo, foto:fotos[0]});
   });
+
+  try{
+    const naoAplicaveisCat = await api("cj_categoria_nao_aplicavel?select=loja,categoria", "GET");
+    const invCatRowsRonda = await aplicarCorteCategoria(await api(`cj_inventario_reportes?select=loja,categoria,data,fotos${filtroL}`, "GET"));
+    [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
+      minhas.forEach(l=>{
+        if(naoAplicaveisCat.some(n=>n.loja===l && n.categoria===cat.key)) return;
+        const w = windowFor(cat.freq, new Date());
+        let rows = invCatRowsRonda.filter(r=>r.loja===l && r.categoria===cat.key && inRange(r.data, w.start, w.end) && (r.fotos||[]).length>0);
+        if(rows.length===0 && (cat.freq==="mensal_inicio" || cat.freq==="mensal_dia20")){
+          const mesInteiro = monthWindow(new Date());
+          rows = invCatRowsRonda.filter(r=>r.loja===l && r.categoria===cat.key && inRange(r.data, mesInteiro.start, mesInteiro.end) && (r.fotos||[]).length>0);
+        }
+        if(rows.length===0) return;
+        const fotos = (rows[0].fotos||[]).map(f=>typeof f==="string"?f:f.url).filter(Boolean);
+        if(fotos.length>0) paragens.push({tipo:"foto", loja:l, label:cat.label, foto:fotos[0]});
+      });
+    });
+  }catch(e){ console.error(e); }
+
   return paragens;
 }
 
