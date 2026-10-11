@@ -256,11 +256,12 @@ function removerFlutuanteRonda(){
 function mostrarFlutuanteRonda(){
   removerFlutuanteRonda();
   const restantes = rondaItens.length - rondaIndice - 1;
+  const lojaAtual = rondaItens[rondaIndice] && rondaItens[rondaIndice].loja;
   const flutuante = document.createElement("div");
   flutuante.id = "rondaFlutuante";
-  flutuante.style.cssText = "position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:9999999; display:flex; gap:6px; align-items:center; background:#1a1a1a; color:#fff; border-radius:99px; padding:9px 9px 9px 14px; box-shadow:0 3px 14px rgba(0,0,0,.35);";
+  flutuante.style.cssText = "position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:9999999; display:flex; gap:6px; align-items:center; background:#1a1a1a; color:#fff; border-radius:99px; padding:9px 9px 9px 14px; box-shadow:0 3px 14px rgba(0,0,0,.35); max-width:92vw;";
   flutuante.innerHTML = `
-    <span style="font-size:.74rem; font-weight:700; white-space:nowrap;">${rondaIndice+1}/${rondaItens.length}</span>
+    <span style="font-size:.74rem; font-weight:700; white-space:nowrap;">${rondaIndice+1}/${rondaItens.length}${lojaAtual?` · ${lojaAtual}`:''}</span>
     ${rondaIndice>0 ? `<button id="rondaAnteriorBtn" style="background:none; color:#fff; border:1.5px solid rgba(255,255,255,.4); border-radius:99px; padding:7px 11px; font-size:.78rem; font-weight:800; cursor:pointer;">⬅️</button>` : ''}
     <button id="rondaProximoBtn" style="background:var(--terracotta,#C1622D); color:#fff; border:none; border-radius:99px; padding:7px 13px; font-size:.78rem; font-weight:800; cursor:pointer; white-space:nowrap;">${restantes>0?'➡️ Próximo':'✔ Terminar'}</button>
     <button id="rondaSairBtn" style="background:none; color:#fff; border:none; font-size:.9rem; cursor:pointer; padding:5px;">✕</button>
@@ -1073,7 +1074,9 @@ async function renderPanoramaGeral(){
 
         let fotos = [];
         try{ fotos = await construirParagensFotoRonda(); }catch(e){ console.error(e); }
-        rondaItens = [...acoes, ...reclamacoesParagens, ...quebrasParagens, ...trocasParagens, ...formacoesParagens, ...avariasParagens, ...pedidosParagens, ...stockNegParagens, ...fotos];
+        const todasParagens = [...reclamacoesParagens, ...quebrasParagens, ...trocasParagens, ...formacoesParagens, ...avariasParagens, ...pedidosParagens, ...stockNegParagens, ...fotos];
+        todasParagens.sort((a,b)=>(a.loja||'').localeCompare(b.loja||'', 'pt'));
+        rondaItens = [...acoes, ...todasParagens];
         rondaIndice = 0;
         if(rondaItens.length===0){ toast("Nada para rever agora."); btnFazerRonda.textContent = "🚶 Fazer a ronda"; return; }
         abrirParagemRondaAtual();
