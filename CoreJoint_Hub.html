@@ -7762,7 +7762,7 @@ async function carregarDashboardCompleto(){
         <div id="catPartilhaBtns_${cat.key}" style="margin-top:6px;"></div>
       </div>`;
     });
-    document.getElementById("categoriaLojasSection").innerHTML = htmlCatHeader + htmlCat;
+    document.getElementById("categoriaLojasSection").innerHTML = htmlCatHeader + htmlCat + `<div id="categoriaLojasCapturaWrap" style="background:#fff; width:100%; box-sizing:border-box;"></div><div id="categoriaLojasPartilhaBtns" style="margin-top:10px;"></div>`;
     [...INV_CATS, ...MARKETING_CATS].forEach(cat=>{
       const wrap = document.querySelector(`[data-chips-cat="${cat.key}"]`);
       if(!wrap) return;
@@ -7919,7 +7919,7 @@ async function carregarDashboardCompleto(){
         else alert(`${chip.dataset.vendasLoja} — Vendas enviadas${horaLbl?' às '+horaLbl:''}\n(sem foto anexada)`);
       };
     });
-    criarBotoesPartilhaHub(document.getElementById("categoriaLojasPartilhaBtns"), document.getElementById("categoriaLojasCapturaWrap"), "CoreJoint_categorias_lojas", "CoreJoint · Inventário por categoria");
+    criarBotoesPartilhaHub(document.getElementById("categoriaLojasPartilhaBtns"), document.getElementById("categoriaLojasCapturaWrap"), "CoreJoint_vitrine_hoje", "CoreJoint · Vitrine, Vendas, Laranjas, Tabaco e Sopa — hoje");
   }catch(e){ console.error(e); }
 
 
