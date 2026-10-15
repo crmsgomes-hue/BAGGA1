@@ -183,6 +183,44 @@ function toast(msg){
   clearTimeout(window.__toastTimer);
   window.__toastTimer = setTimeout(()=>t.classList.remove("show"), dur);
 }
+// Sinal +/- dos valores: o botao manda no sinal, mesmo que o numero seja escrito DEPOIS de tocar no botao
+function valorComSinal(input, btn){
+  if(!input) return null;
+  const raw = (input.value||"").trim();
+  if(raw==="") return "";
+  const n = parseFloat(raw);
+  if(isNaN(n)) return raw;
+  const neg = !!btn && btn.textContent==="−";
+  if(neg && n>0) return String(-n);
+  return raw;
+}
+function pintarBotaoSinal(btn, neg){
+  btn.textContent = neg ? "−" : "+";
+  btn.style.background = neg ? "var(--red,#b0432f)" : "none";
+  btn.style.color = neg ? "#fff" : "var(--terracotta,#C1622E)";
+  btn.style.borderColor = neg ? "var(--red,#b0432f)" : "var(--terracotta,#C1622E)";
+}
+function ligarSinal(btn, input){
+  if(!btn || !input) return;
+  btn.onclick = ()=>{
+    const neg = btn.textContent !== "−";
+    pintarBotaoSinal(btn, neg);
+    const v = Math.abs(parseFloat(input.value)||0);
+    if(v>0) input.value = neg ? -v : v;
+    input.style.color = neg ? "var(--red,#b0432f)" : "";
+  };
+  const sincronizar = ()=>{
+    const n = parseFloat(input.value);
+    if(isNaN(n)) return;
+    const neg = btn.textContent === "−";
+    if(n<0 && !neg){ pintarBotaoSinal(btn, true); input.style.color = "var(--red,#b0432f)"; }
+    else if(n>0 && neg){ input.value = String(-n); input.style.color = "var(--red,#b0432f)"; }
+  };
+  input.addEventListener("change", sincronizar);
+  input.addEventListener("blur", sincronizar);
+  if(parseFloat(input.value)<0) input.style.color = "var(--red,#b0432f)";
+  pintarBotaoSinal(btn, btn.textContent === "\u2212");
+}
 function criarBotoesPartilha(main, capturaWrap, nomeFicheiro, tituloPartilha){
   main.innerHTML = "";
   const row = document.createElement("div");
@@ -1182,7 +1220,7 @@ function openCapture(kind, key, label, turno, estaAtrasado){
             <button type="button" id="vInvSinal" style="width:44px; flex-shrink:0; font-size:18px; font-weight:800; border-radius:8px; border:1.5px solid var(--terracotta,#C1622E); background:none; color:var(--terracotta,#C1622E);">+</button>
             <input id="vInv" type="number" inputmode="decimal" step="0.01" placeholder="0.00" style="flex:1;">
           </div>
-          <div class="sub" style="margin-top:2px;">Se for negativo (falta), toca no botão ao lado para pôr o sinal — o teclado do telemóvel não tem tecla de menos.</div>
+          <div class="sub" style="margin-top:2px;">Se for negativo (falta), toca no botão <b>+</b> para ficar <b>−</b> (vermelho) — pode ser antes ou depois de escreveres o valor. O teclado do telemóvel não tem tecla de menos.</div>
         </div>
         ${key==="global" ? `
         <div class="field">
@@ -1233,22 +1271,8 @@ function openCapture(kind, key, label, turno, estaAtrasado){
   const desperdicioGaleriaInput = document.getElementById("capFileDesperdicioGaleria");
   if(desperdicioGaleriaInput) desperdicioGaleriaInput.addEventListener("change", handleCapFileDesperdicio);
 
-  function ligarBotaoSinal(idBotao, idInput){
-    const btn = document.getElementById(idBotao);
-    const input = document.getElementById(idInput);
-    if(!btn || !input) return;
-    btn.onclick = ()=>{
-      const negativo = btn.textContent === "−";
-      btn.textContent = negativo ? "+" : "−";
-      btn.style.background = negativo ? "none" : "var(--red,#b0432f)";
-      btn.style.color = negativo ? "var(--terracotta,#C1622E)" : "#fff";
-      btn.style.borderColor = negativo ? "var(--terracotta,#C1622E)" : "var(--red,#b0432f)";
-      const v = Math.abs(parseFloat(input.value)||0);
-      if(v>0) input.value = negativo ? v : -v;
-    };
-  }
-  ligarBotaoSinal("vInvSinal", "vInv");
-  ligarBotaoSinal("vCnvsSinal", "vCnvs");
+  ligarSinal(document.getElementById("vInvSinal"), document.getElementById("vInv"));
+  ligarSinal(document.getElementById("vCnvsSinal"), document.getElementById("vCnvs"));
 }
 function closeCapture(){
   const o = document.getElementById("capOverlay");
@@ -2023,42 +2047,18 @@ function corrigirValorEnvio(r){
   document.body.appendChild(overlay);
   criarBotoesPartilha(document.getElementById("corrigirPartilhaBtns"), document.getElementById("corrigirPartilhaWrap"), `CoreJoint_${r.categoria}`, `CoreJoint · ${todasCatsLabelFoto2[r.categoria]||r.categoria}`);
   renderCorrigirFotosGrid(r);
-  {
-    const btn = document.getElementById("corrigirValorSinal");
-    const input = document.getElementById("corrigirValorInput");
-    if((r.valor_inventario||0)<0){ btn.style.background="var(--red,#b0432f)"; btn.style.color="#fff"; btn.style.borderColor="var(--red,#b0432f)"; }
-    btn.onclick = ()=>{
-      const negativo = btn.textContent === "−";
-      btn.textContent = negativo ? "+" : "−";
-      btn.style.background = negativo ? "none" : "var(--red,#b0432f)";
-      btn.style.color = negativo ? "var(--terracotta,#C1622E)" : "#fff";
-      btn.style.borderColor = negativo ? "var(--terracotta,#C1622E)" : "var(--red,#b0432f)";
-      const v = Math.abs(parseFloat(input.value)||0);
-      if(v>0) input.value = negativo ? v : -v;
-    };
-  }
+  ligarSinal(document.getElementById("corrigirValorSinal"), document.getElementById("corrigirValorInput"));
   if(r.categoria==="global"){
-    const btnC = document.getElementById("corrigirCnvsSinal");
-    const inputC = document.getElementById("corrigirCnvsInput");
-    if((r.valor_cnvs||0)<0){ btnC.style.background="var(--red,#b0432f)"; btnC.style.color="#fff"; btnC.style.borderColor="var(--red,#b0432f)"; }
-    btnC.onclick = ()=>{
-      const negativo = btnC.textContent === "−";
-      btnC.textContent = negativo ? "+" : "−";
-      btnC.style.background = negativo ? "none" : "var(--red,#b0432f)";
-      btnC.style.color = negativo ? "var(--terracotta,#C1622E)" : "#fff";
-      btnC.style.borderColor = negativo ? "var(--terracotta,#C1622E)" : "var(--red,#b0432f)";
-      const v = Math.abs(parseFloat(inputC.value)||0);
-      if(v>0) inputC.value = negativo ? v : -v;
-    };
+    ligarSinal(document.getElementById("corrigirCnvsSinal"), document.getElementById("corrigirCnvsInput"));
   }
   document.getElementById("corrigirFotoCamara").addEventListener("change", (ev)=>adicionarFotoEnvio(r, ev.target.files[0]));
   document.getElementById("corrigirFotoGaleria").addEventListener("change", (ev)=>adicionarFotoEnvio(r, ev.target.files[0]));
   document.getElementById("corrigirValorGuardarBtn").onclick = async ()=>{
-    const valor = document.getElementById("corrigirValorInput").value.trim();
+    const valor = valorComSinal(document.getElementById("corrigirValorInput"), document.getElementById("corrigirValorSinal"));
     if(valor===""){ toast("Preenche o valor"); return; }
     const patchCorrecao = {valor_inventario: valor};
     if(r.categoria==="global"){
-      const valorCnvs = document.getElementById("corrigirCnvsInput").value.trim();
+      const valorCnvs = valorComSinal(document.getElementById("corrigirCnvsInput"), document.getElementById("corrigirCnvsSinal"));
       if(valorCnvs===""){ toast("Preenche também o valor dos CNVs"); return; }
       patchCorrecao.valor_cnvs = valorCnvs;
     }
@@ -3404,8 +3404,8 @@ async function confirmCapture(kind, key, turno){
   const fotosCongeladas = pendingPhotos.slice();
   const fotosEntradaCongeladas = pendingPhotosEntrada.slice();
   const fotosDesperdicioCongeladas = pendingPhotosDesperdicio.slice();
-  const vInvCongelado = (kind==="inv" && document.getElementById("vInv")) ? document.getElementById("vInv").value : null;
-  const vCnvsCongelado = (kind==="inv" && document.getElementById("vCnvs")) ? document.getElementById("vCnvs").value : null;
+  const vInvCongelado = (kind==="inv" && document.getElementById("vInv")) ? valorComSinal(document.getElementById("vInv"), document.getElementById("vInvSinal")) : null;
+  const vCnvsCongelado = (kind==="inv" && document.getElementById("vCnvs")) ? valorComSinal(document.getElementById("vCnvs"), document.getElementById("vCnvsSinal")) : null;
   abrirConfirmarEnvio(labelAtual, fotosCongeladas, ()=>confirmCaptureReal(kind, key, turno, fotosCongeladas, fotosEntradaCongeladas, fotosDesperdicioCongeladas, vInvCongelado, vCnvsCongelado));
 }
 
@@ -3462,8 +3462,8 @@ async function confirmCaptureReal(kind, key, turno, fotosCongeladas, fotosEntrad
     fotos: (fotosCongeladas || pendingPhotos).slice(),
     fotosEntrada: (fotosEntradaCongeladas || pendingPhotosEntrada).slice(),
     fotosDesperdicio: (fotosDesperdicioCongeladas || pendingPhotosDesperdicio).slice(),
-    vInv: vInvCongelado !== undefined ? vInvCongelado : ((kind==="inv" && document.getElementById("vInv")) ? document.getElementById("vInv").value : null),
-    vCnvs: vCnvsCongelado !== undefined ? vCnvsCongelado : ((kind==="inv" && document.getElementById("vCnvs")) ? document.getElementById("vCnvs").value : null)
+    vInv: vInvCongelado !== undefined ? vInvCongelado : ((kind==="inv" && document.getElementById("vInv")) ? valorComSinal(document.getElementById("vInv"), document.getElementById("vInvSinal")) : null),
+    vCnvs: vCnvsCongelado !== undefined ? vCnvsCongelado : ((kind==="inv" && document.getElementById("vCnvs")) ? valorComSinal(document.getElementById("vCnvs"), document.getElementById("vCnvsSinal")) : null)
   };
   // Rede de segurança: nunca gravar um envio de fotos sem nenhuma foto, seja qual for a causa
   const totalFotosItem = item.fotos.length + item.fotosEntrada.length + item.fotosDesperdicio.length;
