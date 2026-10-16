@@ -80,6 +80,7 @@ body.dark .al-i{background:#1a2a3a;color:#7ab0f0;}
     <button onclick="abrirResumoOntem()" style="background:var(--sf2); border:none; border-radius:99px; padding:6px 12px; color:var(--t2); font-weight:600; font-size:.76rem; cursor:pointer; font-family:inherit;">📅 Resumo de ontem</button>
     <button onclick="abrirResumoDiarioAvisosHub()" style="background:var(--terracotta,#C1622D); border:none; border-radius:99px; padding:6px 12px; color:#fff; font-weight:700; font-size:.76rem; cursor:pointer; font-family:inherit;">📋 Resumo do dia (partilhar)</button>
     <button onclick="abrirResumoSemanalPartilhavelHub()" style="background:var(--terracotta,#C1622D); border:none; border-radius:99px; padding:6px 12px; color:#fff; font-weight:700; font-size:.76rem; cursor:pointer; font-family:inherit;">📅 Resumo semanal (partilhar)</button>
+    <button id="btnAppLojasPillHub" onclick="abrirInterruptorAppLojasHub()" style="background:var(--sf2); border:none; border-radius:99px; padding:6px 12px; color:var(--t2); font-weight:700; font-size:.76rem; cursor:pointer; font-family:inherit;">🔌 App das lojas</button>
     <a href="CoreJoint_Reportes.html?ferramentas=1" style="background:var(--sf2); border-radius:99px; padding:6px 12px; color:var(--t2); text-decoration:none; font-weight:600; font-size:.76rem;">🛠️ Mais ferramentas</a>
   </div>
 
@@ -767,6 +768,7 @@ async function renderPanoramaGeral(){
         document.getElementById("btnCriarSondagemFormHub").onclick = abrirEscolherCriar;
       }},
       {chave:"resto", icon:"🗂️", nome:"Tudo o resto", corpo:()=>`
+        <button id="btnInterruptorAppLojasHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🔌 App das lojas — ativar / desativar</button>
         <button id="btnAbrirResumoOntemModal" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">📅 Resumo de ontem</button>
         <button id="btnAbrirSemanalHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🖨️ Relatório semanal de vendas</button>
         <button id="btnAbrirResetCategoriaHub" style="width:100%; margin-bottom:6px; background:var(--sf2); border:none; border-radius:10px; padding:10px; font-size:.85rem; font-weight:700; color:var(--tx); text-align:left;">🔄 Reset de categoria</button>
@@ -803,6 +805,7 @@ async function renderPanoramaGeral(){
           ["👥 Horários","CoreJoint_Reportes.html?abrir=relatorioHorarios"],
           ["🔁 Trocas de horário","CoreJoint_Reportes.html?abrir=pivotTrocas"],
         ])}`, wire:()=>{
+        document.getElementById("btnInterruptorAppLojasHub").onclick = abrirInterruptorAppLojasHub;
         document.getElementById("btnAbrirResumoOntemModal").onclick = ()=>{ abrirResumoOntem(); };
         document.getElementById("btnAbrirSemanalHub").onclick = abrirRelatorioSemanalHub;
         document.getElementById("btnAbrirResetCategoriaHub").onclick = abrirResetCategoriaHub;
@@ -2632,6 +2635,45 @@ async function abrirResumoDiarioAvisosHub(){
   render();
 }
 
+async function abrirInterruptorAppLojasHub(){
+  let ativa = true;
+  try{
+    const r = await api("cj_config?chave=eq.app_lojas_ativa&select=valor", "GET");
+    ativa = !(r && r[0] && r[0].valor==="false");
+  }catch(e){ console.error(e); }
+  const corpo = `
+    <div style="text-align:center; margin-bottom:14px;">
+      <div style="font-size:42px;">${ativa?'🟢':'⏸️'}</div>
+      <div style="font-weight:800; font-size:1.05rem; margin:6px 0;">App das lojas: ${ativa?'ATIVA':'INATIVA'}</div>
+      <div style="font-size:.8rem; color:var(--t2); line-height:1.45;">${ativa
+        ? 'As lojas estão a usar a app normalmente.'
+        : 'As lojas veem um ecrã a dizer que a app está inativa e não conseguem enviar nada. Os alertas automáticos para as lojas e os avisos de "loja parada" estão suspensos. Esta app da gestão continua a funcionar.'}</div>
+    </div>
+    <button id="btnToggleAppLojasHub" style="width:100%; background:${ativa?'var(--red,#b0432f)':'var(--grn,#2e7d32)'}; color:#fff; border:none; border-radius:10px; padding:13px; font-weight:800; font-size:.9rem; cursor:pointer;">${ativa?'⏸️ Desativar para todas as lojas':'▶️ Reativar para todas as lojas'}</button>
+  `;
+  abrirModalTopico("🔌 App das lojas", corpo);
+  document.getElementById("btnToggleAppLojasHub").onclick = async ()=>{
+    const msg = ativa ? "Desativar a app para TODAS as lojas? Deixam de conseguir enviar fotos e registos." : "Reativar a app para TODAS as lojas?";
+    if(!confirm(msg)) return;
+    try{
+      await api("cj_config?chave=eq.app_lojas_ativa", "PATCH", {valor: ativa?"false":"true", atualizado_em: new Date().toISOString(), atualizado_por: currentUser});
+      fecharEcraHub();
+      toast(ativa ? "⏸️ App das lojas desativada" : "▶️ App das lojas reativada");
+      atualizarPilulaAppLojasHub();
+    }catch(e){ console.error(e); alert("Erro ao guardar: " + (e.message||e)); }
+  };
+}
+async function atualizarPilulaAppLojasHub(){
+  const b = document.getElementById("btnAppLojasPillHub");
+  if(!b) return;
+  try{
+    const r = await api("cj_config?chave=eq.app_lojas_ativa&select=valor", "GET");
+    const ativa = !(r && r[0] && r[0].valor==="false");
+    b.textContent = ativa ? "🟢 App das lojas: ativa" : "⏸️ App das lojas: INATIVA (reativar)";
+    b.style.background = ativa ? "var(--sf2)" : "var(--red,#b0432f)";
+    b.style.color = ativa ? "var(--t2)" : "#fff";
+  }catch(e){ console.error(e); }
+}
 async function abrirResumoSemanalPartilhavelHub(){
   const overlay = document.createElement("div");
   overlay.id = "resumoSemanalPartilhavelOverlayHub";
@@ -8212,6 +8254,7 @@ async function carregarDashboardCompleto(){
   document.getElementById("attnSection").innerHTML = "";
 }
 carregarDashboardCompleto().catch(e=>console.error("Erro no carregarDashboardCompleto:", e));
+setTimeout(()=>{ try{ atualizarPilulaAppLojasHub(); }catch(e){} }, 800);
 (function(){
   const p = new URLSearchParams(window.location.search);
   if(p.get("abrir")==="resumo"){
