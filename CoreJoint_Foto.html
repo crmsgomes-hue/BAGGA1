@@ -321,7 +321,9 @@ function semanaKey(d){
 function todayStr(){ return isoDate(new Date()); }
 function slug(s){ return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_").toLowerCase(); }
 
+window.__appInativa = false;
 async function api(method, path, body){
+  if(window.__appInativa && method!=="GET") return null; // app inativa: nada e gravado
   const res = await fetch(SUPA_URL + "/rest/v1/" + path, {
     method,
     headers:{
@@ -3701,6 +3703,41 @@ function mostrarSucessoComFoto(fotos){
   document.body.appendChild(overlay);
   overlay.querySelector("button").onclick = ()=>overlay.remove();
 }
+
+// Interruptor da gestao: quando a app das lojas esta INATIVA, bloqueia o ecra por completo
+function mostrarBloqueioAppInativa(){
+  if(document.getElementById("_appInativaOverlay")) return;
+  const o = document.createElement("div");
+  o.id = "_appInativaOverlay";
+  o.style.cssText = "position:fixed; inset:0; z-index:2147483647; background:#faf5ee; display:flex; align-items:center; justify-content:center; padding:28px; text-align:center;";
+  o.innerHTML = `
+    <div style="max-width:380px;">
+      <div style="font-size:54px; margin-bottom:12px;">⏸️</div>
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:22px; color:#C1622D; margin-bottom:10px;">App temporariamente inativa</div>
+      <div style="font-size:15px; color:#555; line-height:1.5;">Por indicação da gestão, esta app não está a ser utilizada neste momento.<br><br><b>Não é necessário enviar fotos nem registos.</b><br><br>Para qualquer questão, fala com a gestão.</div>
+    </div>`;
+  document.body.appendChild(o);
+}
+async function verificarAppAtiva(){
+  try{
+    const res = await fetch(SUPA_URL + "/rest/v1/cj_config?chave=eq.app_lojas_ativa&select=valor", {
+      headers:{ "apikey": SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY }, cache:"no-store"
+    });
+    if(!res.ok) return;
+    const rows = await res.json();
+    const inativa = rows && rows[0] && rows[0].valor === "false";
+    if(inativa){
+      window.__appInativa = true;
+      mostrarBloqueioAppInativa();
+    } else if(window.__appInativa){
+      window.__appInativa = false;
+      location.reload();
+    }
+  }catch(e){ /* sem rede: mantem o estado atual */ }
+}
+verificarAppAtiva();
+setInterval(verificarAppAtiva, 45*1000);
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) verificarAppAtiva(); });
 
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js', {scope: './'}).catch(e=>console.warn('sw.js falhou', e));
