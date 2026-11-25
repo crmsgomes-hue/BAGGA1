@@ -3773,8 +3773,7 @@ async function syncEquipAvarias(){
 // ══════════════════════════════════════════════════════════════════════════════
 
 async function verificarEspacoHistorico(){
-  // Só para CROP
-  if(!CU || CU.role !== 'crop') return;
+  return; // desativado: aviso de arquivo oculto à CROP
   const regiao = CU.region || 'sul';
   const limite = new Date();
   limite.setDate(limite.getDate() - 60);
@@ -3817,7 +3816,7 @@ var _expEstado = '';
 var _expOcupado = false;
 
 function podeExportar(){
-  return !!(CU && (CU.role==='crop' || (CU.role==='gop' && CU.gopId==='joao_martinho')));
+  return !!(CU && (CU.role==='gop' && CU.gopId==='joao_martinho'));
 }
 
 function _expBox(){
