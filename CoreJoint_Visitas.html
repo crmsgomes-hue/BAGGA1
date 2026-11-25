@@ -3773,7 +3773,8 @@ async function syncEquipAvarias(){
 // ══════════════════════════════════════════════════════════════════════════════
 
 async function verificarEspacoHistorico(){
-  return; // desativado: aviso de arquivo oculto à CROP
+  // Só para CROP
+  if(!CU || CU.role !== 'crop') return;
   const regiao = CU.region || 'sul';
   const limite = new Date();
   limite.setDate(limite.getDate() - 60);
@@ -3795,10 +3796,17 @@ async function verificarEspacoHistorico(){
   alertEl.innerHTML =
     '<div style="background:#fff8ee;border:1.5px solid #ffc107;border-radius:var(--ra);padding:12px 14px;margin-bottom:14px">' +
     '<div style="font-weight:700;font-size:.88rem;color:#856404;margin-bottom:6px">📦 ' + rows.length + ' relatório(s) com mais de 60 dias</div>' +
-    '<div style="font-size:.8rem;color:#555;margin-bottom:10px">Exporta toda a informação por partes (funciona no telemóvel). Nada é apagado.</div>' +
-    '<button onclick="exportarEntrega()" style="padding:10px 16px;border-radius:var(--rb);border:none;background:var(--ac);color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;font-family:inherit">📦 Exportar dados (por partes)</button>' +
-    '</div>';
+    '<div style="font-size:.8rem;color:#555;margin-bottom:10px">Exporta toda a informação organizada por região antes de libertar espaço. Recomendado fazer num computador devido ao tamanho do ficheiro.</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+    '<button onclick="exportarCompletoEstruturado()" style="padding:9px 16px;border-radius:var(--rb);border:none;background:var(--ac);color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit">📦 Exportar Tudo (ZIP estruturado)</button>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+    '<button onclick="exportarArquivoCompleto()" style="padding:8px 14px;border-radius:var(--rb);border:none;background:var(--ac);color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">📦 Exportar Arquivo Completo (ZIP)</button>' +
+    '<button onclick="limparHTMLAntigo()" style="padding:8px 14px;border-radius:var(--rb);border:none;background:#6b7280;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">🗑 Limpar espaço</button>' +
+    '</div></div>';
 }
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // EXPORTAÇÃO PARA ENTREGA — por partes, leve para telemóvel.
@@ -4133,7 +4141,7 @@ async function exportarArquivo(){
   }
 }
 
-async function exportarArquivoCompleto(){ return exportarEntrega(); }
+async function exportarArquivoCompleto(){ if(CU&&CU.role==='gop') return exportarEntrega(); return exportarArquivoCompleto_OLD(); }
 async function exportarArquivoCompleto_OLD(){
   toast('A preparar arquivo completo… pode demorar 1-2 minutos.', 'i');
 
@@ -4327,7 +4335,7 @@ async function limparHTMLAntigo(){
 
 // ══════════════════════════════════════════════════════════════════════════════
 
-async function exportarCompletoEstruturado(){ return exportarEntrega(); }
+async function exportarCompletoEstruturado(){ if(CU&&CU.role==='gop') return exportarEntrega(); return exportarCompletoEstruturado_OLD(); }
 async function exportarCompletoEstruturado_OLD(){
   toast('A preparar exportação completa… pode demorar 1-2 minutos.');
 
