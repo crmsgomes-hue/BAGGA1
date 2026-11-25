@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>CoreJoint · Visitas GOP (v9)</title>
+<title>CoreJoint · Visitas GOP (v10)</title>
 <link rel="manifest" href="manifest-visitas.json">
 <meta name="theme-color" content="#C1622D">
 <link rel="apple-touch-icon" href="icon-192-visitas.png">
@@ -1812,6 +1812,8 @@ async function doLogin(){
     const nm = el('n-mapa-gops'); if(nm) nm.style.display='';
     verificarEspacoHistorico(); loadGopsEmVisita(); 
   }
+  _expReset();
+  if(CU && CU.role==='gop' && CU.gopId==='joao_martinho'){ try{ _expRender(); }catch(e){} }
   setTimeout(mostrarLembreteTarefas, 800);
 }
 
@@ -3794,16 +3796,325 @@ async function verificarEspacoHistorico(){
   alertEl.innerHTML =
     '<div style="background:#fff8ee;border:1.5px solid #ffc107;border-radius:var(--ra);padding:12px 14px;margin-bottom:14px">' +
     '<div style="font-weight:700;font-size:.88rem;color:#856404;margin-bottom:6px">📦 ' + rows.length + ' relatório(s) com mais de 60 dias</div>' +
-    '<div style="font-size:.8rem;color:#555;margin-bottom:10px">Exporta toda a informação organizada por região antes de libertar espaço. Recomendado fazer num computador devido ao tamanho do ficheiro.</div>' +
-    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-    '<button onclick="exportarCompletoEstruturado()" style="padding:9px 16px;border-radius:var(--rb);border:none;background:var(--ac);color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit">📦 Exportar Tudo (ZIP estruturado)</button>' +
-    '</div>' +
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
-    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-    '<button onclick="exportarArquivoCompleto()" style="padding:8px 14px;border-radius:var(--rb);border:none;background:var(--ac);color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">📦 Exportar Arquivo Completo (ZIP)</button>' +
-    '<button onclick="limparHTMLAntigo()" style="padding:8px 14px;border-radius:var(--rb);border:none;background:#6b7280;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit">🗑 Limpar espaço</button>' +
-    '</div></div>';
+    '<div style="font-size:.8rem;color:#555;margin-bottom:10px">Exporta toda a informação por partes (funciona no telemóvel). Nada é apagado.</div>' +
+    '<button onclick="exportarEntrega()" style="padding:10px 16px;border-radius:var(--rb);border:none;background:var(--ac);color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;font-family:inherit">📦 Exportar dados (por partes)</button>' +
+    '</div>';
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// EXPORTAÇÃO PARA ENTREGA — por partes, leve para telemóvel.
+// SÓ LÊ dados: não apaga nem altera nada na base de dados.
+// Disponível para a CROP e para o João Martinho.
+// ══════════════════════════════════════════════════════════════════════════════
+var EXP_PARTE_MB = 30;     // tamanho máximo de relatórios por ZIP (antes de comprimir)
+var _expMeta = null;       // lista de todas as visitas (sem o HTML)
+var _expFila = [];         // visitas que ainda faltam exportar
+var _expTotal = 0;
+var _expParte = 0;
+var _expPartes = [];       // partes já preparadas
+var _expDados = null;      // ZIP dos dados (Excel + fotos)
+var _expEstado = '';
+var _expOcupado = false;
+
+function podeExportar(){
+  return !!(CU && (CU.role==='crop' || (CU.role==='gop' && CU.gopId==='joao_martinho')));
+}
+
+function _expBox(){
+  let b = document.getElementById('exp-entrega');
+  if(!b){
+    b = document.createElement('div');
+    b.id = 'exp-entrega';
+    const alerta = document.getElementById('dash-arquivo-alerta');
+    if(alerta && alerta.parentNode) alerta.parentNode.insertBefore(b, alerta.nextSibling);
+    else document.body.appendChild(b);
+  }
+  return b;
+}
+
+function _expCarregar(src, jaExiste){
+  if(jaExiste()) return Promise.resolve();
+  return new Promise((res, rej)=>{
+    const s = document.createElement('script');
+    s.src = src; s.onload = res;
+    s.onerror = ()=>rej(new Error('Não foi possível carregar uma biblioteca. Verifica a ligação e tenta outra vez.'));
+    document.head.appendChild(s);
+  });
+}
+
+async function _expGet(path, tentativas){
+  tentativas = tentativas || 4;
+  let erro;
+  for(let i=0; i<tentativas; i++){
+    try{
+      const r = await fetch(SB+'/rest/v1/'+path, {headers:{'apikey':SK,'Authorization':'Bearer '+SK}});
+      if(!r.ok){ const t = await r.text(); throw new Error('Erro '+r.status+': '+t.slice(0,120)); }
+      return await r.json();
+    }catch(e){
+      erro = e;
+      await new Promise(res=>setTimeout(res, 1000*(i+1)));
+    }
+  }
+  throw erro;
+}
+
+async function _expTodos(tabela, qs){
+  let out = [], off = 0;
+  const pag = 500;
+  for(;;){
+    const lote = await _expGet(tabela+'?'+qs+'&limit='+pag+'&offset='+off);
+    out = out.concat(lote);
+    if(lote.length < pag) break;
+    off += pag;
+  }
+  return out;
+}
+
+// Região de uma visita: pela LOJA (assim o nome do GOP não baralha, ex.: dois "Valter Costa")
+function _expRegiao(r){
+  for(const [id, lojas] of Object.entries(GOP_STORES)){
+    if(lojas.includes(r.loja)) return gopRegion(id)==='norte' ? 'Norte' : 'Sul';
+  }
+  const s = r.saved_by || '';
+  if(/norte/i.test(s)) return 'Norte';
+  const nome = s.replace('GOP — ','').trim();
+  const norte = ['Marisa Rodrigues','Sandra Ferreira','André Gomes','Maria João Carvalho','Cátia Almeida'];
+  return norte.includes(nome) ? 'Norte' : 'Sul';
+}
+
+function _expPasta(s){
+  return (s||'GOP').toString().replace(/[\\\/:*?"<>|]/g,'').trim().replace(/\s+/g,'_') || 'GOP';
+}
+
+function _expLimpa(s){
+  return (s||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9_-]+/g,'_').replace(/^_+|_+$/g,'');
+}
+
+function _expNomeVisita(r){
+  const data = (r.data||'sem-data').replace(/\//g,'-');
+  const hora = (r.hora||'').replace(/[^0-9]/g,'');
+  return data+'_'+_expLimpa(r.loja)+(hora?'_'+hora:'')+'_'+_expLimpa(String(r.id)).slice(-6)+'.html';
+}
+
+function _expDesc(r){
+  return r._reg+' · '+r._gop.replace(/_/g,' ')+' · '+(r.data||'');
+}
+
+function _expCel(v){
+  if(v==null) return '';
+  return (typeof v==='object' ? JSON.stringify(v) : String(v)).slice(0,32000);
+}
+
+function _expXlsx(folhas){
+  const wb = XLSX.utils.book_new();
+  folhas.forEach(f=>{
+    const ws = XLSX.utils.aoa_to_sheet(f.linhas.map(l=>l.map(_expCel)));
+    if(f.linhas[0]) ws['!cols'] = f.linhas[0].map((_,i)=>{
+      const max = f.linhas.slice(0,200).reduce((m,l)=>Math.max(m,_expCel(l[i]).length),10);
+      return {wch:Math.min(max+2,50)};
+    });
+    XLSX.utils.book_append_sheet(wb, ws, f.nome.slice(0,31));
+  });
+  return XLSX.write(wb, {bookType:'xlsx', type:'array'});
+}
+
+// ── 1. Começar: ler a lista de visitas (sem o HTML, é leve) ───────────────────
+async function exportarEntrega(){
+  if(!podeExportar()){ toast('Sem permissão para exportar.','e'); return; }
+  if(_expOcupado) return;
+  _expOcupado = true;
+  _expEstado = 'A ler a lista de visitas…';
+  _expRender();
+  try{
+    await _expCarregar('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', ()=>typeof JSZip!=='undefined');
+    await _expCarregar('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', ()=>typeof XLSX!=='undefined');
+    const meta = await _expTodos('cj_historico','select=id,loja,data,hora,resumo,saved_by,created_at&order=created_at.asc,id.asc');
+    meta.forEach(r=>{
+      r._reg = _expRegiao(r);
+      r._gop = _expPasta((r.saved_by||'GOP').replace('GOP — ',''));
+      r._ficheiro = 'Visitas/'+r._reg+'/'+r._gop+'/'+_expNomeVisita(r);
+    });
+    meta.sort((a,b)=> a._reg.localeCompare(b._reg) || a._gop.localeCompare(b._gop) || (a.created_at||'').localeCompare(b.created_at||''));
+    _expMeta = meta;
+    _expFila = meta.slice();
+    _expTotal = meta.length;
+    _expParte = 0;
+    _expPartes = [];
+    _expDados = null;
+    _expEstado = '';
+  }catch(e){
+    _expEstado = '⚠ '+e.message;
+  }
+  _expOcupado = false;
+  _expRender();
+}
+
+// ── 2. Dados em Excel + fotos de equipamentos ─────────────────────────────────
+async function _expPrepararDados(){
+  if(_expOcupado || !_expMeta) return;
+  _expOcupado = true;
+  try{
+    const hoje = new Date().toISOString().slice(0,10);
+    const zip = new JSZip();
+
+    _expEstado = 'Dados: índice das visitas…'; _expRender();
+    const colsV = ['Região','GOP','Loja','Data','Hora','Resumo','Ficheiro (dentro das partes de visitas)'];
+    zip.file('Indice_Visitas.xlsx', _expXlsx([{nome:'Visitas', linhas:[colsV].concat(_expMeta.map(r=>[r._reg, r.saved_by, sn(r.loja), r.data, r.hora, r.resumo, r._ficheiro]))}]));
+
+    _expEstado = 'Dados: equipamentos…'; _expRender();
+    const av = await _expTodos('cj_equipamentos_avarias','select=*&order=created_at.asc,id.asc');
+    const colsE = ['Loja','Equipamento','GOP','Data visita','Notas GOP','Ação tomada','Orçamento (€)','Validação CROP','Notas CROP','Estado','Nº PO','Resolvido por','Resolvido em','Nº de fotos'];
+    const nFotos = r => { try{ return JSON.parse(r.fotos||'[]').length; }catch(e){ return 0; } };
+    const avReg = r => ((r.region||'').toLowerCase()==='norte' || (!r.region && _expRegiao(r)==='Norte')) ? 'Norte' : 'Sul';
+    ['Norte','Sul'].forEach(reg=>{
+      const linhas = av.filter(r=>avReg(r)===reg).map(r=>[sn(r.loja), r.equip_label, r.gop_nome, r.data_visita, r.notas_gop, r.acao_gop, r.orcamento, r.validacao, r.notas_crop, r.estado, r.po_number, r.resolved_by, r.resolved_at, nFotos(r)]);
+      zip.file('Equipamentos/'+reg+'_Equipamentos.xlsx', _expXlsx([{nome:'Equipamentos '+reg, linhas:[colsE].concat(linhas)}]));
+    });
+    let totalFotos = 0;
+    av.forEach(r=>{
+      let fotos = [];
+      try{ fotos = JSON.parse(r.fotos||'[]'); }catch(e){}
+      fotos.forEach((uri, i)=>{
+        const m = /^data:image\/(\w+);base64,(.+)$/.exec(uri||'');
+        if(!m) return;
+        const ext = m[1]==='jpeg' ? 'jpg' : m[1];
+        zip.file('Equipamentos/Fotos/'+avReg(r)+'/'+_expLimpa(r.loja)+'_'+(r.data_visita||'')+'_'+_expLimpa(String(r.id)).slice(-6)+'_'+(i+1)+'.'+ext, m[2], {base64:true});
+        totalFotos++;
+      });
+    });
+
+    _expEstado = 'Dados: tarefas e não conformidades…'; _expRender();
+    const tar = await _expTodos('cj_tarefas','select=*&order=created_at.asc,id.asc');
+    const colsT = ['Loja','Código','Descrição','Criticidade','Prazo','Notas','Estado','Justificação','Criado por','Criado em','Concluído por','Concluído em','Histórico'];
+    ['Norte','Sul'].forEach(reg=>{
+      const linhas = tar.filter(r=>_expRegiao(r)===reg).map(r=>[sn(r.loja), r.codigo, r.descricao, r.criticidade, r.prazo, r.notas, r.estado, r.justificacao, r.criado_por, r.criado_em||r.criado_iso, r.concluido_por, r.concluido_em, r.log]);
+      zip.file('Tarefas_e_NCs/'+reg+'_Tarefas.xlsx', _expXlsx([{nome:'Tarefas '+reg, linhas:[colsT].concat(linhas)}]));
+    });
+
+    _expEstado = 'Dados: calendário…'; _expRender();
+    const ev = await _expTodos('cj_calendario','select=*&order=created_at.asc,id.asc');
+    const ck = await _expTodos('cj_calendario_checks','select=*&order=feito_em.asc,id.asc');
+    ['norte','sul'].forEach(reg=>{
+      const evs = ev.filter(r=>(r.region||'sul')===reg);
+      const ids = new Set(evs.map(r=>r.id));
+      const titulo = id => { const e = evs.find(x=>x.id===id); return e ? e.titulo : id; };
+      const f1 = [['Título','Descrição','Data início','Recorrência','Para quem','Criado por']].concat(evs.map(r=>[r.titulo, r.descricao, r.data_inicio, r.recorrencia, r.gops, r.criado_por]));
+      const f2 = [['Evento','Data','GOP','Feito por','Registado em']].concat(ck.filter(c=>ids.has(c.evento_id)).map(c=>[titulo(c.evento_id), c.data, GOP_NAMES[c.gop_id]||c.gop_id, c.feito_por, c.feito_em]));
+      zip.file('Calendario/'+(reg==='norte'?'Norte':'Sul')+'_Calendario.xlsx', _expXlsx([{nome:'Eventos', linhas:f1},{nome:'Confirmações', linhas:f2}]));
+    });
+
+    _expEstado = 'Dados: visitas da CROP…'; _expRender();
+    const cropRows = await _expTodos('cj_historico','crop_data=not.is.null&select=id,loja,data,hora,crop_data&order=created_at.asc,id.asc');
+    cropRows.forEach(r=>{
+      zip.file('Visitas_CROP_dados/'+(r.data||'sem-data').replace(/\//g,'-')+'_'+_expLimpa(r.loja)+'_'+_expLimpa(String(r.id)).slice(-6)+'.json', r.crop_data||'');
+    });
+
+    _expEstado = 'Dados: a comprimir…'; _expRender();
+    const blob = await zip.generateAsync({type:'blob', compression:'DEFLATE', compressionOptions:{level:5}});
+    _expDados = {
+      nome: 'CoreJoint_Dados_'+hoje+'.zip',
+      url: URL.createObjectURL(blob),
+      mb: (blob.size/1048576).toFixed(1),
+      resumo: av.length+' avarias ('+totalFotos+' fotos) · '+tar.length+' tarefas · '+ev.length+' eventos',
+      guardada: false
+    };
+    _expEstado = '';
+  }catch(e){
+    _expEstado = '⚠ '+e.message+' — toca para tentar outra vez.';
+  }
+  _expOcupado = false;
+  _expRender();
+}
+
+// ── 3. Visitas: uma parte de cada vez ─────────────────────────────────────────
+async function _expPrepararParte(){
+  if(_expOcupado || !_expMeta || !_expFila.length) return;
+  _expOcupado = true;
+  const n = _expParte + 1;
+  const zip = new JSZip();
+  const consumidas = [];
+  let chars = 0;
+  const limite = EXP_PARTE_MB*1024*1024;
+  try{
+    while(_expFila.length && chars < limite){
+      const r = _expFila[0];
+      _expEstado = 'Parte '+n+': a descarregar visita '+(_expTotal-_expFila.length+1)+' de '+_expTotal+'…';
+      _expRender();
+      const linha = await _expGet('cj_historico?select=html&id=eq.'+encodeURIComponent(r.id));
+      const html = (linha && linha[0] && linha[0].html) || '';
+      zip.file(r._ficheiro, html);
+      chars += html.length;
+      consumidas.push(r);
+      _expFila.shift();
+    }
+    _expEstado = 'Parte '+n+': a comprimir…'; _expRender();
+    const blob = await zip.generateAsync({type:'blob', compression:'DEFLATE', compressionOptions:{level:3}});
+    _expParte = n;
+    _expPartes.push({
+      n: n,
+      nome: 'CoreJoint_Visitas_Parte'+String(n).padStart(2,'0')+'.zip',
+      url: URL.createObjectURL(blob),
+      mb: (blob.size/1048576).toFixed(1),
+      visitas: consumidas.length,
+      de: _expDesc(consumidas[0]),
+      ate: _expDesc(consumidas[consumidas.length-1]),
+      guardada: false
+    });
+    _expEstado = '';
+  }catch(e){
+    _expFila = consumidas.concat(_expFila);   // devolve à fila: nada se perde
+    _expEstado = '⚠ '+e.message+' — toca em "Tentar outra vez".';
+  }
+  _expOcupado = false;
+  _expRender();
+}
+
+function _expMarcar(k){
+  setTimeout(()=>{
+    if(k==='dados'){ if(_expDados) _expDados.guardada = true; }
+    else { const p = _expPartes.find(x=>x.n===k); if(p) p.guardada = true; }
+    _expRender();
+  }, 900);
+}
+
+function _expRender(){
+  const b = _expBox();
+  const btn = (txt, js, cor) => '<button '+(_expOcupado?'disabled ':'')+'onclick="'+js+'" style="width:100%;padding:14px;margin-top:8px;border-radius:var(--rb);border:none;background:'+(cor||'var(--ac)')+';color:#fff;font-size:.9rem;font-weight:700;font-family:inherit;'+(_expOcupado?'opacity:.5':'cursor:pointer')+'">'+txt+'</button>';
+  const link = (txt, href, nome, marcar) => '<a href="'+href+'" download="'+nome+'" onclick="'+marcar+'" style="display:block;text-align:center;text-decoration:none;padding:14px;margin-top:8px;border-radius:var(--rb);background:#5C7A5C;color:#fff;font-size:.9rem;font-weight:700">'+txt+'</a>';
+
+  let h = '<div style="background:#fff;border:1.5px solid var(--ac);border-radius:var(--ra);padding:14px;margin-bottom:14px">';
+  h += '<div style="font-weight:700;font-size:.95rem;margin-bottom:4px">📦 Exportação para entrega</div>';
+  h += '<div style="font-size:.78rem;color:var(--t2);line-height:1.45;margin-bottom:6px">Só lê os dados — não apaga nada. Descarrega <b>todas</b> as partes e guarda-as juntas na mesma pasta.</div>';
+
+  if(!_expMeta){
+    h += btn('▶ Começar exportação', 'exportarEntrega()');
+  } else {
+    h += '<div style="font-weight:700;font-size:.85rem;margin-top:12px">1. Dados (Excel, tarefas, calendário, fotos de equipamentos)</div>';
+    if(!_expDados){
+      h += btn('⬇ Preparar dados', '_expPrepararDados()');
+    } else {
+      h += '<div style="font-size:.76rem;color:var(--t2);margin-top:4px">'+_expDados.resumo+'</div>';
+      h += link((_expDados.guardada?'✓ Guardado — ':'💾 ')+'Guardar dados ('+_expDados.mb+' MB)', _expDados.url, _expDados.nome, "_expMarcar('dados')");
+    }
+
+    const feitas = _expTotal - _expFila.length;
+    h += '<div style="font-weight:700;font-size:.85rem;margin-top:16px">2. Visitas ('+feitas+' de '+_expTotal+' prontas)</div>';
+    _expPartes.forEach(p=>{
+      h += '<div style="font-size:.76rem;color:var(--t2);margin-top:8px">Parte '+p.n+' · '+p.visitas+' visitas<br>'+p.de+' → '+p.ate+'</div>';
+      h += link((p.guardada?'✓ Guardada — ':'💾 ')+'Guardar parte '+p.n+' ('+p.mb+' MB)', p.url, p.nome, "_expMarcar("+p.n+")");
+    });
+    if(_expFila.length){
+      h += btn((_expEstado.indexOf('⚠')===0?'🔁 Tentar outra vez — ':'⬇ ')+'Preparar parte '+(_expParte+1), '_expPrepararParte()');
+    } else {
+      h += '<div style="margin-top:10px;padding:10px;border-radius:var(--rb);background:#eef5ee;color:#3d5a3d;font-size:.82rem;font-weight:600">✅ Todas as '+_expTotal+' visitas estão prontas em '+_expPartes.length+' parte(s). Confirma que guardaste todas.</div>';
+    }
+  }
+  if(_expEstado) h += '<div style="margin-top:10px;font-size:.8rem;'+(_expEstado.indexOf('⚠')===0?'color:#B0432F;font-weight:600':'color:var(--t2)')+'">'+_expEstado+'</div>';
+  h += '</div>';
+  b.innerHTML = h;
+}
+
+function _expReset(){ const b=document.getElementById('exp-entrega'); if(b) b.remove(); }
 
 async function exportarArquivo(){
   toast('A preparar exportação…');
@@ -3823,7 +4134,8 @@ async function exportarArquivo(){
   }
 }
 
-async function exportarArquivoCompleto(){
+async function exportarArquivoCompleto(){ return exportarEntrega(); }
+async function exportarArquivoCompleto_OLD(){
   toast('A preparar arquivo completo… pode demorar 1-2 minutos.', 'i');
 
   // Carregar bibliotecas
@@ -4016,7 +4328,8 @@ async function limparHTMLAntigo(){
 
 // ══════════════════════════════════════════════════════════════════════════════
 
-async function exportarCompletoEstruturado(){
+async function exportarCompletoEstruturado(){ return exportarEntrega(); }
+async function exportarCompletoEstruturado_OLD(){
   toast('A preparar exportação completa… pode demorar 1-2 minutos.');
 
   // Carregar JSZip e SheetJS
